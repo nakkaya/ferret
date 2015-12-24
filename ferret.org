@@ -30,7 +30,7 @@ we iterate over the code and spit valid C++.
 
 ** Transformation
 
-#+srcname: core-transformation-form-fns
+#+name: core-transformation-form-fns
 #+begin_src clojure :tangle no
   (defn morph-form [tree pred f]
     (loop [loc (zip/seq-zip tree)]
@@ -65,7 +65,7 @@ passing the current node as an argument and replace that node with
 /f/'s return value, remove-form on the other hand does what its name
 suggests and removes the node when predicate returns true.
 
-#+srcname: core-transformation-reader-macro
+#+name: core-transformation-reader-macro
 #+begin_src clojure :tangle no
   (defn dispatch-reader-macro [ch fun]
     (let [dm (.get
@@ -91,7 +91,7 @@ everything between /#</ and />#/ into a string, this makes life so
 much easier when you need to embed native code into a function,
 otherwise it is a nightmare to indent native code in a string. 
 
-#+srcname: core-transformation-process
+#+name: core-transformation-process
 #+begin_src clojure :tangle no
   (defn process [form]
     (->> (expand-macros form)
@@ -108,7 +108,7 @@ otherwise it is a nightmare to indent native code in a string.
 Forms go through eight transformations before they are passed to the
 code generation phase.
 
-#+srcname: core-transformation-expand-macros
+#+name: core-transformation-expand-macros
 #+begin_src clojure :tangle no
   (defn expand-macros [form]
     (let [macros (->> (read-string (str \( (read-from-url "runtime.clj") \)))
@@ -142,7 +142,7 @@ using /morph-form/ we iterate all the macros used in the code that we
 are compiling and expand them in the temporary namespace then the node
 is replaced with its expanded form.
 
-#+srcname: core-transformation-add-built-in
+#+name: core-transformation-add-built-in
 #+begin_src clojure :tangle no
   (defn add-built-in
     ([form]
@@ -170,7 +170,7 @@ C++ file, but if you use it, it and everything it uses will be
 defined, in the case of /println/ it will pull /apply/, /print/ and
 /newline/ with it.
 
-#+srcname: core-transformation-vector-list
+#+name: core-transformation-vector-list
 #+begin_src clojure :tangle no
   (defn vector->list [form]
     (morph-form form vector? #(reverse (into '() %))))
@@ -178,7 +178,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 
 Since there is no support for vectors, they are converted to lists.
 
-#+srcname: core-transformation-let-fn
+#+name: core-transformation-let-fn
 #+begin_src clojure :tangle no
   (defn let->fn [form]
     (morph-form form
@@ -214,7 +214,7 @@ after transformation becomes,
         (+ a b)) a b)))
 #+end_src
 
-#+srcname: core-transformation-do-fn
+#+name: core-transformation-do-fn
 #+begin_src clojure :tangle no
   (defn do->fn [form]
     (morph-form form
@@ -233,7 +233,7 @@ that takes no parameters and executed in place.
   ((fn [] (+ 1 1)))
 #+end_src
 
-#+srcname: core-transformation-closure-conversion 
+#+name: core-transformation-closure-conversion 
 #+begin_src clojure :tangle no
   (defn lambda-defined? [fns env args body]
     (let [f (concat [env args] body)
@@ -295,7 +295,7 @@ constructor. Since every thing is already converted to fns this
 mechanism allows variables to be referenced down the line and solves
 the free variable problem.
 
-#+srcname: core-transformation-symbol-conversion
+#+name: core-transformation-symbol-conversion
 #+begin_src clojure :tangle no
   (defn symbol-conversion [form]
     (let [c (comp #(symbol (escape {\- \_ \* "_star_" \+ "_plus_" \/ "_slash_"
@@ -315,7 +315,7 @@ into valid ones.
 At this point all we need is a multi method that will emit correct
 string based on the form.
 
-#+srcname: core-code-generation-emit
+#+name: core-code-generation-emit
 #+begin_src clojure :tangle no  
   (defmulti emit (fn [form _]
                    (cond (is-special-form? 'define_lambda form) 'define_lambda
@@ -358,7 +358,7 @@ So the actual compilation will just map emit to all forms passed and
 /string-template/ will handle the job of putting them into an empty
 C++ skeleton.
 
-#+srcname: core-code-generation-emit-source
+#+name: core-code-generation-emit-source
 #+begin_src clojure :tangle no
   (defn emit-source [form]
     (let [state (ref {:lambdas [] :symbol-table #{} :native-declarations []})
@@ -381,7 +381,7 @@ following types,
  - Character (There is no string type, strings are converted to lists
    of characters.)
 
-#+srcname: runtime-native-object
+#+name: runtime-native-object
 #+begin_src c++ :tangle no
 class Object{
     public:
@@ -420,7 +420,7 @@ class Object{
 All our types are derived from the base Object type,(defining
 new/delete is needed because in avr-gcc they are not defined.)
 
-#+srcname: runtime-native-boolean
+#+name: runtime-native-boolean
 #+begin_src c++ :tangle no
     class Boolean : public Object { 
     public:
@@ -453,7 +453,7 @@ except functors, they derive from the class Lambda, which has a single
 invoke method that takes a sequence of vars as argument, this allows us
 to execute them in a uniform fashion.
 
-#+srcname: runtime-native-lambda
+#+name: runtime-native-lambda
 #+begin_src c++ :tangle no
     class Lambda : public Object{ 
     public:
@@ -466,7 +466,7 @@ pointer to an Object, everything is passed around as /vars/ it is
 responsible for incrementing/decrementing the reference count, when it
 reaches zero it will automatically free the Object. 
 
-#+srcname: runtime-native-var
+#+name: runtime-native-var
 #+begin_src c++ :tangle no
     class var{
     public:
@@ -528,7 +528,7 @@ reaches zero it will automatically free the Object.
 Once our object system is in place we can define rest of the runtime
 (functions/macros) using our Clojure subset,
 
-#+srcname: runtime-clojure-first
+#+name: runtime-clojure-first
 #+begin_src clojure :tangle no
   (defn first [x]
     #<
@@ -543,7 +543,7 @@ We can embed C++ code into our functions, which is how most of the
 primitive functions are defined such as the /first/ function above,
 once primitives are in place rest can be defined in pure Clojure,
 
-#+srcname: runtime-clojure-println
+#+name: runtime-clojure-println
 #+begin_src clojure :tangle no
   (defn println [& more]
     (apply print more)
@@ -555,7 +555,7 @@ Clojure, the only exception is that stuff should not expand to fully
 qualified Clojure symbols, so the symbol /fn/ should not expand to
 /clojure.core/fn/,
 
-#+srcname: runtime-clojure-defn
+#+name: runtime-clojure-defn
 #+begin_src clojure :tangle no
   (defmacro defn [name args & body]
     (list 'def name (cons 'fn `( ~args ~@body))))

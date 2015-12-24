@@ -443,61 +443,62 @@ reaches zero it will automatically free the Object.
 
 #+name: runtime-native-var
 #+begin_src c++ :tangle no
-    class var{
-    public:
-      var(Object* ptr=0) : m_ptr(ptr) { addRef(); }
+  class var{
+  public:
+    var(Object* ptr=0) : m_ptr(ptr) { addRef(); }
+
+    var(const var& p) : m_ptr(p.m_ptr) { addRef(); }
     
-      var(const var& p) : m_ptr(p.m_ptr) { addRef(); }
-  
-      ~var() { subRef(); }
-  
-      var& operator= (const var& p){
-        return *this = p.m_ptr;
+    ~var() { subRef(); }
+    
+    var& operator= (const var& p){
+      return *this = p.m_ptr;
+    }
+    
+    var& operator= (Object* ptr){
+      if (m_ptr != ptr){
+        subRef();
+        m_ptr=ptr;
+        addRef();
       }
-  
-      var& operator= (Object* ptr){
-        if (m_ptr != ptr){
-          subRef();
-          m_ptr=ptr;
-          addRef();
-        }
-        return *this;
-      }
-  
-      var(int i);
-      var(float f);
-      var(bool b);
-      var(char b);
-  
-      var& operator, (const var& m);
-      var toOutputStream() {
-        if (m_ptr != NULL )
-          m_ptr->toOutputStream();
-        else
-          fprintf(OUTPUT_STREAM, "nil");
-      }
-  
-      Object* get() { return m_ptr; }
-  
-    private:
-      void addRef(){
-        // Only change if non-null
-        if (m_ptr) m_ptr->addRef();
-      }
-  
-      void subRef(){
-        // Only change if non-null
-        if (m_ptr){
-          // Subtract and test if this was the last pointer.
-          if (m_ptr->subRef()){
-            delete m_ptr;
-            m_ptr=0;
-          }
+      return *this;
+    }
+    
+    var(int i);
+    var(float f);
+    var(bool b);
+    var(char b);
+    
+    var& operator, (const var& m);
+    var toOutputStream() {
+      if (m_ptr != NULL )
+        m_ptr->toOutputStream();
+      else
+        fprintf(OUTPUT_STREAM, "nil");
+      return var();
+    }
+    
+    Object* get() { return m_ptr; }
+    
+  private:
+    void addRef(){
+      // Only change if non-null
+      if (m_ptr) m_ptr->addRef();
+    }
+    
+    void subRef(){
+      // Only change if non-null
+      if (m_ptr){
+        // Subtract and test if this was the last pointer.
+        if (m_ptr->subRef()){
+          delete m_ptr;
+          m_ptr=0;
         }
       }
-  
-      Object* m_ptr;
-    };
+    }
+    
+    Object* m_ptr;
+  };
 #+end_src
 
 Once our object system is in place we can define rest of the runtime

@@ -572,15 +572,6 @@ new/delete is needed because in avr-gcc they are not defined.)
 
 #+name: runtime-native-number
 #+begin_src c++ :tangle no
-  class INumber{
-  public:
-    virtual ~INumber() {}
-    virtual int intValue() = 0;
-    virtual float floatValue() = 0;
-    virtual int getType() = 0;
-    virtual var toOutputStream() = 0;
-  };
-    
   class Number : public Object{
   public:
     Number(int x);

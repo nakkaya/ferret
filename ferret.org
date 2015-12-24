@@ -636,137 +636,49 @@ List of all functions and macros defined,
   <<runtime-clojure-println>>  
 
   (defn + [& xs]
-    (reduce (fn[h v]
-              "
-                switch(OBJECT(h)->getType()) {
-                    case INTEGER_TYPE:
-                        if (OBJECT(v)->getType() == INTEGER_TYPE) {
-                            __result = NUMBER(h)->intValue() + NUMBER(v)->intValue();
-                            break;
-                        }
-                    case FLOAT_TYPE:
-                        __result = GETFLOAT(h) + GETFLOAT(v);
-                }
-                ") 0 xs))
+    (reduce (fn[h v] "__result = NUMBER(h)->add(v);") 0 xs))
 
   (defn * [& xs]
-    (reduce (fn[h v]
-              "
-                switch(OBJECT(h)->getType()) {
-                    case INTEGER_TYPE:
-                        if (OBJECT(v)->getType() == INTEGER_TYPE) {
-                            __result = NUMBER(h)->intValue() * NUMBER(v)->intValue();
-                            break;
-                        }
-                    case FLOAT_TYPE:
-                        __result = GETFLOAT(h) * GETFLOAT(v);
-                }
-                ") 1 xs))
+    (reduce (fn[h v] "__result = NUMBER(h)->mul(v);") 1 xs))
 
   (defn - [& xs]
     (if (= (count xs) 1)
       (* -1 (first xs))
-      (reduce (fn[h v]
-                "
-                switch(OBJECT(h)->getType()) {
-                    case INTEGER_TYPE:
-                        if (OBJECT(v)->getType() == INTEGER_TYPE) {
-                            __result = NUMBER(h)->intValue() - NUMBER(v)->intValue();
-                            break;
-                        }
-                    case FLOAT_TYPE:
-                        __result = GETFLOAT(h) - GETFLOAT(v);
-                }
-                  ") (first xs) (rest xs))))
+      (reduce (fn[h v] "__result = NUMBER(h)->sub(v);") (first xs) (rest xs))))
 
   (defn / [& xs]
     (if (= (count xs) 1)
       (apply / (cons 1 xs))
-      (reduce (fn[h v]
-                "
-                switch(OBJECT(h)->getType()) {
-                    case INTEGER_TYPE:
-                        if (OBJECT(v)->getType() == INTEGER_TYPE) {
-                            __result = NUMBER(h)->intValue() / NUMBER(v)->intValue();
-                            break;
-                        }
-                    case FLOAT_TYPE:
-                        __result = GETFLOAT(h) / GETFLOAT(v);
-                }
-                  ") (first xs) (rest xs))))
+      (reduce (fn[h v] "__result = NUMBER(h)->div(v);") (first xs) (rest xs))))
 
   (defn = [a & more]
     (if (empty? more)
       true
-      (and ((fn [a b] "__result = OBJECT(a)->equals(b)") a (first more))
+      (and ((fn [a b] "__result = OBJECT(a)->equals(b);") a (first more))
            (apply = more))))
 
   (defn < [a & more]
     (if (empty? more)
       true
-      (and ((fn [a b]
-              "
-                switch(OBJECT(a)->getType()) {
-                    case INTEGER_TYPE:
-                        if (OBJECT(b)->getType() == INTEGER_TYPE) {
-                            __result = (NUMBER(a)->intValue() < NUMBER(b)->intValue());
-                            break;
-                        }
-                    case FLOAT_TYPE:
-                        __result = (GETFLOAT(a) < GETFLOAT(b));
-                }
-                ") a (first more))
+      (and ((fn [a b] "__result = NUMBER(a)->isLess(b)") a (first more))
            (apply < more))))
 
   (defn > [a & more]
     (if (empty? more)
       true
-      (and ((fn [a b]
-              "
-                switch(OBJECT(a)->getType()) {
-                    case INTEGER_TYPE:
-                        if (OBJECT(b)->getType() == INTEGER_TYPE) {
-                            __result = (NUMBER(a)->intValue() > NUMBER(b)->intValue());
-                            break;
-                        }
-                    case FLOAT_TYPE:
-                        __result = (GETFLOAT(a) > GETFLOAT(b));
-                }
-                ") a (first more))
+      (and ((fn [a b] "__result = NUMBER(a)->isGreater(b)") a (first more))
            (apply > more))))
 
   (defn >= [a & more]
     (if (empty? more)
       true
-      (and ((fn [a b]
-              "
-                switch(OBJECT(a)->getType()) {
-                    case INTEGER_TYPE:
-                        if (OBJECT(b)->getType() == INTEGER_TYPE) {
-                            __result = (NUMBER(a)->intValue() >= NUMBER(b)->intValue());
-                            break;
-                        }
-                    case FLOAT_TYPE:
-                        __result = (GETFLOAT(a) >= GETFLOAT(b));
-                }
-                ") a (first more))
+      (and ((fn [a b] "__result = NUMBER(a)->isGreaterEqual(b)") a (first more))
            (apply >= more))))
 
   (defn <= [a & more]
     (if (empty? more)
       true
-      (and ((fn [a b]
-              "
-                switch(OBJECT(a)->getType()) {
-                    case INTEGER_TYPE:
-                        if (OBJECT(b)->getType() == INTEGER_TYPE) {
-                            __result = (NUMBER(a)->intValue() <= NUMBER(b)->intValue());
-                            break;
-                        }
-                    case FLOAT_TYPE:
-                        __result = (GETFLOAT(a) <= GETFLOAT(b));
-                }
-                ") a (first more))
+      (and ((fn [a b] "__result = NUMBER(a)->isLessEqual(b)") a (first more))
            (apply <= more))))
 
   (defn conj [coll & xs]
@@ -939,7 +851,87 @@ new/delete is needed because in avr-gcc they are not defined.)
       else
         return false;
     }
-      
+
+    var add(var o){
+      int self_type = getType();
+      int other_type = OBJECT(o)->getType();
+
+      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
+        return VAR(value->intValue() + NUMBER(o)->intValue());
+      else
+        return VAR(value->floatValue() + NUMBER(o)->floatValue());
+    }
+
+    var mul(var o){
+      int self_type = getType();
+      int other_type = OBJECT(o)->getType();
+
+      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
+        return VAR(value->intValue() * NUMBER(o)->intValue());
+      else
+        return VAR(value->floatValue() * NUMBER(o)->floatValue());
+    }
+
+    var sub(var o){
+      int self_type = getType();
+      int other_type = OBJECT(o)->getType();
+
+      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
+        return VAR(value->intValue() - NUMBER(o)->intValue());
+      else
+        return VAR(value->floatValue() - NUMBER(o)->floatValue());
+    }
+
+    var div(var o){
+      int self_type = getType();
+      int other_type = OBJECT(o)->getType();
+
+      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
+        return VAR(value->intValue() / NUMBER(o)->intValue());
+      else
+        return VAR(value->floatValue() / NUMBER(o)->floatValue());
+    }
+
+    var isLess(var o){
+      int self_type = getType();
+      int other_type = OBJECT(o)->getType();
+
+      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
+        return VAR(value->intValue() < NUMBER(o)->intValue());
+      else
+        return VAR(value->floatValue() < NUMBER(o)->floatValue());
+    }
+
+    var isGreater(var o){
+      int self_type = getType();
+      int other_type = OBJECT(o)->getType();
+
+      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
+        return VAR(value->intValue() > NUMBER(o)->intValue());
+      else
+        return VAR(value->floatValue() > NUMBER(o)->floatValue());
+    }
+
+    var isGreaterEqual(var o){
+      int self_type = getType();
+      int other_type = OBJECT(o)->getType();
+
+      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
+        return VAR(value->intValue() >= NUMBER(o)->intValue());
+      else
+        return VAR(value->floatValue() >= NUMBER(o)->floatValue());
+    }
+
+    var isLessEqual(var o){
+      int self_type = getType();
+      int other_type = OBJECT(o)->getType();
+
+      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
+        return VAR(value->intValue() <= NUMBER(o)->intValue());
+      else
+        return VAR(value->floatValue() <= NUMBER(o)->floatValue());
+    }
+    
     var toOutputStream(){ return value->toOutputStream();};
   private:
     INumber* value;
@@ -1894,8 +1886,6 @@ output will be placed in a directory called /solution//,
   #define SEQUENCE(v) static_cast<ferret::Sequence*>(v.get())
   #define CELL(v) static_cast<ferret::Cell*>(v.get())
   #define LAMBDA(v) static_cast<ferret::Lambda*>(v.get())
-
-  #define GETFLOAT(arg) (OBJECT(arg)->getType() == INTEGER_TYPE ? NUMBER(arg)->floatValue() : NUMBER(arg)->floatValue())
 
   //
   // Function Invocation

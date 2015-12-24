@@ -41,7 +41,7 @@ we iterate over the code and spit valid C++.
           (if (pred (zip/node loc))
             (zip/replace loc (f (zip/node loc)))
             loc))))))
-  
+
   (defn remove-form [tree pred]
     (loop [loc (zip/seq-zip tree)]
       (if (zip/end? loc)
@@ -51,7 +51,7 @@ we iterate over the code and spit valid C++.
           (if (pred (zip/node loc))
             (zip/remove loc)
             loc))))))
-  
+
   (defn is-form? [& s]
     (fn [f]
       (and (seq? f)
@@ -96,10 +96,9 @@ code generation phase.
       (create-ns temp-ns)
       (binding [*ns* (the-ns temp-ns)]
         (refer 'clojure.core :exclude (concat (map second macros) ['fn 'let 'def]))
-        ;;(use 'clojure.contrib.macro-utils)
         (doseq [m macros]
           (eval m)))
-  
+
       (let [form (morph-form form
                              (apply is-form? (map second macros))
                              (fn [f]
@@ -107,7 +106,7 @@ code generation phase.
                                  (macroexpand-all f))))]
         (remove-ns temp-ns)
         form)))
-  
+
 #+end_src
 
 First we read all the macros present in /runtime.clj/ then add to that
@@ -787,8 +786,8 @@ output will be placed in a directory called /solution//,
 #+end_src 
 ** src/template.clj
 #+begin_src clojure :mkdirp yes :tangle ferret/src/ferret/template.clj
-    (ns ferret.template
-      (:use [ferret.string-template]))
+  (ns ferret.template
+    (:use [ferret.string-template]))
 
   (defn indexed
     "Returns a lazy sequence of [index, item] pairs, where items come
@@ -797,29 +796,29 @@ output will be placed in a directory called /solution//,
     (indexed '(a b c d))  =>  ([0 a] [1 b] [2 c] [3 d])"
     [s]
     (map vector (iterate inc 0) s))
-    
-    (defn new-lambda [n e]
-      (let [view (create-view "FN($name$$env:{,$it$}$)")]
-        (fill-view! view "name" n)
-        (fill-view! view "env" e)
-        (render-view view)))
-    
-    (defn invoke-lambda [n args]
-      (let [view (create-view "INVOKE($lambda$, $args:{$it$} ;separator=\",\"$)")]
-        (fill-view! view "lambda" n)
-        (fill-view! view "args" (reverse args))
-        (render-view view)))
-    
-    (defn if-statement [cond t f]
-      (apply str "(BOOLEAN(" cond ")->asBool() ? (VAR)" t " : (VAR)" f ")"))
-    
-    ;;
-    ;; Solution Template
-    ;;
-    
-    (defn declare-lambdas [lambdas]
-      (let [view (create-view
-                  "
+
+  (defn new-lambda [n e]
+    (let [view (create-view "FN($name$$env:{,$it$}$)")]
+      (fill-view! view "name" n)
+      (fill-view! view "env" e)
+      (render-view view)))
+
+  (defn invoke-lambda [n args]
+    (let [view (create-view "INVOKE($lambda$, $args:{$it$} ;separator=\",\"$)")]
+      (fill-view! view "lambda" n)
+      (fill-view! view "args" (reverse args))
+      (render-view view)))
+
+  (defn if-statement [cond t f]
+    (apply str "(BOOLEAN(" cond ")->asBool() ? (VAR)" t " : (VAR)" f ")"))
+
+  ;;
+  ;; Solution Template
+  ;;
+
+  (defn declare-lambdas [lambdas]
+    (let [view (create-view
+                "
   $lambdas: {lambda|
       class $lambda.name$ : public Lambda{
 
@@ -845,19 +844,19 @@ output will be placed in a directory called /solution//,
 
         int getType(){ return LAMBDA_TYPE;}
         VAR equals(VAR o){ return false; }
-        VAR toOutputStream(){ fprintf(OUTPUT_STREAM, \"%s\", \"$lambda.name$\"); return VAR();}
+        VAR toOutputStream(){ return VAR();}
       };
   }$
                   ")]
-        (fill-view! view "lambdas" (map #(let [args (:args %)]
-                                           (assoc % :args (indexed args))) lambdas))
-        (render-view view)))
-    
-    
-    (defn solution-template [source]
-      (let [{:keys [body lambdas symbol-table native-declarations]} source
-            view (create-view
-                  "
+      (fill-view! view "lambdas" (map #(let [args (:args %)]
+                                         (assoc % :args (indexed args))) lambdas))
+      (render-view view)))
+
+
+  (defn solution-template [source]
+    (let [{:keys [body lambdas symbol-table native-declarations]} source
+          view (create-view
+                "
     #include \"ferret.h\"
     
     $native_declarations:{$it$} ;separator=\"\n\"$
@@ -874,12 +873,12 @@ output will be placed in a directory called /solution//,
       return 0;
     }
                   ")]
-        (fill-view! view "body" (filter #(not (empty? %)) body))
-        (fill-view! view "lambdas" (declare-lambdas lambdas))
-        (fill-view! view "symbols" symbol-table)
-        (fill-view! view "native_declarations" native-declarations)
-        (render-view view)))
-    
+      (fill-view! view "body" (filter #(not (empty? %)) body))
+      (fill-view! view "lambdas" (declare-lambdas lambdas))
+      (fill-view! view "symbols" symbol-table)
+      (fill-view! view "native_declarations" native-declarations)
+      (render-view view)))
+
 #+end_src 
 ** src/string_template.clj
 #+begin_src clojure :noweb yes :mkdirp yes :tangle ferret/src/ferret/string_template.clj
@@ -980,32 +979,32 @@ output will be placed in a directory called /solution//,
     (:use [ferret.core] :reload)
     (:use [clojure.test]
           [clojure.java.shell]))
-  
+
   (defn compile-run-solution []
     (with-sh-dir "solution/"
       (sh "g++" "solution.cpp")
       (let [r (sh "./a.out")]
         (sh "rm" "a.out")
         r)))
-  
+
   (deftest processing-test
     (is (seq? (vector->list [1 2 [2 [5 4] 3]])))
     (is (= (symbol-conversion '(make-adder 2)) '(make_adder 2)))
     (is (= (symbol-conversion '(make-adder* 2)) '(make_adder_star_ 2)))
-  
+
     (let [form (closure-conversion '((def make-adder (fn [n] (fn [x] (+ x n))))))]
       (is (= (ffirst form) 'define-lambda))
       (is (= (last (first form)) '(+ x n)))
       (is (= (second (last form)) 'make-adder))
       (is (= (first (last form)) 'def))))
-  
+
   (deftest arithmetic-test
     (is (= "0 1 10 10.000000 -1 0 0.000000 1 8 8.000000 1 0 1 1.000000 "
            (do (compile->cpp '((print (+ )
                                       (+ 1)
                                       (+ 1 2 3 4)
                                       (+ 1 2.0 3 4)
-  
+
                                       (- 1)
                                       (- 4 2 2)
                                       (- 4 2 2.0)
@@ -1013,13 +1012,13 @@ output will be placed in a directory called /solution//,
                                       (* )
                                       (* 2 2 2)
                                       (* 2.0 2 2)
-  
+
                                       (/ 1)
                                       (/ 2)
                                       (/ 4 2 2)
                                       (/ 4 2 2.0))))
                (:out (compile-run-solution)))))
-  
+
     (is (= "true true false false true true false "
            (do (compile->cpp '((print (pos? 1)
                                       (pos? 0.2)
@@ -1029,7 +1028,7 @@ output will be placed in a directory called /solution//,
                                       (zero? 0)
                                       (zero? 10))))
                (:out (compile-run-solution))))))
-  
+
   (deftest comparison-test
     (is (= "true true false true false true true true false true true false true false true true "
            (do (compile->cpp '((print (< 2)
@@ -1049,7 +1048,7 @@ output will be placed in a directory called /solution//,
                                       (= 2 2 2 2)
                                       (= 2 2.0 2))))
                (:out (compile-run-solution)))))
-  
+
     (is (= "false true false true false false "
            (do (compile->cpp '((print (= 2 2 2 2 3 5)
                                       (= (list 1 2) (list 1 2))
@@ -1058,38 +1057,38 @@ output will be placed in a directory called /solution//,
                                       (not (= true true))
                                       (not 1))))
                (:out (compile-run-solution))))))
-  
-  
+
+
   (deftest macro-test
     (is (= "1 1 1 true false true true true 0 1 2 3 4 "
            (do (compile->cpp '((defmacro my-when [test & body]
                                  (list 'if test (cons 'do body)))
                                
                                (print (my-when (< 2 3) 1)
-  
+
                                       (when (< 2 3) 1)
-  
+
                                       (when (< 2 3) 1)
                                       
                                       (let [a 1]
                                         (and (> a 0)
                                              (< a 10)))
-  
+
                                       (let [a 11]
                                         (and (> a 0)
                                              (< a 10)))
                                       
                                       (and true true)
-  
+
                                       (or true false)
-  
+
                                       (let [a 11]
                                         (or (> a 0)
                                             (< a 10))))
                                
                                (dotimes [i 5] (print i))))
                (:out (compile-run-solution))))))
-  
+
   (deftest runtime-test
     (is (= "( 1 2 3 4 ) 1 ( 2 3 4 ) ( 3 4 ) ( 3 3 4 ) 3 4 ( 4 3 2 1 1 2 ) ( 4 3 2 1 ) 21 21 "
            (do (compile->cpp '((print (list 1 2 3 4)
@@ -1104,7 +1103,7 @@ output will be placed in a directory called /solution//,
                                       (reduce + (list 1 2 3 4 5 6))
                                       (apply + (list 1 2 3 4 5 6)))))
                (:out (compile-run-solution)))))
-  
+
     (is (= "( 6 5 4 3 2 1 ) ( 6 5 4 3 2 ) ( 4 3 2 1 0 ) c ( H e l l o . ) ( . o l l e H ) "
            (do (compile->cpp '((print (reverse (list 1 2 3 4 5 6))
                                       (reduce (fn [h v]
@@ -1117,52 +1116,52 @@ output will be placed in a directory called /solution//,
                                                 (conj h v)) (list) "Hello.")
                                       )))
                (:out (compile-run-solution))))))
-  
+
   (deftest special-forms-test
     (is (= "10 89 11 3 1 5 5 1 1 1 1 1 1 1 1 1 1 "
            (do (compile->cpp '((def make-adder
                                     (fn [n] (fn [x] (+ x n))))
                                (def adder
                                     (make-adder 1))
-  
+
                                (def fibo (fn [n]
                                            (if (< n 2)
                                              1
                                              (+ (fibo (- n 1))
                                                 (fibo (- n 2))))))
-  
+
                                (def adder-let (let [a 1
                                                     b 2]
                                                 (fn [n] (+ a b n))))
-  
+
                                (def adder-let-2 (fn [n]
                                                   (let [a 1
                                                         b 2]
                                                     (+ a b n))))
-  
+
                                (native-declare "int i = 0;")
                                (defn inc-int [] "return i++;")
                                
                                (print (adder 9)
-  
+
                                       (fibo 10)
-  
+
                                       ((fn [n] (+ n 1)) 10)
-  
+
                                       (((fn [n] (fn [n] n)) 3) 3)
-  
+
                                       (if (< 2 3 4 5 6)
                                         (do 1)
                                         (do 2))
-  
+
                                       (adder-let 2)
-  
+
                                       (adder-let-2 2))
                                
                                (while (< (inc-int) 10)
                                  (print 1))))
                (:out (compile-run-solution))))))
-  
+
 #+end_src 
 
 ** resources/ferret.h
@@ -1614,12 +1613,12 @@ output will be placed in a directory called /solution//,
     (dotimes [i (count more)]
       "
       SEQUENCE(more)->nth(INTEGER(i)->intValue()).toOutputStream();
-      fprintf(OUTPUT_STREAM, " ");
+      fprintf(OUTPUT_STREAM, \" \");
       "))
 
   (defn newline []
     "
-    fprintf(OUTPUT_STREAM, "\n");
+    fprintf(OUTPUT_STREAM, \"\n\");
     ")
 
   <<runtime-clojure-println>>  

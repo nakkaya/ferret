@@ -340,7 +340,496 @@ C++ skeleton.
       (assoc @state :body body)))
 #+end_src
 
+*** Code Emitting
+
+#+name: core-code-generation-emit-source-methods
+#+begin_src clojure :tangle no
+  (defmethod emit :to-str [form state] (str "VAR("form ")"))
+
+  (defmethod emit :char [form state] (str "VAR('" form "')"))
+
+  (defmethod emit :string [form state] (str "INVOKE(list,"
+                                            (apply str (interpose \, (map #(emit % state) (reverse form))))  ")"))
+
+  (defmethod emit :nil [form state] "VAR()")
+
+  (defmethod emit :keyword [form state]
+    (str "VAR(new ferret::Keyword(" (reduce (fn[h v] (+ h (int v))) 0 (str form))"))"))
+
+  (defmethod emit :number [form state]
+    (str "VAR("form (if (float? form) "f") ")"))
+
+  (defmethod emit :sequence [[fn & args] state]
+    (invoke-lambda (emit fn state) (map #(emit % state) args)))
+
+  (defmethod emit 'define_var [[_ name form] state]
+    (str "VAR " name " = " (emit form state)))
+
+  (defmethod emit 'native_declare [[_ declaration] state]
+    (append-to! state [:native-declarations] declaration) "")
+
+  (defmethod emit 'lambda_object [[_ name & env] state]
+    (new-lambda name (filter #(not (= '& %)) env)))
+
+  (defmethod emit 'define_lambda [[_ name env args & body] state]
+    (let [body (if (string? (first body))
+                 ["VAR __result" body "__result"]
+                 (map #(emit % state) body))
+          env (filter #(not (= '& %)) env)
+          reg-args (take-while #(not (= '& %)) args)
+          va-args (if (some #{'&} args)
+                    (let [arg (last args)]
+                      (str "VAR " arg " = "
+                           (reduce (fn[h v]
+                                     (str "SEQUENCE(" h ")->rest()"))
+                                   "_args_" (range (count reg-args))) ";\n")))]
+      (append-to! state [:lambdas] {:name name :env env :args reg-args :var_args va-args :body body}) ""))
+
+  (defmethod emit 'if [[_ cond t f] state]
+    (let [cond (emit cond state)
+          t (emit t state)
+          f (if (nil? f) "VAR()" (emit f state))]
+      (if-statement cond t f)))
+
+  (defmethod emit 'reduce [[_ & args] state]
+    (if (= 2 (count args))
+      (let [[f s] args]
+        (str "(SEQUENCE(" (emit s state) ")->reduce(" (emit f state) "))"))
+      (let [[f v s] args]
+        (str "(SEQUENCE(" (emit s state) ")->reduce(" (emit f state) " , " (emit v state) "))"))))
+
+  (defmethod emit 'def [[_ name & form] state]
+    (append-to! state [:symbol-table] name)
+    (str name " = " (apply str (map #(emit % state) form))))
+
+#+end_src
+
+*** Code Templates
+
+#+name: code-templates
+#+begin_src clojure :tangle no
+  (defn new-lambda [n e]
+    (let [view (create-view "FN($name$$env:{,$it$}$)")]
+      (fill-view! view "name" n)
+      (fill-view! view "env" e)
+      (render-view view)))
+
+  (defn invoke-lambda [n args]
+    (let [view (create-view "INVOKE($lambda$, $args:{$it$} ;separator=\",\"$)")]
+      (fill-view! view "lambda" n)
+      (fill-view! view "args" (reverse args))
+      (render-view view)))
+
+  (defn if-statement [cond t f]
+    (apply str "(BOOLEAN(" cond ")->asBool() ? (VAR)" t " : (VAR)" f ")"))
+
+  ;;
+  ;; Solution Template
+  ;;
+
+  (defn declare-lambdas [lambdas]
+    (let [view (create-view
+                "
+    $lambdas: {lambda|
+        class $lambda.name$ : public Lambda{
+
+        $lambda.env:{VAR $it$;} ;separator=\"\n\"$
+
+        public:
+
+          $lambda.name$ ($lambda.env:{VAR $it$} ;separator=\",\"$){
+            $lambda.env:{this->$it$ = $it$;} ;separator=\"\n\"$
+          }
+
+          VAR invoke (VAR _args_){
+
+            $lambda.args:{args |
+              VAR $last(args)$ = SEQUENCE(_args_)->nth($first(args)$); }
+              ;separator=\"\n\"$
+
+            $lambda.var_args$
+
+            $trunc(lambda.body):{$it$;} ;separator=\"\n\"$
+            return $last(lambda.body):{ $it$;} ;separator=\"\n\"$
+          }
+
+          int getType(){ return LAMBDA_TYPE;}
+          VAR equals(VAR o){ return false; }
+          VAR toOutputStream(){ return VAR();}
+        };
+    }$
+                    ")]
+      (fill-view! view "lambdas" (map #(let [args (:args %)]
+                                         (assoc % :args (indexed args))) lambdas))
+      (render-view view)))
+
+
+  (defn solution-template [source]
+    (let [{:keys [body lambdas symbol-table native-declarations]} source
+          view (create-view
+                "
+      #include \"ferret.h\"
+      
+      $native_declarations:{$it$} ;separator=\"\n\"$
+      
+      $symbols:{VAR $it$;} ;separator=\"\n\"$
+      
+      namespace ferret{
+        $lambdas:{$it$} ;separator=\"\n\"$
+      }
+      
+      int main(void){
+        INIT_ENV
+        $body:{$it$;} ;separator=\"\n\"$
+        return 0;
+      }
+                    ")]
+      (fill-view! view "body" (filter #(not (empty? %)) body))
+      (fill-view! view "lambdas" (declare-lambdas lambdas))
+      (fill-view! view "symbols" symbol-table)
+      (fill-view! view "native_declarations" native-declarations)
+      (render-view view)))
+
+#+end_src    
+
 * Runtime
+** Lisp
+
+Once our object system is in place we can define rest of the runtime
+(functions/macros) using our Clojure subset,
+
+#+name: runtime-clojure-first
+#+begin_src clojure :tangle no
+  (defn first [x]
+    "
+    if(x.get() == NULL)
+      __result = VAR();
+    else
+      __result = SEQUENCE(x)->first();
+    ")
+#+end_src
+
+We can embed C++ code into our functions, which is how most of the
+primitive functions are defined such as the /first/ function above,
+once primitives are in place rest can be defined in pure Clojure,
+
+#+name: runtime-clojure-println
+#+begin_src clojure :tangle no
+  (defn println [& more]
+    (apply print more)
+    (newline))
+#+end_src
+
+As for macros, normal Clojure rules apply since they are expended using
+Clojure, the only exception is that stuff should not expand to fully
+qualified Clojure symbols, so the symbol /fn/ should not expand to
+/clojure.core/fn/,
+
+#+name: runtime-clojure-defn
+#+begin_src clojure :tangle no
+  (defmacro defn [name args & body]
+    (list 'def name (cons 'fn `( ~args ~@body))))
+#+end_src
+
+List of all functions and macros defined,
+
+|---------+----------+---------------+--------------+---------|
+| defn    | not=     | when          | while        | forever |
+| and     | or       | cond          | not          | nil?    |
+| empty?  | list     | rest          | cons         | while   |
+| dotimes | apply    | integer?      | float?       | char?   |
+| list?   | print    | newline       | println      | +       |
+| \*      | -        | /             | \=           | <       |
+| >       | >=       | <=            | conj         | inc     |
+| dec     | pos?     | neg?          | zero?        | count   |
+| reverse | pin-mode | digital-write | digital-read | sleep   |
+|---------+----------+---------------+--------------+---------|
+
+#+name: core-runtime-rest
+#+begin_src clojure :tangle no
+  (defmacro not= [& test]
+    (list 'not (cons '= `( ~@test))))
+
+  (defmacro when [test & body]
+    (list 'if test (cons 'do body)))
+
+  (defmacro while [test & body]
+    (list '_while_ (list 'fn [] test) (cons 'fn `( [] ~@body))))
+
+  (defmacro forever [& body]
+    (cons 'while `(true  ~@body)))
+
+  (defmacro and
+    ([] true)
+    ([x] x)
+    ([x & next]
+     (list 'if x `(and ~@next) false)))
+
+  (defmacro or
+    ([] nil)
+    ([x] x)
+    ([x & next]
+     (list 'if x x `(or ~@next))))
+
+  (defmacro cond
+    [& clauses]
+    (when clauses
+      (list 'if (first clauses)
+            (if (next clauses)
+              (second clauses)
+              (throw (IllegalArgumentException.
+                      "cond requires an even number of forms")))
+            (cons 'cond (next (next clauses))))))
+
+  (defn not [x]
+    "
+      if (OBJECT(x)->getType() != BOOLEAN_TYPE)
+        return false;
+      __result = !BOOLEAN(x)->asBool();
+      ")
+
+  (defn nil? [x] "__result = (x.get() == NULL)")
+
+  (defn empty? [x] "__result = SEQUENCE(x)->isEmpty();")
+
+  (defn list [& xs] "__result = xs;")
+
+  <<runtime-clojure-first>>
+
+  (defn rest [x] "__result = SEQUENCE(x)->rest();")
+
+  (defn cons [x seq] "__result = (SEQUENCE(seq)->clone(),x);")
+
+  (defn _while_ [pred fn]
+    "
+      while(BOOLEAN(INVOKE(pred))->asBool() == true)
+          INVOKE(fn);
+      ")
+
+  (defmacro dotimes [binding & body]
+    (list '_dotimes_ (second binding) (cons 'fn `( [~(first binding)] ~@body))))
+
+  (defn _dotimes_ [t f] "for(int i = 0; i < NUMBER(t)->intValue(); i++) INVOKE(f,i);")
+
+  (defn apply [f args] "__result = LAMBDA(f)->invoke(args);")
+
+  (defn integer? [x] "__result = (OBJECT(x)->getType() == INTEGER_TYPE);")
+
+  (defn float? [x] "__result = (OBJECT(x)->getType() == FLOAT_TYPE);")
+
+  (defn char? [x] "__result = (OBJECT(x)->getType() == CHARACTER_TYPE);")
+
+  (defn list? [x] "__result = (OBJECT(x)->getType() == LIST_TYPE);")
+
+  (defn print [& more]
+    (dotimes [i (count more)]
+      "
+        SEQUENCE(more)->nth(NUMBER(i)->intValue()).toOutputStream();
+        fprintf(OUTPUT_STREAM, \" \");
+        "))
+
+  (defn newline []
+    "
+      fprintf(OUTPUT_STREAM, \"\\n\");
+      ")
+
+  <<runtime-clojure-println>>  
+
+  (defn + [& xs]
+    (reduce (fn[h v]
+              "
+                switch(OBJECT(h)->getType()) {
+                    case INTEGER_TYPE:
+                        if (OBJECT(v)->getType() == INTEGER_TYPE) {
+                            __result = NUMBER(h)->intValue() + NUMBER(v)->intValue();
+                            break;
+                        }
+                    case FLOAT_TYPE:
+                        __result = GETFLOAT(h) + GETFLOAT(v);
+                }
+                ") 0 xs))
+
+  (defn * [& xs]
+    (reduce (fn[h v]
+              "
+                switch(OBJECT(h)->getType()) {
+                    case INTEGER_TYPE:
+                        if (OBJECT(v)->getType() == INTEGER_TYPE) {
+                            __result = NUMBER(h)->intValue() * NUMBER(v)->intValue();
+                            break;
+                        }
+                    case FLOAT_TYPE:
+                        __result = GETFLOAT(h) * GETFLOAT(v);
+                }
+                ") 1 xs))
+
+  (defn - [& xs]
+    (if (= (count xs) 1)
+      (* -1 (first xs))
+      (reduce (fn[h v]
+                "
+                switch(OBJECT(h)->getType()) {
+                    case INTEGER_TYPE:
+                        if (OBJECT(v)->getType() == INTEGER_TYPE) {
+                            __result = NUMBER(h)->intValue() - NUMBER(v)->intValue();
+                            break;
+                        }
+                    case FLOAT_TYPE:
+                        __result = GETFLOAT(h) - GETFLOAT(v);
+                }
+                  ") (first xs) (rest xs))))
+
+  (defn / [& xs]
+    (if (= (count xs) 1)
+      (apply / (cons 1 xs))
+      (reduce (fn[h v]
+                "
+                switch(OBJECT(h)->getType()) {
+                    case INTEGER_TYPE:
+                        if (OBJECT(v)->getType() == INTEGER_TYPE) {
+                            __result = NUMBER(h)->intValue() / NUMBER(v)->intValue();
+                            break;
+                        }
+                    case FLOAT_TYPE:
+                        __result = GETFLOAT(h) / GETFLOAT(v);
+                }
+                  ") (first xs) (rest xs))))
+
+  (defn = [a & more]
+    (if (empty? more)
+      true
+      (and ((fn [a b] "__result = OBJECT(a)->equals(b)") a (first more))
+           (apply = more))))
+
+  (defn < [a & more]
+    (if (empty? more)
+      true
+      (and ((fn [a b]
+              "
+                switch(OBJECT(a)->getType()) {
+                    case INTEGER_TYPE:
+                        if (OBJECT(b)->getType() == INTEGER_TYPE) {
+                            __result = (NUMBER(a)->intValue() < NUMBER(b)->intValue());
+                            break;
+                        }
+                    case FLOAT_TYPE:
+                        __result = (GETFLOAT(a) < GETFLOAT(b));
+                }
+                ") a (first more))
+           (apply < more))))
+
+  (defn > [a & more]
+    (if (empty? more)
+      true
+      (and ((fn [a b]
+              "
+                switch(OBJECT(a)->getType()) {
+                    case INTEGER_TYPE:
+                        if (OBJECT(b)->getType() == INTEGER_TYPE) {
+                            __result = (NUMBER(a)->intValue() > NUMBER(b)->intValue());
+                            break;
+                        }
+                    case FLOAT_TYPE:
+                        __result = (GETFLOAT(a) > GETFLOAT(b));
+                }
+                ") a (first more))
+           (apply > more))))
+
+  (defn >= [a & more]
+    (if (empty? more)
+      true
+      (and ((fn [a b]
+              "
+                switch(OBJECT(a)->getType()) {
+                    case INTEGER_TYPE:
+                        if (OBJECT(b)->getType() == INTEGER_TYPE) {
+                            __result = (NUMBER(a)->intValue() >= NUMBER(b)->intValue());
+                            break;
+                        }
+                    case FLOAT_TYPE:
+                        __result = (GETFLOAT(a) >= GETFLOAT(b));
+                }
+                ") a (first more))
+           (apply >= more))))
+
+  (defn <= [a & more]
+    (if (empty? more)
+      true
+      (and ((fn [a b]
+              "
+                switch(OBJECT(a)->getType()) {
+                    case INTEGER_TYPE:
+                        if (OBJECT(b)->getType() == INTEGER_TYPE) {
+                            __result = (NUMBER(a)->intValue() <= NUMBER(b)->intValue());
+                            break;
+                        }
+                    case FLOAT_TYPE:
+                        __result = (GETFLOAT(a) <= GETFLOAT(b));
+                }
+                ") a (first more))
+           (apply <= more))))
+
+  (defn conj [coll & xs]
+    (reduce (fn[h v] (cons v h)) (if (nil? coll) (list) coll) xs))
+
+  (defn inc [x]
+    (+ x 1))
+
+  (defn dec [x]
+    (- x 1))
+
+  (defn pos? [x]
+    (> x 0))
+
+  (defn neg? [x]
+    (< x 0))
+
+  (defn zero? [x]
+    (= x 0))
+
+  (defn count [s]
+    (reduce (fn [h v] (inc h)) 0 s))
+
+  (defn reverse [s]
+    (reduce conj (list) s))
+  (defn bit-shift-left [b]
+    "__result = (OBJECT(b)->getType() == INTEGER_TYPE);")
+
+  (defn bit-shift-right [s]
+    )
+
+  (defn bit-or [s]
+    )
+
+  (defn bit-and [s]
+    )
+
+  (defn bit-xor [s]
+    )
+
+  ;;Arduino
+
+  (defn pin-mode [pin mode]
+    "
+      if (KEYWORD(mode)->id == 618)
+        pinMode(NUMBER(pin)->intValue(), INPUT);
+      else
+        pinMode(NUMBER(pin)->intValue(), OUTPUT);
+      ")
+
+  (defn digital-write [pin mode]
+    "
+      if (KEYWORD(mode)->id == 474)
+        digitalWrite(NUMBER(pin)->intValue(), HIGH);
+      else
+        digitalWrite(NUMBER(pin)->intValue(), LOW);
+      ")
+
+  (defn sleep [timeout] "::delay(NUMBER(timeout)->intValue());")
+
+#+end_src
+
+** Native
 
 On the C++ side we define our own object system, which includes the
 following types,
@@ -354,6 +843,8 @@ following types,
  - Float
  - Character (There is no string type, strings are converted to lists
    of characters.)
+
+*** Object
 
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
@@ -394,6 +885,325 @@ class Object{
 All our types are derived from the base Object type,(defining
 new/delete is needed because in avr-gcc they are not defined.)
 
+*** Pointer
+
+#+name: runtime-native-pointer
+#+begin_src c++ :tangle no
+  class Pointer : public Object { 
+  public:
+    void* ptr;
+    Pointer(void* p){ptr = p;}
+
+    int getType(){ return POINTER_TYPE;}
+    var equals(var o){ return ptr = POINTER(o)->ptr; }
+
+    var toOutputStream(){ 
+      fprintf(OUTPUT_STREAM, "Pointer");
+      return var();
+    }
+  };
+#+end_src
+
+*** Number
+**** Interface
+
+#+name: runtime-native-number
+#+begin_src c++ :tangle no
+  class INumber{
+  public:
+    virtual ~INumber() {}
+    virtual int intValue() = 0;
+    virtual float floatValue() = 0;
+    virtual int getType() = 0;
+    virtual var toOutputStream() = 0;
+  };
+    
+  class Number : public Object{
+  public:
+    Number(int x);
+    Number(float x);
+    ~Number(){delete value;};
+    int getType(){ return value->getType();}
+
+    int intValue(){return value->intValue();}
+    float floatValue(){return value->floatValue();}
+      
+    var equals(var o){
+      int self_type = getType();
+      int other_type = OBJECT(o)->getType();
+
+      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
+        return (value->intValue() == NUMBER(o)->intValue());
+      else if ((self_type == FLOAT_TYPE || other_type == FLOAT_TYPE))
+        return (value->floatValue() == NUMBER(o)->floatValue());
+      else
+        return false;
+    }
+      
+    var toOutputStream(){ return value->toOutputStream();};
+  private:
+    INumber* value;
+  };    
+#+end_src
+
+**** Integer
+
+#+name: runtime-native-number
+#+begin_src c++ :tangle no
+  class Integer : public Object , public INumber{
+  public:
+    Integer(int x){value = x;}
+    int getType(){ return INTEGER_TYPE;}
+    var toOutputStream(){ fprintf(OUTPUT_STREAM, "%d", value); return var();};
+
+    int intValue(){
+      return value;
+    }
+
+    float floatValue(){
+      return (float)value;
+    }
+
+    var equals(var o);
+
+  private:
+    int value;
+  };
+#+end_src
+
+**** Float
+
+#+name: runtime-native-number
+#+begin_src c++ :tangle no
+  class Float : public Object , public INumber{
+  public:
+    Float(float x){value = x;}
+    int getType(){ return FLOAT_TYPE;}
+    var toOutputStream(){ fprintf(OUTPUT_STREAM, "%f", value); return var();};
+
+    int intValue(){
+      return (int)value;
+    }
+
+    float floatValue(){
+      return value;
+    }
+
+    var equals(var o){
+
+      switch(OBJECT(o)->getType()) {
+      case INTEGER_TYPE: 
+        return (value == NUMBER(o)->floatValue());
+      case FLOAT_TYPE: 
+        return (value == NUMBER(o)->floatValue());
+      }
+        
+      return false;
+    }
+  private:
+    float value;
+  };
+#+end_src
+
+**** Misc
+
+#+name: runtime-native-number
+#+begin_src c++ :tangle no
+  var Integer::equals(var o){
+      
+    switch(OBJECT(o)->getType()) {
+    case INTEGER_TYPE: 
+      return (value == NUMBER(o)->intValue());
+    case FLOAT_TYPE:
+      return (value == NUMBER(o)->intValue());
+    }
+      
+    return false;
+  }
+
+  inline Number::Number(int x){value = new Integer(x);}
+  inline Number::Number(float x){value = new Float(x);}
+#+end_src
+
+*** Keyword
+
+#+name: runtime-native-keyword
+#+begin_src c++ :tangle no
+  class Keyword : public Object { 
+  public:
+    int id;
+
+    Keyword(int b){id = b;}
+    int getType(){ return KEYWORD_TYPE;}
+
+    var equals(var o){
+      if (OBJECT(o)->getType() != KEYWORD_TYPE)
+        return false;
+      
+      return (id == KEYWORD(o)->id);
+    }
+
+    var toOutputStream(){ fprintf(OUTPUT_STREAM, "%d", id); return var();};
+  };
+
+#+end_src
+
+*** Character
+
+#+name: runtime-native-character
+#+begin_src c++ :tangle no
+  class Character : public Object { 
+  public:
+    char value;
+    Character(char c){value = c;}
+    int getType(){ return CHARACTER_TYPE;}
+
+    var equals(var o){
+      if (OBJECT(o)->getType() != CHARACTER_TYPE)
+        return false;
+      
+      return (value == CHARACTER(o)->value);
+    }
+
+    var toOutputStream(){ 
+      fprintf(OUTPUT_STREAM, "%c",value);
+      return var();
+    }
+  };
+
+#+end_src
+
+*** Sequence
+
+#+name: runtime-native-sequence
+#+begin_src c++ :tangle no
+  class Cell : public Object{
+  public:
+    var data;
+    var next;
+
+    var equals(var o){
+      if (OBJECT(o)->getType() != CONS_TYPE)
+        return false;
+      
+      return OBJECT(data)->equals(o);
+    }
+
+    int getType(){ return CONS_TYPE;}
+    var toOutputStream(){ OBJECT(data)->toOutputStream(); return var();};
+  };
+
+  class Sequence : public Object{
+    var head;
+  public:
+    Sequence(){
+      head = NULL;
+    }
+
+    Sequence(var h){
+      head = h;
+    }
+
+    void cons(var x){
+      var v = var(new Cell());
+      CELL(v)->data = x;
+      CELL(v)->next = head;
+      head = v;
+    }
+
+    var first(){
+      if (head.get() == NULL )
+        return var();
+      else
+        return CELL(head)->data;
+    }
+
+    var rest(){
+      if ( head.get() == NULL || CELL(head)->next.get() == NULL )
+        return var(new Sequence());
+      else
+        return var(new Sequence(CELL(head)->next));
+    }
+
+    var nth(var i){
+      var it = head;
+      int index = NUMBER(i)->intValue();
+
+      for(int i = 0 ; i < index; i++){
+        if ((CELL(it)->next).get() == NULL )
+          return VAR();
+
+        it = CELL(it)->next;
+      }
+
+      return CELL(it)->data;
+    }
+
+    bool isEmpty(){
+      if (head.get() == NULL)
+        return true;
+
+      return false;
+    }
+
+    var toOutputStream(){
+      fprintf(OUTPUT_STREAM, "( ");
+
+      for(var it = head; it.get() != NULL ; it = CELL(it)->next){
+        OBJECT(CELL(it)->data)->toOutputStream();
+        fprintf(OUTPUT_STREAM, " ");
+      }
+
+      fprintf(OUTPUT_STREAM, ")");
+      return var();
+    }
+
+    var equals(var o){
+
+      if (OBJECT(o)->getType() != LIST_TYPE)
+        return false;
+
+      var itOther = o;
+      for(var it = this; !SEQUENCE(it)->isEmpty(); it = SEQUENCE(it)->rest()){
+        if (SEQUENCE(itOther)->isEmpty() || 
+            BOOLEAN(OBJECT(SEQUENCE(it)->first())->equals(SEQUENCE(itOther)->first()))->asBool() == false)
+          return false;
+
+        itOther = SEQUENCE(itOther)->rest();
+      }
+
+      return true;
+    }
+
+    var clone() { return var(new Sequence(head));}
+    int getType(){ return LIST_TYPE;}
+
+    var reduce(var f){
+      var acc = INVOKE(f,CELL(head)->data,CELL(CELL(head)->next)->data);
+
+      for(var it = CELL(CELL(head)->next)->next; it.get() != NULL ; it = CELL(it)->next)
+        acc = INVOKE(f, CELL(it)->data, acc);
+
+      return acc;
+    }
+
+    var reduce(var f, var acc){
+      for(var it = head; it.get() != NULL ; it = CELL(it)->next)
+        acc = INVOKE(f, CELL(it)->data, acc);
+
+      return acc;
+    }
+  };
+#+end_src
+*** Pointer
+
+#+name: runtime-native-
+#+begin_src c++ :tangle no
+
+#+end_src
+
+*** Boolean
+
 #+name: runtime-native-boolean
 #+begin_src c++ :tangle no
     class Boolean : public Object { 
@@ -423,6 +1233,8 @@ new/delete is needed because in avr-gcc they are not defined.)
     };
 #+end_src
 
+*** Lambda
+
 except functors, they derive from the class Lambda, which has a single
 invoke method that takes a sequence of vars as argument, this allows us
 to execute them in a uniform fashion.
@@ -434,6 +1246,8 @@ to execute them in a uniform fashion.
       virtual var invoke(var args) = 0;
     };
 #+end_src
+
+*** var
 
 Garbage collection is handled by reference counting, a /var/ holds a
 pointer to an Object, everything is passed around as /vars/ it is
@@ -500,59 +1314,34 @@ reaches zero it will automatically free the Object.
   };
 #+end_src
 
-Once our object system is in place we can define rest of the runtime
-(functions/macros) using our Clojure subset,
+#+name: runtime-native-var-descriptions
+#+begin_src c++ :tangle no
+  var::var(int i){
+    m_ptr = new Number(i);
+    addRef();
+  }
 
-#+name: runtime-clojure-first
-#+begin_src clojure :tangle no
-  (defn first [x]
-    "
-    if(x.get() == NULL)
-      __result = VAR();
-    else
-      __result = SEQUENCE(x)->first();
-    ")
+  var::var(float f){
+    m_ptr = new Number(f);
+    addRef();
+  }
+
+  var::var(bool b){
+    m_ptr = new Boolean(b);
+    addRef();
+  }
+
+  var::var(char b){
+    m_ptr = new Character(b);
+    addRef();
+  }
+
+  var& var::operator, (const var& m){
+    static_cast<Sequence*>(m_ptr)->cons(m);
+    return *this;
+  }
+
 #+end_src
-
-We can embed C++ code into our functions, which is how most of the
-primitive functions are defined such as the /first/ function above,
-once primitives are in place rest can be defined in pure Clojure,
-
-#+name: runtime-clojure-println
-#+begin_src clojure :tangle no
-  (defn println [& more]
-    (apply print more)
-    (newline))
-#+end_src
-
-As for macros, normal Clojure rules apply since they are expended using
-Clojure, the only exception is that stuff should not expand to fully
-qualified Clojure symbols, so the symbol /fn/ should not expand to
-/clojure.core/fn/,
-
-#+name: runtime-clojure-defn
-#+begin_src clojure :tangle no
-  (defmacro defn [name args & body]
-    (list 'def name (cons 'fn `( ~args ~@body))))
-#+end_src
-
-List of all functions and macros defined,
-
-|---------+----------+---------------+--------------+---------|
-| defn    | not=     | when          | while        | forever |
-| and     | or       | cond          | not          | nil?    |
-| empty?  | list     | rest          | cons         | while   |
-| dotimes | apply    | integer?      | float?       | char?   |
-| list?   | print    | newline       | println      | +       |
-| \*      | -        | /             | \=           | <       |
-| >       | >=       | <=            | conj         | inc     |
-| dec     | pos?     | neg?          | zero?        | count   |
-| reverse | pin-mode | digital-write | digital-read | sleep   |
-|---------+----------+---------------+--------------+---------|
-
-#+BEGIN_HTML
-</br>
-#+END_HTML
 
 * Example Code
 
@@ -623,6 +1412,67 @@ output will be placed in a directory called /solution//,
       (show-image "cam" f)))
 #+end_src 
 
+* Misc
+
+  #+name: core-code-generation-misc
+  #+begin_src clojure
+    ;; I/O
+
+    (defn read-from-url [f]
+      (with-open [in (.getResourceAsStream (ClassLoader/getSystemClassLoader) f)
+                  rdr (BufferedReader. (InputStreamReader. in))]
+        (apply str (interpose \newline (line-seq rdr)))))
+
+    (defn copy-to-solution [fin fout]
+      (FileUtils/copyURLToFile (ClassLoader/getSystemResource fin) (file fout)))
+
+    (defn delete-recursively [file]
+      (let [func (fn [func f]
+                   (when (.isDirectory f)
+                     (doseq [f2 (.listFiles f)]
+                       (func func f2)))
+                   (clojure.java.io/delete-file f))]
+        (when (.exists file)
+          (func func file))))
+
+    (defn init-solution-dir []
+      (doto (file "./solution/")
+        (delete-recursively)
+        (.mkdir))
+      (copy-to-solution "ferret.h" "./solution/ferret.h"))
+
+    (defn write-to-solution [s f]
+      (FileUtils/writeStringToFile (file (str "./solution/" f)) s))
+
+    (defn append-to! [r ks v]
+      (dosync 
+       (let [cv (reduce (fn[h v] (v h)) @r ks)]
+         (alter r assoc-in ks (conj cv v)))))
+
+    (defn to-str? [f]
+      (or (true? f) (false? f) (symbol? f)))
+
+    (defn is-special-form? [s f]
+      (and (seq? f)
+           (= (first f) s)))
+  #+end_src
+
+  #+name: core-code-compile-code
+  #+begin_src clojure
+    (defn compile->cpp [form]
+      (init-solution-dir)
+      (let [source (emit-source form)]
+        (write-to-solution (solution-template source) "solution.cpp")))
+
+    (defn -main [& args]
+      (let [opts [["-i" "--input FILE" "Input File"
+                   :parse-fn #(read-string (str \( (FileUtils/readFileToString (file %)) \)))]]
+            args (parse-opts args opts)]
+        (if (->> args :options :input)
+          (compile->cpp (->> args :options :input))
+          (println "No Input File."))))
+  #+end_src
+
 * Files                                                            :noexport:
 ** project.clj
 #+begin_src clojure :mkdirp yes :tangle ferret/project.clj
@@ -649,39 +1499,7 @@ output will be placed in a directory called /solution//,
     (:import (org.apache.commons.io FileUtils)
              (java.io BufferedReader StringReader InputStreamReader)))
 
-
-  ;; I/O
-
-  (defn read-from-url [f]
-    (with-open [in (.getResourceAsStream (ClassLoader/getSystemClassLoader) f)
-                rdr (BufferedReader. (InputStreamReader. in))]
-      (apply str (interpose \newline (line-seq rdr)))))
-
-  (defn copy-to-solution [fin fout]
-    (FileUtils/copyURLToFile (ClassLoader/getSystemResource fin) (file fout)))
-
-  (defn delete-recursively [file]
-    (let [func (fn [func f]
-                 (when (.isDirectory f)
-                   (doseq [f2 (.listFiles f)]
-                     (func func f2)))
-                 (clojure.java.io/delete-file f))]
-      (when (.exists file)
-        (func func file))))
-
-  (defn init-solution-dir []
-    (doto (file "./solution/")
-      (delete-recursively)
-      (.mkdir))
-    (copy-to-solution "ferret.h" "./solution/ferret.h"))
-
-  (defn write-to-solution [s f]
-    (FileUtils/writeStringToFile (file (str "./solution/" f)) s))
-
-  (defn append-to! [r ks v]
-    (dosync 
-     (let [cv (reduce (fn[h v] (v h)) @r ks)]
-       (alter r assoc-in ks (conj cv v)))))
+  <<core-code-generation-misc>>
 
   <<core-transformation-form-fns>>
 
@@ -701,91 +1519,16 @@ output will be placed in a directory called /solution//,
 
   <<core-transformation-process>>
 
-  (defn to-str? [f]
-    (or (true? f) (false? f) (symbol? f)))
-
-  (defn is-special-form? [s f]
-    (and (seq? f)
-         (= (first f) s)))
-
   <<core-code-generation-emit>>
 
-
-  (defmethod emit :to-str [form state] (str "VAR("form ")"))
-
-  (defmethod emit :char [form state] (str "VAR('" form "')"))
-
-  (defmethod emit :string [form state] (str "INVOKE(list,"
-                                            (apply str (interpose \, (map #(emit % state) (reverse form))))  ")"))
-
-  (defmethod emit :nil [form state] "VAR()")
-
-  (defmethod emit :keyword [form state]
-             (str "VAR(new ferret::Keyword(" (reduce (fn[h v] (+ h (int v))) 0 (str form))"))"))
-
-  (defmethod emit :number [form state]
-             (str "VAR("form (if (float? form) "f") ")"))
-
-  (defmethod emit :sequence [[fn & args] state]
-             (invoke-lambda (emit fn state) (map #(emit % state) args)))
-
-  (defmethod emit 'define_var [[_ name form] state]
-             (str "VAR " name " = " (emit form state)))
-
-  (defmethod emit 'native_declare [[_ declaration] state]
-             (append-to! state [:native-declarations] declaration) "")
-
-  (defmethod emit 'lambda_object [[_ name & env] state]
-             (new-lambda name (filter #(not (= '& %)) env)))
-
-  (defmethod emit 'define_lambda [[_ name env args & body] state]
-             (let [body (if (string? (first body))
-                          ["VAR __result" body "__result"]
-                          (map #(emit % state) body))
-                   env (filter #(not (= '& %)) env)
-                   reg-args (take-while #(not (= '& %)) args)
-                   va-args (if (some #{'&} args)
-                             (let [arg (last args)]
-                               (str "VAR " arg " = "
-                                (reduce (fn[h v]
-                                         (str "SEQUENCE(" h ")->rest()"))
-                                       "_args_" (range (count reg-args))) ";\n")))]
-               (append-to! state [:lambdas] {:name name :env env :args reg-args :var_args va-args :body body}) ""))
-
-  (defmethod emit 'if [[_ cond t f] state]
-             (let [cond (emit cond state)
-                   t (emit t state)
-                   f (if (nil? f) "VAR()" (emit f state))]
-               (if-statement cond t f)))
-
-  (defmethod emit 'reduce [[_ & args] state]
-             (if (= 2 (count args))
-               (let [[f s] args]
-                 (str "(SEQUENCE(" (emit s state) ")->reduce(" (emit f state) "))"))
-               (let [[f v s] args]
-                 (str "(SEQUENCE(" (emit s state) ")->reduce(" (emit f state) " , " (emit v state) "))"))))
-
-  (defmethod emit 'def [[_ name & form] state]
-             (append-to! state [:symbol-table] name)
-             (str name " = " (apply str (map #(emit % state) form))))
+  <<core-code-generation-emit-source-methods>>
 
   <<core-code-generation-emit-source>>
 
-  (defn compile->cpp [form]
-    (init-solution-dir)
-    (let [source (emit-source form)]
-      (write-to-solution (solution-template source) "solution.cpp")))
-
-  (defn -main [& args]
-    (let [opts [["-i" "--input FILE" "Input File"
-                 :parse-fn #(read-string (str \( (FileUtils/readFileToString (file %)) \)))]]
-          args (parse-opts args opts)]
-      (if (->> args :options :input)
-        (compile->cpp (->> args :options :input))
-        (println "No Input File."))))
+  <<core-code-compile-code>>
 #+end_src 
 ** src/template.clj
-#+begin_src clojure :mkdirp yes :tangle ferret/src/ferret/template.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/src/ferret/template.clj
   (ns ferret.template
     (:use [ferret.string-template]))
 
@@ -797,88 +1540,7 @@ output will be placed in a directory called /solution//,
     [s]
     (map vector (iterate inc 0) s))
 
-  (defn new-lambda [n e]
-    (let [view (create-view "FN($name$$env:{,$it$}$)")]
-      (fill-view! view "name" n)
-      (fill-view! view "env" e)
-      (render-view view)))
-
-  (defn invoke-lambda [n args]
-    (let [view (create-view "INVOKE($lambda$, $args:{$it$} ;separator=\",\"$)")]
-      (fill-view! view "lambda" n)
-      (fill-view! view "args" (reverse args))
-      (render-view view)))
-
-  (defn if-statement [cond t f]
-    (apply str "(BOOLEAN(" cond ")->asBool() ? (VAR)" t " : (VAR)" f ")"))
-
-  ;;
-  ;; Solution Template
-  ;;
-
-  (defn declare-lambdas [lambdas]
-    (let [view (create-view
-                "
-  $lambdas: {lambda|
-      class $lambda.name$ : public Lambda{
-
-      $lambda.env:{VAR $it$;} ;separator=\"\n\"$
-
-      public:
-
-        $lambda.name$ ($lambda.env:{VAR $it$} ;separator=\",\"$){
-          $lambda.env:{this->$it$ = $it$;} ;separator=\"\n\"$
-        }
-
-        VAR invoke (VAR _args_){
-
-          $lambda.args:{args |
-            VAR $last(args)$ = SEQUENCE(_args_)->nth($first(args)$); }
-            ;separator=\"\n\"$
-
-          $lambda.var_args$
-
-          $trunc(lambda.body):{$it$;} ;separator=\"\n\"$
-          return $last(lambda.body):{ $it$;} ;separator=\"\n\"$
-        }
-
-        int getType(){ return LAMBDA_TYPE;}
-        VAR equals(VAR o){ return false; }
-        VAR toOutputStream(){ return VAR();}
-      };
-  }$
-                  ")]
-      (fill-view! view "lambdas" (map #(let [args (:args %)]
-                                         (assoc % :args (indexed args))) lambdas))
-      (render-view view)))
-
-
-  (defn solution-template [source]
-    (let [{:keys [body lambdas symbol-table native-declarations]} source
-          view (create-view
-                "
-    #include \"ferret.h\"
-    
-    $native_declarations:{$it$} ;separator=\"\n\"$
-    
-    $symbols:{VAR $it$;} ;separator=\"\n\"$
-    
-    namespace ferret{
-      $lambdas:{$it$} ;separator=\"\n\"$
-    }
-    
-    int main(void){
-      INIT_ENV
-      $body:{$it$;} ;separator=\"\n\"$
-      return 0;
-    }
-                  ")]
-      (fill-view! view "body" (filter #(not (empty? %)) body))
-      (fill-view! view "lambdas" (declare-lambdas lambdas))
-      (fill-view! view "symbols" symbol-table)
-      (fill-view! view "native_declarations" native-declarations)
-      (render-view view)))
-
+  <<code-templates>>
 #+end_src 
 ** src/string_template.clj
 #+begin_src clojure :noweb yes :mkdirp yes :tangle ferret/src/ferret/string_template.clj
@@ -1254,306 +1916,16 @@ output will be placed in a directory called /solution//,
     enum TYPE {CONS_TYPE, LIST_TYPE, LAMBDA_TYPE, BOOLEAN_TYPE, KEYWORD_TYPE, 
                POINTER_TYPE, INTEGER_TYPE, FLOAT_TYPE, CHARACTER_TYPE};
 
-   <<runtime-native-object>>
-
-   <<runtime-native-var>>
-
-    class Pointer : public Object { 
-    public:
-      void* ptr;
-      Pointer(void* p){ptr = p;}
-
-      int getType(){ return POINTER_TYPE;}
-      var equals(var o){ return ptr = POINTER(o)->ptr; }
-
-      var toOutputStream(){ 
-        fprintf(OUTPUT_STREAM, "Pointer");
-        return var();
-      }
-    };
-
-    class INumber{
-    public:
-        virtual ~INumber() {}
-        virtual int intValue() = 0;
-        virtual float floatValue() = 0;
-        virtual int getType() = 0;
-        virtual var toOutputStream() = 0;
-    };
-    
-    class Number : public Object{
-    public:
-      Number(int x);
-      Number(float x);
-      ~Number(){delete value;};
-      int getType(){ return value->getType();}
-
-      int intValue(){return value->intValue();}
-      float floatValue(){return value->floatValue();}
-      
-      var equals(var o){
-        int self_type = getType();
-        int other_type = OBJECT(o)->getType();
-
-        if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
-          return (value->intValue() == NUMBER(o)->intValue());
-        else if ((self_type == FLOAT_TYPE || other_type == FLOAT_TYPE))
-          return (value->floatValue() == NUMBER(o)->floatValue());
-        else
-          return false;
-      }
-      
-      var toOutputStream(){ return value->toOutputStream();};
-    private:
-      INumber* value;
-    };
-    
-    class Integer : public Object , public INumber{
-    public:
-      Integer(int x){value = x;}
-      int getType(){ return INTEGER_TYPE;}
-      var toOutputStream(){ fprintf(OUTPUT_STREAM, "%d", value); return var();};
-
-      int intValue(){
-        return value;
-      }
-
-      float floatValue(){
-        return (float)value;
-      }
-
-      var equals(var o);
-
-    private:
-      int value;
-    };
-
-    class Float : public Object , public INumber{
-    public:
-      Float(float x){value = x;}
-      int getType(){ return FLOAT_TYPE;}
-      var toOutputStream(){ fprintf(OUTPUT_STREAM, "%f", value); return var();};
-
-      int intValue(){
-        return (int)value;
-      }
-
-      float floatValue(){
-        return value;
-      }
-
-      var equals(var o){
-
-        switch(OBJECT(o)->getType()) {
-        case INTEGER_TYPE: 
-          return (value == NUMBER(o)->floatValue());
-        case FLOAT_TYPE: 
-          return (value == NUMBER(o)->floatValue());
-        }
-        
-        return false;
-      }
-    private:
-      float value;
-    };
-
-    var Integer::equals(var o){
-      
-      switch(OBJECT(o)->getType()) {
-      case INTEGER_TYPE: 
-        return (value == NUMBER(o)->intValue());
-      case FLOAT_TYPE:
-        return (value == NUMBER(o)->intValue());
-      }
-      
-      return false;
-    }
-
-    inline Number::Number(int x){value = new Integer(x);}
-    inline Number::Number(float x){value = new Float(x);}
-
+    <<runtime-native-object>>
+    <<runtime-native-var>>
+    <<runtime-native-number>>
+    <<runtime-native-pointer>>
     <<runtime-native-boolean>>
-
-    class Keyword : public Object { 
-    public:
-      int id;
-
-      Keyword(int b){id = b;}
-      int getType(){ return KEYWORD_TYPE;}
-
-      var equals(var o){
-        if (OBJECT(o)->getType() != KEYWORD_TYPE)
-          return false;
-      
-        return (id == KEYWORD(o)->id);
-      }
-
-      var toOutputStream(){ fprintf(OUTPUT_STREAM, "%d", id); return var();};
-    };
-
-    class Character : public Object { 
-    public:
-      char value;
-      Character(char c){value = c;}
-      int getType(){ return CHARACTER_TYPE;}
-
-      var equals(var o){
-        if (OBJECT(o)->getType() != CHARACTER_TYPE)
-          return false;
-      
-        return (value == CHARACTER(o)->value);
-      }
-
-      var toOutputStream(){ 
-        fprintf(OUTPUT_STREAM, "%c",value);
-        return var();
-      }
-    };
-
+    <<runtime-native-keyword>>
     <<runtime-native-lambda>>
-
-    class Cell : public Object{
-    public:
-      var data;
-      var next;
-
-      var equals(var o){
-        if (OBJECT(o)->getType() != CONS_TYPE)
-          return false;
-      
-        return OBJECT(data)->equals(o);
-      }
-
-      int getType(){ return CONS_TYPE;}
-      var toOutputStream(){ OBJECT(data)->toOutputStream(); return var();};
-    };
-
-    class Sequence : public Object{
-      var head;
-    public:
-      Sequence(){
-        head = NULL;
-      }
-
-      Sequence(var h){
-        head = h;
-      }
-
-      void cons(var x){
-        var v = var(new Cell());
-        CELL(v)->data = x;
-        CELL(v)->next = head;
-        head = v;
-      }
-
-      var first(){
-        if (head.get() == NULL )
-          return var();
-        else
-          return CELL(head)->data;
-      }
-
-      var rest(){
-        if ( head.get() == NULL || CELL(head)->next.get() == NULL )
-          return var(new Sequence());
-        else
-          return var(new Sequence(CELL(head)->next));
-      }
-
-      var nth(var i){
-        var it = head;
-        int index = NUMBER(i)->intValue();
-
-        for(int i = 0 ; i < index; i++){
-          if ((CELL(it)->next).get() == NULL )
-            return VAR();
-
-          it = CELL(it)->next;
-        }
-
-        return CELL(it)->data;
-      }
-
-      bool isEmpty(){
-        if (head.get() == NULL)
-          return true;
-
-        return false;
-      }
-
-      var toOutputStream(){
-        fprintf(OUTPUT_STREAM, "( ");
-
-        for(var it = head; it.get() != NULL ; it = CELL(it)->next){
-          OBJECT(CELL(it)->data)->toOutputStream();
-          fprintf(OUTPUT_STREAM, " ");
-        }
-
-        fprintf(OUTPUT_STREAM, ")");
-        return var();
-      }
-
-      var equals(var o){
-
-        if (OBJECT(o)->getType() != LIST_TYPE)
-          return false;
-
-        var itOther = o;
-        for(var it = this; !SEQUENCE(it)->isEmpty(); it = SEQUENCE(it)->rest()){
-          if (SEQUENCE(itOther)->isEmpty() || 
-              BOOLEAN(OBJECT(SEQUENCE(it)->first())->equals(SEQUENCE(itOther)->first()))->asBool() == false)
-            return false;
-
-          itOther = SEQUENCE(itOther)->rest();
-        }
-
-        return true;
-      }
-
-      var clone() { return var(new Sequence(head));}
-      int getType(){ return LIST_TYPE;}
-
-      var reduce(var f){
-        var acc = INVOKE(f,CELL(head)->data,CELL(CELL(head)->next)->data);
-
-        for(var it = CELL(CELL(head)->next)->next; it.get() != NULL ; it = CELL(it)->next)
-          acc = INVOKE(f, CELL(it)->data, acc);
-
-        return acc;
-      }
-
-      var reduce(var f, var acc){
-        for(var it = head; it.get() != NULL ; it = CELL(it)->next)
-          acc = INVOKE(f, CELL(it)->data, acc);
-
-        return acc;
-      }
-    };
-
-    var::var(int i){
-      m_ptr = new Number(i);
-      addRef();
-    }
-
-    var::var(float f){
-      m_ptr = new Number(f);
-      addRef();
-    }
-
-    var::var(bool b){
-      m_ptr = new Boolean(b);
-      addRef();
-    }
-
-    var::var(char b){
-      m_ptr = new Character(b);
-      addRef();
-    }
-
-    var& var::operator, (const var& m){
-      static_cast<Sequence*>(m_ptr)->cons(m);
-      return *this;
-    }
+    <<runtime-native-character>>
+    <<runtime-native-sequence>>
+    <<runtime-native-var-descriptions>>
 
   #ifdef GNU_GCC
     std::string toCppString(var s){
@@ -1572,270 +1944,5 @@ output will be placed in a directory called /solution//,
 ** resources/runtime.clj
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
   <<runtime-clojure-defn>>
-
-  (defmacro not= [& test]
-    (list 'not (cons '= `( ~@test))))
-
-  (defmacro when [test & body]
-    (list 'if test (cons 'do body)))
-
-  (defmacro while [test & body]
-    (list '_while_ (list 'fn [] test) (cons 'fn `( [] ~@body))))
-
-  (defmacro forever [& body]
-    (cons 'while `(true  ~@body)))
-
-  (defmacro and
-    ([] true)
-    ([x] x)
-    ([x & next]
-       (list 'if x `(and ~@next) false)))
-
-  (defmacro or
-    ([] nil)
-    ([x] x)
-    ([x & next]
-       (list 'if x x `(or ~@next))))
-
-  (defmacro cond
-    [& clauses]
-      (when clauses
-        (list 'if (first clauses)
-              (if (next clauses)
-                  (second clauses)
-                  (throw (IllegalArgumentException.
-                           "cond requires an even number of forms")))
-              (cons 'cond (next (next clauses))))))
-
-  (defn not [x]
-    "
-    if (OBJECT(x)->getType() != BOOLEAN_TYPE)
-      return false;
-    __result = !BOOLEAN(x)->asBool();
-    ")
-
-  (defn nil? [x] "__result = (x.get() == NULL)")
-
-  (defn empty? [x] "__result = SEQUENCE(x)->isEmpty();")
-
-  (defn list [& xs] "__result = xs;")
-
-  <<runtime-clojure-first>>
-
-  (defn rest [x] "__result = SEQUENCE(x)->rest();")
-
-  (defn cons [x seq] "__result = (SEQUENCE(seq)->clone(),x);")
-
-  (defn _while_ [pred fn]
-    "
-    while(BOOLEAN(INVOKE(pred))->asBool() == true)
-        INVOKE(fn);
-    ")
-
-  (defmacro dotimes [binding & body]
-    (list '_dotimes_ (second binding) (cons 'fn `( [~(first binding)] ~@body))))
-
-  (defn _dotimes_ [t f] "for(int i = 0; i < NUMBER(t)->intValue(); i++) INVOKE(f,i);")
-
-  (defn apply [f args] "__result = LAMBDA(f)->invoke(args);")
-
-  (defn integer? [x] "__result = (OBJECT(x)->getType() == INTEGER_TYPE);")
-
-  (defn float? [x] "__result = (OBJECT(x)->getType() == FLOAT_TYPE);")
-
-  (defn char? [x] "__result = (OBJECT(x)->getType() == CHARACTER_TYPE);")
-
-  (defn list? [x] "__result = (OBJECT(x)->getType() == LIST_TYPE);")
-
-  (defn print [& more]
-    (dotimes [i (count more)]
-      "
-      SEQUENCE(more)->nth(NUMBER(i)->intValue()).toOutputStream();
-      fprintf(OUTPUT_STREAM, \" \");
-      "))
-
-  (defn newline []
-    "
-    fprintf(OUTPUT_STREAM, \"\\n\");
-    ")
-
-  <<runtime-clojure-println>>  
-
-  (defn + [& xs]
-    (reduce (fn[h v]
-              "
-              switch(OBJECT(h)->getType()) {
-                  case INTEGER_TYPE:
-                      if (OBJECT(v)->getType() == INTEGER_TYPE) {
-                          __result = NUMBER(h)->intValue() + NUMBER(v)->intValue();
-                          break;
-                      }
-                  case FLOAT_TYPE:
-                      __result = GETFLOAT(h) + GETFLOAT(v);
-              }
-              ") 0 xs))
-
-  (defn * [& xs]
-    (reduce (fn[h v]
-              "
-              switch(OBJECT(h)->getType()) {
-                  case INTEGER_TYPE:
-                      if (OBJECT(v)->getType() == INTEGER_TYPE) {
-                          __result = NUMBER(h)->intValue() * NUMBER(v)->intValue();
-                          break;
-                      }
-                  case FLOAT_TYPE:
-                      __result = GETFLOAT(h) * GETFLOAT(v);
-              }
-              ") 1 xs))
-
-  (defn - [& xs]
-    (if (= (count xs) 1)
-      (* -1 (first xs))
-      (reduce (fn[h v]
-                "
-              switch(OBJECT(h)->getType()) {
-                  case INTEGER_TYPE:
-                      if (OBJECT(v)->getType() == INTEGER_TYPE) {
-                          __result = NUMBER(h)->intValue() - NUMBER(v)->intValue();
-                          break;
-                      }
-                  case FLOAT_TYPE:
-                      __result = GETFLOAT(h) - GETFLOAT(v);
-              }
-                ") (first xs) (rest xs))))
-
-  (defn / [& xs]
-    (if (= (count xs) 1)
-      (apply / (cons 1 xs))
-      (reduce (fn[h v]
-                "
-              switch(OBJECT(h)->getType()) {
-                  case INTEGER_TYPE:
-                      if (OBJECT(v)->getType() == INTEGER_TYPE) {
-                          __result = NUMBER(h)->intValue() / NUMBER(v)->intValue();
-                          break;
-                      }
-                  case FLOAT_TYPE:
-                      __result = GETFLOAT(h) / GETFLOAT(v);
-              }
-                ") (first xs) (rest xs))))
-
-  (defn = [a & more]
-    (if (empty? more)
-      true
-      (and ((fn [a b] "__result = OBJECT(a)->equals(b)") a (first more))
-           (apply = more))))
-
-  (defn < [a & more]
-    (if (empty? more)
-      true
-      (and ((fn [a b]
-              "
-              switch(OBJECT(a)->getType()) {
-                  case INTEGER_TYPE:
-                      if (OBJECT(b)->getType() == INTEGER_TYPE) {
-                          __result = (NUMBER(a)->intValue() < NUMBER(b)->intValue());
-                          break;
-                      }
-                  case FLOAT_TYPE:
-                      __result = (GETFLOAT(a) < GETFLOAT(b));
-              }
-              ") a (first more))
-           (apply < more))))
-
-  (defn > [a & more]
-    (if (empty? more)
-      true
-      (and ((fn [a b]
-              "
-              switch(OBJECT(a)->getType()) {
-                  case INTEGER_TYPE:
-                      if (OBJECT(b)->getType() == INTEGER_TYPE) {
-                          __result = (NUMBER(a)->intValue() > NUMBER(b)->intValue());
-                          break;
-                      }
-                  case FLOAT_TYPE:
-                      __result = (GETFLOAT(a) > GETFLOAT(b));
-              }
-              ") a (first more))
-           (apply > more))))
-
-  (defn >= [a & more]
-    (if (empty? more)
-      true
-      (and ((fn [a b]
-              "
-              switch(OBJECT(a)->getType()) {
-                  case INTEGER_TYPE:
-                      if (OBJECT(b)->getType() == INTEGER_TYPE) {
-                          __result = (NUMBER(a)->intValue() >= NUMBER(b)->intValue());
-                          break;
-                      }
-                  case FLOAT_TYPE:
-                      __result = (GETFLOAT(a) >= GETFLOAT(b));
-              }
-              ") a (first more))
-           (apply >= more))))
-
-  (defn <= [a & more]
-    (if (empty? more)
-      true
-      (and ((fn [a b]
-              "
-              switch(OBJECT(a)->getType()) {
-                  case INTEGER_TYPE:
-                      if (OBJECT(b)->getType() == INTEGER_TYPE) {
-                          __result = (NUMBER(a)->intValue() <= NUMBER(b)->intValue());
-                          break;
-                      }
-                  case FLOAT_TYPE:
-                      __result = (GETFLOAT(a) <= GETFLOAT(b));
-              }
-              ") a (first more))
-           (apply <= more))))
-
-  (defn conj [coll & xs]
-    (reduce (fn[h v] (cons v h)) (if (nil? coll) (list) coll) xs))
-
-  (defn inc [x]
-    (+ x 1))
-
-  (defn dec [x]
-    (- x 1))
-
-  (defn pos? [x]
-    (> x 0))
-
-  (defn neg? [x]
-    (< x 0))
-
-  (defn zero? [x]
-    (= x 0))
-
-  (defn count [s]
-    (reduce (fn [h v] (inc h)) 0 s))
-
-  (defn reverse [s]
-    (reduce conj (list) s))
-
-  ;;Arduino
-
-  (defn pin-mode [pin mode]
-    "
-    if (KEYWORD(mode)->id == 618)
-      pinMode(NUMBER(pin)->intValue(), INPUT);
-    else
-      pinMode(NUMBER(pin)->intValue(), OUTPUT);
-    ")
-
-  (defn digital-write [pin mode]
-    "
-    if (KEYWORD(mode)->id == 474)
-      digitalWrite(NUMBER(pin)->intValue(), HIGH);
-    else
-      digitalWrite(NUMBER(pin)->intValue(), LOW);
-    ")
-
-  (defn sleep [timeout] "::delay(NUMBER(timeout)->intValue());")
-#+end_src 
+  <<core-runtime-rest>>
+#+end_src

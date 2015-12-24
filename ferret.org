@@ -65,32 +65,6 @@ passing the current node as an argument and replace that node with
 /f/'s return value, remove-form on the other hand does what its name
 suggests and removes the node when predicate returns true.
 
-#+name: core-transformation-reader-macro
-#+begin_src clojure :tangle no
-  (defn dispatch-reader-macro [ch fun]
-    (let [dm (.get
-              (doto (.getDeclaredField clojure.lang.LispReader "dispatchMacros")
-                (.setAccessible true))
-              nil)]
-      (aset dm (int ch) fun)))
-  
-  (defn native-string [rdr letter-u]
-    (loop [s (str )
-           p \space
-           c (char (.read rdr))]
-      (if (and (= c \#) (= p \>))
-        s
-        (recur (str s p) c (char (.read rdr))))))
-  
-  (dispatch-reader-macro \< native-string)
-  
-#+end_src
-
-We install a custom reader macro, what it does is turn
-everything between /#</ and />#/ into a string, this makes life so
-much easier when you need to embed native code into a function,
-otherwise it is a nightmare to indent native code in a string. 
-
 #+name: core-transformation-process
 #+begin_src clojure :tangle no
   (defn process [form]
@@ -122,7 +96,7 @@ code generation phase.
       (create-ns temp-ns)
       (binding [*ns* (the-ns temp-ns)]
         (refer 'clojure.core :exclude (concat (map second macros) ['fn 'let 'def]))
-        (use 'clojure.contrib.macro-utils)
+        ;;(use 'clojure.contrib.macro-utils)
         (doseq [m macros]
           (eval m)))
   
@@ -532,12 +506,12 @@ Once our object system is in place we can define rest of the runtime
 #+name: runtime-clojure-first
 #+begin_src clojure :tangle no
   (defn first [x]
-    #<
+    "
     if(x.get() == NULL)
       __result = VAR();
     else
       __result = SEQUENCE(x)->first();
-    >#)
+    ")
 #+end_src
 
 We can embed C++ code into our functions, which is how most of the
@@ -609,36 +583,36 @@ output will be placed in a directory called /solution//,
 #+end_example
 
 #+begin_src clojure :mkdirp yes :tangle ferret/examples/webcam.clj
-  (native-declare #<
+  (native-declare "
                   #include "opencv/cv.h"
                   #include "opencv/highgui.h"
-                  >#)
+                  ")
   
   (defn wait-key [i] "__result = var((char)cvWaitKey(NUMBER(i)->intValue()));")
   
   (defn video-capture [i]
-    #<
+    "
     cv::VideoCapture *cap = new cv::VideoCapture(NUMBER(i)->intValue());
     if (cap->isOpened())
      __result = var(new Pointer(cap));
-    >#)
+    ")
   
   (defn named-window [n] "cv::namedWindow(toCppString(n),1);")
   
   (defn query-frame [c]
-    #<
+    "
     cv::VideoCapture *cap = static_cast<cv::VideoCapture*>(POINTER(c)->ptr);
     cap->grab();
     cv::Mat *image = new cv::Mat;
     cap->retrieve(*image, 0);
     __result = var(new Pointer(image));
-    >#)
+    ")
   
   (defn show-image [f img]
-    #<
+    "
     cv::Mat *i = static_cast<cv::Mat*>(POINTER(img)->ptr);
     imshow(toCppString(f), *i);
-    >#)
+    ")
   
   (def cam (video-capture 0))
   
@@ -686,13 +660,14 @@ output will be placed in a directory called /solution//,
   (defn copy-to-solution [fin fout]
     (FileUtils/copyURLToFile (ClassLoader/getSystemResource fin) (file fout)))
 
-  (defn delete-recursively [fname]
+  (defn delete-recursively [file]
     (let [func (fn [func f]
                  (when (.isDirectory f)
                    (doseq [f2 (.listFiles f)]
                      (func func f2)))
                  (clojure.java.io/delete-file f))]
-      (func func fname)))
+      (when (.exists file)
+        (func func file))))
 
   (defn init-solution-dir []
     (doto (file "./solution/")
@@ -707,8 +682,6 @@ output will be placed in a directory called /solution//,
     (dosync 
      (let [cv (reduce (fn[h v] (v h)) @r ks)]
        (alter r assoc-in ks (conj cv v)))))
-
-  <<core-transformation-reader-macro>>
 
   <<core-transformation-form-fns>>
 
@@ -1561,31 +1534,31 @@ output will be placed in a directory called /solution//,
 ** resources/runtime.clj
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
   <<runtime-clojure-defn>>
-  
+
   (defmacro not= [& test]
     (list 'not (cons '= `( ~@test))))
-  
+
   (defmacro when [test & body]
     (list 'if test (cons 'do body)))
-  
+
   (defmacro while [test & body]
     (list '_while_ (list 'fn [] test) (cons 'fn `( [] ~@body))))
-  
+
   (defmacro forever [& body]
     (cons 'while `(true  ~@body)))
-  
+
   (defmacro and
     ([] true)
     ([x] x)
     ([x & next]
        (list 'if x `(and ~@next) false)))
-  
+
   (defmacro or
     ([] nil)
     ([x] x)
     ([x & next]
        (list 'if x x `(or ~@next))))
-  
+
   (defmacro cond
     [& clauses]
       (when clauses
@@ -1595,64 +1568,64 @@ output will be placed in a directory called /solution//,
                   (throw (IllegalArgumentException.
                            "cond requires an even number of forms")))
               (cons 'cond (next (next clauses))))))
-  
+
   (defn not [x]
-    #<
+    "
     if (OBJECT(x)->getType() != BOOLEAN_TYPE)
       return false;
     __result = !BOOLEAN(x)->asBool();
-    >#)
-  
+    ")
+
   (defn nil? [x] "__result = (x.get() == NULL)")
-  
+
   (defn empty? [x] "__result = SEQUENCE(x)->isEmpty();")
-  
+
   (defn list [& xs] "__result = xs;")
-  
+
   <<runtime-clojure-first>>
-  
+
   (defn rest [x] "__result = SEQUENCE(x)->rest();")
-  
+
   (defn cons [x seq] "__result = (SEQUENCE(seq)->clone(),x);")
-  
+
   (defn _while_ [pred fn]
-    #<
+    "
     while(BOOLEAN(INVOKE(pred))->asBool() == true)
         INVOKE(fn);
-    >#)
-  
+    ")
+
   (defmacro dotimes [binding & body]
     (list '_dotimes_ (second binding) (cons 'fn `( [~(first binding)] ~@body))))
-  
+
   (defn _dotimes_ [t f] "for(int i = 0; i < INTEGER(t)->intValue(); i++) INVOKE(f,i);")
-  
+
   (defn apply [f args] "__result = LAMBDA(f)->invoke(args);")
-  
+
   (defn integer? [x] "__result = (OBJECT(x)->getType() == INTEGER_TYPE);")
-  
+
   (defn float? [x] "__result = (OBJECT(x)->getType() == FLOAT_TYPE);")
-  
+
   (defn char? [x] "__result = (OBJECT(x)->getType() == CHARACTER_TYPE);")
-  
+
   (defn list? [x] "__result = (OBJECT(x)->getType() == LIST_TYPE);")
-  
+
   (defn print [& more]
     (dotimes [i (count more)]
-      #<
+      "
       SEQUENCE(more)->nth(INTEGER(i)->intValue()).toOutputStream();
       fprintf(OUTPUT_STREAM, " ");
-      >#))
-  
+      "))
+
   (defn newline []
-    #<
+    "
     fprintf(OUTPUT_STREAM, "\n");
-    >#)
+    ")
 
   <<runtime-clojure-println>>  
-  
+
   (defn + [& xs]
     (reduce (fn[h v]
-              #<
+              "
               switch(OBJECT(h)->getType()) {
                   case INTEGER_TYPE:
                       if (OBJECT(v)->getType() == INTEGER_TYPE) {
@@ -1662,11 +1635,11 @@ output will be placed in a directory called /solution//,
                   case FLOAT_TYPE:
                       __result = GETFLOAT(h) + GETFLOAT(v);
               }
-              >#) 0 xs))
-  
+              ") 0 xs))
+
   (defn * [& xs]
     (reduce (fn[h v]
-              #<
+              "
               switch(OBJECT(h)->getType()) {
                   case INTEGER_TYPE:
                       if (OBJECT(v)->getType() == INTEGER_TYPE) {
@@ -1676,13 +1649,13 @@ output will be placed in a directory called /solution//,
                   case FLOAT_TYPE:
                       __result = GETFLOAT(h) * GETFLOAT(v);
               }
-              >#) 1 xs))
-  
+              ") 1 xs))
+
   (defn - [& xs]
     (if (= (count xs) 1)
       (* -1 (first xs))
       (reduce (fn[h v]
-                #<
+                "
               switch(OBJECT(h)->getType()) {
                   case INTEGER_TYPE:
                       if (OBJECT(v)->getType() == INTEGER_TYPE) {
@@ -1692,13 +1665,13 @@ output will be placed in a directory called /solution//,
                   case FLOAT_TYPE:
                       __result = GETFLOAT(h) - GETFLOAT(v);
               }
-                >#) (first xs) (rest xs))))
-  
+                ") (first xs) (rest xs))))
+
   (defn / [& xs]
     (if (= (count xs) 1)
       (apply / (cons 1 xs))
       (reduce (fn[h v]
-                #<
+                "
               switch(OBJECT(h)->getType()) {
                   case INTEGER_TYPE:
                       if (OBJECT(v)->getType() == INTEGER_TYPE) {
@@ -1708,19 +1681,19 @@ output will be placed in a directory called /solution//,
                   case FLOAT_TYPE:
                       __result = GETFLOAT(h) / GETFLOAT(v);
               }
-                >#) (first xs) (rest xs))))
-  
+                ") (first xs) (rest xs))))
+
   (defn = [a & more]
     (if (empty? more)
       true
       (and ((fn [a b] "__result = OBJECT(a)->equals(b)") a (first more))
            (apply = more))))
-  
+
   (defn < [a & more]
     (if (empty? more)
       true
       (and ((fn [a b]
-              #<
+              "
               switch(OBJECT(a)->getType()) {
                   case INTEGER_TYPE:
                       if (OBJECT(b)->getType() == INTEGER_TYPE) {
@@ -1730,14 +1703,14 @@ output will be placed in a directory called /solution//,
                   case FLOAT_TYPE:
                       __result = (GETFLOAT(a) < GETFLOAT(b));
               }
-              >#) a (first more))
+              ") a (first more))
            (apply < more))))
-  
+
   (defn > [a & more]
     (if (empty? more)
       true
       (and ((fn [a b]
-              #<
+              "
               switch(OBJECT(a)->getType()) {
                   case INTEGER_TYPE:
                       if (OBJECT(b)->getType() == INTEGER_TYPE) {
@@ -1747,14 +1720,14 @@ output will be placed in a directory called /solution//,
                   case FLOAT_TYPE:
                       __result = (GETFLOAT(a) > GETFLOAT(b));
               }
-              >#) a (first more))
+              ") a (first more))
            (apply > more))))
-  
+
   (defn >= [a & more]
     (if (empty? more)
       true
       (and ((fn [a b]
-              #<
+              "
               switch(OBJECT(a)->getType()) {
                   case INTEGER_TYPE:
                       if (OBJECT(b)->getType() == INTEGER_TYPE) {
@@ -1764,14 +1737,14 @@ output will be placed in a directory called /solution//,
                   case FLOAT_TYPE:
                       __result = (GETFLOAT(a) >= GETFLOAT(b));
               }
-              >#) a (first more))
+              ") a (first more))
            (apply >= more))))
-  
+
   (defn <= [a & more]
     (if (empty? more)
       true
       (and ((fn [a b]
-              #<
+              "
               switch(OBJECT(a)->getType()) {
                   case INTEGER_TYPE:
                       if (OBJECT(b)->getType() == INTEGER_TYPE) {
@@ -1781,51 +1754,50 @@ output will be placed in a directory called /solution//,
                   case FLOAT_TYPE:
                       __result = (GETFLOAT(a) <= GETFLOAT(b));
               }
-              >#) a (first more))
+              ") a (first more))
            (apply <= more))))
-  
+
   (defn conj [coll & xs]
     (reduce (fn[h v] (cons v h)) (if (nil? coll) (list) coll) xs))
-  
+
   (defn inc [x]
     (+ x 1))
-  
+
   (defn dec [x]
     (- x 1))
-  
+
   (defn pos? [x]
     (> x 0))
-  
+
   (defn neg? [x]
     (< x 0))
-  
+
   (defn zero? [x]
     (= x 0))
-  
+
   (defn count [s]
     (reduce (fn [h v] (inc h)) 0 s))
-  
+
   (defn reverse [s]
     (reduce conj (list) s))
-  
+
   ;;Arduino
-  
+
   (defn pin-mode [pin mode]
-    #<
+    "
     if (KEYWORD(mode)->id == 618)
       pinMode(INTEGER(pin)->intValue(), INPUT);
     else
       pinMode(INTEGER(pin)->intValue(), OUTPUT);
-    >#)
-  
+    ")
+
   (defn digital-write [pin mode]
-    #<
+    "
     if (KEYWORD(mode)->id == 474)
       digitalWrite(INTEGER(pin)->intValue(), HIGH);
     else
       digitalWrite(INTEGER(pin)->intValue(), LOW);
-    >#)
-  
+    ")
+
   (defn sleep [timeout] "::delay(INTEGER(timeout)->intValue());")
-  
 #+end_src 

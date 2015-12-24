@@ -503,8 +503,7 @@ following types,
  - Boolean
  - Keyword
  - Pointer
- - Integer
- - Float
+ - Number
  - Character (There is no string type, strings are converted to lists
    of characters.)
 
@@ -586,107 +585,71 @@ new/delete is needed because in avr-gcc they are not defined.)
   public:
     Number(int x);
     Number(float x);
-    ~Number(){delete value;};
-    int getType(){ return value->getType();}
+    ~Number(){};
+    int getType(){ return type;}
+    int getNumerator(){ return numerator;}
+    int getDenominator(){ return denominator;}
 
-    int intValue(){return value->intValue();}
-    float floatValue(){return value->floatValue();}
+    int intValue(){return numerator;}
+    float floatValue(){return (float)numerator/(float)denominator;}
       
     var equals(var o){
       int self_type = getType();
       int other_type = OBJECT(o)->getType();
 
-      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
-        return (value->intValue() == NUMBER(o)->intValue());
-      else if ((self_type == FLOAT_TYPE || other_type == FLOAT_TYPE))
-        return (value->floatValue() == NUMBER(o)->floatValue());
-      else
+      if ((self_type == INTEGER_TYPE || self_type == FLOAT_TYPE) &&
+          (other_type == INTEGER_TYPE || other_type == FLOAT_TYPE)){
+        return ((getNumerator() == NUMBER(o)->getNumerator()) &&
+                (getDenominator() == NUMBER(o)->getDenominator()));
+      }else
         return false;
     }
     
-    var toOutputStream(){ return value->toOutputStream();};
+    var toOutputStream(){
+      if (denominator == 1)
+        fprintf(OUTPUT_STREAM, "%d",numerator);
+      else if (numerator == 0)
+        fprintf(OUTPUT_STREAM, "0");
+      else
+        fprintf(OUTPUT_STREAM, "%d/%d",numerator,denominator);
+      return var();
+    };
+    
   private:
-    INumber* value;
+    void simplificate(){
+      int commondivisor = 1;
+      for(int i=2;i<=std::min(abs(numerator), std::abs(denominator));i++)
+        if( numerator%i == 0 && denominator%i == 0 )
+          commondivisor = i;
+      numerator /= commondivisor;
+      denominator /= commondivisor;
+    }
+    
+    int numerator;
+    int denominator;
+    int type;
   };    
 #+end_src
 
-**** Integer
-
 #+name: runtime-native-number
 #+begin_src c++ :tangle no
-  class Integer : public Object , public INumber{
-  public:
-    Integer(int x){value = x;}
-    int getType(){ return INTEGER_TYPE;}
-    var toOutputStream(){ fprintf(OUTPUT_STREAM, "%d", value); return var();};
-
-    int intValue(){
-      return value;
-    }
-
-    float floatValue(){
-      return (float)value;
-    }
-
-    var equals(var o);
-
-  private:
-    int value;
-  };
-#+end_src
-
-**** Float
-
-#+name: runtime-native-number
-#+begin_src c++ :tangle no
-  class Float : public Object , public INumber{
-  public:
-    Float(float x){value = x;}
-    int getType(){ return FLOAT_TYPE;}
-    var toOutputStream(){ fprintf(OUTPUT_STREAM, "%f", value); return var();};
-
-    int intValue(){
-      return (int)value;
-    }
-
-    float floatValue(){
-      return value;
-    }
-
-    var equals(var o){
-
-      switch(OBJECT(o)->getType()) {
-      case INTEGER_TYPE: 
-        return (value == NUMBER(o)->floatValue());
-      case FLOAT_TYPE: 
-        return (value == NUMBER(o)->floatValue());
-      }
-        
-      return false;
-    }
-  private:
-    float value;
-  };
-#+end_src
-
-**** Misc
-
-#+name: runtime-native-number
-#+begin_src c++ :tangle no
-  var Integer::equals(var o){
-      
-    switch(OBJECT(o)->getType()) {
-    case INTEGER_TYPE: 
-      return (value == NUMBER(o)->intValue());
-    case FLOAT_TYPE:
-      return (value == NUMBER(o)->intValue());
-    }
-      
-    return false;
+  inline Number::Number(int x){
+    type = INTEGER_TYPE;
+    numerator = x;
+    denominator = 1;
   }
 
-  inline Number::Number(int x){value = new Integer(x);}
-  inline Number::Number(float x){value = new Float(x);}
+  inline Number::Number(float x){
+    int precision = 1000;
+    type = FLOAT_TYPE;
+    
+    float decimal = (x - (int)x) * (float)precision;
+    int integer = (int)x;
+    
+    numerator = decimal + (integer * precision);
+    denominator = precision;
+    simplificate();
+  }
 #+end_src
 
 *** Keyword
@@ -1630,8 +1593,9 @@ output will be placed in a directory called /solution//,
       (is (= (first (last form)) 'def))))
 
   (deftest arithmetic-test
-    (is (= "0 1 10 10.000000 -1 0 0.000000 1 8 8.000000 1 0 1 1.000000 "
-           (do (compile->cpp '((print (+ )
+    (is (= "3/5 0 1 10 10 -1 0 0 1 8 8 1 0 1 1 "
+           (do (compile->cpp '((print (+ 0.3 0.3)
+                                      (+ )
                                       (+ 1)
                                       (+ 1 2 3 4)
                                       (+ 1 2.0 3 4)

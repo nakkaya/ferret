@@ -652,10 +652,13 @@ output will be placed in a directory called /solution//,
 ** project.clj
 #+begin_src clojure :mkdirp yes :tangle ferret/project.clj
   (defproject ferret "1.0.0-SNAPSHOT"
-    :dependencies [[org.clojure/clojure "1.2.0"]
+    :dependencies [[org.clojure/clojure "1.7.0"]
                    [org.clojure/clojure-contrib "1.2.0"]
                    [org.bituf/clj-stringtemplate "0.2"]
                    [org.clojars.amit/commons-io "1.4.0"]]
+    :repl-options {:host "0.0.0.0"
+                   :port 7888
+                   :init-ns ferret.core}
     :main ferret.core)
 #+end_src 
 ** src/core.clj

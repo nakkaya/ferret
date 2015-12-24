@@ -1,0 +1,1721 @@
+#+title: Ferret: An Experimental Clojure Compiler
+#+tags: clojure c++ arduino avr-gcc gcc
+#+STARTUP: hidestars
+#+TAGS: noexport(e)
+#+EXPORT_EXCLUDE_TAGS: noexport
+
+Ferret is an experimental Lisp to C++ compiler, the idea was to
+compile code that is written in a very small subset of Clojure to be
+automatically translated to C++ so that I can program stuff in
+Clojure where JVM or any other Lisp dialect is not available.
+
+This is a literate program, the code in this document is the
+executable source, in order to extract it, open this [[https://github.com/nakkaya/nakkaya.com/tree/master/resources/posts/2011-06-29-ferret-an-experimental-clojure-compiler.org][raw file]]
+with emacs and run,
+
+#+begin_example
+ M-x org-babel-tangle
+#+end_example
+
+It will build the necessary directory structure and export the files
+and tests contained.
+
+* Compiler
+
+Compiler has two major parts, transformation and code
+generation. During transformation we make passes over the code, with
+each pass code becomes more and more like C++ basically after the final
+pass it is C++ written with s-expressions. Then during code generation
+we iterate over the code and spit valid C++.
+
+** Transformation
+
+#+srcname: core-transformation-form-fns
+#+begin_src clojure :tangle no
+  (defn morph-form [tree pred f]
+    (loop [loc (zip/seq-zip tree)]
+      (if (zip/end? loc)
+        (zip/root loc)
+        (recur
+         (zip/next
+          (if (pred (zip/node loc))
+            (zip/replace loc (f (zip/node loc)))
+            loc))))))
+  
+  (defn remove-form [tree pred]
+    (loop [loc (zip/seq-zip tree)]
+      (if (zip/end? loc)
+        (zip/root loc)
+        (recur
+         (zip/next
+          (if (pred (zip/node loc))
+            (zip/remove loc)
+            loc))))))
+  
+  (defn is-form? [& s]
+    (fn [f]
+      (and (seq? f)
+           (some true? (map #(= % (first f)) s)))))
+#+end_src
+
+During each pass we iterate over the nodes in the form using
+/morph-form/ and /remove-form/, they both take a s-expression and a
+predicate if the predicate returns true, morph-form will call /f/
+passing the current node as an argument and replace that node with
+/f/'s return value, remove-form on the other hand does what its name
+suggests and removes the node when predicate returns true.
+
+#+srcname: core-transformation-reader-macro
+#+begin_src clojure :tangle no
+  (defn dispatch-reader-macro [ch fun]
+    (let [dm (.get
+              (doto (.getDeclaredField clojure.lang.LispReader "dispatchMacros")
+                (.setAccessible true))
+              nil)]
+      (aset dm (int ch) fun)))
+  
+  (defn native-string [rdr letter-u]
+    (loop [s (str )
+           p \space
+           c (char (.read rdr))]
+      (if (and (= c \#) (= p \>))
+        s
+        (recur (str s p) c (char (.read rdr))))))
+  
+  (dispatch-reader-macro \< native-string)
+  
+#+end_src
+
+We install a custom reader macro, what it does is turn
+everything between /#</ and />#/ into a string, this makes life so
+much easier when you need to embed native code into a function,
+otherwise it is a nightmare to indent native code in a string. 
+
+#+srcname: core-transformation-process
+#+begin_src clojure :tangle no
+  (defn process [form]
+    (->> (expand-macros form)
+         (add-built-in)
+         (expand-macros)
+         (vector->list)
+         (let->fn)
+         (do->fn)
+         (closure-conversion)
+         (symbol-conversion)
+         (vector->list)))
+#+end_src
+
+Forms go through eight transformations before they are passed to the
+code generation phase.
+
+#+srcname: core-transformation-expand-macros
+#+begin_src clojure :tangle no
+  (defn expand-macros [form]
+    (let [macros (->> (read-string (str \( (read-from-url "runtime.clj") \)))
+                      ;;get built in macros
+                      (filter (is-form? 'defmacro))
+                      ;;merge user defined macros
+                      (concat (filter (is-form? 'defmacro) form)))
+          form (remove-form form (is-form? 'defmacro))
+          temp-ns (gensym)]
+      
+      (create-ns temp-ns)
+      (binding [*ns* (the-ns temp-ns)]
+        (refer 'clojure.core :exclude (concat (map second macros) ['fn 'let 'def]))
+        (use 'clojure.contrib.macro-utils)
+        (doseq [m macros]
+          (eval m)))
+  
+      (let [form (morph-form form
+                             (apply is-form? (map second macros))
+                             (fn [f]
+                               (binding [*ns* (the-ns temp-ns)]
+                                 (macroexpand-all f))))]
+        (remove-ns temp-ns)
+        form)))
+  
+#+end_src
+
+First we read all the macros present in /runtime.clj/ then add to that
+user defined macros, they are evaluated in a temporary namespace,
+using /morph-form/ we iterate all the macros used in the code that we
+are compiling and expand them in the temporary namespace then the node
+is replaced with its expanded form.
+
+#+srcname: core-transformation-add-built-in
+#+begin_src clojure :tangle no
+  (defn add-built-in
+    ([form]
+       (let [built-in (->> (read-string (str \( (read-from-url "runtime.clj") \)))
+                           (filter (is-form? 'defn))
+                           (reduce (fn[h v] (assoc h (second v) v)) {}))
+             fns (ref {'list (built-in 'list)})
+             form (add-built-in form built-in fns)]
+         (concat (vals @fns) form)))
+    ([form built-in fns]
+       (morph-form form symbol?
+                   #(do (if-let [f (built-in %)]
+                          (when (not (@fns %))
+                            (do (dosync (alter fns assoc % f))
+                                (add-built-in
+                                 (expand-macros (drop 3 f))
+                                 built-in fns)))) %))))
+  
+#+end_src
+
+In order to keep the generated C++ code compact only the functions used
+will be present in the generated source file. Which means if you don't
+use /println/ anywhere in the code it won't be defined in the final
+C++ file, but if you use it, it and everything it uses will be
+defined, in the case of /println/ it will pull /apply/, /print/ and
+/newline/ with it.
+
+#+srcname: core-transformation-vector-list
+#+begin_src clojure :tangle no
+  (defn vector->list [form]
+    (morph-form form vector? #(reverse (into '() %))))
+#+end_src
+
+Since there is no support for vectors, they are converted to lists.
+
+#+srcname: core-transformation-let-fn
+#+begin_src clojure :tangle no
+  (defn let->fn [form]
+    (morph-form form
+                (is-form? 'let)
+                (fn [[_ bindings & body]]
+                  (let [bindings (partition 2 bindings)
+                        vars (flatten (map first bindings))
+                        defs (map #(cons 'define-var %) bindings)
+                        body-fn (cons (concat ['fn vars] body) vars)]
+                    (list (concat ['fn []] defs [body-fn]))))))
+#+end_src
+
+let forms are transformed into nested functions which are then called
+immediately, bindings are setup in the outer function, expressions are
+placed in the inner function which takes the bindings as arguments.
+
+So following form,
+
+#+begin_src clojure :tangle no
+  (let->fn '(let [a 1
+                  b 2]
+              (+ a b)))
+#+end_src
+
+after transformation becomes,
+
+#+begin_src clojure :tangle no
+  ((fn []
+     (define-var a 1)
+     (define-var b 2)
+  
+     ((fn (a b)
+        (+ a b)) a b)))
+#+end_src
+
+#+srcname: core-transformation-do-fn
+#+begin_src clojure :tangle no
+  (defn do->fn [form]
+    (morph-form form
+                (is-form? 'do)
+                #(list (concat ['fn []] (rest %)))))
+#+end_src
+
+A similar method is used for the do form, expressions are wrapped in a fn
+that takes no parameters and executed in place.
+
+#+begin_src clojure :tangle no
+  (do->fn '(do (+ 1 1)))
+#+end_src
+
+#+begin_src clojure :tangle no
+  ((fn [] (+ 1 1)))
+#+end_src
+
+#+srcname: core-transformation-closure-conversion 
+#+begin_src clojure :tangle no
+  (defn lambda-defined? [fns env args body]
+    (let [f (concat [env args] body)
+          name (reduce (fn[h v]
+                         (let [[_ n & r] v]
+                           (if (= r f) n))) nil @fns)]
+      (when name
+        (apply list 'lambda-object name env))))
+  
+  (defn define-lambda [fns env args body]
+    (let [n (gensym)]
+      (dosync (alter fns conj (concat ['define-lambda n env args] body)))
+      (apply list 'lambda-object n env)))
+  
+  (defn closure-conversion
+    ([form]
+       (let [fns (ref [])
+             form (closure-conversion form fns)]
+         (vector->list (concat @fns form))))
+    ([form fns & env]
+       (morph-form form
+                   (is-form? 'fn)
+                   (fn [[_ args & body]]
+                     (let [env (if (nil? env) '() (first env))
+                           body (closure-conversion body fns (concat args env))]
+                       (if-let [n (lambda-defined? fns env args body)]
+                         n
+                         (define-lambda fns env args body)))))))
+#+end_src
+
+/closure-conversion/ handles the problem of free variables, 
+
+#+begin_src clojure :tangle no
+  (defn make-adder [x]
+    (fn [n] (+ x n)))
+#+end_src
+
+in the above snippet x is a free variable, the function /make-adder/
+returns, has to have a way of referencing that variable when it is
+used. The way we do this is that, every function will pass its arguments to
+inner functions (if any) it contains.
+
+#+begin_src clojure :tangle no
+  (closure-conversion '(fn [x]
+                          (fn [n] (+ x n))))
+#+end_src
+
+Above form will be converted to,
+
+#+begin_src clojure :tangle no
+  (define-lambda G__265 (x) (n) (+ x n))
+  (define-lambda G__266 () (x) (lambda-object G__265 x))
+#+end_src
+
+What this means is, define a functor named /G__265/ that holds a
+reference to /x/, and another functor /G__266/ that has no state. When
+we create an instance of /G__265/ we pass /x/ to its
+constructor. Since every thing is already converted to fns this
+mechanism allows variables to be referenced down the line and solves
+the free variable problem.
+
+#+srcname: core-transformation-symbol-conversion
+#+begin_src clojure :tangle no
+  (defn symbol-conversion [form]
+    (let [c (comp #(symbol (escape {\- \_ \* "_star_" \+ "_plus_" \/ "_slash_"
+                                    \< "_lt_" \> "_gt_" \= "_eq_" \? "_QMARK_"}
+                                   (str %)))
+                  #(cond (= 'not %) '_not_
+                         :default %))]
+      (morph-form form symbol? c)))
+  
+#+end_src
+
+Final step converts all symbols that are not legal C++ identifiers
+into valid ones.
+
+** Code Generation
+
+At this point all we need is a multi method that will emit correct
+string based on the form.
+
+#+srcname: core-code-generation-emit
+#+begin_src clojure :tangle no  
+  (defmulti emit (fn [form _]
+                   (cond (is-special-form? 'define_lambda form) 'define_lambda
+                         (is-special-form? 'lambda_object form) 'lambda_object
+                         (is-special-form? 'define_var form) 'define_var
+                         (is-special-form? 'native_declare form) 'native_declare
+                         (is-special-form? 'if form) 'if
+                         (is-special-form? 'def form) 'def
+                         (is-special-form? 'reduce form) 'reduce
+                         (to-str? form) :to-str
+                         (keyword? form) :keyword
+                         (number? form) :number
+                         (nil? form) :nil
+                         (char? form) :char
+                         (string? form) :string
+                         (seq? form) :sequence)))
+#+end_src
+
+Without preprocessing following forms,
+
+#+begin_src clojure :tangle no
+  (emit '(list 1 2 3) (ref {}))
+  
+  (emit '(+ 1 2) (ref {}))
+  
+  (emit '(if (< a b)
+           b a)
+        (ref {}))
+#+end_src
+
+would evaluate to,
+
+#+begin_example
+  "INVOKE(VAR(list), VAR(3),VAR(2),VAR(1))"
+  "INVOKE(VAR(+), VAR(2),VAR(1))"
+  "(BOOLEAN(INVOKE(VAR(<), VAR(b),VAR(a)))->asBool() ? (VAR)VAR(b) : (VAR)VAR(a))"  
+#+end_example
+
+So the actual compilation will just map emit to all forms passed and
+/string-template/ will handle the job of putting them into an empty
+C++ skeleton.
+
+#+srcname: core-code-generation-emit-source
+#+begin_src clojure :tangle no
+  (defn emit-source [form]
+    (let [state (ref {:lambdas [] :symbol-table #{} :native-declarations []})
+          body (doall (map #(emit % state) (process form)))]
+      (assoc @state :body body)))
+#+end_src
+
+* Runtime
+
+On the C++ side we define our own object system, which includes the
+following types,
+
+ - Sequence
+ - Lambda
+ - Boolean
+ - Keyword
+ - Pointer
+ - Integer
+ - Float
+ - Character (There is no string type, strings are converted to lists
+   of characters.)
+
+#+srcname: runtime-native-object
+#+begin_src c++ :tangle no
+class Object{
+    public:
+      Object() : refCount(0) {}
+      virtual ~Object() {};
+  
+      virtual int getType() = 0;
+      virtual var toOutputStream() = 0;
+      virtual var equals(var o) = 0;
+  
+      void addRef() { refCount++; }
+      bool subRef() { return (--refCount <= 0); }
+  
+  
+      void* operator new(size_t size){ 
+        return malloc(size); 
+      } 
+  
+      void  operator delete(void * ptr){ 
+        free(ptr); 
+      }
+  
+      void* operator new[](size_t size){ 
+        return malloc(size); 
+      }
+  
+      void  operator delete[](void * ptr){ 
+        free(ptr); 
+      }
+  
+    private:
+      int refCount;
+    };
+#+end_src
+
+All our types are derived from the base Object type,(defining
+new/delete is needed because in avr-gcc they are not defined.)
+
+#+srcname: runtime-native-boolean
+#+begin_src c++ :tangle no
+    class Boolean : public Object { 
+    public:
+      Boolean(bool b){value = b;}
+      int getType(){ return BOOLEAN_TYPE;}
+  
+      bool asBool() { return value; }
+  
+      var equals(var o){
+        if (OBJECT(o)->getType() != BOOLEAN_TYPE)
+          return false;
+      
+        return (value == BOOLEAN(o)->asBool());
+      }
+  
+      var toOutputStream(){ 
+        if (value)
+          fprintf(OUTPUT_STREAM, "true"); 
+        else
+          fprintf(OUTPUT_STREAM, "false"); 
+        
+        return var();
+      }
+    private:
+      bool value;
+    };
+#+end_src
+
+except functors, they derive from the class Lambda, which has a single
+invoke method that takes a sequence of vars as argument, this allows us
+to execute them in a uniform fashion.
+
+#+srcname: runtime-native-lambda
+#+begin_src c++ :tangle no
+    class Lambda : public Object{ 
+    public:
+      virtual var invoke(var args) = 0;
+    };
+#+end_src
+
+Garbage collection is handled by reference counting, a /var/ holds a
+pointer to an Object, everything is passed around as /vars/ it is
+responsible for incrementing/decrementing the reference count, when it
+reaches zero it will automatically free the Object. 
+
+#+srcname: runtime-native-var
+#+begin_src c++ :tangle no
+    class var{
+    public:
+      var(Object* ptr=0) : m_ptr(ptr) { addRef(); }
+    
+      var(const var& p) : m_ptr(p.m_ptr) { addRef(); }
+  
+      ~var() { subRef(); }
+  
+      var& operator= (const var& p){
+        return *this = p.m_ptr;
+      }
+  
+      var& operator= (Object* ptr){
+        if (m_ptr != ptr){
+          subRef();
+          m_ptr=ptr;
+          addRef();
+        }
+        return *this;
+      }
+  
+      var(int i);
+      var(float f);
+      var(bool b);
+      var(char b);
+  
+      var& operator, (const var& m);
+      var toOutputStream() {
+        if (m_ptr != NULL )
+          m_ptr->toOutputStream();
+        else
+          fprintf(OUTPUT_STREAM, "nil");
+      }
+  
+      Object* get() { return m_ptr; }
+  
+    private:
+      void addRef(){
+        // Only change if non-null
+        if (m_ptr) m_ptr->addRef();
+      }
+  
+      void subRef(){
+        // Only change if non-null
+        if (m_ptr){
+          // Subtract and test if this was the last pointer.
+          if (m_ptr->subRef()){
+            delete m_ptr;
+            m_ptr=0;
+          }
+        }
+      }
+  
+      Object* m_ptr;
+    };
+#+end_src
+
+Once our object system is in place we can define rest of the runtime
+(functions/macros) using our Clojure subset,
+
+#+srcname: runtime-clojure-first
+#+begin_src clojure :tangle no
+  (defn first [x]
+    #<
+    if(x.get() == NULL)
+      __result = VAR();
+    else
+      __result = SEQUENCE(x)->first();
+    >#)
+#+end_src
+
+We can embed C++ code into our functions, which is how most of the
+primitive functions are defined such as the /first/ function above,
+once primitives are in place rest can be defined in pure Clojure,
+
+#+srcname: runtime-clojure-println
+#+begin_src clojure :tangle no
+  (defn println [& more]
+    (apply print more)
+    (newline))
+#+end_src
+
+As for macros, normal Clojure rules apply since they are expended using
+Clojure, the only exception is that stuff should not expand to fully
+qualified Clojure symbols, so the symbol /fn/ should not expand to
+/clojure.core/fn/,
+
+#+srcname: runtime-clojure-defn
+#+begin_src clojure :tangle no
+  (defmacro defn [name args & body]
+    (list 'def name (cons 'fn `( ~args ~@body))))
+#+end_src
+
+List of all functions and macros defined,
+
+|---------+----------+---------------+--------------+---------|
+| defn    | not=     | when          | while        | forever |
+| and     | or       | cond          | not          | nil?    |
+| empty?  | list     | rest          | cons         | while   |
+| dotimes | apply    | integer?      | float?       | char?   |
+| list?   | print    | newline       | println      | +       |
+| \*      | -        | /             | \=           | <       |
+| >       | >=       | <=            | conj         | inc     |
+| dec     | pos?     | neg?          | zero?        | count   |
+| reverse | pin-mode | digital-write | digital-read | sleep   |
+|---------+----------+---------------+--------------+---------|
+
+#+BEGIN_HTML
+</br>
+#+END_HTML
+
+* Example Code
+
+In order to compile the samples,
+
+#+begin_example
+lein run -in sample.clj
+#+end_example
+
+output will be placed in a directory called /solution//,
+
+** Arduino LED
+#+begin_src clojure :mkdirp yes :tangle ferret/examples/led.clj
+  (pin-mode 13 :output)
+  
+  (forever
+   (digital-write 13 :high)
+   (sleep 500)
+   (digital-write 13 :low)
+   (sleep 500))
+#+end_src 
+** FFI
+
+#+begin_example
+  g++ solution.cpp -I/opt/local/include/ \
+                   -L/opt/local/lib \
+                   -lopencv_core -lopencv_highgui
+#+end_example
+
+#+begin_src clojure :mkdirp yes :tangle ferret/examples/webcam.clj
+  (native-declare #<
+                  #include "opencv/cv.h"
+                  #include "opencv/highgui.h"
+                  >#)
+  
+  (defn wait-key [i] "__result = var((char)cvWaitKey(NUMBER(i)->intValue()));")
+  
+  (defn video-capture [i]
+    #<
+    cv::VideoCapture *cap = new cv::VideoCapture(NUMBER(i)->intValue());
+    if (cap->isOpened())
+     __result = var(new Pointer(cap));
+    >#)
+  
+  (defn named-window [n] "cv::namedWindow(toCppString(n),1);")
+  
+  (defn query-frame [c]
+    #<
+    cv::VideoCapture *cap = static_cast<cv::VideoCapture*>(POINTER(c)->ptr);
+    cap->grab();
+    cv::Mat *image = new cv::Mat;
+    cap->retrieve(*image, 0);
+    __result = var(new Pointer(image));
+    >#)
+  
+  (defn show-image [f img]
+    #<
+    cv::Mat *i = static_cast<cv::Mat*>(POINTER(img)->ptr);
+    imshow(toCppString(f), *i);
+    >#)
+  
+  (def cam (video-capture 0))
+  
+  (named-window "cam")
+  
+  (while (not= (wait-key 1) \q)
+    (let [f (query-frame cam)]
+      (show-image "cam" f)))
+#+end_src 
+
+* Files                                                            :noexport:
+** project.clj
+#+begin_src clojure :mkdirp yes :tangle ferret/project.clj
+  (defproject ferret "1.0.0-SNAPSHOT"
+    :dependencies [[org.clojure/clojure "1.2.0"]
+                   [org.clojure/clojure-contrib "1.2.0"]
+                   [org.bituf/clj-stringtemplate "0.2"]
+                   [org.clojars.amit/commons-io "1.4.0"]]
+    :main ferret.core)
+#+end_src 
+** src/core.clj
+#+begin_src clojure :noweb yes :mkdirp yes :tangle ferret/src/ferret/core.clj
+  (ns ferret.core
+    (:gen-class)
+    (:use [clojure.java.io]
+          [clojure.contrib.io :only [delete-file-recursively]]
+          [clojure.contrib.string :only [escape]]
+          [clojure.contrib.command-line]
+          [clojure.walk :only [macroexpand-all]]
+          [org.bituf.clj-stringtemplate])
+    (:require [clojure.zip :as zip])
+    (:use [ferret.template] :reload-all)
+    (:import (org.apache.commons.io FileUtils)
+             (java.io BufferedReader StringReader InputStreamReader)))
+
+  
+  ;; I/O
+  
+  (defn read-from-url [f]
+    (with-open [in (.getResourceAsStream (ClassLoader/getSystemClassLoader) f)
+                rdr (BufferedReader. (InputStreamReader. in))]
+      (apply str (interpose \newline (line-seq rdr)))))
+  
+  (defn copy-to-solution [fin fout]
+    (FileUtils/copyURLToFile (ClassLoader/getSystemResource fin) (file fout)))
+  
+  (defn init-solution-dir []
+    (doto (file "./solution/")
+      (delete-file-recursively true)
+      (.mkdir))
+    (copy-to-solution "ferret.h" "./solution/ferret.h"))
+  
+  (defn write-to-solution [s f]
+    (FileUtils/writeStringToFile (file (str "./solution/" f)) s))
+  
+  (defn append-to! [r ks v]
+    (dosync 
+     (let [cv (reduce (fn[h v] (v h)) @r ks)]
+       (alter r assoc-in ks (conj cv v)))))
+
+  <<core-transformation-reader-macro>>
+
+  <<core-transformation-form-fns>>
+
+  <<core-transformation-vector-list>>
+
+  <<core-transformation-expand-macros>>
+
+  <<core-transformation-add-built-in>>
+
+  <<core-transformation-closure-conversion>>
+
+  <<core-transformation-symbol-conversion>>
+
+  <<core-transformation-do-fn>>
+
+  <<core-transformation-let-fn>>
+
+  <<core-transformation-process>>
+
+  (defn to-str? [f]
+    (or (true? f) (false? f) (symbol? f)))
+  
+  (defn is-special-form? [s f]
+    (and (seq? f)
+         (= (first f) s)))
+  
+  <<core-code-generation-emit>>
+
+  
+  (defmethod emit :to-str [form state] (str "VAR("form ")"))
+  
+  (defmethod emit :char [form state] (str "VAR('" form "')"))
+  
+  (defmethod emit :string [form state] (str "INVOKE(list,"
+                                            (apply str (interpose \, (map #(emit % state) (reverse form))))  ")"))
+  
+  (defmethod emit :nil [form state] "VAR()")
+  
+  (defmethod emit :keyword [form state]
+             (str "VAR(new ferret::Keyword(" (reduce (fn[h v] (+ h (int v))) 0 (str form))"))"))
+  
+  (defmethod emit :number [form state]
+             (str "VAR("form (if (float? form) "f") ")"))
+  
+  (defmethod emit :sequence [[fn & args] state]
+             (invoke-lambda (emit fn state) (map #(emit % state) args)))
+  
+  (defmethod emit 'define_var [[_ name form] state]
+             (str "VAR " name " = " (emit form state)))
+  
+  (defmethod emit 'native_declare [[_ declaration] state]
+             (append-to! state [:native-declarations] declaration) "")
+  
+  (defmethod emit 'lambda_object [[_ name & env] state]
+             (new-lambda name (filter #(not (= '& %)) env)))
+  
+  (defmethod emit 'define_lambda [[_ name env args & body] state]
+             (let [body (if (string? (first body))
+                          ["VAR __result" body "__result"]
+                          (map #(emit % state) body))
+                   env (filter #(not (= '& %)) env)
+                   reg-args (take-while #(not (= '& %)) args)
+                   va-args (if (some #{'&} args)
+                             (let [arg (last args)]
+                               (str "VAR " arg " = "
+                                (reduce (fn[h v]
+                                         (str "SEQUENCE(" h ")->rest()"))
+                                       "_args_" (range (count reg-args))) ";\n")))]
+               (append-to! state [:lambdas] {:name name :env env :args reg-args :var_args va-args :body body}) ""))
+  
+  (defmethod emit 'if [[_ cond t f] state]
+             (let [cond (emit cond state)
+                   t (emit t state)
+                   f (if (nil? f) "VAR()" (emit f state))]
+               (if-statement cond t f)))
+  
+  (defmethod emit 'reduce [[_ & args] state]
+             (if (= 2 (count args))
+               (let [[f s] args]
+                 (str "(SEQUENCE(" (emit s state) ")->reduce(" (emit f state) "))"))
+               (let [[f v s] args]
+                 (str "(SEQUENCE(" (emit s state) ")->reduce(" (emit f state) " , " (emit v state) "))"))))
+  
+  (defmethod emit 'def [[_ name & form] state]
+             (append-to! state [:symbol-table] name)
+             (str name " = " (apply str (map #(emit % state) form))))
+
+  <<core-code-generation-emit-source>>
+  
+  (defn compile->cpp [form]
+    (init-solution-dir)
+    (let [source (emit-source form)]
+      (write-to-solution (solution-template source) "solution.cpp")))
+
+  (defn -main [& args]
+    (with-command-line args
+      "Ferret"
+      [[input in "File to compile"]]
+      (let [f (read-string (str \( (FileUtils/readFileToString (file input)) \)))]
+        (compile->cpp f))))
+
+#+end_src 
+** src/template.clj
+#+begin_src clojure :mkdirp yes :tangle ferret/src/ferret/template.clj
+  (ns ferret.template
+    (:use org.bituf.clj-stringtemplate)
+    (:use [clojure.contrib.seq :only [indexed]]))
+  
+  (defn new-lambda [n e]
+    (let [view (create-view "FN($name$$env:{,$it$}$)")]
+      (fill-view! view "name" n)
+      (fill-view! view "env" e)
+      (render-view view)))
+  
+  (defn invoke-lambda [n args]
+    (let [view (create-view "INVOKE($lambda$, $args:{$it$} ;separator=\",\"$)")]
+      (fill-view! view "lambda" n)
+      (fill-view! view "args" (reverse args))
+      (render-view view)))
+  
+  (defn if-statement [cond t f]
+    (apply str "(BOOLEAN(" cond ")->asBool() ? (VAR)" t " : (VAR)" f ")"))
+  
+  ;;
+  ;; Solution Template
+  ;;
+  
+  (defn declare-lambdas [lambdas]
+    (let [view (create-view
+                "
+$lambdas: {lambda|
+    class $lambda.name$ : public Lambda{
+
+    $lambda.env:{VAR $it$;} ;separator=\"\n\"$
+
+    public:
+
+      $lambda.name$ ($lambda.env:{VAR $it$} ;separator=\",\"$){
+        $lambda.env:{this->$it$ = $it$;} ;separator=\"\n\"$
+      }
+
+      VAR invoke (VAR _args_){
+
+        $lambda.args:{args |
+          VAR $last(args)$ = SEQUENCE(_args_)->nth($first(args)$); }
+          ;separator=\"\n\"$
+
+        $lambda.var_args$
+
+        $trunc(lambda.body):{$it$;} ;separator=\"\n\"$
+        return $last(lambda.body):{ $it$;} ;separator=\"\n\"$
+      }
+
+      int getType(){ return LAMBDA_TYPE;}
+      VAR equals(VAR o){ return false; }
+      VAR toOutputStream(){ fprintf(OUTPUT_STREAM, \"%s\", \"$lambda.name$\"); return VAR();}
+    };
+}$
+                ")]
+      (fill-view! view "lambdas" (map #(let [args (:args %)]
+                                         (assoc % :args (indexed args))) lambdas))
+      (render-view view)))
+  
+  
+  (defn solution-template [source]
+    (let [{:keys [body lambdas symbol-table native-declarations]} source
+          view (create-view
+                "
+  #include \"ferret.h\"
+  
+  $native_declarations:{$it$} ;separator=\"\n\"$
+  
+  $symbols:{VAR $it$;} ;separator=\"\n\"$
+  
+  namespace ferret{
+    $lambdas:{$it$} ;separator=\"\n\"$
+  }
+  
+  int main(void){
+    INIT_ENV
+    $body:{$it$;} ;separator=\"\n\"$
+    return 0;
+  }
+                ")]
+      (fill-view! view "body" (filter #(not (empty? %)) body))
+      (fill-view! view "lambdas" (declare-lambdas lambdas))
+      (fill-view! view "symbols" symbol-table)
+      (fill-view! view "native_declarations" native-declarations)
+      (render-view view)))
+  
+#+end_src 
+** test/core.clj
+#+begin_src clojure :mkdirp yes :tangle ferret/test/ferret/test/core.clj
+  (ns ferret.test.core
+    (:use [ferret.core] :reload)
+    (:use [clojure.test]
+          [clojure.java.shell]))
+  
+  (defn compile-run-solution []
+    (with-sh-dir "solution/"
+      (sh "g++" "solution.cpp")
+      (let [r (sh "./a.out")]
+        (sh "rm" "a.out")
+        r)))
+  
+  (deftest processing-test
+    (is (seq? (vector->list [1 2 [2 [5 4] 3]])))
+    (is (= (symbol-conversion '(make-adder 2)) '(make_adder 2)))
+    (is (= (symbol-conversion '(make-adder* 2)) '(make_adder_star_ 2)))
+  
+    (let [form (closure-conversion '((def make-adder (fn [n] (fn [x] (+ x n))))))]
+      (is (= (ffirst form) 'define-lambda))
+      (is (= (last (first form)) '(+ x n)))
+      (is (= (second (last form)) 'make-adder))
+      (is (= (first (last form)) 'def))))
+  
+  (deftest arithmetic-test
+    (is (= "0 1 10 10.000000 -1 0 0.000000 1 8 8.000000 1 0 1 1.000000 "
+           (do (compile->cpp '((print (+ )
+                                      (+ 1)
+                                      (+ 1 2 3 4)
+                                      (+ 1 2.0 3 4)
+  
+                                      (- 1)
+                                      (- 4 2 2)
+                                      (- 4 2 2.0)
+                                      
+                                      (* )
+                                      (* 2 2 2)
+                                      (* 2.0 2 2)
+  
+                                      (/ 1)
+                                      (/ 2)
+                                      (/ 4 2 2)
+                                      (/ 4 2 2.0))))
+               (:out (compile-run-solution)))))
+  
+    (is (= "true true false false true true false "
+           (do (compile->cpp '((print (pos? 1)
+                                      (pos? 0.2)
+                                      (pos? 0)
+                                      (neg? 1)
+                                      (neg? -1)
+                                      (zero? 0)
+                                      (zero? 10))))
+               (:out (compile-run-solution))))))
+  
+  (deftest comparison-test
+    (is (= "true true false true false true true true false true true false true false true true "
+           (do (compile->cpp '((print (< 2)
+                                      (< 2 3 4 5)
+                                      (< 2 3 6 5)
+                                      (> 2)
+                                      (> 2 3 4 5)
+                                      (> 6 5 4 3)
+                                      (>= 2)
+                                      (>= 5 4 3 2 2 2)
+                                      (>= 5 1 3 2 2 2)
+                                      (<= 2)
+                                      (<= 2 2 3 4 5)
+                                      (<= 2 2 1 3 4)
+                                      (= 2)
+                                      (= 2 3)
+                                      (= 2 2 2 2)
+                                      (= 2 2.0 2))))
+               (:out (compile-run-solution)))))
+  
+    (is (= "false true false true false false "
+           (do (compile->cpp '((print (= 2 2 2 2 3 5)
+                                      (= (list 1 2) (list 1 2))
+                                      (= (list 1 2) (list 1 3))
+                                      (= true true)
+                                      (not (= true true))
+                                      (not 1))))
+               (:out (compile-run-solution))))))
+  
+  
+  (deftest macro-test
+    (is (= "1 1 1 true false true true true 0 1 2 3 4 "
+           (do (compile->cpp '((defmacro my-when [test & body]
+                                 (list 'if test (cons 'do body)))
+                               
+                               (print (my-when (< 2 3) 1)
+  
+                                      (when (< 2 3) 1)
+  
+                                      (when (< 2 3) 1)
+                                      
+                                      (let [a 1]
+                                        (and (> a 0)
+                                             (< a 10)))
+  
+                                      (let [a 11]
+                                        (and (> a 0)
+                                             (< a 10)))
+                                      
+                                      (and true true)
+  
+                                      (or true false)
+  
+                                      (let [a 11]
+                                        (or (> a 0)
+                                            (< a 10))))
+                               
+                               (dotimes [i 5] (print i))))
+               (:out (compile-run-solution))))))
+  
+  (deftest runtime-test
+    (is (= "( 1 2 3 4 ) 1 ( 2 3 4 ) ( 3 4 ) ( 3 3 4 ) 3 4 ( 4 3 2 1 1 2 ) ( 4 3 2 1 ) 21 21 "
+           (do (compile->cpp '((print (list 1 2 3 4)
+                                      (first (list 1 2 3 4))
+                                      (rest (list 1 2 3 4))
+                                      (rest (rest (list 1 2 3 4)))
+                                      (cons 3 (rest (rest (list 1 2 3 4))))
+                                      (first (cons 3 (rest (rest (list 1 2 3 4)))))
+                                      (count (list 1 2 3 4))
+                                      (conj (list 1 2) 1 2 3 4)
+                                      (conj nil 1 2 3 4)
+                                      (reduce + (list 1 2 3 4 5 6))
+                                      (apply + (list 1 2 3 4 5 6)))))
+               (:out (compile-run-solution)))))
+  
+    (is (= "( 6 5 4 3 2 1 ) ( 6 5 4 3 2 ) ( 4 3 2 1 0 ) c ( H e l l o . ) ( . o l l e H ) "
+           (do (compile->cpp '((print (reverse (list 1 2 3 4 5 6))
+                                      (reduce (fn [h v]
+                                                (conj h (inc v))) (list) (list 1 2 3 4 5))
+                                      (reduce (fn [h v]
+                                                (conj h (dec v))) (list) (list 1 2 3 4 5))
+                                      \c
+                                      "Hello."
+                                      (reduce (fn [h v]
+                                                (conj h v)) (list) "Hello.")
+                                      )))
+               (:out (compile-run-solution))))))
+  
+  (deftest special-forms-test
+    (is (= "10 89 11 3 1 5 5 1 1 1 1 1 1 1 1 1 1 "
+           (do (compile->cpp '((def make-adder
+                                    (fn [n] (fn [x] (+ x n))))
+                               (def adder
+                                    (make-adder 1))
+  
+                               (def fibo (fn [n]
+                                           (if (< n 2)
+                                             1
+                                             (+ (fibo (- n 1))
+                                                (fibo (- n 2))))))
+  
+                               (def adder-let (let [a 1
+                                                    b 2]
+                                                (fn [n] (+ a b n))))
+  
+                               (def adder-let-2 (fn [n]
+                                                  (let [a 1
+                                                        b 2]
+                                                    (+ a b n))))
+  
+                               (native-declare "int i = 0;")
+                               (defn inc-int [] "return i++;")
+                               
+                               (print (adder 9)
+  
+                                      (fibo 10)
+  
+                                      ((fn [n] (+ n 1)) 10)
+  
+                                      (((fn [n] (fn [n] n)) 3) 3)
+  
+                                      (if (< 2 3 4 5 6)
+                                        (do 1)
+                                        (do 2))
+  
+                                      (adder-let 2)
+  
+                                      (adder-let-2 2))
+                               
+                               (while (< (inc-int) 10)
+                                 (print 1))))
+               (:out (compile-run-solution))))))
+  
+#+end_src 
+
+** resources/ferret.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle ferret/resources/ferret.h
+  #ifndef H_FERRET
+  #define H_FERRET
+  
+  #ifdef __AVR__
+  # define AVR_GCC TRUE
+  #else
+  # define GNU_GCC TRUE
+  #endif
+  
+  #include <stdlib.h>
+  #include <stdio.h>
+  
+  #ifdef GNU_GCC
+  #include <iostream>
+  #include <sstream>
+  #endif
+  
+  #ifdef AVR_GCC
+  #include "WProgram.h"
+  #endif
+  
+  //
+  // Compiler Specific
+  //
+  
+  #ifdef AVR_GCC
+  extern "C" void __cxa_pure_virtual(void); 
+  void __cxa_pure_virtual(void) {}; 
+  
+  static FILE uartout = {0};
+  
+  static int uart_putchar (char c, FILE *stream){
+    Serial.write(c);
+    return 0 ;
+  }
+  
+  #define OUTPUT_STREAM &uartout
+  
+  #define INIT_ENV                                                        \
+    init();                                                               \
+    Serial.begin(9600);                                                   \
+    fdev_setup_stream (&uartout, uart_putchar, NULL, _FDEV_SETUP_WRITE);  \
+  
+  #endif
+  
+  #ifdef GNU_GCC
+  #define OUTPUT_STREAM stdout
+  #define INIT_ENV 
+  #endif
+  
+  
+  #define VAR ferret::var
+  
+  //
+  // Casting
+  //
+  
+  #define OBJECT(v) static_cast<ferret::Object*>(v.get())
+  #define POINTER(v) static_cast<ferret::Pointer*>(v.get())
+  #define INTEGER(v) static_cast<ferret::Integer*>(v.get())
+  #define FLOAT(v) static_cast<ferret::Float*>(v.get())
+  #define BOOLEAN(v) static_cast<ferret::Boolean*>(v.get())
+  #define KEYWORD(v) static_cast<ferret::Keyword*>(v.get())
+  #define CHARACTER(v) static_cast<ferret::Character*>(v.get())
+  #define SEQUENCE(v) static_cast<ferret::Sequence*>(v.get())
+  #define CELL(v) static_cast<ferret::Cell*>(v.get())
+  #define LAMBDA(v) static_cast<ferret::Lambda*>(v.get())
+  
+  #define GETFLOAT(arg) (OBJECT(arg)->getType() == INTEGER_TYPE ? INTEGER(arg)->floatValue() : FLOAT(arg)->floatValue())
+  
+  //
+  // Function Invocation
+  //
+  
+  #define VA_ARGS(...) , ##__VA_ARGS__
+  #define INVOKE(f,...) LAMBDA(f)->invoke((ferret::var(new ferret::Sequence()) VA_ARGS(__VA_ARGS__)))
+  #define FN(f,...) ferret::var(new ferret::f(__VA_ARGS__))
+  
+  namespace ferret{
+  
+    //
+    // Objects
+    //
+
+    class var;
+  
+    enum TYPE {CONS_TYPE, LIST_TYPE, LAMBDA_TYPE, BOOLEAN_TYPE, KEYWORD_TYPE, 
+               POINTER_TYPE, INTEGER_TYPE, FLOAT_TYPE, CHARACTER_TYPE};
+  
+   <<runtime-native-object>>
+
+   <<runtime-native-var>>
+  
+    class Pointer : public Object { 
+    public:
+      void* ptr;
+      Pointer(void* p){ptr = p;}
+  
+      int getType(){ return POINTER_TYPE;}
+      var equals(var o){ return ptr = POINTER(o)->ptr; }
+  
+      var toOutputStream(){ 
+        fprintf(OUTPUT_STREAM, "Pointer");
+        return var();
+      }
+    };
+  
+    class Integer : public Object{
+    public:
+      Integer(int x){value = x;}
+      int getType(){ return INTEGER_TYPE;}
+      var toOutputStream(){ fprintf(OUTPUT_STREAM, "%d", value); return var();};
+  
+      int intValue(){
+        return value;
+      }
+  
+      float floatValue(){
+        return (float)value;
+      }
+  
+      var equals(var o);
+  
+    private:
+      int value;
+    };
+  
+    class Float : public Object{
+    public:
+      Float(float x){value = x;}
+      int getType(){ return FLOAT_TYPE;}
+      var toOutputStream(){ fprintf(OUTPUT_STREAM, "%f", value); return var();};
+  
+      int intValue(){
+        return (int)value;
+      }
+  
+      float floatValue(){
+        return value;
+      }
+  
+      var equals(var o){
+  
+        switch(OBJECT(o)->getType()) {
+        case INTEGER_TYPE: 
+          return (value == INTEGER(o)->floatValue());
+        case FLOAT_TYPE: 
+          return (value == FLOAT(o)->floatValue());
+        }
+        
+        return false;
+      }
+    private:
+      float value;
+    };
+  
+    var Integer::equals(var o){
+      
+      switch(OBJECT(o)->getType()) {
+      case INTEGER_TYPE: 
+        return (value == INTEGER(o)->intValue());
+      case FLOAT_TYPE:
+        return (value == FLOAT(o)->intValue());
+      }
+      
+      return false;
+    }
+  
+    <<runtime-native-boolean>>
+  
+    class Keyword : public Object { 
+    public:
+      int id;
+  
+      Keyword(int b){id = b;}
+      int getType(){ return KEYWORD_TYPE;}
+  
+      var equals(var o){
+        if (OBJECT(o)->getType() != KEYWORD_TYPE)
+          return false;
+      
+        return (id == KEYWORD(o)->id);
+      }
+  
+      var toOutputStream(){ fprintf(OUTPUT_STREAM, "%d", id); return var();};
+    };
+  
+    class Character : public Object { 
+    public:
+      char value;
+      Character(char c){value = c;}
+      int getType(){ return CHARACTER_TYPE;}
+  
+      var equals(var o){
+        if (OBJECT(o)->getType() != CHARACTER_TYPE)
+          return false;
+      
+        return (value == CHARACTER(o)->value);
+      }
+  
+      var toOutputStream(){ 
+        fprintf(OUTPUT_STREAM, "%c",value);
+        return var();
+      }
+    };
+  
+    <<runtime-native-lambda>>
+  
+    class Cell : public Object{
+    public:
+      var data;
+      var next;
+  
+      var equals(var o){
+        if (OBJECT(o)->getType() != CONS_TYPE)
+          return false;
+      
+        return OBJECT(data)->equals(o);
+      }
+  
+      int getType(){ return CONS_TYPE;}
+      var toOutputStream(){ OBJECT(data)->toOutputStream(); return var();};
+    };
+  
+    class Sequence : public Object{
+      var head;
+    public:
+      Sequence(){
+        head = NULL;
+      }
+  
+      Sequence(var h){
+        head = h;
+      }
+  
+      void cons(var x){
+        var v = var(new Cell());
+        CELL(v)->data = x;
+        CELL(v)->next = head;
+        head = v;
+      }
+  
+      var first(){
+        if (head.get() == NULL )
+          return var();
+        else
+          return CELL(head)->data;
+      }
+  
+      var rest(){
+        if ( head.get() == NULL || CELL(head)->next.get() == NULL )
+          return var(new Sequence());
+        else
+          return var(new Sequence(CELL(head)->next));
+      }
+  
+      var nth(var i){
+        var it = head;
+        int index = INTEGER(i)->intValue();
+  
+        for(int i = 0 ; i < index; i++){
+          if ((CELL(it)->next).get() == NULL )
+            return VAR();
+  
+          it = CELL(it)->next;
+        }
+  
+        return CELL(it)->data;
+      }
+  
+      bool isEmpty(){
+        if (head.get() == NULL)
+          return true;
+  
+        return false;
+      }
+  
+      var toOutputStream(){
+        fprintf(OUTPUT_STREAM, "( ");
+  
+        for(var it = head; it.get() != NULL ; it = CELL(it)->next){
+          OBJECT(CELL(it)->data)->toOutputStream();
+          fprintf(OUTPUT_STREAM, " ");
+        }
+  
+        fprintf(OUTPUT_STREAM, ")");
+        return var();
+      }
+  
+      var equals(var o){
+  
+        if (OBJECT(o)->getType() != LIST_TYPE)
+          return false;
+  
+        var itOther = o;
+        for(var it = this; !SEQUENCE(it)->isEmpty(); it = SEQUENCE(it)->rest()){
+          if (SEQUENCE(itOther)->isEmpty() || 
+              BOOLEAN(OBJECT(SEQUENCE(it)->first())->equals(SEQUENCE(itOther)->first()))->asBool() == false)
+            return false;
+  
+          itOther = SEQUENCE(itOther)->rest();
+        }
+  
+        return true;
+      }
+  
+      var clone() { return var(new Sequence(head));}
+      int getType(){ return LIST_TYPE;}
+  
+      var reduce(var f){
+        var acc = INVOKE(f,CELL(head)->data,CELL(CELL(head)->next)->data);
+  
+        for(var it = CELL(CELL(head)->next)->next; it.get() != NULL ; it = CELL(it)->next)
+          acc = INVOKE(f, CELL(it)->data, acc);
+  
+        return acc;
+      }
+  
+      var reduce(var f, var acc){
+        for(var it = head; it.get() != NULL ; it = CELL(it)->next)
+          acc = INVOKE(f, CELL(it)->data, acc);
+  
+        return acc;
+      }
+    };
+  
+    var::var(int i){
+      m_ptr = new Integer(i);
+      addRef();
+    }
+  
+    var::var(float f){
+      m_ptr = new Float(f);
+      addRef();
+    }
+  
+    var::var(bool b){
+      m_ptr = new Boolean(b);
+      addRef();
+    }
+  
+    var::var(char b){
+      m_ptr = new Character(b);
+      addRef();
+    }
+  
+    var& var::operator, (const var& m){
+      static_cast<Sequence*>(m_ptr)->cons(m);
+      return *this;
+    }
+  
+  #ifdef GNU_GCC
+    std::string toCppString(var s){
+      std::stringstream ss;
+  
+      for(var it = s; !SEQUENCE(it)->isEmpty(); it = SEQUENCE(it)->rest())
+        ss << CHARACTER(SEQUENCE(it)->first())->value;
+  
+      return ss.str();
+    }
+  #endif
+  }
+  #endif
+  
+#+end_src 
+** resources/runtime.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
+  <<runtime-clojure-defn>>
+  
+  (defmacro not= [& test]
+    (list 'not (cons '= `( ~@test))))
+  
+  (defmacro when [test & body]
+    (list 'if test (cons 'do body)))
+  
+  (defmacro while [test & body]
+    (list '_while_ (list 'fn [] test) (cons 'fn `( [] ~@body))))
+  
+  (defmacro forever [& body]
+    (cons 'while `(true  ~@body)))
+  
+  (defmacro and
+    ([] true)
+    ([x] x)
+    ([x & next]
+       (list 'if x `(and ~@next) false)))
+  
+  (defmacro or
+    ([] nil)
+    ([x] x)
+    ([x & next]
+       (list 'if x x `(or ~@next))))
+  
+  (defmacro cond
+    [& clauses]
+      (when clauses
+        (list 'if (first clauses)
+              (if (next clauses)
+                  (second clauses)
+                  (throw (IllegalArgumentException.
+                           "cond requires an even number of forms")))
+              (cons 'cond (next (next clauses))))))
+  
+  (defn not [x]
+    #<
+    if (OBJECT(x)->getType() != BOOLEAN_TYPE)
+      return false;
+    __result = !BOOLEAN(x)->asBool();
+    >#)
+  
+  (defn nil? [x] "__result = (x.get() == NULL)")
+  
+  (defn empty? [x] "__result = SEQUENCE(x)->isEmpty();")
+  
+  (defn list [& xs] "__result = xs;")
+  
+  <<runtime-clojure-first>>
+  
+  (defn rest [x] "__result = SEQUENCE(x)->rest();")
+  
+  (defn cons [x seq] "__result = (SEQUENCE(seq)->clone(),x);")
+  
+  (defn _while_ [pred fn]
+    #<
+    while(BOOLEAN(INVOKE(pred))->asBool() == true)
+        INVOKE(fn);
+    >#)
+  
+  (defmacro dotimes [binding & body]
+    (list '_dotimes_ (second binding) (cons 'fn `( [~(first binding)] ~@body))))
+  
+  (defn _dotimes_ [t f] "for(int i = 0; i < INTEGER(t)->intValue(); i++) INVOKE(f,i);")
+  
+  (defn apply [f args] "__result = LAMBDA(f)->invoke(args);")
+  
+  (defn integer? [x] "__result = (OBJECT(x)->getType() == INTEGER_TYPE);")
+  
+  (defn float? [x] "__result = (OBJECT(x)->getType() == FLOAT_TYPE);")
+  
+  (defn char? [x] "__result = (OBJECT(x)->getType() == CHARACTER_TYPE);")
+  
+  (defn list? [x] "__result = (OBJECT(x)->getType() == LIST_TYPE);")
+  
+  (defn print [& more]
+    (dotimes [i (count more)]
+      #<
+      SEQUENCE(more)->nth(INTEGER(i)->intValue()).toOutputStream();
+      fprintf(OUTPUT_STREAM, " ");
+      >#))
+  
+  (defn newline []
+    #<
+    fprintf(OUTPUT_STREAM, "\n");
+    >#)
+
+  <<runtime-clojure-println>>  
+  
+  (defn + [& xs]
+    (reduce (fn[h v]
+              #<
+              switch(OBJECT(h)->getType()) {
+                  case INTEGER_TYPE:
+                      if (OBJECT(v)->getType() == INTEGER_TYPE) {
+                          __result = INTEGER(h)->intValue() + INTEGER(v)->intValue();
+                          break;
+                      }
+                  case FLOAT_TYPE:
+                      __result = GETFLOAT(h) + GETFLOAT(v);
+              }
+              >#) 0 xs))
+  
+  (defn * [& xs]
+    (reduce (fn[h v]
+              #<
+              switch(OBJECT(h)->getType()) {
+                  case INTEGER_TYPE:
+                      if (OBJECT(v)->getType() == INTEGER_TYPE) {
+                          __result = INTEGER(h)->intValue() * INTEGER(v)->intValue();
+                          break;
+                      }
+                  case FLOAT_TYPE:
+                      __result = GETFLOAT(h) * GETFLOAT(v);
+              }
+              >#) 1 xs))
+  
+  (defn - [& xs]
+    (if (= (count xs) 1)
+      (* -1 (first xs))
+      (reduce (fn[h v]
+                #<
+              switch(OBJECT(h)->getType()) {
+                  case INTEGER_TYPE:
+                      if (OBJECT(v)->getType() == INTEGER_TYPE) {
+                          __result = INTEGER(h)->intValue() - INTEGER(v)->intValue();
+                          break;
+                      }
+                  case FLOAT_TYPE:
+                      __result = GETFLOAT(h) - GETFLOAT(v);
+              }
+                >#) (first xs) (rest xs))))
+  
+  (defn / [& xs]
+    (if (= (count xs) 1)
+      (apply / (cons 1 xs))
+      (reduce (fn[h v]
+                #<
+              switch(OBJECT(h)->getType()) {
+                  case INTEGER_TYPE:
+                      if (OBJECT(v)->getType() == INTEGER_TYPE) {
+                          __result = INTEGER(h)->intValue() / INTEGER(v)->intValue();
+                          break;
+                      }
+                  case FLOAT_TYPE:
+                      __result = GETFLOAT(h) / GETFLOAT(v);
+              }
+                >#) (first xs) (rest xs))))
+  
+  (defn = [a & more]
+    (if (empty? more)
+      true
+      (and ((fn [a b] "__result = OBJECT(a)->equals(b)") a (first more))
+           (apply = more))))
+  
+  (defn < [a & more]
+    (if (empty? more)
+      true
+      (and ((fn [a b]
+              #<
+              switch(OBJECT(a)->getType()) {
+                  case INTEGER_TYPE:
+                      if (OBJECT(b)->getType() == INTEGER_TYPE) {
+                          __result = (INTEGER(a)->intValue() < INTEGER(b)->intValue());
+                          break;
+                      }
+                  case FLOAT_TYPE:
+                      __result = (GETFLOAT(a) < GETFLOAT(b));
+              }
+              >#) a (first more))
+           (apply < more))))
+  
+  (defn > [a & more]
+    (if (empty? more)
+      true
+      (and ((fn [a b]
+              #<
+              switch(OBJECT(a)->getType()) {
+                  case INTEGER_TYPE:
+                      if (OBJECT(b)->getType() == INTEGER_TYPE) {
+                          __result = (INTEGER(a)->intValue() > INTEGER(b)->intValue());
+                          break;
+                      }
+                  case FLOAT_TYPE:
+                      __result = (GETFLOAT(a) > GETFLOAT(b));
+              }
+              >#) a (first more))
+           (apply > more))))
+  
+  (defn >= [a & more]
+    (if (empty? more)
+      true
+      (and ((fn [a b]
+              #<
+              switch(OBJECT(a)->getType()) {
+                  case INTEGER_TYPE:
+                      if (OBJECT(b)->getType() == INTEGER_TYPE) {
+                          __result = (INTEGER(a)->intValue() >= INTEGER(b)->intValue());
+                          break;
+                      }
+                  case FLOAT_TYPE:
+                      __result = (GETFLOAT(a) >= GETFLOAT(b));
+              }
+              >#) a (first more))
+           (apply >= more))))
+  
+  (defn <= [a & more]
+    (if (empty? more)
+      true
+      (and ((fn [a b]
+              #<
+              switch(OBJECT(a)->getType()) {
+                  case INTEGER_TYPE:
+                      if (OBJECT(b)->getType() == INTEGER_TYPE) {
+                          __result = (INTEGER(a)->intValue() <= INTEGER(b)->intValue());
+                          break;
+                      }
+                  case FLOAT_TYPE:
+                      __result = (GETFLOAT(a) <= GETFLOAT(b));
+              }
+              >#) a (first more))
+           (apply <= more))))
+  
+  (defn conj [coll & xs]
+    (reduce (fn[h v] (cons v h)) (if (nil? coll) (list) coll) xs))
+  
+  (defn inc [x]
+    (+ x 1))
+  
+  (defn dec [x]
+    (- x 1))
+  
+  (defn pos? [x]
+    (> x 0))
+  
+  (defn neg? [x]
+    (< x 0))
+  
+  (defn zero? [x]
+    (= x 0))
+  
+  (defn count [s]
+    (reduce (fn [h v] (inc h)) 0 s))
+  
+  (defn reverse [s]
+    (reduce conj (list) s))
+  
+  ;;Arduino
+  
+  (defn pin-mode [pin mode]
+    #<
+    if (KEYWORD(mode)->id == 618)
+      pinMode(INTEGER(pin)->intValue(), INPUT);
+    else
+      pinMode(INTEGER(pin)->intValue(), OUTPUT);
+    >#)
+  
+  (defn digital-write [pin mode]
+    #<
+    if (KEYWORD(mode)->id == 474)
+      digitalWrite(INTEGER(pin)->intValue(), HIGH);
+    else
+      digitalWrite(INTEGER(pin)->intValue(), LOW);
+    >#)
+  
+  (defn sleep [timeout] "::delay(INTEGER(timeout)->intValue());")
+  
+#+end_src 

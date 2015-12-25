@@ -1090,11 +1090,9 @@ List of all functions and macros defined,
             (cons 'cond (next (next clauses))))))
 
   (defn not [x]
-    "
-      if (OBJECT(x)->getType() != BOOLEAN_TYPE)
+    "if (OBJECT(x)->getType() != BOOLEAN_TYPE)
         return false;
-      __result = !BOOLEAN(x)->asBool();
-      ")
+      __result = !BOOLEAN(x)->asBool();")
 
   (defn nil? [x] "__result = (x.get() == NULL)")
 
@@ -1109,10 +1107,8 @@ List of all functions and macros defined,
   (defn cons [x seq] "__result = (SEQUENCE(seq)->clone(),x);")
 
   (defn _while_ [pred fn]
-    "
-      while(BOOLEAN(INVOKE(pred))->asBool() == true)
-          INVOKE(fn);
-      ")
+    "while(BOOLEAN(INVOKE(pred))->asBool() == true)
+       INVOKE(fn);")
 
   (defmacro dotimes [binding & body]
     (list '_dotimes_ (second binding) (cons 'fn `( [~(first binding)] ~@body))))
@@ -1133,15 +1129,11 @@ List of all functions and macros defined,
 
   (defn print [& more]
     (dotimes [i (count more)]
-      "
-        SEQUENCE(more)->nth(NUMBER(i)->intValue()).toOutputStream();
-        fprintf(OUTPUT_STREAM, \" \");
-        "))
+      "SEQUENCE(more)->nth(NUMBER(i)->intValue()).toOutputStream();
+       fprintf(OUTPUT_STREAM, \" \");"))
 
   (defn newline []
-    "
-      fprintf(OUTPUT_STREAM, \"\\n\");
-      ")
+    "fprintf(OUTPUT_STREAM, \"\\n\");")
 
   <<runtime-clojure-println>>  
 
@@ -1280,23 +1272,18 @@ List of all functions and macros defined,
   ;;Arduino
 
   (defn pin-mode [pin mode]
-    "
-      if (KEYWORD(mode)->id == 618)
+    "if (KEYWORD(mode)->id == 618)
         pinMode(NUMBER(pin)->intValue(), INPUT);
-      else
-        pinMode(NUMBER(pin)->intValue(), OUTPUT);
-      ")
+     else
+        pinMode(NUMBER(pin)->intValue(), OUTPUT);")
 
   (defn digital-write [pin mode]
-    "
-      if (KEYWORD(mode)->id == 474)
+    "if (KEYWORD(mode)->id == 474)
         digitalWrite(NUMBER(pin)->intValue(), HIGH);
-      else
-        digitalWrite(NUMBER(pin)->intValue(), LOW);
-      ")
+     else
+        digitalWrite(NUMBER(pin)->intValue(), LOW);")
 
   (defn sleep [timeout] "::delay(NUMBER(timeout)->intValue());")
-
 #+end_src
 
 * Example Code
@@ -1422,7 +1409,7 @@ output will be placed in a directory called /solution//,
 
     (defn compile->binary []
       (let [ret (with-sh-dir "solution/"
-                  (sh "g++" "solution.cpp"))]
+                  (sh "g++" "-Wall" "solution.cpp"))]
         (if (not= 0 (:exit ret))
           (do (println (:err ret))
               (System/exit 1))

@@ -485,14 +485,13 @@ C++ skeleton.
   (defmethod emit 'reduce [[_ & args] state]
     (if (= 2 (count args))
       (let [[f s] args]
-        (str "(SEQUENCE(" (emit s state) ")->reduce(" (emit f state) "))"))
+        (str "(ISEEKABLE(" (emit s state) ")->reduce(" (emit f state) "))"))
       (let [[f v s] args]
-        (str "(SEQUENCE(" (emit s state) ")->reduce(" (emit f state) " , " (emit v state) "))"))))
+        (str "(ISEEKABLE(" (emit s state) ")->reduce(" (emit f state) " , " (emit v state) "))"))))
 
   (defmethod emit 'def [[_ name & form] state]
     (append-to! state [:symbol-table] name)
     (str name " = " (apply str (map #(emit % state) form))))
-
 #+end_src
 
 *** Code Templates
@@ -611,6 +610,7 @@ Object Casting macros,
   #define CHARACTER(v) static_cast<ferret::Character*>(v.get())
   #define BOOLEAN(v) static_cast<ferret::Boolean*>(v.get())
   #define KEYWORD(v) static_cast<ferret::Keyword*>(v.get())
+  #define ISEEKABLE(v) static_cast<ferret::ISeekable*>(v.get())
   #define CELL(v) static_cast<ferret::Cell*>(v.get())
   #define SEQUENCE(v) static_cast<ferret::Sequence*>(v.get())
   #define LAMBDA(v) static_cast<ferret::Lambda*>(v.get())
@@ -857,6 +857,23 @@ Math configuration,
 
 #+end_src
 
+*** Seekable Interface
+
+#+name: native-seekable-interface
+#+begin_src c++ :tangle no
+  class ISeekable : public Object{
+  public:
+    virtual ~ISeekable() {}
+    virtual void cons(var x) = 0;
+    virtual var first() = 0;
+    virtual var rest() = 0;
+    virtual var nth(var i) = 0;
+    virtual bool isEmpty() = 0;
+    virtual var reduce(var f) = 0;
+    virtual var reduce(var f, var acc) = 0;
+  };
+#+end_src
+
 *** Sequence
 
 #+name: runtime-native-sequence
@@ -877,7 +894,7 @@ Math configuration,
     var toOutputStream(){ OBJECT(data)->toOutputStream(); return var();};
   };
 
-  class Sequence : public Object{
+  class Sequence : public ISeekable{
     var head;
   public:
     Sequence(){
@@ -2022,6 +2039,7 @@ output will be placed in a directory called /solution//,
     <<runtime-native-keyword>>
     <<runtime-native-lambda>>
     <<runtime-native-character>>
+    <<native-seekable-interface>>
     <<runtime-native-sequence>>
     <<runtime-native-var-descriptions>>
 

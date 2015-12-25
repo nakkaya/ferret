@@ -574,16 +574,16 @@ new/delete is needed because in avr-gcc they are not defined.)
 #+begin_src c++ :tangle no
   class Number : public Object{
   public:
-  #if NUMBER_TYPE != int
+  #if NUMBER_DATA_TYPE != int
     Number(int x);
   #endif
-    Number(NUMBER_TYPE x);
-    Number(NUMBER_TYPE n, NUMBER_TYPE dn);
+    Number(NUMBER_DATA_TYPE x);
+    Number(NUMBER_DATA_TYPE n, NUMBER_DATA_TYPE dn);
     Number(float x);
     ~Number(){};
-    int getType(){ return type;}
-    NUMBER_TYPE getNumerator(){ return numerator;}
-    NUMBER_TYPE getDenominator(){ return denominator;}
+    int getType(){ return NUMBER_TYPE;}
+    NUMBER_DATA_TYPE getNumerator(){ return numerator;}
+    NUMBER_DATA_TYPE getDenominator(){ return denominator;}
 
     float floatValue(){return (float)numerator/(float)denominator;}
     int intValue(){
@@ -597,8 +597,7 @@ new/delete is needed because in avr-gcc they are not defined.)
       int self_type = getType();
       int other_type = OBJECT(o)->getType();
 
-      if ((self_type == INTEGER_TYPE || self_type == FLOAT_TYPE) &&
-          (other_type == INTEGER_TYPE || other_type == FLOAT_TYPE)){
+      if (self_type == NUMBER_TYPE && other_type == NUMBER_TYPE){
         return ((getNumerator() == NUMBER(o)->getNumerator()) &&
                 (getDenominator() == NUMBER(o)->getDenominator()));
       }else
@@ -620,50 +619,44 @@ new/delete is needed because in avr-gcc they are not defined.)
     };
     
   private:
-    
+
     void simplificate(){
       int commondivisor = 1;
-      for(NUMBER_TYPE i=2;i<=MIN(ABS(numerator), ABS(denominator));i++)
+      for(NUMBER_DATA_TYPE i=2;i<=MIN(ABS(numerator), ABS(denominator));i++)
         if( numerator%i == 0 && denominator%i == 0 )
           commondivisor = i;
       numerator /= commondivisor;
       denominator /= commondivisor;
     }
-    
-    NUMBER_TYPE numerator;
-    NUMBER_TYPE denominator;
-    int type;
-  };    
+
+    NUMBER_DATA_TYPE numerator;
+    NUMBER_DATA_TYPE denominator;
+  };
 #+end_src
 
 #+name: runtime-native-number
 #+begin_src c++ :tangle no
-  #if NUMBER_TYPE != int
+  #if NUMBER_DATA_TYPE != int
   inline Number::Number(int x){
-    type = INTEGER_TYPE;
     numerator = x;
     denominator = 1;
   }
   #endif
 
-  inline Number::Number(NUMBER_TYPE x){
-    type = INTEGER_TYPE;
+  inline Number::Number(NUMBER_DATA_TYPE x){
     numerator = x;
     denominator = 1;
   }
 
-  inline Number::Number(NUMBER_TYPE n, NUMBER_TYPE dn){
-    type = FLOAT_TYPE;
+  inline Number::Number(NUMBER_DATA_TYPE n, NUMBER_DATA_TYPE dn){
     numerator = n;
     denominator = dn;
     simplificate();
   }
 
   inline Number::Number(float x){
-    type = FLOAT_TYPE;
-    
-    float decimal = (x - (NUMBER_TYPE)x) * (float)NUMBER_PRECISION;
-    NUMBER_TYPE integer = (NUMBER_TYPE)x;
+    float decimal = (x - (NUMBER_DATA_TYPE)x) * (float)NUMBER_PRECISION;
+    NUMBER_DATA_TYPE integer = (NUMBER_DATA_TYPE)x;
     
     numerator = decimal + (integer * NUMBER_PRECISION);
     denominator = NUMBER_PRECISION;
@@ -923,12 +916,12 @@ reaches zero it will automatically free the Object.
       return *this;
     }
 
-  #if NUMBER_TYPE != int
+  #if NUMBER_DATA_TYPE != int
     var(int i);
   #endif
 
-    var(NUMBER_TYPE i);
-    var(NUMBER_TYPE n, NUMBER_TYPE dn);
+    var(NUMBER_DATA_TYPE i);
+    var(NUMBER_DATA_TYPE n, NUMBER_DATA_TYPE dn);
     var(float f);
     var(bool b);
     var(char b);
@@ -967,19 +960,19 @@ reaches zero it will automatically free the Object.
 
 #+name: runtime-native-var-descriptions
 #+begin_src c++ :tangle no
-  #if NUMBER_TYPE != int
+  #if NUMBER_DATA_TYPE != int
   var::var(int i){
     m_ptr = new Number(i);
     addRef();
   }
   #endif
 
-  var::var(NUMBER_TYPE i){
+  var::var(NUMBER_DATA_TYPE i){
     m_ptr = new Number(i);
     addRef();
   }
 
-  var::var(NUMBER_TYPE n, NUMBER_TYPE dn){
+  var::var(NUMBER_DATA_TYPE n, NUMBER_DATA_TYPE dn){
     m_ptr = new Number(n,dn);
     addRef();
   }
@@ -1126,9 +1119,14 @@ List of all functions and macros defined,
 
   (defn apply [f args] "__result = LAMBDA(f)->invoke(args);")
 
-  (defn integer? [x] "__result = (OBJECT(x)->getType() == INTEGER_TYPE);")
+  (defn integer? [x] "__result = ((OBJECT(x)->getType() == NUMBER_TYPE) &&
+                                  (NUMBER(x)->getDenominator() == 1));")
 
-  (defn float? [x] "__result = (OBJECT(x)->getType() == FLOAT_TYPE);")
+  (defn float? [x] "__result = ((OBJECT(x)->getType() == NUMBER_TYPE) &&
+                                (NUMBER(x)->getDenominator() != 1));")
+
+  (defn zero? [x] "__result = ((OBJECT(x)->getType() == NUMBER_TYPE) &&
+                               (NUMBER(x)->getNumerator() == 0));")
 
   (defn char? [x] "__result = (OBJECT(x)->getType() == CHARACTER_TYPE);")
 
@@ -1150,25 +1148,25 @@ List of all functions and macros defined,
 
   (defn + [& xs]
     (reduce (fn[h v] "
-      NUMBER_TYPE hn = NUMBER(h)->getNumerator();
-      NUMBER_TYPE hdn = NUMBER(h)->getDenominator();
+      NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
+      NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
 
-      NUMBER_TYPE vn = NUMBER(v)->getNumerator();
-      NUMBER_TYPE vdn = NUMBER(v)->getDenominator();
+      NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
+      NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
 
-      NUMBER_TYPE ndn = (hdn * vdn);
+      NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
       return VAR(((hn * vdn) + (vn * hdn)),ndn);") 0 xs))
 
   (defn * [& xs]
     (reduce (fn[h v] "
-      NUMBER_TYPE hn = NUMBER(h)->getNumerator();
-      NUMBER_TYPE hdn = NUMBER(h)->getDenominator();
+      NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
+      NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
 
-      NUMBER_TYPE vn = NUMBER(v)->getNumerator();
-      NUMBER_TYPE vdn = NUMBER(v)->getDenominator();
+      NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
+      NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
 
-      NUMBER_TYPE ndn = (hdn * vdn);
+      NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
       return VAR(((hn * vdn) * (vn * hdn)),ndn);") 1 xs))
 
@@ -1176,13 +1174,13 @@ List of all functions and macros defined,
     (if (= (count xs) 1)
       (* -1 (first xs))
       (reduce (fn[h v] "
-      NUMBER_TYPE hn = NUMBER(h)->getNumerator();
-      NUMBER_TYPE hdn = NUMBER(h)->getDenominator();
+      NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
+      NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
 
-      NUMBER_TYPE vn = NUMBER(v)->getNumerator();
-      NUMBER_TYPE vdn = NUMBER(v)->getDenominator();
+      NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
+      NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
 
-      NUMBER_TYPE ndn = (hdn * vdn);
+      NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
       return VAR(((hn * vdn) - (vn * hdn)),ndn);") (first xs) (rest xs))))
 
@@ -1190,11 +1188,11 @@ List of all functions and macros defined,
     (if (= (count xs) 1)
       (apply / (cons 1 xs))
       (reduce (fn[h v] "
-      NUMBER_TYPE hn = NUMBER(h)->getNumerator();
-      NUMBER_TYPE hdn = NUMBER(h)->getDenominator();
+      NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
+      NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
 
-      NUMBER_TYPE vn = NUMBER(v)->getNumerator();
-      NUMBER_TYPE vdn = NUMBER(v)->getDenominator();
+      NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
+      NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
 
       return VAR((hn * vdn),(vn * hdn));") (first xs) (rest xs))))
 
@@ -1208,11 +1206,11 @@ List of all functions and macros defined,
     (if (empty? more)
       true
       (and ((fn [a b] "
-      NUMBER_TYPE an = NUMBER(a)->getNumerator();
-      NUMBER_TYPE adn = NUMBER(a)->getDenominator();
+      NUMBER_DATA_TYPE an = NUMBER(a)->getNumerator();
+      NUMBER_DATA_TYPE adn = NUMBER(a)->getDenominator();
 
-      NUMBER_TYPE bn = NUMBER(b)->getNumerator();
-      NUMBER_TYPE bdn = NUMBER(b)->getDenominator();
+      NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
+      NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
       return VAR((an * bdn) < (bn * adn));") a (first more))
            (apply < more))))
@@ -1221,11 +1219,11 @@ List of all functions and macros defined,
     (if (empty? more)
       true
       (and ((fn [a b] "
-      NUMBER_TYPE an = NUMBER(a)->getNumerator();
-      NUMBER_TYPE adn = NUMBER(a)->getDenominator();
+      NUMBER_DATA_TYPE an = NUMBER(a)->getNumerator();
+      NUMBER_DATA_TYPE adn = NUMBER(a)->getDenominator();
 
-      NUMBER_TYPE bn = NUMBER(b)->getNumerator();
-      NUMBER_TYPE bdn = NUMBER(b)->getDenominator();
+      NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
+      NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
       return VAR((an * bdn) > (bn * adn));") a (first more))
            (apply > more))))
@@ -1234,11 +1232,11 @@ List of all functions and macros defined,
     (if (empty? more)
       true
       (and ((fn [a b] "
-      NUMBER_TYPE an = NUMBER(a)->getNumerator();
-      NUMBER_TYPE adn = NUMBER(a)->getDenominator();
+      NUMBER_DATA_TYPE an = NUMBER(a)->getNumerator();
+      NUMBER_DATA_TYPE adn = NUMBER(a)->getDenominator();
 
-      NUMBER_TYPE bn = NUMBER(b)->getNumerator();
-      NUMBER_TYPE bdn = NUMBER(b)->getDenominator();
+      NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
+      NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
       return VAR((an * bdn) >= (bn * adn));") a (first more))
            (apply >= more))))
@@ -1247,11 +1245,11 @@ List of all functions and macros defined,
     (if (empty? more)
       true
       (and ((fn [a b] "
-      NUMBER_TYPE an = NUMBER(a)->getNumerator();
-      NUMBER_TYPE adn = NUMBER(a)->getDenominator();
+      NUMBER_DATA_TYPE an = NUMBER(a)->getNumerator();
+      NUMBER_DATA_TYPE adn = NUMBER(a)->getDenominator();
 
-      NUMBER_TYPE bn = NUMBER(b)->getNumerator();
-      NUMBER_TYPE bdn = NUMBER(b)->getDenominator();
+      NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
+      NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
       return VAR((an * bdn) <= (bn * adn));") a (first more))
            (apply <= more))))
@@ -1854,9 +1852,9 @@ output will be placed in a directory called /solution//,
   #define VAR ferret::var
 
   #define NUMBER_PRECISION 1000
-  //#define NUMBER_TYPE long
-  //#define NUMBER_TYPE_FORMAT "%ld"
-  #define NUMBER_TYPE int
+  //#define NUMBER_DATA_TYPE long
+  //#define NUMBER_DATA_TYPE_FORMAT "%ld"
+  #define NUMBER_DATA_TYPE int
   #define NUMBER_TYPE_FORMAT "%d"
 
   #define MIN(a,b) ((a)<(b)?(a):(b))
@@ -1893,7 +1891,7 @@ output will be placed in a directory called /solution//,
     class var;
 
     enum TYPE {CONS_TYPE, LIST_TYPE, LAMBDA_TYPE, BOOLEAN_TYPE, KEYWORD_TYPE, 
-               POINTER_TYPE, INTEGER_TYPE, FLOAT_TYPE, CHARACTER_TYPE};
+               POINTER_TYPE, NUMBER_TYPE, CHARACTER_TYPE};
 
     <<runtime-native-object>>
     <<runtime-native-var>>

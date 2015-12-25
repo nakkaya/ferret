@@ -1317,6 +1317,49 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
     (reduce (fn [h v] (inc h)) 0 s))
 #+end_src
 
+*** Bit Operations
+
+#+name: runtime-clojure-bit-operations
+#+begin_src clojure :tangle no
+  (defn bit-not [x] "__result = VAR(~NUMBER(x)->getNumerator());")
+
+  (defn bit-and [x y] "__result = VAR((NUMBER(x)->getNumerator() &
+                                       NUMBER(y)->getNumerator()));")
+
+  (defn bit-or [x y] "__result = VAR((NUMBER(x)->getNumerator() |
+                                      NUMBER(y)->getNumerator()));")
+
+  (defn bit-xor [x y] "__result = VAR((NUMBER(x)->getNumerator() ^
+                                       NUMBER(y)->getNumerator()));")
+
+  (defn bit-shift-left [x n] "__result = VAR((NUMBER(x)->getNumerator() <<
+                                              NUMBER(n)->getNumerator()));")
+
+  (defn bit-shift-right [x n] "__result = VAR((NUMBER(x)->getNumerator() >>
+                                               NUMBER(n)->getNumerator()));")
+#+end_src
+
+**** Tests
+
+#+name: runtime-clojure-bit-operations-tests
+#+begin_src clojure :tangle no
+  (deftest bit-operations-test
+    (is (= "-5 -1 7 1 0 0 0 1 8 16 2 1 "
+           (do (compile->cpp '((print (bit-not  4)
+                                      (bit-not  0)
+                                      (bit-or   4 3)
+                                      (bit-or   0 1)
+                                      (bit-and  4 3)
+                                      (bit-and  0 1)
+                                      (bit-xor  4 4)
+                                      (bit-xor  1 0)
+                                      (bit-shift-left 4 1)
+                                      (bit-shift-left 4 2)
+                                      (bit-shift-right 4 1)
+                                      (bit-shift-right 4 2))))
+               (:out (compile-run-solution))))))
+#+end_src
+
 *** Arduino
 
 #+name: runtime-clojure-arduino
@@ -1643,7 +1686,7 @@ output will be placed in a directory called /solution//,
 #+end_src
 
 ** test/core.clj
-#+begin_src clojure :mkdirp yes :tangle ferret/test/ferret/test/core.clj
+#+begin_src clojure :noweb yes :mkdirp yes :tangle ferret/test/ferret/test/core.clj
   (ns ferret.test.core
     (:use [ferret.core] :reload)
     (:use [clojure.test]
@@ -1654,6 +1697,8 @@ output will be placed in a directory called /solution//,
     (with-sh-dir "solution/"
       (let [r (sh "./a.out")]
         r)))
+
+  <<runtime-clojure-bit-operations-tests>>
 
   (deftest processing-test
     (is (seq? (vector->list [1 2 [2 [5 4] 3]])))
@@ -1937,6 +1982,7 @@ output will be placed in a directory called /solution//,
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
   <<runtime-clojure-defn>>
   <<runtime-clojure-math>>
+  <<runtime-clojure-bit-operations>>
   <<runtime-clojure-logical-operators>>
   <<runtime-clojure-conditionals>>
   <<runtime-clojure-looping>>

@@ -795,6 +795,13 @@ Math configuration,
     int id;
 
     Keyword(int b){id = b;}
+    Keyword(char* str){
+      id = 0;
+      for (int i = 0; str[i] != '\0'; i++){
+        id = id + (int)str[i];
+      }
+    }
+    
     int getType(){ return KEYWORD_TYPE;}
 
     var equals(var o){
@@ -804,9 +811,25 @@ Math configuration,
       return (id == KEYWORD(o)->id);
     }
 
+    var equals(Keyword k){
+      return (id == k.id);
+    }
+    
     var toOutputStream(){ fprintf(OUTPUT_STREAM, "%d", id); return var();};
   };
+#+end_src
 
+**** Tests
+
+#+name: native-keyword-tests
+#+begin_src clojure :tangle no
+  (deftest native-keyword-test
+    (is (= "true false true "
+           (do (compile->cpp '((print (= :test :test)
+                                      (= :test :other_test)
+                                      ((fn [keyword]
+                                         "__result = VAR((KEYWORD(keyword)->equals(Keyword(\":space\"))))") :space))))
+               (:out (compile-run-solution))))))
 #+end_src
 
 *** Character
@@ -1578,13 +1601,13 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-arduino
 #+begin_src clojure :tangle no
   (defn pin-mode [pin mode]
-    "if (KEYWORD(mode)->id == 618)
+    "if (KEYWORD(mode).equals(Keyword(\":input\")) )
         pinMode(NUMBER(pin)->intValue(), INPUT);
      else
         pinMode(NUMBER(pin)->intValue(), OUTPUT);")
 
   (defn digital-write [pin mode]
-    "if (KEYWORD(mode)->id == 474)
+    "if (KEYWORD(mode).equals(Keyword(\":high\")))
         digitalWrite(NUMBER(pin)->intValue(), HIGH);
      else
         digitalWrite(NUMBER(pin)->intValue(), LOW);")
@@ -1917,6 +1940,7 @@ output will be placed in a directory called /solution//,
   <<runtime-clojure-logical-operators-tests>>
   <<runtime-clojure-conditionals-tests>>
   <<runtime-clojure-sequences-tests>>
+  <<native-keyword-tests>>
 #+end_src 
 
 ** resources/ferret.h

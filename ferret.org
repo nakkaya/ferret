@@ -583,7 +583,12 @@ new/delete is needed because in avr-gcc they are not defined.)
     int getDenominator(){ return denominator;}
 
     float floatValue(){return (float)numerator/(float)denominator;}
-    int intValue(){return (int)floatValue();}
+    int intValue(){
+      if (denominator == 1)
+        return numerator;
+      else
+        return (int)floatValue();
+    }
       
     var equals(var o){
       int self_type = getType();

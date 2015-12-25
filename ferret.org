@@ -660,14 +660,13 @@ new/delete is needed because in avr-gcc they are not defined.)
   }
 
   inline Number::Number(float x){
-    int NUMBER_PRECISION = 1000;
     type = FLOAT_TYPE;
     
     float decimal = (x - (NUMBER_TYPE)x) * (float)NUMBER_PRECISION;
     NUMBER_TYPE integer = (NUMBER_TYPE)x;
     
     numerator = decimal + (integer * NUMBER_PRECISION);
-    denominator = precision;
+    denominator = NUMBER_PRECISION;
     simplificate();
   }
 #+end_src

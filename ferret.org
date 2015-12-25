@@ -1047,12 +1047,14 @@ Once our object system is in place we can define rest of the runtime
 #+name: runtime-clojure-first
 #+begin_src clojure :tangle no
   (defn first [x]
-    "
-    if(x.get() == NULL)
+    "if(x.get() == NULL)
       __result = VAR();
     else
-      __result = SEQUENCE(x)->first();
-    ")
+      __result = SEQUENCE(x)->first();")
+
+  (defn nil? [x] "__result = (x.get() == NULL)")
+
+  (defn char? [x] "__result = (OBJECT(x)->getType() == CHARACTER_TYPE);")
 #+end_src
 
 We can embed C++ code into our functions, which is how most of the
@@ -1077,45 +1079,41 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
     (list 'def name (cons 'fn `( ~args ~@body))))
 #+end_src
 
-List of all functions and macros defined,
+*** Console I/O
 
-|---------+----------+---------------+--------------+---------|
-| defn    | not=     | when          | while        | forever |
-| and     | or       | cond          | not          | nil?    |
-| empty?  | list     | rest          | cons         | while   |
-| dotimes | apply    | integer?      | float?       | char?   |
-| list?   | print    | newline       | println      | +       |
-| \*      | -        | /             | \=           | <       |
-| >       | >=       | <=            | conj         | inc     |
-| dec     | pos?     | neg?          | zero?        | count   |
-| reverse | pin-mode | digital-write | digital-read | sleep   |
-|---------+----------+---------------+--------------+---------|
-
-#+name: core-runtime-rest
+#+name: runtime-clojure-console-io
 #+begin_src clojure :tangle no
-  (defmacro not= [& test]
-    (list 'not (cons '= `( ~@test))))
+  (defn print [& more]
+    (dotimes [i (count more)]
+      "SEQUENCE(more)->nth(NUMBER(i)->intValue()).toOutputStream();
+       fprintf(OUTPUT_STREAM, \" \");"))
+
+  (defn newline []
+    "fprintf(OUTPUT_STREAM, \"\\n\");")
+
+  <<runtime-clojure-println>>
+#+end_src
+
+*** Looping
+
+#+name: runtime-clojure-looping
+#+begin_src clojure :tangle no
+  (defmacro dotimes [binding & body]
+    (list '_dotimes_ (second binding) (cons 'fn `( [~(first binding)] ~@body))))
+
+  (defn _dotimes_ [t f] "for(int i = 0; i < NUMBER(t)->intValue(); i++) INVOKE(f,i);")
+#+end_src
+
+*** Conditionals
+
+#+name: runtime-clojure-conditionals
+#+begin_src clojure :tangle no
+  (defn _while_ [pred fn]
+    "while(BOOLEAN(INVOKE(pred))->asBool() == true)
+       INVOKE(fn);")
 
   (defmacro when [test & body]
     (list 'if test (cons 'do body)))
-
-  (defmacro while [test & body]
-    (list '_while_ (list 'fn [] test) (cons 'fn `( [] ~@body))))
-
-  (defmacro forever [& body]
-    (cons 'while `(true  ~@body)))
-
-  (defmacro and
-    ([] true)
-    ([x] x)
-    ([x & next]
-     (list 'if x `(and ~@next) false)))
-
-  (defmacro or
-    ([] nil)
-    ([x] x)
-    ([x & next]
-     (list 'if x x `(or ~@next))))
 
   (defmacro cond
     [& clauses]
@@ -1127,109 +1125,48 @@ List of all functions and macros defined,
                       "cond requires an even number of forms")))
             (cons 'cond (next (next clauses))))))
 
-  (defn not [x]
-    "if (OBJECT(x)->getType() != BOOLEAN_TYPE)
-        return false;
-      __result = !BOOLEAN(x)->asBool();")
+  (defmacro while [test & body]
+    (list '_while_ (list 'fn [] test) (cons 'fn `( [] ~@body))))
 
-  (defn nil? [x] "__result = (x.get() == NULL)")
+  (defmacro forever [& body]
+    (cons 'while `(true  ~@body)))
+#+end_src
 
-  (defn empty? [x] "__result = SEQUENCE(x)->isEmpty();")
+*** Sequence
 
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
   (defn list [& xs] "__result = xs;")
 
-  <<runtime-clojure-first>>
+  (defn list? [x] "__result = (OBJECT(x)->getType() == LIST_TYPE);")
+
+  (defn empty? [x] "__result = SEQUENCE(x)->isEmpty();")
 
   (defn rest [x] "__result = SEQUENCE(x)->rest();")
 
   (defn cons [x seq] "__result = (SEQUENCE(seq)->clone(),x);")
 
-  (defn _while_ [pred fn]
-    "while(BOOLEAN(INVOKE(pred))->asBool() == true)
-       INVOKE(fn);")
-
-  (defmacro dotimes [binding & body]
-    (list '_dotimes_ (second binding) (cons 'fn `( [~(first binding)] ~@body))))
-
-  (defn _dotimes_ [t f] "for(int i = 0; i < NUMBER(t)->intValue(); i++) INVOKE(f,i);")
-
   (defn apply [f args] "__result = LAMBDA(f)->invoke(args);")
 
-  (defn integer? [x] "__result = ((OBJECT(x)->getType() == NUMBER_TYPE) &&
-                                  (NUMBER(x)->getDenominator() == 1));")
+  (defn conj [coll & xs]
+    (reduce (fn[h v] (cons v h)) (if (nil? coll) (list) coll) xs))
 
-  (defn float? [x] "__result = ((OBJECT(x)->getType() == NUMBER_TYPE) &&
-                                (NUMBER(x)->getDenominator() != 1));")
+  (defn reverse [s]
+    (reduce conj (list) s))
+#+end_src
 
-  (defn char? [x] "__result = (OBJECT(x)->getType() == CHARACTER_TYPE);")
+*** Logical Operators
 
-  (defn list? [x] "__result = (OBJECT(x)->getType() == LIST_TYPE);")
-
-  (defn print [& more]
-    (dotimes [i (count more)]
-      "SEQUENCE(more)->nth(NUMBER(i)->intValue()).toOutputStream();
-       fprintf(OUTPUT_STREAM, \" \");"))
-
-  (defn newline []
-    "fprintf(OUTPUT_STREAM, \"\\n\");")
-
-  <<runtime-clojure-println>>  
-
-  (defn + [& xs]
-    (reduce (fn[h v] "
-      NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
-      NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
-
-      NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
-      NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
-
-      NUMBER_DATA_TYPE ndn = (hdn * vdn);
-
-      return VAR(((hn * vdn) + (vn * hdn)),ndn);") 0 xs))
-
-  (defn * [& xs]
-    (reduce (fn[h v] "
-      NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
-      NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
-
-      NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
-      NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
-
-      NUMBER_DATA_TYPE ndn = (hdn * vdn);
-
-      return VAR(((hn * vdn) * (vn * hdn)),ndn);") 1 xs))
-
-  (defn - [& xs]
-    (if (= (count xs) 1)
-      (* -1 (first xs))
-      (reduce (fn[h v] "
-      NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
-      NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
-
-      NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
-      NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
-
-      NUMBER_DATA_TYPE ndn = (hdn * vdn);
-
-      return VAR(((hn * vdn) - (vn * hdn)),ndn);") (first xs) (rest xs))))
-
-  (defn / [& xs]
-    (if (= (count xs) 1)
-      (apply / (cons 1 xs))
-      (reduce (fn[h v] "
-      NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
-      NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
-
-      NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
-      NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
-
-      return VAR((hn * vdn),(vn * hdn));") (first xs) (rest xs))))
-
+#+name: runtime-clojure-logical-operators
+#+begin_src clojure :tangle no
   (defn = [a & more]
     (if (empty? more)
       true
       (and ((fn [a b] "__result = OBJECT(a)->equals(b);") a (first more))
            (apply = more))))
+
+  (defmacro not= [& test]
+    (list 'not (cons '= `( ~@test))))
 
   (defn < [a & more]
     (if (empty? more)
@@ -1283,8 +1220,83 @@ List of all functions and macros defined,
       return VAR((an * bdn) <= (bn * adn));") a (first more))
            (apply <= more))))
 
-  (defn conj [coll & xs]
-    (reduce (fn[h v] (cons v h)) (if (nil? coll) (list) coll) xs))
+  (defmacro and
+    ([] true)
+    ([x] x)
+    ([x & next]
+     (list 'if x `(and ~@next) false)))
+
+  (defmacro or
+    ([] nil)
+    ([x] x)
+    ([x & next]
+     (list 'if x x `(or ~@next))))
+
+  (defn not [x]
+    "if (OBJECT(x)->getType() != BOOLEAN_TYPE)
+        return false;
+        __result = !BOOLEAN(x)->asBool();")
+#+end_src
+
+*** Math
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no
+  (defn integer? [x] "__result = ((OBJECT(x)->getType() == NUMBER_TYPE) &&
+                                    (NUMBER(x)->getDenominator() == 1));")
+
+  (defn float? [x] "__result = ((OBJECT(x)->getType() == NUMBER_TYPE) &&
+                                  (NUMBER(x)->getDenominator() != 1));")
+
+  (defn + [& xs]
+    (reduce (fn[h v] "
+        NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
+        NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
+
+        NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
+        NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
+
+        NUMBER_DATA_TYPE ndn = (hdn * vdn);
+
+        return VAR(((hn * vdn) + (vn * hdn)),ndn);") 0 xs))
+
+  (defn * [& xs]
+    (reduce (fn[h v] "
+        NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
+        NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
+
+        NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
+        NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
+
+        NUMBER_DATA_TYPE ndn = (hdn * vdn);
+
+        return VAR(((hn * vdn) * (vn * hdn)),ndn);") 1 xs))
+
+  (defn - [& xs]
+    (if (= (count xs) 1)
+      (* -1 (first xs))
+      (reduce (fn[h v] "
+        NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
+        NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
+
+        NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
+        NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
+
+        NUMBER_DATA_TYPE ndn = (hdn * vdn);
+
+        return VAR(((hn * vdn) - (vn * hdn)),ndn);") (first xs) (rest xs))))
+
+  (defn / [& xs]
+    (if (= (count xs) 1)
+      (apply / (cons 1 xs))
+      (reduce (fn[h v] "
+        NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
+        NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
+
+        NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
+        NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
+
+        return VAR((hn * vdn),(vn * hdn));") (first xs) (rest xs))))
 
   (defn inc [x]
     (+ x 1))
@@ -1303,12 +1315,12 @@ List of all functions and macros defined,
 
   (defn count [s]
     (reduce (fn [h v] (inc h)) 0 s))
+#+end_src
 
-  (defn reverse [s]
-    (reduce conj (list) s))
+*** Arduino
 
-  ;;Arduino
-
+#+name: runtime-clojure-arduino
+#+begin_src clojure :tangle no
   (defn pin-mode [pin mode]
     "if (KEYWORD(mode)->id == 618)
         pinMode(NUMBER(pin)->intValue(), INPUT);
@@ -1921,7 +1933,15 @@ output will be placed in a directory called /solution//,
 
 #+end_src 
 ** resources/runtime.clj
+
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
   <<runtime-clojure-defn>>
-  <<core-runtime-rest>>
+  <<runtime-clojure-math>>
+  <<runtime-clojure-logical-operators>>
+  <<runtime-clojure-conditionals>>
+  <<runtime-clojure-looping>>
+  <<runtime-clojure-first>>
+  <<runtime-clojure-sequence>>
+  <<runtime-clojure-console-io>>
+  <<runtime-clojure-arduino>>
 #+end_src

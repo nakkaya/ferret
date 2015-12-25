@@ -1238,6 +1238,40 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
         __result = !BOOLEAN(x)->asBool();")
 #+end_src
 
+**** Tests
+
+#+name: runtime-clojure-logical-operators-tests
+#+begin_src clojure :tangle no
+  (deftest logical-operators-test
+    (is (= "true true false true false true true true false true true false true false true true "
+           (do (compile->cpp '((print (< 2)
+                                      (< 2 3 4 5)
+                                      (< 2 3 6 5)
+                                      (> 2)
+                                      (> 2 3 4 5)
+                                      (> 6 5 4 3)
+                                      (>= 2)
+                                      (>= 5 4 3 2 2 2)
+                                      (>= 5 1 3 2 2 2)
+                                      (<= 2)
+                                      (<= 2 2 3 4 5)
+                                      (<= 2 2 1 3 4)
+                                      (= 2)
+                                      (= 2 3)
+                                      (= 2 2 2 2)
+                                      (= 2 2.0 2))))
+               (:out (compile-run-solution)))))
+
+    (is (= "false true false true false false "
+           (do (compile->cpp '((print (= 2 2 2 2 3 5)
+                                      (= (list 1 2) (list 1 2))
+                                      (= (list 1 2) (list 1 3))
+                                      (= true true)
+                                      (not (= true true))
+                                      (not 1))))
+               (:out (compile-run-solution))))))
+#+end_src
+
 *** Math
 
 #+name: runtime-clojure-math
@@ -1315,6 +1349,46 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
   (defn count [s]
     (reduce (fn [h v] (inc h)) 0 s))
+#+end_src
+
+**** Tests
+
+#+name: runtime-clojure-bit-arithmetic-tests
+#+begin_src clojure :tangle no
+  (deftest arithmetic-test
+    (is (= "3/5 0 1 10 10 -1 0 0 1 8 8 1 1/2 1 1 "
+           (do (compile->cpp '((print (+ 0.3 0.3)
+                                      (+ )
+                                      (+ 1)
+                                      (+ 1 2 3 4)
+                                      (+ 1 2.0 3 4)
+
+                                      (- 1)
+                                      (- 4 2 2)
+                                      (- 4 2 2.0)
+                                      
+                                      (* )
+                                      (* 2 2 2)
+                                      (* 2.0 2 2)
+                                      
+                                      (/ 1)
+                                      (/ 2)
+                                      (/ 4 2 2)
+                                      (/ 4 2 2.0))))
+               (:out (compile-run-solution)))))
+
+    (is (= "true true false false true true false true true true "
+           (do (compile->cpp '((print (pos? 1)
+                                      (pos? 0.2)
+                                      (pos? 0)
+                                      (neg? 1)
+                                      (neg? -1)
+                                      (zero? 0)
+                                      (zero? 10)
+                                      (zero? (- 1 1))
+                                      (zero? (- 1.2 1.2))
+                                      (zero? (+ 1.2 -1.2)))))
+               (:out (compile-run-solution))))))
 #+end_src
 
 *** Bit Operations
@@ -1699,6 +1773,8 @@ output will be placed in a directory called /solution//,
         r)))
 
   <<runtime-clojure-bit-operations-tests>>
+  <<runtime-clojure-bit-arithmetic-tests>>
+  <<runtime-clojure-logical-operators-tests>>
 
   (deftest processing-test
     (is (seq? (vector->list [1 2 [2 [5 4] 3]])))
@@ -1710,71 +1786,6 @@ output will be placed in a directory called /solution//,
       (is (= (last (first form)) '(+ x n)))
       (is (= (second (last form)) 'make-adder))
       (is (= (first (last form)) 'def))))
-
-  (deftest arithmetic-test
-    (is (= "3/5 0 1 10 10 -1 0 0 1 8 8 1 1/2 1 1 "
-           (do (compile->cpp '((print (+ 0.3 0.3)
-                                      (+ )
-                                      (+ 1)
-                                      (+ 1 2 3 4)
-                                      (+ 1 2.0 3 4)
-
-                                      (- 1)
-                                      (- 4 2 2)
-                                      (- 4 2 2.0)
-                                      
-                                      (* )
-                                      (* 2 2 2)
-                                      (* 2.0 2 2)
-                                      
-                                      (/ 1)
-                                      (/ 2)
-                                      (/ 4 2 2)
-                                      (/ 4 2 2.0))))
-               (:out (compile-run-solution)))))
-
-    (is (= "true true false false true true false true true true "
-           (do (compile->cpp '((print (pos? 1)
-                                      (pos? 0.2)
-                                      (pos? 0)
-                                      (neg? 1)
-                                      (neg? -1)
-                                      (zero? 0)
-                                      (zero? 10)
-                                      (zero? (- 1 1))
-                                      (zero? (- 1.2 1.2))
-                                      (zero? (+ 1.2 -1.2)))))
-               (:out (compile-run-solution))))))
-
-  (deftest comparison-test
-    (is (= "true true false true false true true true false true true false true false true true "
-           (do (compile->cpp '((print (< 2)
-                                      (< 2 3 4 5)
-                                      (< 2 3 6 5)
-                                      (> 2)
-                                      (> 2 3 4 5)
-                                      (> 6 5 4 3)
-                                      (>= 2)
-                                      (>= 5 4 3 2 2 2)
-                                      (>= 5 1 3 2 2 2)
-                                      (<= 2)
-                                      (<= 2 2 3 4 5)
-                                      (<= 2 2 1 3 4)
-                                      (= 2)
-                                      (= 2 3)
-                                      (= 2 2 2 2)
-                                      (= 2 2.0 2))))
-               (:out (compile-run-solution)))))
-
-    (is (= "false true false true false false "
-           (do (compile->cpp '((print (= 2 2 2 2 3 5)
-                                      (= (list 1 2) (list 1 2))
-                                      (= (list 1 2) (list 1 3))
-                                      (= true true)
-                                      (not (= true true))
-                                      (not 1))))
-               (:out (compile-run-solution))))))
-
 
   (deftest macro-test
     (is (= "1 1 1 true false true true true 0 1 2 3 4 "
@@ -1878,7 +1889,6 @@ output will be placed in a directory called /solution//,
                                (while (< (inc-int) 10)
                                  (print 1))))
                (:out (compile-run-solution))))))
-
 #+end_src 
 
 ** resources/ferret.h

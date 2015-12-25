@@ -1254,21 +1254,6 @@ List of all functions and macros defined,
   (defn reverse [s]
     (reduce conj (list) s))
 
-  (defn bit-shift-left [b] 
-    )
-
-  (defn bit-shift-right [s]
-    )
-
-  (defn bit-or [s]
-    )
-
-  (defn bit-and [s]
-    )
-
-  (defn bit-xor [s]
-    )
-
   ;;Arduino
 
   (defn pin-mode [pin mode]

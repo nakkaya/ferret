@@ -575,14 +575,15 @@ new/delete is needed because in avr-gcc they are not defined.)
   class Number : public Object{
   public:
     Number(int x);
+    Number(int n, int dn);
     Number(float x);
     ~Number(){};
     int getType(){ return type;}
     int getNumerator(){ return numerator;}
     int getDenominator(){ return denominator;}
 
-    int intValue(){return numerator;}
     float floatValue(){return (float)numerator/(float)denominator;}
+    int intValue(){return (int)floatValue();}
       
     var equals(var o){
       int self_type = getType();
@@ -628,6 +629,13 @@ new/delete is needed because in avr-gcc they are not defined.)
     type = INTEGER_TYPE;
     numerator = x;
     denominator = 1;
+  }
+
+  inline Number::Number(int n, int dn){
+    type = FLOAT_TYPE;
+    numerator = n;
+    denominator = dn;
+    simplificate();
   }
 
   inline Number::Number(float x){
@@ -896,6 +904,7 @@ reaches zero it will automatically free the Object.
     }
     
     var(int i);
+    var(int n, int dn);
     var(float f);
     var(bool b);
     var(char b);
@@ -936,6 +945,11 @@ reaches zero it will automatically free the Object.
 #+begin_src c++ :tangle no
   var::var(int i){
     m_ptr = new Number(i);
+    addRef();
+  }
+
+  var::var(int n, int dn){
+    m_ptr = new Number(n,dn);
     addRef();
   }
 
@@ -1105,47 +1119,53 @@ List of all functions and macros defined,
 
   (defn + [& xs]
     (reduce (fn[h v] "
-      int self_type = OBJECT(h)->getType();
-      int other_type = OBJECT(v)->getType();
+      int hn = NUMBER(h)->getNumerator();
+      int hdn = NUMBER(h)->getDenominator();
 
-      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
-        return VAR(NUMBER(h)->intValue() + NUMBER(v)->intValue());
-      else
-        return VAR(NUMBER(h)->floatValue() + NUMBER(v)->floatValue());") 0 xs))
+      int vn = NUMBER(v)->getNumerator();
+      int vdn = NUMBER(v)->getDenominator();
+
+      int ndn = (hdn * vdn);
+
+      return VAR(((hn * vdn) + (vn * hdn)),ndn);") 0 xs))
 
   (defn * [& xs]
     (reduce (fn[h v] "
-      int self_type = OBJECT(h)->getType();
-      int other_type = OBJECT(v)->getType();
+      int hn = NUMBER(h)->getNumerator();
+      int hdn = NUMBER(h)->getDenominator();
 
-      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
-        return VAR(NUMBER(h)->intValue() * NUMBER(v)->intValue());
-      else
-        return VAR(NUMBER(h)->floatValue() * NUMBER(v)->floatValue());") 1 xs))
+      int vn = NUMBER(v)->getNumerator();
+      int vdn = NUMBER(v)->getDenominator();
+
+      int ndn = (hdn * vdn);
+
+      return VAR(((hn * vdn) * (vn * hdn)),ndn);") 1 xs))
 
   (defn - [& xs]
     (if (= (count xs) 1)
       (* -1 (first xs))
       (reduce (fn[h v] "
-      int self_type = OBJECT(h)->getType();
-      int other_type = OBJECT(v)->getType();
+      int hn = NUMBER(h)->getNumerator();
+      int hdn = NUMBER(h)->getDenominator();
 
-      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
-        return VAR(NUMBER(h)->intValue() - NUMBER(v)->intValue());
-      else
-        return VAR(NUMBER(h)->floatValue() - NUMBER(v)->floatValue());") (first xs) (rest xs))))
+      int vn = NUMBER(v)->getNumerator();
+      int vdn = NUMBER(v)->getDenominator();
+
+      int ndn = (hdn * vdn);
+
+      return VAR(((hn * vdn) - (vn * hdn)),ndn);") (first xs) (rest xs))))
 
   (defn / [& xs]
     (if (= (count xs) 1)
       (apply / (cons 1 xs))
       (reduce (fn[h v] "
-      int self_type = OBJECT(h)->getType();
-      int other_type = OBJECT(v)->getType();
+      int hn = NUMBER(h)->getNumerator();
+      int hdn = NUMBER(h)->getDenominator();
 
-      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
-        return VAR(NUMBER(h)->intValue() / NUMBER(v)->intValue());
-      else
-        return VAR(NUMBER(h)->floatValue() / NUMBER(v)->floatValue());") (first xs) (rest xs))))
+      int vn = NUMBER(v)->getNumerator();
+      int vdn = NUMBER(v)->getDenominator();
+
+      return VAR((hn * vdn),(vn * hdn));") (first xs) (rest xs))))
 
   (defn = [a & more]
     (if (empty? more)
@@ -1157,52 +1177,52 @@ List of all functions and macros defined,
     (if (empty? more)
       true
       (and ((fn [a b] "
-      int self_type = OBJECT(a)->getType();
-      int other_type = OBJECT(b)->getType();
+      int an = NUMBER(a)->getNumerator();
+      int adn = NUMBER(a)->getDenominator();
 
-      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
-        return VAR(NUMBER(a)->intValue() < NUMBER(b)->intValue());
-      else
-        return VAR(NUMBER(a)->floatValue() < NUMBER(b)->floatValue());") a (first more))
+      int bn = NUMBER(b)->getNumerator();
+      int bdn = NUMBER(b)->getDenominator();
+
+      return VAR((an * bdn) < (bn * adn));") a (first more))
            (apply < more))))
 
   (defn > [a & more]
     (if (empty? more)
       true
       (and ((fn [a b] "
-      int self_type = OBJECT(a)->getType();
-      int other_type = OBJECT(b)->getType();
+      int an = NUMBER(a)->getNumerator();
+      int adn = NUMBER(a)->getDenominator();
 
-      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
-        return VAR(NUMBER(a)->intValue() > NUMBER(b)->intValue());
-      else
-        return VAR(NUMBER(a)->floatValue() > NUMBER(b)->floatValue());") a (first more))
+      int bn = NUMBER(b)->getNumerator();
+      int bdn = NUMBER(b)->getDenominator();
+
+      return VAR((an * bdn) > (bn * adn));") a (first more))
            (apply > more))))
 
   (defn >= [a & more]
     (if (empty? more)
       true
       (and ((fn [a b] "
-      int self_type = OBJECT(a)->getType();
-      int other_type = OBJECT(b)->getType();
+      int an = NUMBER(a)->getNumerator();
+      int adn = NUMBER(a)->getDenominator();
 
-      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
-        return VAR(NUMBER(a)->intValue() >= NUMBER(b)->intValue());
-      else
-        return VAR(NUMBER(a)->floatValue() >= NUMBER(b)->floatValue());") a (first more))
+      int bn = NUMBER(b)->getNumerator();
+      int bdn = NUMBER(b)->getDenominator();
+
+      return VAR((an * bdn) >= (bn * adn));") a (first more))
            (apply >= more))))
 
   (defn <= [a & more]
     (if (empty? more)
       true
       (and ((fn [a b] "
-      int self_type = OBJECT(a)->getType();
-      int other_type = OBJECT(b)->getType();
+      int an = NUMBER(a)->getNumerator();
+      int adn = NUMBER(a)->getDenominator();
 
-      if((self_type == INTEGER_TYPE && other_type == INTEGER_TYPE))
-        return VAR(NUMBER(a)->intValue() <= NUMBER(b)->intValue());
-      else
-        return VAR(NUMBER(a)->floatValue() <= NUMBER(b)->floatValue());") a (first more))
+      int bn = NUMBER(b)->getNumerator();
+      int bdn = NUMBER(b)->getDenominator();
+
+      return VAR((an * bdn) <= (bn * adn));") a (first more))
            (apply <= more))))
 
   (defn conj [coll & xs]
@@ -1584,7 +1604,7 @@ output will be placed in a directory called /solution//,
       (is (= (first (last form)) 'def))))
 
   (deftest arithmetic-test
-    (is (= "3/5 0 1 10 10 -1 0 0 1 8 8 1 0 1 1 "
+    (is (= "3/5 0 1 10 10 -1 0 0 1 8 8 1 1/2 1 1 "
            (do (compile->cpp '((print (+ 0.3 0.3)
                                       (+ )
                                       (+ 1)

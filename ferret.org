@@ -1407,12 +1407,25 @@ output will be placed in a directory called /solution//,
       (let [source (emit-source form)]
         (write-to-solution (solution-template source) "solution.cpp")))
 
+    (defn compile->binary []
+      (let [ret (with-sh-dir "solution/"
+                  (sh "g++" "solution.cpp"))]
+        (if (not= 0 (:exit ret))
+          (do (println (:err ret))
+              (System/exit 1))
+          true)))
+
     (defn -main [& args]
       (let [opts [["-i" "--input FILE" "Input File"
-                   :parse-fn #(read-string (str \( (FileUtils/readFileToString (file %)) \)))]]
+                   :parse-fn #(read-string (str \( (FileUtils/readFileToString (file %)) \)))]
+                  ["-c" "--compile" "Compile Solution"]
+                  ["-h" "--help"]]
             args (parse-opts args opts)]
         (if (->> args :options :input)
-          (compile->cpp (->> args :options :input))
+          (do (compile->cpp (->> args :options :input))
+              (when (->> args :options :compile)
+                (compile->binary)
+                (shutdown-agents)))
           (println "No Input File."))))
   #+end_src
 
@@ -1438,7 +1451,8 @@ output will be placed in a directory called /solution//,
     (:require [clojure.zip :as zip]
               [clojure.tools.cli :refer [parse-opts]])
     (:use [ferret.string-template]
-          [ferret.template])
+          [ferret.template]
+          [clojure.java.shell])
     (:import (org.apache.commons.io FileUtils)
              (java.io BufferedReader StringReader InputStreamReader)))
 
@@ -1586,10 +1600,9 @@ output will be placed in a directory called /solution//,
           [clojure.java.shell]))
 
   (defn compile-run-solution []
+    (compile->binary)
     (with-sh-dir "solution/"
-      (sh "g++" "solution.cpp")
       (let [r (sh "./a.out")]
-        (sh "rm" "a.out")
         r)))
 
   (deftest processing-test

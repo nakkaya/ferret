@@ -574,18 +574,21 @@ new/delete is needed because in avr-gcc they are not defined.)
 #+begin_src c++ :tangle no
   class Number : public Object{
   public:
+  #if NUMBER_TYPE != int
     Number(int x);
-    Number(int n, int dn);
+  #endif
+    Number(NUMBER_TYPE x);
+    Number(NUMBER_TYPE n, NUMBER_TYPE dn);
     Number(float x);
     ~Number(){};
     int getType(){ return type;}
-    int getNumerator(){ return numerator;}
-    int getDenominator(){ return denominator;}
+    NUMBER_TYPE getNumerator(){ return numerator;}
+    NUMBER_TYPE getDenominator(){ return denominator;}
 
     float floatValue(){return (float)numerator/(float)denominator;}
     int intValue(){
       if (denominator == 1)
-        return numerator;
+        return (int)numerator;
       else
         return (int)floatValue();
     }
@@ -604,39 +607,52 @@ new/delete is needed because in avr-gcc they are not defined.)
     
     var toOutputStream(){
       if (denominator == 1)
-        fprintf(OUTPUT_STREAM, "%d",numerator);
+        fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT, numerator);
       else if (numerator == 0)
         fprintf(OUTPUT_STREAM, "0");
-      else
-        fprintf(OUTPUT_STREAM, "%d/%d",numerator,denominator);
+      else{
+        fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT,numerator);
+        fprintf(OUTPUT_STREAM, "/");
+        fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT,denominator);
+      }
+
       return var();
     };
     
   private:
+    
     void simplificate(){
       int commondivisor = 1;
-      for(int i=2;i<=std::min(abs(numerator), std::abs(denominator));i++)
+      for(NUMBER_TYPE i=2;i<=std::min(std::abs(numerator), std::abs(denominator));i++)
         if( numerator%i == 0 && denominator%i == 0 )
           commondivisor = i;
       numerator /= commondivisor;
       denominator /= commondivisor;
     }
     
-    int numerator;
-    int denominator;
+    NUMBER_TYPE numerator;
+    NUMBER_TYPE denominator;
     int type;
   };    
 #+end_src
 
 #+name: runtime-native-number
 #+begin_src c++ :tangle no
+  #if NUMBER_TYPE != int
   inline Number::Number(int x){
     type = INTEGER_TYPE;
     numerator = x;
     denominator = 1;
   }
+  #endif
 
-  inline Number::Number(int n, int dn){
+  inline Number::Number(NUMBER_TYPE x){
+    type = INTEGER_TYPE;
+    numerator = x;
+    denominator = 1;
+  }
+
+  inline Number::Number(NUMBER_TYPE n, NUMBER_TYPE dn){
     type = FLOAT_TYPE;
     numerator = n;
     denominator = dn;
@@ -644,13 +660,13 @@ new/delete is needed because in avr-gcc they are not defined.)
   }
 
   inline Number::Number(float x){
-    int precision = 1000;
+    int NUMBER_PRECISION = 1000;
     type = FLOAT_TYPE;
     
-    float decimal = (x - (int)x) * (float)precision;
-    int integer = (int)x;
+    float decimal = (x - (NUMBER_TYPE)x) * (float)NUMBER_PRECISION;
+    NUMBER_TYPE integer = (NUMBER_TYPE)x;
     
-    numerator = decimal + (integer * precision);
+    numerator = decimal + (integer * NUMBER_PRECISION);
     denominator = precision;
     simplificate();
   }
@@ -892,13 +908,13 @@ reaches zero it will automatically free the Object.
     var(Object* ptr=0) : m_ptr(ptr) { addRef(); }
 
     var(const var& p) : m_ptr(p.m_ptr) { addRef(); }
-    
+      
     ~var() { subRef(); }
-    
+      
     var& operator= (const var& p){
       return *this = p.m_ptr;
     }
-    
+      
     var& operator= (Object* ptr){
       if (m_ptr != ptr){
         subRef();
@@ -907,13 +923,17 @@ reaches zero it will automatically free the Object.
       }
       return *this;
     }
-    
+
+  #if NUMBER_TYPE != int
     var(int i);
-    var(int n, int dn);
+  #endif
+
+    var(NUMBER_TYPE i);
+    var(NUMBER_TYPE n, NUMBER_TYPE dn);
     var(float f);
     var(bool b);
     var(char b);
-    
+      
     var& operator, (const var& m);
     var toOutputStream() {
       if (m_ptr != NULL )
@@ -922,15 +942,15 @@ reaches zero it will automatically free the Object.
         fprintf(OUTPUT_STREAM, "nil");
       return var();
     }
-    
+      
     Object* get() { return m_ptr; }
-    
+      
   private:
     void addRef(){
       // Only change if non-null
       if (m_ptr) m_ptr->addRef();
     }
-    
+      
     void subRef(){
       // Only change if non-null
       if (m_ptr){
@@ -941,19 +961,26 @@ reaches zero it will automatically free the Object.
         }
       }
     }
-    
+      
     Object* m_ptr;
   };
 #+end_src
 
 #+name: runtime-native-var-descriptions
 #+begin_src c++ :tangle no
+  #if NUMBER_TYPE != int
   var::var(int i){
     m_ptr = new Number(i);
     addRef();
   }
+  #endif
 
-  var::var(int n, int dn){
+  var::var(NUMBER_TYPE i){
+    m_ptr = new Number(i);
+    addRef();
+  }
+
+  var::var(NUMBER_TYPE n, NUMBER_TYPE dn){
     m_ptr = new Number(n,dn);
     addRef();
   }
@@ -1124,25 +1151,25 @@ List of all functions and macros defined,
 
   (defn + [& xs]
     (reduce (fn[h v] "
-      int hn = NUMBER(h)->getNumerator();
-      int hdn = NUMBER(h)->getDenominator();
+      NUMBER_TYPE hn = NUMBER(h)->getNumerator();
+      NUMBER_TYPE hdn = NUMBER(h)->getDenominator();
 
-      int vn = NUMBER(v)->getNumerator();
-      int vdn = NUMBER(v)->getDenominator();
+      NUMBER_TYPE vn = NUMBER(v)->getNumerator();
+      NUMBER_TYPE vdn = NUMBER(v)->getDenominator();
 
-      int ndn = (hdn * vdn);
+      NUMBER_TYPE ndn = (hdn * vdn);
 
       return VAR(((hn * vdn) + (vn * hdn)),ndn);") 0 xs))
 
   (defn * [& xs]
     (reduce (fn[h v] "
-      int hn = NUMBER(h)->getNumerator();
-      int hdn = NUMBER(h)->getDenominator();
+      NUMBER_TYPE hn = NUMBER(h)->getNumerator();
+      NUMBER_TYPE hdn = NUMBER(h)->getDenominator();
 
-      int vn = NUMBER(v)->getNumerator();
-      int vdn = NUMBER(v)->getDenominator();
+      NUMBER_TYPE vn = NUMBER(v)->getNumerator();
+      NUMBER_TYPE vdn = NUMBER(v)->getDenominator();
 
-      int ndn = (hdn * vdn);
+      NUMBER_TYPE ndn = (hdn * vdn);
 
       return VAR(((hn * vdn) * (vn * hdn)),ndn);") 1 xs))
 
@@ -1150,13 +1177,13 @@ List of all functions and macros defined,
     (if (= (count xs) 1)
       (* -1 (first xs))
       (reduce (fn[h v] "
-      int hn = NUMBER(h)->getNumerator();
-      int hdn = NUMBER(h)->getDenominator();
+      NUMBER_TYPE hn = NUMBER(h)->getNumerator();
+      NUMBER_TYPE hdn = NUMBER(h)->getDenominator();
 
-      int vn = NUMBER(v)->getNumerator();
-      int vdn = NUMBER(v)->getDenominator();
+      NUMBER_TYPE vn = NUMBER(v)->getNumerator();
+      NUMBER_TYPE vdn = NUMBER(v)->getDenominator();
 
-      int ndn = (hdn * vdn);
+      NUMBER_TYPE ndn = (hdn * vdn);
 
       return VAR(((hn * vdn) - (vn * hdn)),ndn);") (first xs) (rest xs))))
 
@@ -1164,11 +1191,11 @@ List of all functions and macros defined,
     (if (= (count xs) 1)
       (apply / (cons 1 xs))
       (reduce (fn[h v] "
-      int hn = NUMBER(h)->getNumerator();
-      int hdn = NUMBER(h)->getDenominator();
+      NUMBER_TYPE hn = NUMBER(h)->getNumerator();
+      NUMBER_TYPE hdn = NUMBER(h)->getDenominator();
 
-      int vn = NUMBER(v)->getNumerator();
-      int vdn = NUMBER(v)->getDenominator();
+      NUMBER_TYPE vn = NUMBER(v)->getNumerator();
+      NUMBER_TYPE vdn = NUMBER(v)->getDenominator();
 
       return VAR((hn * vdn),(vn * hdn));") (first xs) (rest xs))))
 
@@ -1182,11 +1209,11 @@ List of all functions and macros defined,
     (if (empty? more)
       true
       (and ((fn [a b] "
-      int an = NUMBER(a)->getNumerator();
-      int adn = NUMBER(a)->getDenominator();
+      NUMBER_TYPE an = NUMBER(a)->getNumerator();
+      NUMBER_TYPE adn = NUMBER(a)->getDenominator();
 
-      int bn = NUMBER(b)->getNumerator();
-      int bdn = NUMBER(b)->getDenominator();
+      NUMBER_TYPE bn = NUMBER(b)->getNumerator();
+      NUMBER_TYPE bdn = NUMBER(b)->getDenominator();
 
       return VAR((an * bdn) < (bn * adn));") a (first more))
            (apply < more))))
@@ -1195,11 +1222,11 @@ List of all functions and macros defined,
     (if (empty? more)
       true
       (and ((fn [a b] "
-      int an = NUMBER(a)->getNumerator();
-      int adn = NUMBER(a)->getDenominator();
+      NUMBER_TYPE an = NUMBER(a)->getNumerator();
+      NUMBER_TYPE adn = NUMBER(a)->getDenominator();
 
-      int bn = NUMBER(b)->getNumerator();
-      int bdn = NUMBER(b)->getDenominator();
+      NUMBER_TYPE bn = NUMBER(b)->getNumerator();
+      NUMBER_TYPE bdn = NUMBER(b)->getDenominator();
 
       return VAR((an * bdn) > (bn * adn));") a (first more))
            (apply > more))))
@@ -1208,11 +1235,11 @@ List of all functions and macros defined,
     (if (empty? more)
       true
       (and ((fn [a b] "
-      int an = NUMBER(a)->getNumerator();
-      int adn = NUMBER(a)->getDenominator();
+      NUMBER_TYPE an = NUMBER(a)->getNumerator();
+      NUMBER_TYPE adn = NUMBER(a)->getDenominator();
 
-      int bn = NUMBER(b)->getNumerator();
-      int bdn = NUMBER(b)->getDenominator();
+      NUMBER_TYPE bn = NUMBER(b)->getNumerator();
+      NUMBER_TYPE bdn = NUMBER(b)->getDenominator();
 
       return VAR((an * bdn) >= (bn * adn));") a (first more))
            (apply >= more))))
@@ -1221,11 +1248,11 @@ List of all functions and macros defined,
     (if (empty? more)
       true
       (and ((fn [a b] "
-      int an = NUMBER(a)->getNumerator();
-      int adn = NUMBER(a)->getDenominator();
+      NUMBER_TYPE an = NUMBER(a)->getNumerator();
+      NUMBER_TYPE adn = NUMBER(a)->getDenominator();
 
-      int bn = NUMBER(b)->getNumerator();
-      int bdn = NUMBER(b)->getDenominator();
+      NUMBER_TYPE bn = NUMBER(b)->getNumerator();
+      NUMBER_TYPE bdn = NUMBER(b)->getDenominator();
 
       return VAR((an * bdn) <= (bn * adn));") a (first more))
            (apply <= more))))
@@ -1825,8 +1852,13 @@ output will be placed in a directory called /solution//,
   #define INIT_ENV 
   #endif
 
-
   #define VAR ferret::var
+
+  #define NUMBER_PRECISION 1000
+  //#define NUMBER_TYPE long
+  //#define NUMBER_TYPE_FORMAT "%ld"
+  #define NUMBER_TYPE int
+  #define NUMBER_TYPE_FORMAT "%d"
 
   //
   // Casting

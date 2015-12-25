@@ -568,7 +568,6 @@ new/delete is needed because in avr-gcc they are not defined.)
 #+end_src
 
 *** Number
-**** Interface
 
 #+name: runtime-native-number
 #+begin_src c++ :tangle no
@@ -596,11 +595,14 @@ new/delete is needed because in avr-gcc they are not defined.)
     var equals(var o){
       int self_type = getType();
       int other_type = OBJECT(o)->getType();
-
-      if (self_type == NUMBER_TYPE && other_type == NUMBER_TYPE){
-        return ((getNumerator() == NUMBER(o)->getNumerator()) &&
-                (getDenominator() == NUMBER(o)->getDenominator()));
-      }else
+      
+      if (self_type == NUMBER_TYPE && other_type == NUMBER_TYPE)
+        if (getNumerator() == 0 && NUMBER(o)->getNumerator() == 0)
+          return true;
+        else
+          return ((getNumerator() == NUMBER(o)->getNumerator()) &&
+                  (getDenominator() == NUMBER(o)->getDenominator()));
+      else
         return false;
     }
     
@@ -1125,9 +1127,6 @@ List of all functions and macros defined,
   (defn float? [x] "__result = ((OBJECT(x)->getType() == NUMBER_TYPE) &&
                                 (NUMBER(x)->getDenominator() != 1));")
 
-  (defn zero? [x] "__result = ((OBJECT(x)->getType() == NUMBER_TYPE) &&
-                               (NUMBER(x)->getNumerator() == 0));")
-
   (defn char? [x] "__result = (OBJECT(x)->getType() == CHARACTER_TYPE);")
 
   (defn list? [x] "__result = (OBJECT(x)->getType() == LIST_TYPE);")
@@ -1645,21 +1644,24 @@ output will be placed in a directory called /solution//,
                                       (* )
                                       (* 2 2 2)
                                       (* 2.0 2 2)
-
+                                      
                                       (/ 1)
                                       (/ 2)
                                       (/ 4 2 2)
                                       (/ 4 2 2.0))))
                (:out (compile-run-solution)))))
 
-    (is (= "true true false false true true false "
+    (is (= "true true false false true true false true true true "
            (do (compile->cpp '((print (pos? 1)
                                       (pos? 0.2)
                                       (pos? 0)
                                       (neg? 1)
                                       (neg? -1)
                                       (zero? 0)
-                                      (zero? 10))))
+                                      (zero? 10)
+                                      (zero? (- 1 1))
+                                      (zero? (- 1.2 1.2))
+                                      (zero? (+ 1.2 -1.2)))))
                (:out (compile-run-solution))))))
 
   (deftest comparison-test

@@ -623,7 +623,7 @@ new/delete is needed because in avr-gcc they are not defined.)
     
     void simplificate(){
       int commondivisor = 1;
-      for(NUMBER_TYPE i=2;i<=std::min(std::abs(numerator), std::abs(denominator));i++)
+      for(NUMBER_TYPE i=2;i<=MIN(ABS(numerator), ABS(denominator));i++)
         if( numerator%i == 0 && denominator%i == 0 )
           commondivisor = i;
       numerator /= commondivisor;
@@ -1819,7 +1819,7 @@ output will be placed in a directory called /solution//,
   #endif
 
   #ifdef AVR_GCC
-  #include "WProgram.h"
+  #include "Arduino.h"
   #endif
 
   //
@@ -1858,6 +1858,9 @@ output will be placed in a directory called /solution//,
   //#define NUMBER_TYPE_FORMAT "%ld"
   #define NUMBER_TYPE int
   #define NUMBER_TYPE_FORMAT "%d"
+
+  #define MIN(a,b) ((a)<(b)?(a):(b))
+  #define ABS(a) ((a)<0 ? -(a) : (a))
 
   //
   // Casting

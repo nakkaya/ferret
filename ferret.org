@@ -498,14 +498,32 @@ C++ skeleton.
 On the C++ side we define our own object system, which includes the
 following types,
 
- - Sequence
- - Lambda
- - Boolean
- - Keyword
- - Pointer
- - Number
- - Character (There is no string type, strings are converted to lists
-   of characters.)
+#+name: runtime-native-object-types-enum
+#+begin_src c++ :tangle no
+  enum TYPE {POINTER_TYPE,
+             NUMBER_TYPE,
+             CHARACTER_TYPE,
+             BOOLEAN_TYPE,
+             KEYWORD_TYPE,
+             CONS_TYPE,
+             LIST_TYPE,
+             LAMBDA_TYPE};
+#+end_src
+
+Object Casting macros,
+
+#+name: runtime-native-object-casting-macros
+#+begin_src c++ :tangle no
+  #define OBJECT(v) static_cast<ferret::Object*>(v.get())
+  #define POINTER(v) static_cast<ferret::Pointer*>(v.get())
+  #define NUMBER(v) static_cast<ferret::Number*>(v.get())
+  #define CHARACTER(v) static_cast<ferret::Character*>(v.get())
+  #define BOOLEAN(v) static_cast<ferret::Boolean*>(v.get())
+  #define KEYWORD(v) static_cast<ferret::Keyword*>(v.get())
+  #define CELL(v) static_cast<ferret::Cell*>(v.get())
+  #define SEQUENCE(v) static_cast<ferret::Sequence*>(v.get())
+  #define LAMBDA(v) static_cast<ferret::Lambda*>(v.get())
+#+end_src
 
 *** Object
 
@@ -568,6 +586,17 @@ new/delete is needed because in avr-gcc they are not defined.)
 #+end_src
 
 *** Number
+
+Math configuration,
+
+#+name: runtime-native-math-config
+#+begin_src c++ :tangle no
+  #define NUMBER_PRECISION 1000 //used when reading floats.
+  //#define NUMBER_DATA_TYPE long
+  //#define NUMBER_DATA_TYPE_FORMAT "%ld"
+  #define NUMBER_DATA_TYPE int
+  #define NUMBER_TYPE_FORMAT "%d"
+#+end_src
 
 #+name: runtime-native-number
 #+begin_src c++ :tangle no
@@ -886,6 +915,15 @@ to execute them in a uniform fashion.
     public:
       virtual var invoke(var args) = 0;
     };
+#+end_src
+
+Function invocation macros,
+
+#+name: runtime-native-lambda-invoke-macros
+#+begin_src c++ :tangle no
+  #define VA_ARGS(...) , ##__VA_ARGS__
+  #define INVOKE(f,...) LAMBDA(f)->invoke((ferret::var(new ferret::Sequence()) VA_ARGS(__VA_ARGS__)))
+  #define FN(f,...) ferret::var(new ferret::f(__VA_ARGS__))
 #+end_src
 
 *** var
@@ -1840,36 +1878,13 @@ output will be placed in a directory called /solution//,
 
   #define VAR ferret::var
 
-  #define NUMBER_PRECISION 1000
-  //#define NUMBER_DATA_TYPE long
-  //#define NUMBER_DATA_TYPE_FORMAT "%ld"
-  #define NUMBER_DATA_TYPE int
-  #define NUMBER_TYPE_FORMAT "%d"
+  <<runtime-native-math-config>>
 
   #define MIN(a,b) ((a)<(b)?(a):(b))
   #define ABS(a) ((a)<0 ? -(a) : (a))
 
-  //
-  // Casting
-  //
-
-  #define OBJECT(v) static_cast<ferret::Object*>(v.get())
-  #define POINTER(v) static_cast<ferret::Pointer*>(v.get())
-  #define NUMBER(v) static_cast<ferret::Number*>(v.get())
-  #define BOOLEAN(v) static_cast<ferret::Boolean*>(v.get())
-  #define KEYWORD(v) static_cast<ferret::Keyword*>(v.get())
-  #define CHARACTER(v) static_cast<ferret::Character*>(v.get())
-  #define SEQUENCE(v) static_cast<ferret::Sequence*>(v.get())
-  #define CELL(v) static_cast<ferret::Cell*>(v.get())
-  #define LAMBDA(v) static_cast<ferret::Lambda*>(v.get())
-
-  //
-  // Function Invocation
-  //
-
-  #define VA_ARGS(...) , ##__VA_ARGS__
-  #define INVOKE(f,...) LAMBDA(f)->invoke((ferret::var(new ferret::Sequence()) VA_ARGS(__VA_ARGS__)))
-  #define FN(f,...) ferret::var(new ferret::f(__VA_ARGS__))
+  <<runtime-native-object-casting-macros>>
+  <<runtime-native-lambda-invoke-macros>>
 
   namespace ferret{
 
@@ -1879,9 +1894,7 @@ output will be placed in a directory called /solution//,
 
     class var;
 
-    enum TYPE {CONS_TYPE, LIST_TYPE, LAMBDA_TYPE, BOOLEAN_TYPE, KEYWORD_TYPE, 
-               POINTER_TYPE, NUMBER_TYPE, CHARACTER_TYPE};
-
+    <<runtime-native-object-types-enum>>
     <<runtime-native-object>>
     <<runtime-native-var>>
     <<runtime-native-number>>

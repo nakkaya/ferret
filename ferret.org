@@ -439,8 +439,7 @@ C++ skeleton.
 
   (defmethod emit :char [form state] (str "VAR('" form "')"))
 
-  (defmethod emit :string [form state] (str "INVOKE(list,"
-                                            (apply str (interpose \, (map #(emit % state) (reverse form))))  ")"))
+  (defmethod emit :string [form state] (str "VAR(\"" form "\")"))
 
   (defmethod emit :nil [form state] "VAR()")
 
@@ -597,6 +596,7 @@ following types,
              KEYWORD_TYPE,
              CONS_TYPE,
              LIST_TYPE,
+             STRING_TYPE,
              LAMBDA_TYPE};
 #+end_src
 
@@ -613,6 +613,7 @@ Object Casting macros,
   #define ISEEKABLE(v) static_cast<ferret::ISeekable*>(v.get())
   #define CELL(v) static_cast<ferret::Cell*>(v.get())
   #define SEQUENCE(v) static_cast<ferret::Sequence*>(v.get())
+  #define STRING(v) static_cast<ferret::String*>(v.get())
   #define LAMBDA(v) static_cast<ferret::Lambda*>(v.get())
 #+end_src
 
@@ -795,7 +796,7 @@ Math configuration,
     int id;
 
     Keyword(int b){id = b;}
-    Keyword(char* str){
+    Keyword(const char * str){
       id = 0;
       for (int i = 0; str[i] != '\0'; i++){
         id = id + (int)str[i];
@@ -996,6 +997,110 @@ Math configuration,
     }
   };
 #+end_src
+*** String
+
+#+name: runtime-native-string
+#+begin_src c++ :tangle no
+  class String : public ISeekable{
+    var data;
+  public:
+    String(){
+      data = NULL;
+    }
+
+    String(var s){
+      data = s;
+    }
+
+    String(const char * str){
+      int length = 0;
+      for (length = 0; str[length] != '\0'; length++);
+      length--;
+      var s = var(new Sequence());
+        
+      for (int i = length; i >= 0; i--){
+        var ch = VAR(str[i]);
+        s = (SEQUENCE(s)->clone(),ch);
+      }
+      data = s;
+    }
+
+    var clone() {return var(new String(data));}
+    int getType(){return STRING_TYPE;}
+
+    void cons(var x){
+      ISEEKABLE(data)->cons(x);
+    }
+
+    var first(){
+      return ISEEKABLE(data)->first();
+    }
+
+    var rest(){
+      return ISEEKABLE(data)->rest();
+    }
+
+    var nth(var i){
+      return ISEEKABLE(data)->nth(i);
+    }
+
+    bool isEmpty(){
+      return ISEEKABLE(data)->isEmpty();
+    }
+
+    var toOutputStream(){
+      for(var it = data; ISEEKABLE(it)->isEmpty() == false ; it = ISEEKABLE(it)->rest()){
+        OBJECT(ISEEKABLE(it)->first())->toOutputStream();
+      }
+      return var();
+    }
+
+  #ifdef GNU_GCC
+    std::string toString(){
+      std::stringstream ss;
+
+      for(var it = data; ISEEKABLE(it)->isEmpty() == false ; it = ISEEKABLE(it)->rest())
+        ss << CHARACTER(ISEEKABLE(it)->first())->value;
+
+      return ss.str();
+    }
+  #endif
+    
+    var getData(){
+      return data;
+    }
+    
+    var equals(var o){
+      if (OBJECT(o)->getType() != STRING_TYPE)
+        return false;
+      return OBJECT(data)->equals(STRING(o)->getData());
+    }
+
+    var reduce(var f){
+      return ISEEKABLE(data)->reduce(f);
+    }
+
+    var reduce(var f, var acc){
+      return ISEEKABLE(data)->reduce(f,acc);
+    }
+  };
+#+end_src
+
+**** Tests
+
+#+name: native-string-tests
+#+begin_src clojure :tangle no
+  (deftest native-string-test
+    (is (= "Some String false true false true "
+           (do (compile->cpp '((print "Some String"
+                                      (= "Some String" "Other String")
+                                      (= "Some String" "Some String")
+                                      (= "Some String" 1)
+                                      ((fn [str] "__result = VAR((STRING(str)->toString() == \"String\"))")
+                                       "String")
+                                      )))
+               (:out (compile-run-solution))))))
+#+end_src
 *** Pointer
 
 #+name: runtime-native-
@@ -1096,6 +1201,7 @@ reaches zero it will automatically free the Object.
     var(float f);
     var(bool b);
     var(char b);
+    var(char* str);
       
     var& operator, (const var& m);
     var toOutputStream() {
@@ -1160,6 +1266,11 @@ reaches zero it will automatically free the Object.
 
   var::var(char b){
     m_ptr = new Character(b);
+    addRef();
+  }
+
+  var::var(char* str){
+    m_ptr = new String(str);
     addRef();
   }
 
@@ -1957,6 +2068,7 @@ output will be placed in a directory called /solution//,
   <<runtime-clojure-logical-operators-tests>>
   <<runtime-clojure-conditionals-tests>>
   <<runtime-clojure-sequences-tests>>
+  <<native-string-tests>>
   <<native-keyword-tests>>
 #+end_src 
 
@@ -2041,18 +2153,8 @@ output will be placed in a directory called /solution//,
     <<runtime-native-character>>
     <<native-seekable-interface>>
     <<runtime-native-sequence>>
+    <<runtime-native-string>>
     <<runtime-native-var-descriptions>>
-
-  #ifdef GNU_GCC
-    std::string toCppString(var s){
-      std::stringstream ss;
-
-      for(var it = s; !SEQUENCE(it)->isEmpty(); it = SEQUENCE(it)->rest())
-        ss << CHARACTER(SEQUENCE(it)->first())->value;
-
-      return ss.str();
-    }
-  #endif
   }
   #endif
 

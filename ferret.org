@@ -348,78 +348,76 @@ Final step replaces all functions calls with new function objects.
 
   (deftest transformation-macro-test
     (is (= "1 1 1 true false true true true 0 1 2 3 4 "
-           (do (compile->cpp '((defmacro my-when [test & body]
-                                 (list 'if test (cons 'do body)))
-                               
-                               (print (my-when (< 2 3) 1)
+           (capture-output '((defmacro my-when [test & body]
+                               (list 'if test (cons 'do body)))
+                             
+                             (print (my-when (< 2 3) 1)
 
-                                      (when (< 2 3) 1)
+                                    (when (< 2 3) 1)
 
-                                      (when (< 2 3) 1)
-                                      
-                                      (let [a 1]
-                                        (and (> a 0)
-                                             (< a 10)))
+                                    (when (< 2 3) 1)
+                                    
+                                    (let [a 1]
+                                      (and (> a 0)
+                                           (< a 10)))
 
-                                      (let [a 11]
-                                        (and (> a 0)
-                                             (< a 10)))
-                                      
-                                      (and true true)
+                                    (let [a 11]
+                                      (and (> a 0)
+                                           (< a 10)))
+                                    
+                                    (and true true)
 
-                                      (or true false)
+                                    (or true false)
 
-                                      (let [a 11]
-                                        (or (> a 0)
-                                            (< a 10))))
-                               
-                               (dotimes [i 5] (print i))))
-               (:out (compile-run-solution))))))
+                                    (let [a 11]
+                                      (or (> a 0)
+                                          (< a 10))))
+                             
+                             (dotimes [i 5] (print i)))))))
 
   (deftest transformation-special-forms-test
     (is (= "10 89 11 3 1 5 5 1 1 1 1 1 1 1 1 1 1 "
-           (do (compile->cpp '((def make-adder
-                                 (fn [n] (fn [x] (+ x n))))
-                               (def adder
-                                 (make-adder 1))
+           (capture-output '((def make-adder
+                               (fn [n] (fn [x] (+ x n))))
+                             (def adder
+                               (make-adder 1))
 
-                               (def fibo (fn [n]
-                                           (if (< n 2)
-                                             1
-                                             (+ (fibo (- n 1))
-                                                (fibo (- n 2))))))
+                             (def fibo (fn [n]
+                                         (if (< n 2)
+                                           1
+                                           (+ (fibo (- n 1))
+                                              (fibo (- n 2))))))
 
-                               (def adder-let (let [a 1
-                                                    b 2]
-                                                (fn [n] (+ a b n))))
+                             (def adder-let (let [a 1
+                                                  b 2]
+                                              (fn [n] (+ a b n))))
 
-                               (def adder-let-2 (fn [n]
-                                                  (let [a 1
-                                                        b 2]
-                                                    (+ a b n))))
+                             (def adder-let-2 (fn [n]
+                                                (let [a 1
+                                                      b 2]
+                                                  (+ a b n))))
 
-                               (native-declare "int i = 0;")
-                               (defn inc-int [] "return i++;")
-                               
-                               (print (adder 9)
+                             (native-declare "int i = 0;")
+                             (defn inc-int [] "return i++;")
+                             
+                             (print (adder 9)
 
-                                      (fibo 10)
+                                    (fibo 10)
 
-                                      ((fn [n] (+ n 1)) 10)
+                                    ((fn [n] (+ n 1)) 10)
 
-                                      (((fn [n] (fn [n] n)) 3) 3)
+                                    (((fn [n] (fn [n] n)) 3) 3)
 
-                                      (if (< 2 3 4 5 6)
-                                        (do 1)
-                                        (do 2))
+                                    (if (< 2 3 4 5 6)
+                                      (do 1)
+                                      (do 2))
 
-                                      (adder-let 2)
+                                    (adder-let 2)
 
-                                      (adder-let-2 2))
-                               
-                               (while (< (inc-int) 10)
-                                 (print 1))))
-               (:out (compile-run-solution))))))
+                                    (adder-let-2 2))
+                             
+                             (while (< (inc-int) 10)
+                               (print 1)))))))
 #+end_src
 
 ** Code Generation
@@ -860,11 +858,11 @@ Math configuration,
 #+begin_src clojure :tangle no
   (deftest native-keyword-test
     (is (= "true false true "
-           (do (compile->cpp '((print (= :test :test)
-                                      (= :test :other_test)
-                                      ((fn [keyword]
-                                         "__result = VAR((KEYWORD(keyword)->equals(Keyword(\":space\"))))") :space))))
-               (:out (compile-run-solution))))))
+           (capture-output '((print (= :test :test)
+                                    (= :test :other_test)
+                                    ((fn [keyword]
+                                       "__result = VAR((KEYWORD(keyword)->equals(Keyword(\":space\"))))")
+                                     :space)))))))
 #+end_src
 
 *** Character
@@ -1126,14 +1124,13 @@ Math configuration,
 #+begin_src clojure :tangle no
   (deftest native-string-test
     (is (= "Some String false true false true "
-           (do (compile->cpp '((print "Some String"
-                                      (= "Some String" "Other String")
-                                      (= "Some String" "Some String")
-                                      (= "Some String" 1)
-                                      ((fn [str] "__result = VAR((STRING(str)->toString() == \"String\"))")
-                                       "String")
-                                      )))
-               (:out (compile-run-solution))))))
+           (capture-output '((print "Some String"
+                                    (= "Some String" "Other String")
+                                    (= "Some String" "Some String")
+                                    (= "Some String" 1)
+                                    ((fn [str] "__result = VAR((STRING(str)->toString() == \"String\"))")
+                                     "String")
+                                    ))))))
 #+end_src
 *** Pointer
 
@@ -1416,18 +1413,17 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+begin_src clojure :tangle no
   (deftest conditionals-test
     (is (= "2 1 -1 2 2 2 1 "
-           (do (compile->cpp '((print (if 1 2)
-                                      (if (zero? 0) 1 -1)
-                                      (if (zero? 1) 1 -1)
-                                      (when true 2)
-                                      (when (integer? 2) 2)
-                                      (cond (float? 2.1) 2
-                                            (integer? 2) 4
-                                            :default 1)
-                                      (cond (float? 2) 2.1
-                                            (integer? 2.1) 4
-                                            :default 1))))
-               (:out (compile-run-solution))))))
+           '((print (if 1 2)
+                    (if (zero? 0) 1 -1)
+                    (if (zero? 1) 1 -1)
+                    (when true 2)
+                    (when (integer? 2) 2)
+                    (cond (float? 2.1) 2
+                          (integer? 2) 4
+                          :default 1)
+                    (cond (float? 2) 2.1
+                          (integer? 2.1) 4
+                          :default 1))))))
 #+end_src
 
 *** Sequence
@@ -1464,27 +1460,25 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+begin_src clojure :tangle no
   (deftest sequences-test
     (is (= "( 1 2 3 4 ) 1 ( 2 3 4 ) ( 3 4 ) ( 3 3 4 ) 3 4 ( 4 3 2 1 1 2 ) ( 4 3 2 1 ) 21 21 "
-           (do (compile->cpp '((print (list 1 2 3 4)
-                                      (first (list 1 2 3 4))
-                                      (rest (list 1 2 3 4))
-                                      (rest (rest (list 1 2 3 4)))
-                                      (cons 3 (rest (rest (list 1 2 3 4))))
-                                      (first (cons 3 (rest (rest (list 1 2 3 4)))))
-                                      (count (list 1 2 3 4))
-                                      (conj (list 1 2) 1 2 3 4)
-                                      (conj nil 1 2 3 4)
-                                      (reduce + (list 1 2 3 4 5 6))
-                                      (apply + (list 1 2 3 4 5 6)))))
-               (:out (compile-run-solution)))))
+           (capture-output '((print (list 1 2 3 4)
+                                    (first (list 1 2 3 4))
+                                    (rest (list 1 2 3 4))
+                                    (rest (rest (list 1 2 3 4)))
+                                    (cons 3 (rest (rest (list 1 2 3 4))))
+                                    (first (cons 3 (rest (rest (list 1 2 3 4)))))
+                                    (count (list 1 2 3 4))
+                                    (conj (list 1 2) 1 2 3 4)
+                                    (conj nil 1 2 3 4)
+                                    (reduce + (list 1 2 3 4 5 6))
+                                    (apply + (list 1 2 3 4 5 6)))))))
     (is (= "( 6 5 4 3 2 1 ) ( 6 5 4 3 2 ) ( 4 3 2 1 0 ) ( . o l l e H ) "
-           (do (compile->cpp '((print (reverse (list 1 2 3 4 5 6))
-                                      (reduce (fn [h v]
-                                                (conj h (inc v))) (list) (list 1 2 3 4 5))
-                                      (reduce (fn [h v]
-                                                (conj h (dec v))) (list) (list 1 2 3 4 5))
-                                      (reduce (fn [h v]
-                                                (conj h v)) (list) "Hello."))))
-               (:out (compile-run-solution))))))
+           (capture-output '((print (reverse (list 1 2 3 4 5 6))
+                                    (reduce (fn [h v]
+                                              (conj h (inc v))) (list) (list 1 2 3 4 5))
+                                    (reduce (fn [h v]
+                                              (conj h (dec v))) (list) (list 1 2 3 4 5))
+                                    (reduce (fn [h v]
+                                              (conj h v)) (list) "Hello.")))))))
 #+end_src
 *** Logical Operators
 
@@ -1575,32 +1569,30 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+begin_src clojure :tangle no
   (deftest logical-operators-test
     (is (= "true true false true false true true true false true true false true false true true "
-           (do (compile->cpp '((print (< 2)
-                                      (< 2 3 4 5)
-                                      (< 2 3 6 5)
-                                      (> 2)
-                                      (> 2 3 4 5)
-                                      (> 6 5 4 3)
-                                      (>= 2)
-                                      (>= 5 4 3 2 2 2)
-                                      (>= 5 1 3 2 2 2)
-                                      (<= 2)
-                                      (<= 2 2 3 4 5)
-                                      (<= 2 2 1 3 4)
-                                      (= 2)
-                                      (= 2 3)
-                                      (= 2 2 2 2)
-                                      (= 2 2.0 2))))
-               (:out (compile-run-solution)))))
+           (capture-output '((print (< 2)
+                                    (< 2 3 4 5)
+                                    (< 2 3 6 5)
+                                    (> 2)
+                                    (> 2 3 4 5)
+                                    (> 6 5 4 3)
+                                    (>= 2)
+                                    (>= 5 4 3 2 2 2)
+                                    (>= 5 1 3 2 2 2)
+                                    (<= 2)
+                                    (<= 2 2 3 4 5)
+                                    (<= 2 2 1 3 4)
+                                    (= 2)
+                                    (= 2 3)
+                                    (= 2 2 2 2)
+                                    (= 2 2.0 2))))))
 
     (is (= "false true false true false false "
-           (do (compile->cpp '((print (= 2 2 2 2 3 5)
-                                      (= (list 1 2) (list 1 2))
-                                      (= (list 1 2) (list 1 3))
-                                      (= true true)
-                                      (not (= true true))
-                                      (not 1))))
-               (:out (compile-run-solution))))))
+           (capture-output '((print (= 2 2 2 2 3 5)
+                                    (= (list 1 2) (list 1 2))
+                                    (= (list 1 2) (list 1 3))
+                                    (= true true)
+                                    (not (= true true))
+                                    (not 1)))))))
 #+end_src
 
 *** Math
@@ -1685,38 +1677,36 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+begin_src clojure :tangle no
   (deftest arithmetic-test
     (is (= "3/5 0 1 10 10 -1 0 0 1 8 8 1 1/2 1 1 "
-           (do (compile->cpp '((print (+ 0.3 0.3)
-                                      (+ )
-                                      (+ 1)
-                                      (+ 1 2 3 4)
-                                      (+ 1 2.0 3 4)
+           (capture-output '((print (+ 0.3 0.3)
+                                    (+ )
+                                    (+ 1)
+                                    (+ 1 2 3 4)
+                                    (+ 1 2.0 3 4)
 
-                                      (- 1)
-                                      (- 4 2 2)
-                                      (- 4 2 2.0)
-                                      
-                                      (* )
-                                      (* 2 2 2)
-                                      (* 2.0 2 2)
-                                      
-                                      (/ 1)
-                                      (/ 2)
-                                      (/ 4 2 2)
-                                      (/ 4 2 2.0))))
-               (:out (compile-run-solution)))))
+                                    (- 1)
+                                    (- 4 2 2)
+                                    (- 4 2 2.0)
+                                    
+                                    (* )
+                                    (* 2 2 2)
+                                    (* 2.0 2 2)
+                                    
+                                    (/ 1)
+                                    (/ 2)
+                                    (/ 4 2 2)
+                                    (/ 4 2 2.0))))))
 
     (is (= "true true false false true true false true true true "
-           (do (compile->cpp '((print (pos? 1)
-                                      (pos? 0.2)
-                                      (pos? 0)
-                                      (neg? 1)
-                                      (neg? -1)
-                                      (zero? 0)
-                                      (zero? 10)
-                                      (zero? (- 1 1))
-                                      (zero? (- 1.2 1.2))
-                                      (zero? (+ 1.2 -1.2)))))
-               (:out (compile-run-solution))))))
+           (capture-output '((print (pos? 1)
+                                    (pos? 0.2)
+                                    (pos? 0)
+                                    (neg? 1)
+                                    (neg? -1)
+                                    (zero? 0)
+                                    (zero? 10)
+                                    (zero? (- 1 1))
+                                    (zero? (- 1.2 1.2))
+                                    (zero? (+ 1.2 -1.2))))))))
 #+end_src
 
 *** Bit Operations
@@ -1747,19 +1737,18 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+begin_src clojure :tangle no
   (deftest bit-operations-test
     (is (= "-5 -1 7 1 0 0 0 1 8 16 2 1 "
-           (do (compile->cpp '((print (bit-not  4)
-                                      (bit-not  0)
-                                      (bit-or   4 3)
-                                      (bit-or   0 1)
-                                      (bit-and  4 3)
-                                      (bit-and  0 1)
-                                      (bit-xor  4 4)
-                                      (bit-xor  1 0)
-                                      (bit-shift-left 4 1)
-                                      (bit-shift-left 4 2)
-                                      (bit-shift-right 4 1)
-                                      (bit-shift-right 4 2))))
-               (:out (compile-run-solution))))))
+           (capture-output '((print (bit-not  4)
+                                    (bit-not  0)
+                                    (bit-or   4 3)
+                                    (bit-or   0 1)
+                                    (bit-and  4 3)
+                                    (bit-and  0 1)
+                                    (bit-xor  4 4)
+                                    (bit-xor  1 0)
+                                    (bit-shift-left 4 1)
+                                    (bit-shift-left 4 2)
+                                    (bit-shift-right 4 1)
+                                    (bit-shift-right 4 2)))))))
 #+end_src
 
 *** Arduino
@@ -1895,20 +1884,22 @@ Example build options map,
 
   #+name: core-code-compile-code
   #+begin_src clojure
-    (defn compile->cpp [form]
+    (defn compile-options [& [options]]
+      (merge {:compiler "g++"
+              :include-path []
+              :library-path []
+              :link []
+              :compiler-options ["-Werror" "-Wall"]
+              :source-extension "cpp"}
+             options))
+
+    (defn compile->cpp [form options]
       (init-solution-dir)
       (let [source (emit-source form)]
-        (write-to-solution (solution-template source) "solution.cpp")))
+        (write-to-solution (solution-template source) (str "solution." (:source-extension options)))))
 
-    (defn compile->binary [& [options]]
-      (let [options (merge {:compiler "g++"
-                            :include-path []
-                            :library-path []
-                            :link []
-                            :compiler-options ["-Wall"]
-                            :source-extension "cpp"}
-                           options)
-            command (flatten [(:compiler options)
+    (defn compile->binary [options]
+      (let [command (flatten [(:compiler options)
                               (map #(str %) (:compiler-options options))
                               (map #(str "-I" %) (:include-path options))
                               (map #(str "-L" %) (:library-path options))
@@ -1934,11 +1925,12 @@ Example build options map,
                   ["-o" "--compile-options FILE" "Compile Options File"
                    :parse-fn #(read-string (FileUtils/readFileToString (file %)))]
                   ["-h" "--help"]]
-            args (parse-opts args opts)]
+            args (parse-opts args opts)
+            options (compile-options (->> args :options :compile-options))]
         (if (->> args :options :input)
-          (do (compile->cpp (->> args :options :input))
+          (do (compile->cpp (->> args :options :input) options)
               (when (->> args :options :compile)
-                (compile->binary (->> args :options :compile-options))
+                (compile->binary options)
                 (shutdown-agents)))
           (println "No Input File."))))
   #+end_src
@@ -2113,25 +2105,27 @@ Example build options map,
 
 ** test/core.clj
 #+begin_src clojure :noweb yes :mkdirp yes :tangle ferret/test/ferret/test/core.clj
-  (ns ferret.test.core
-    (:use [ferret.core] :reload)
-    (:use [clojure.test]
-          [clojure.java.shell]))
+    (ns ferret.test.core
+      (:use [ferret.core] :reload)
+      (:use [clojure.test]
+            [clojure.java.shell]))
 
-  (defn compile-run-solution []
-    (compile->binary)
-    (with-sh-dir "solution/"
-      (let [r (sh "./a.out")]
-        r)))
+  (defn capture-output [form]
+    (let [options (compile-options)]
+      (compile->cpp form options)
+      (compile->binary options)
+      (with-sh-dir "solution/"
+        (let [r (sh "./a.out")]
+          (:out r)))))
 
-  <<compiler-transformation-tests>>
-  <<runtime-clojure-bit-operations-tests>>
-  <<runtime-clojure-bit-arithmetic-tests>>
-  <<runtime-clojure-logical-operators-tests>>
-  <<runtime-clojure-conditionals-tests>>
-  <<runtime-clojure-sequences-tests>>
-  <<native-string-tests>>
-  <<native-keyword-tests>>
+    <<compiler-transformation-tests>>
+    <<runtime-clojure-bit-operations-tests>>
+    <<runtime-clojure-bit-arithmetic-tests>>
+    <<runtime-clojure-logical-operators-tests>>
+    <<runtime-clojure-conditionals-tests>>
+    <<runtime-clojure-sequences-tests>>
+    <<native-string-tests>>
+    <<native-keyword-tests>>
 #+end_src 
 
 ** resources/ferret.h

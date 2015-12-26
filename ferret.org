@@ -1729,13 +1729,13 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-arduino
 #+begin_src clojure :tangle no
   (defn pin-mode [pin mode]
-    "if (KEYWORD(mode).equals(Keyword(\":input\")) )
+    "if (KEYWORD(mode)->equals(Keyword(\":input\")) == true)
         pinMode(NUMBER(pin)->intValue(), INPUT);
      else
         pinMode(NUMBER(pin)->intValue(), OUTPUT);")
 
   (defn digital-write [pin mode]
-    "if (KEYWORD(mode).equals(Keyword(\":high\")))
+    "if (KEYWORD(mode)->equals(Keyword(\":high\"))  == true)
         digitalWrite(NUMBER(pin)->intValue(), HIGH);
      else
         digitalWrite(NUMBER(pin)->intValue(), LOW);")

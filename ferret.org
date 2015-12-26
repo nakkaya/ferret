@@ -1905,14 +1905,15 @@ Example build options map,
                             :include-path []
                             :library-path []
                             :link []
-                            :compiler-options ["-Wall"]}
+                            :compiler-options ["-Wall"]
+                            :source-extension "cpp"}
                            options)
             command (flatten [(:compiler options)
                               (map #(str %) (:compiler-options options))
                               (map #(str "-I" %) (:include-path options))
                               (map #(str "-L" %) (:library-path options))
                               (map #(str "-l" %) (:link options))
-                              "solution.cpp"])
+                              (str "solution." (:source-extension options))])
             ret (with-sh-dir "solution/"
                   (apply sh command))]
         (println "Running=>" command)

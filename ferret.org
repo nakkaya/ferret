@@ -52,6 +52,17 @@ we iterate over the code and spit valid C++.
             (zip/remove loc)
             loc))))))
 
+  (defn select-form [tree pred]
+    (loop [loc (zip/seq-zip tree)
+           nodes []]
+      (if (zip/end? loc)
+        nodes
+        (recur
+         (zip/next loc)
+         (if (pred (zip/node loc))
+           (conj nodes (zip/node loc))
+           nodes)))))
+
   (defn is-form? [& s]
     (fn [f]
       (and (seq? f)
@@ -76,7 +87,8 @@ suggests and removes the node when predicate returns true.
          (do->fn)
          (closure-conversion)
          (symbol-conversion)
-         (vector->list)))
+         (vector->list)
+         (replace-fn-call-sites)))
 #+end_src
 
 Forms go through eight transformations before they are passed to the
@@ -106,7 +118,6 @@ code generation phase.
                                  (macroexpand-all f))))]
         (remove-ns temp-ns)
         form)))
-
 #+end_src
 
 First we read all the macros present in /runtime.clj/ then add to that
@@ -119,21 +130,23 @@ is replaced with its expanded form.
 #+begin_src clojure :tangle no
   (defn add-built-in
     ([form]
-       (let [built-in (->> (read-string (str \( (read-from-url "runtime.clj") \)))
-                           (filter (is-form? 'defn))
-                           (reduce (fn[h v] (assoc h (second v) v)) {}))
-             fns (ref {'list (built-in 'list)})
-             form (add-built-in form built-in fns)]
-         (concat (vals @fns) form)))
+     (let [built-in-defn (->> (read-string (str \( (read-from-url "runtime.clj") \)))
+                              (filter (is-form? 'defn)))
+           built-in-list (map second built-in-defn)
+           built-in (->> built-in-defn
+                         (reduce (fn[h v] (assoc h (second v) v)) {}))
+           fns (ref {'list (built-in 'list)}) ;; list burda
+           form (add-built-in form built-in fns)
+           sorted-fns (map #(second %) (sort-by #(.indexOf built-in-list (key %)) @fns))]
+       (concat sorted-fns form)))
     ([form built-in fns]
-       (morph-form form symbol?
-                   #(do (if-let [f (built-in %)]
-                          (when (not (@fns %))
-                            (do (dosync (alter fns assoc % f))
-                                (add-built-in
-                                 (expand-macros (drop 3 f))
-                                 built-in fns)))) %))))
-  
+     (morph-form form symbol?
+                 #(do (if-let [f (built-in %)]
+                        (when (not (@fns %))
+                          (do (dosync (alter fns assoc % f))
+                              (add-built-in
+                               (expand-macros (drop 3 f))
+                               built-in fns)))) %))))
 #+end_src
 
 In order to keep the generated C++ code compact only the functions used
@@ -281,8 +294,42 @@ the free variable problem.
 
 #+end_src
 
-Final step converts all symbols that are not legal C++ identifiers
+Next step converts all symbols that are not legal C++ identifiers
 into valid ones.
+
+#+name: core-transformation-symbol-conversion
+#+begin_src clojure :tangle no
+  (defn replace-fn-call-sites [form]
+    (let [fn-defs (->> (select-form form (is-form? 'def))
+                       (filter (fn [[_ name val]]
+                                 (and (seq? val)
+                                      (= 'lambda_object (first val))))))
+          fn-table (map (fn [[_ name [_ gensym]]] [name gensym]) fn-defs)
+          lambda-pred (fn [s]
+                        (fn [f]
+                          (and (seq? f)
+                               (= 'def (first f))
+                               (every? true? (map = f s)))))
+
+          form-no-global-fn (reduce (fn[h v]
+                                      (remove-form h (lambda-pred v))) form fn-defs)
+          
+          form-embed-fn-calls (reduce (fn[h [name gensym]]
+                                        (morph-form h symbol?
+                                                    (fn [f]
+                                                      (if (= f name)
+                                                        (list 'lambda_object gensym)
+                                                        f)))) form-no-global-fn fn-table)
+          form-embed-fn-names (reduce (fn[h [name gensym]]
+                                        (morph-form h symbol?
+                                                    (fn [f]
+                                                      (if (= f gensym)
+                                                        name
+                                                        f)))) form-embed-fn-calls fn-table)]
+      form-embed-fn-names))
+#+end_src
+
+Final step replaces all functions calls with new function objects.
 
 *** Tests
 
@@ -498,7 +545,7 @@ C++ skeleton.
 #+name: code-templates
 #+begin_src clojure :tangle no
   (defn new-lambda [n e]
-    (let [view (create-view "FN($name$$env:{,$it$}$)")]
+    (let [view (create-view "(FN($name$$env:{,$it$}$))")]
       (fill-view! view "name" n)
       (fill-view! view "env" e)
       (render-view view)))
@@ -1404,6 +1451,11 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
   (defn reverse [s]
     (reduce conj (list) s))
+
+  (defn count [s] "NUMBER_DATA_TYPE count = (NUMBER_DATA_TYPE)0;
+                   for(var it = s; ISEEKABLE(it)->isEmpty() == false ; it = ISEEKABLE(it)->rest())
+                     count = count + 1;
+                   __result = VAR(count);")
 #+end_src
 
 **** Tests
@@ -1625,9 +1677,6 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
   (defn zero? [x]
     (= x 0))
-
-  (defn count [s]
-    (reduce (fn [h v] (inc h)) 0 s))
 #+end_src
 
 **** Tests
@@ -1929,6 +1978,8 @@ Example build options map,
 
   <<core-transformation-vector-list>>
 
+  <<core-transformation-vector-list>>
+
   <<core-transformation-expand-macros>>
 
   <<core-transformation-add-built-in>>
@@ -2173,13 +2224,13 @@ Example build options map,
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
   <<runtime-clojure-defn>>
-  <<runtime-clojure-math>>
-  <<runtime-clojure-bit-operations>>
-  <<runtime-clojure-logical-operators>>
-  <<runtime-clojure-conditionals>>
   <<runtime-clojure-looping>>
   <<runtime-clojure-first>>
   <<runtime-clojure-sequence>>
+  <<runtime-clojure-logical-operators>>
+  <<runtime-clojure-conditionals>>
+  <<runtime-clojure-math>>
+  <<runtime-clojure-bit-operations>>
   <<runtime-clojure-console-io>>
   <<runtime-clojure-arduino>>
 #+end_src

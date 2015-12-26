@@ -812,7 +812,7 @@ Math configuration,
       return (id == KEYWORD(o)->id);
     }
 
-    var equals(Keyword k){
+    bool equals(Keyword k){
       return (id == k.id);
     }
     

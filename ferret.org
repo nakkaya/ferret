@@ -1766,8 +1766,8 @@ output will be placed in a directory called /solution//,
 ** FFI
 
 #+begin_example
-  g++ solution.cpp -I/opt/local/include/ \
-                   -L/opt/local/lib \
+  g++ solution.cpp -I/usr/local/Cellar/opencv/2.4.9/include/ \
+                   -L/usr/local/Cellar/opencv/2.4.9/lib/ \
                    -lopencv_core -lopencv_highgui
 #+end_example
 

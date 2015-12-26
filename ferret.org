@@ -1915,7 +1915,10 @@ Example build options map,
     :repl-options {:host "0.0.0.0"
                    :port 7888
                    :init-ns ferret.core}
-    :main ferret.core)
+    :main ferret.core
+    :aot [ferret.core]
+    :jar-name "interim.jar"
+    :uberjar-name "ferret-app.jar")
 #+end_src 
 ** src/core.clj
 #+begin_src clojure :noweb yes :mkdirp yes :tangle ferret/src/ferret/core.clj

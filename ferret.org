@@ -1765,11 +1765,17 @@ output will be placed in a directory called /solution//,
 #+end_src 
 ** FFI
 
-#+begin_example
-  g++ solution.cpp -I/usr/local/Cellar/opencv/2.4.9/include/ \
-                   -L/usr/local/Cellar/opencv/2.4.9/lib/ \
-                   -lopencv_core -lopencv_highgui
-#+end_example
+Example build options map,
+
+#+BEGIN_EXAMPLE
+  {:include-path ["/usr/local/Cellar/opencv/2.4.9/include/"]
+   :library-path ["/usr/local/Cellar/opencv/2.4.9/lib/"]
+   :link ["opencv_core"
+          "opencv_highgui"]
+   :compiler-options ["-Wall"]
+   :name "cv-webcam"
+   :delete-solution-folder true}
+#+END_EXAMPLE
 
 #+begin_src clojure :mkdirp yes :tangle ferret/examples/webcam.clj
   (native-declare "#include \"opencv/cv.h\"
@@ -1856,24 +1862,44 @@ output will be placed in a directory called /solution//,
       (let [source (emit-source form)]
         (write-to-solution (solution-template source) "solution.cpp")))
 
-    (defn compile->binary []
-      (let [ret (with-sh-dir "solution/"
-                  (sh "g++" "-Wall" "solution.cpp"))]
+    (defn compile->binary [& [options]]
+      (let [options (merge {:compiler "g++"
+                            :include-path []
+                            :library-path []
+                            :link []
+                            :compiler-options ["-Wall"]}
+                           options)
+            command (flatten [(:compiler options)
+                              (map #(str %) (:compiler-options options))
+                              (map #(str "-I" %) (:include-path options))
+                              (map #(str "-L" %) (:library-path options))
+                              (map #(str "-l" %) (:link options))
+                              "solution.cpp"])
+            ret (with-sh-dir "solution/"
+                  (apply sh command))]
+        (println "Running=>" command)
+        (println "Return=>" ret)
         (if (not= 0 (:exit ret))
-          (do (println (:err ret))
-              (System/exit 1))
-          true)))
+          (System/exit 1)
+          (do (when (:name options)
+                (with-sh-dir "solution/"
+                  (sh "mv" "a.out" (str "../" (:name options)))))
+              (when (:delete-solution-folder options)
+                (sh "rm" "-rf" "solution/"))
+              true))))
 
     (defn -main [& args]
       (let [opts [["-i" "--input FILE" "Input File"
                    :parse-fn #(read-string (str \( (FileUtils/readFileToString (file %)) \)))]
                   ["-c" "--compile" "Compile Solution"]
+                  ["-o" "--compile-options FILE" "Compile Options File"
+                   :parse-fn #(read-string (FileUtils/readFileToString (file %)))]
                   ["-h" "--help"]]
             args (parse-opts args opts)]
         (if (->> args :options :input)
           (do (compile->cpp (->> args :options :input))
               (when (->> args :options :compile)
-                (compile->binary)
+                (compile->binary (->> args :options :compile-options))
                 (shutdown-agents)))
           (println "No Input File."))))
   #+end_src

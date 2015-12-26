@@ -1201,7 +1201,7 @@ reaches zero it will automatically free the Object.
     var(float f);
     var(bool b);
     var(char b);
-    var(char* str);
+    var(const char* str);
       
     var& operator, (const var& m);
     var toOutputStream() {
@@ -1269,7 +1269,7 @@ reaches zero it will automatically free the Object.
     addRef();
   }
 
-  var::var(char* str){
+  var::var(const char* str){
     m_ptr = new String(str);
     addRef();
   }
@@ -1782,7 +1782,7 @@ output will be placed in a directory called /solution//,
      if (cap->isOpened())
       __result = var(new Pointer(cap));")
   
-  (defn named-window [n] "cv::namedWindow(toCppString(n),1);")
+  (defn named-window [n] "cv::namedWindow(STRING(n)->toString(),1);")
   
   (defn query-frame [c]
     "cv::VideoCapture *cap = static_cast<cv::VideoCapture*>(POINTER(c)->ptr);
@@ -1793,7 +1793,7 @@ output will be placed in a directory called /solution//,
   
   (defn show-image [f img]
     "cv::Mat *i = static_cast<cv::Mat*>(POINTER(img)->ptr);
-     imshow(toCppString(f), *i);")
+     imshow(STRING(f)->toString(), *i);")
   
   (def cam (video-capture 0))
   

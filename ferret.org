@@ -135,7 +135,7 @@ is replaced with its expanded form.
            built-in-list (map second built-in-defn)
            built-in (->> built-in-defn
                          (reduce (fn[h v] (assoc h (second v) v)) {}))
-           fns (ref {'list (built-in 'list)}) ;; list burda
+           fns (ref {})
            form (add-built-in form built-in fns)
            sorted-fns (map #(second %) (sort-by #(.indexOf built-in-list (key %)) @fns))]
        (concat sorted-fns form)))

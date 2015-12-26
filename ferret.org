@@ -534,10 +534,10 @@ C++ skeleton.
             $trunc(lambda.body):{$it$;} ;separator=\"\n\"$
             return $last(lambda.body):{ $it$;} ;separator=\"\n\"$
           }
-
-          int getType(){ return LAMBDA_TYPE;}
-          VAR equals(VAR o){ return false; }
-          VAR toOutputStream(){ return VAR();}
+          VAR toOutputStream(){
+             fprintf(OUTPUT_STREAM, \"lambda<$lambda.name$>\");
+             return VAR();
+          }
         };};separator=\"\n\n\"$")]
       (fill-view! view "lambdas" (map #(let [args (:args %)]
                                          (assoc % :args (indexed args))) lambdas))
@@ -1137,6 +1137,8 @@ to execute them in a uniform fashion.
     class Lambda : public Object{ 
     public:
       virtual var invoke(var args) = 0;
+      int getType(){return LAMBDA_TYPE;}
+      VAR equals(VAR o){return false;}
     };
 #+end_src
 

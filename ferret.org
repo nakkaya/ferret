@@ -299,37 +299,78 @@ into valid ones.
 
 #+name: core-transformation-symbol-conversion
 #+begin_src clojure :tangle no
-  (defn replace-fn-call-sites [form]
-    (let [fn-defs (->> (select-form form (is-form? 'def))
-                       (filter (fn [[_ name val]]
-                                 (and (seq? val)
-                                      (= 'lambda_object (first val))))))
-          fn-table (map (fn [[_ name [_ gensym]]] [name gensym]) fn-defs)
-          lambda-pred (fn [s]
-                        (fn [f]
-                          (and (seq? f)
-                               (= 'def (first f))
-                               (every? true? (map = f s)))))
+  (defn select-def-fn [form]
+    (->> (select-form form (is-form? 'def))
+         (filter (fn [[_ name val]]
+                   (and (seq? val)
+                        (= 'lambda_object (first val)))))))
 
-          form-no-global-fn (reduce (fn[h v]
-                                      (remove-form h (lambda-pred v))) form fn-defs)
-          
-          form-embed-fn-calls (reduce (fn[h [name gensym]]
-                                        (morph-form h symbol?
-                                                    (fn [f]
-                                                      (if (= f name)
-                                                        (list 'lambda_object gensym)
-                                                        f)))) form-no-global-fn fn-table)
-          form-embed-fn-names (reduce (fn[h [name gensym]]
-                                        (morph-form h symbol?
-                                                    (fn [f]
-                                                      (if (= f gensym)
-                                                        name
-                                                        f)))) form-embed-fn-calls fn-table)]
-      form-embed-fn-names))
+  (defn replace-fn-call-sites-pure [form fn-defs fn-table]
+    (let [no-global-fn (reduce (fn[h v]
+                                 (remove-form h (fn [f]
+                                                  (and (seq? f)
+                                                       (= 'def (first f))
+                                                       (every? true? (map = f v))))))
+                               form fn-defs)        
+          embeded-fn-calls (reduce (fn[h [name gensym]]
+                                     (morph-form h symbol?
+                                                 (fn [f]
+                                                   (if (= f name)
+                                                     (list 'lambda_object gensym)
+                                                     f))))
+                                   no-global-fn fn-table)
+          embed-fn-names (reduce (fn[h [name gensym]]
+                                   (morph-form h symbol?
+                                               (fn [f]
+                                                 (if (= f gensym)
+                                                   name
+                                                   f))))
+                                 embeded-fn-calls fn-table)]
+      embed-fn-names))
+
+  (defn replace-fn-call-sites [form]
+    (let [pure-fn-defs (->> (select-def-fn form)
+                            (filter #(= 2 (-> % last count))))
+          pure-fn-table (map (fn [[_ name [_ gensym]]] [name gensym]) pure-fn-defs)
+          form (replace-fn-call-sites-pure form pure-fn-defs pure-fn-table)
+          closure-fn-defs (->> (select-def-fn form)
+                               (filter #(not= 2 (-> % last count))))
+          closure-fn-table (map (fn [[_ name [_ gensym]]] [name gensym]) closure-fn-defs)]
+      (reduce (fn[h [name gensym]]
+                (morph-form h symbol?
+                            (fn [f]
+                              (if (= f gensym)
+                                (symbol (str name "_" gensym))
+                                f))))
+              form closure-fn-table)))
 #+end_src
 
-Final step replaces all functions calls with new function objects.
+Final step replaces all functions calls with new function
+objects /define_lambda/ are renamed to /fn/. This removes all globals
+variables unless the /fn/ defined is a closure. In which case it is
+left as a global variable and the class implementation is prepended
+with the global name for readability.
+
+#+BEGIN_EXAMPLE
+  (process '((let [a 1]
+               (defn adder [x]
+                 (+ a x)))
+             (defn my-inc [x] (+ 1 x))))
+
+  (replace-fn-call-sites
+   '((define_lambda G__3885 (a) (x) (_plus_ a x))
+     (define_lambda G__3886 () (a) (def adder (lambda_object G__3885 a)))
+     (define_lambda G__3887 () () (define_var a 1) ((lambda_object G__3886) a))
+     (define_lambda G__3888 () (x) (_plus_ 1 x))
+     ((lambda_object G__3887))
+     (def my_inc (lambda_object G__3888))))
+
+  ((define_lambda adder_G__3885 (a) (x) (_plus_ a x))
+   (define_lambda G__3886 () (a) (def adder (lambda_object adder_G__3885 a)))
+   (define_lambda G__3887 () () (define_var a 1) ((lambda_object G__3886) a))
+   (define_lambda my_inc () (x) (_plus_ 1 x))
+   ((lambda_object G__3887)))
+#+END_EXAMPLE
 
 *** Tests
 
@@ -347,7 +388,7 @@ Final step replaces all functions calls with new function objects.
       (is (= (first (last form)) 'def))))
 
   (deftest transformation-macro-test
-    (is (= "1 1 1 true false true true true 0 1 2 3 4 "
+    (is (= "1 1 1 true false true true true 0 1 2 3 4 3 "
            (capture-output '((defmacro my-when [test & body]
                                (list 'if test (cons 'do body)))
                              
@@ -373,7 +414,12 @@ Final step replaces all functions calls with new function objects.
                                       (or (> a 0)
                                           (< a 10))))
                              
-                             (dotimes [i 5] (print i)))))))
+                             (dotimes [i 5] (print i))
+                             (let [a 1]
+                               (defn adder [x]
+                                 (+ a x)))
+                             (defn my-inc [x] (+ 1 (adder x)))
+                             (print (my-inc 1)))))))
 
   (deftest transformation-special-forms-test
     (is (= "10 89 11 3 1 5 5 1 1 1 1 1 1 1 1 1 1 "

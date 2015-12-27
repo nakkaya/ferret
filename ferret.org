@@ -541,7 +541,7 @@ C++ skeleton.
     (str "VAR("form (if (float? form) "f") ")"))
 
   (defmethod emit :sequence [[fn & args] state]
-    (invoke-lambda (emit fn state) (map #(emit % state) args)))
+    (invoke-lambda (emit fn state) (doall (map #(emit % state) args))))
 
   (defmethod emit 'define_var [[_ name form] state]
     (str "VAR " name " = " (emit form state)))
@@ -555,7 +555,7 @@ C++ skeleton.
   (defmethod emit 'define_lambda [[_ name env args & body] state]
     (let [body (if (string? (first body))
                  ["VAR __result" body "__result"]
-                 (map #(emit % state) body))
+                 (doall (map #(emit % state) body)))
           env (filter #(not (= '& %)) env)
           reg-args (take-while #(not (= '& %)) args)
           va-args (if (some #{'&} args)
@@ -581,7 +581,7 @@ C++ skeleton.
 
   (defmethod emit 'def [[_ name & form] state]
     (append-to! state [:symbol-table] name)
-    (str name " = " (apply str (map #(emit % state) form))))
+    (str name " = " (apply str (doall (map #(emit % state) form)))))
 #+end_src
 
 *** Code Templates

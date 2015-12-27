@@ -1752,7 +1752,23 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                                     (zero? 10)
                                     (zero? (- 1 1))
                                     (zero? (- 1.2 1.2))
-                                    (zero? (+ 1.2 -1.2))))))))
+                                    (zero? (+ 1.2 -1.2)))))))
+
+    (is (= "1 2 1 2 1 2 1 2 "
+           (capture-output '((let [a 1
+                                   b 2]
+                               (+ 1 a)
+                               (+ b a)
+                               (print a b)
+                               (* 2 a)
+                               (* b a)
+                               (print a b)
+                               (/ 2 a)
+                               (/ b a)
+                               (print a b)
+                               (- 2 a)
+                               (- b a)
+                               (print a b)))))))
 #+end_src
 
 *** Bit Operations

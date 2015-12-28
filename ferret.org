@@ -59,23 +59,23 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 #+begin_src clojure :tangle no
   (defn add-built-in
     ([form]
-     (let [built-in-defn (->> (read-string (str \( (read-from-url "runtime.clj") \)))
-                              (filter (is-form? 'defn)))
-           built-in-list (map second built-in-defn)
+     (let [runtime-form (read-string (str \( (read-from-url "runtime.clj") \)))
+           built-in-defn (expand-macros-all runtime-form)
+           built-in-order (map second built-in-defn)
            built-in (->> built-in-defn
                          (reduce (fn[h v] (assoc h (second v) v)) {}))
-           fns (ref {})
-           temp-form (add-built-in (vector->list form) built-in fns)
-           sorted-fns (map #(second %) (sort-by #(.indexOf built-in-list (key %)) @fns))]
+           fns (atom {})
+           _ (add-built-in (->> form expand-macros-all vector->list) built-in fns)
+           sorted-fns (->> @fns
+                           (sort-by #(.indexOf built-in-order (key %)))
+                           (map #(second %)))]
        (concat sorted-fns form)))
     ([form built-in fns]
      (morph-form form symbol?
                  #(do (if-let [f (built-in %)]
                         (when (not (@fns %))
-                          (do (dosync (alter fns assoc % f))
-                              (add-built-in
-                               (expand-macros (drop 3 f))
-                               built-in fns)))) %))))
+                          (swap! fns assoc % f)
+                          (add-built-in f built-in fns))) %))))
 #+end_src
 
 *** Expand Macros
@@ -110,6 +110,13 @@ is replaced with its expanded form.
                                  (macroexpand-all f))))]
         (remove-ns temp-ns)
         form)))
+
+  (defn expand-macros-all [form]
+    (loop [f form]
+      (let [expanded (expand-macros f)]
+        (if (= f expanded)
+          expanded
+          (recur expanded)))))
 #+end_src
 
 *** vector->list
@@ -259,7 +266,6 @@ into valid ones.
                             {\- \_ \* "_star_" \+ "_plus_" \/ "_slash_"
                              \< "_lt_" \> "_gt_" \= "_eq_" \? "_QMARK_"}))
                   #(cond (= 'not %) '_not_
-                         (= 'while %) '_while_
                          :default %))]
       (morph-form form symbol? c)))
 
@@ -1447,10 +1453,6 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
 #+name: runtime-clojure-conditionals
 #+begin_src clojure :tangle no
-  (defn while [pred fn]
-    "while(BOOLEAN(INVOKE(pred))->asBool() == true)
-       INVOKE(fn);")
-
   (defmacro when [test & body]
     (list 'if test (cons 'do body)))
 
@@ -1466,6 +1468,10 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
   (defmacro while [test & body]
     (list '_while_ (list 'fn [] test) (cons 'fn `( [] ~@body))))
+
+  (defn _while_ [pred fn]
+    "while(BOOLEAN(INVOKE(pred))->asBool() == true)
+       INVOKE(fn);")
 
   (defmacro forever [& body]
     (cons 'while `(true  ~@body)))

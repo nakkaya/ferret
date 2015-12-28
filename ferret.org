@@ -37,7 +37,7 @@ code generation phase.
 #+begin_src clojure :tangle no
   (defn process [form]
     (->> (add-built-in form)
-         (expand-macros)
+         (expand-macros-all)
          (vector->list)
          (let->fn)
          (do->fn)

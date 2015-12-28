@@ -79,15 +79,13 @@ suggests and removes the node when predicate returns true.
 #+name: core-transformation-process
 #+begin_src clojure :tangle no
   (defn process [form]
-    (->> (expand-macros form)
-         (add-built-in)
+    (->> (add-built-in form)
          (expand-macros)
          (vector->list)
          (let->fn)
          (do->fn)
          (closure-conversion)
          (symbol-conversion)
-         (vector->list)
          (replace-fn-call-sites)))
 #+end_src
 
@@ -136,7 +134,7 @@ is replaced with its expanded form.
            built-in (->> built-in-defn
                          (reduce (fn[h v] (assoc h (second v) v)) {}))
            fns (ref {})
-           form (add-built-in form built-in fns)
+           temp-form (add-built-in (vector->list form) built-in fns)
            sorted-fns (map #(second %) (sort-by #(.indexOf built-in-list (key %)) @fns))]
        (concat sorted-fns form)))
     ([form built-in fns]
@@ -289,6 +287,7 @@ the free variable problem.
                             {\- \_ \* "_star_" \+ "_plus_" \/ "_slash_"
                              \< "_lt_" \> "_gt_" \= "_eq_" \? "_QMARK_"}))
                   #(cond (= 'not %) '_not_
+                         (= 'while %) '_while_
                          :default %))]
       (morph-form form symbol? c)))
 
@@ -1429,7 +1428,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
 #+name: runtime-clojure-conditionals
 #+begin_src clojure :tangle no
-  (defn _while_ [pred fn]
+  (defn while [pred fn]
     "while(BOOLEAN(INVOKE(pred))->asBool() == true)
        INVOKE(fn);")
 

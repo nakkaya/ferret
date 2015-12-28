@@ -1524,7 +1524,13 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                                     (reduce (fn [h v]
                                               (conj h (dec v))) (list) (list 1 2 3 4 5))
                                     (reduce (fn [h v]
-                                              (conj h v)) (list) "Hello.")))))))
+                                              (conj h v)) (list) "Hello."))))))
+
+    (is (= "( 1 2 3 4 5 6 ) ( 7 6 5 4 3 2 ) ( 1 7 6 5 4 3 2 ) "
+           (capture-output '((let [l1 (list 1 2 3 4 5 6)
+                                   l2 (reduce (fn[h v] (conj h (inc v))) (list) l1)
+                                   l3 (cons 1 l2)]
+                               (print l1 l2 l3)))))))
 #+end_src
 *** Logical Operators
 

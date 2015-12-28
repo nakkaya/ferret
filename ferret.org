@@ -30,51 +30,8 @@ we iterate over the code and spit valid C++.
 
 ** Transformation
 
-#+name: core-transformation-form-fns
-#+begin_src clojure :tangle no
-  (defn morph-form [tree pred f]
-    (loop [loc (zip/seq-zip tree)]
-      (if (zip/end? loc)
-        (zip/root loc)
-        (recur
-         (zip/next
-          (if (pred (zip/node loc))
-            (zip/replace loc (f (zip/node loc)))
-            loc))))))
-
-  (defn remove-form [tree pred]
-    (loop [loc (zip/seq-zip tree)]
-      (if (zip/end? loc)
-        (zip/root loc)
-        (recur
-         (zip/next
-          (if (pred (zip/node loc))
-            (zip/remove loc)
-            loc))))))
-
-  (defn select-form [tree pred]
-    (loop [loc (zip/seq-zip tree)
-           nodes []]
-      (if (zip/end? loc)
-        nodes
-        (recur
-         (zip/next loc)
-         (if (pred (zip/node loc))
-           (conj nodes (zip/node loc))
-           nodes)))))
-
-  (defn is-form? [& s]
-    (fn [f]
-      (and (seq? f)
-           (some true? (map #(= % (first f)) s)))))
-#+end_src
-
-During each pass we iterate over the nodes in the form using
-/morph-form/ and /remove-form/, they both take a s-expression and a
-predicate if the predicate returns true, morph-form will call /f/
-passing the current node as an argument and replace that node with
-/f/'s return value, remove-form on the other hand does what its name
-suggests and removes the node when predicate returns true.
+Forms go through eight transformations before they are passed to the
+code generation phase.
 
 #+name: core-transformation-process
 #+begin_src clojure :tangle no
@@ -89,8 +46,45 @@ suggests and removes the node when predicate returns true.
          (replace-fn-call-sites)))
 #+end_src
 
-Forms go through eight transformations before they are passed to the
-code generation phase.
+*** Add Runtime
+
+In order to keep the generated C++ code compact only the functions used
+will be present in the generated source file. Which means if you don't
+use /println/ anywhere in the code it won't be defined in the final
+C++ file, but if you use it, it and everything it uses will be
+defined, in the case of /println/ it will pull /apply/, /print/ and
+/newline/ with it.
+
+#+name: core-transformation-add-built-in
+#+begin_src clojure :tangle no
+  (defn add-built-in
+    ([form]
+     (let [built-in-defn (->> (read-string (str \( (read-from-url "runtime.clj") \)))
+                              (filter (is-form? 'defn)))
+           built-in-list (map second built-in-defn)
+           built-in (->> built-in-defn
+                         (reduce (fn[h v] (assoc h (second v) v)) {}))
+           fns (ref {})
+           temp-form (add-built-in (vector->list form) built-in fns)
+           sorted-fns (map #(second %) (sort-by #(.indexOf built-in-list (key %)) @fns))]
+       (concat sorted-fns form)))
+    ([form built-in fns]
+     (morph-form form symbol?
+                 #(do (if-let [f (built-in %)]
+                        (when (not (@fns %))
+                          (do (dosync (alter fns assoc % f))
+                              (add-built-in
+                               (expand-macros (drop 3 f))
+                               built-in fns)))) %))))
+#+end_src
+
+*** Expand Macros
+
+First we read all the macros present in /runtime.clj/ then add to that
+user defined macros, they are evaluated in a temporary namespace,
+using /morph-form/ we iterate all the macros used in the code that we
+are compiling and expand them in the temporary namespace then the node
+is replaced with its expanded form.
 
 #+name: core-transformation-expand-macros
 #+begin_src clojure :tangle no
@@ -118,41 +112,10 @@ code generation phase.
         form)))
 #+end_src
 
-First we read all the macros present in /runtime.clj/ then add to that
-user defined macros, they are evaluated in a temporary namespace,
-using /morph-form/ we iterate all the macros used in the code that we
-are compiling and expand them in the temporary namespace then the node
-is replaced with its expanded form.
+*** vector->list
 
-#+name: core-transformation-add-built-in
-#+begin_src clojure :tangle no
-  (defn add-built-in
-    ([form]
-     (let [built-in-defn (->> (read-string (str \( (read-from-url "runtime.clj") \)))
-                              (filter (is-form? 'defn)))
-           built-in-list (map second built-in-defn)
-           built-in (->> built-in-defn
-                         (reduce (fn[h v] (assoc h (second v) v)) {}))
-           fns (ref {})
-           temp-form (add-built-in (vector->list form) built-in fns)
-           sorted-fns (map #(second %) (sort-by #(.indexOf built-in-list (key %)) @fns))]
-       (concat sorted-fns form)))
-    ([form built-in fns]
-     (morph-form form symbol?
-                 #(do (if-let [f (built-in %)]
-                        (when (not (@fns %))
-                          (do (dosync (alter fns assoc % f))
-                              (add-built-in
-                               (expand-macros (drop 3 f))
-                               built-in fns)))) %))))
-#+end_src
-
-In order to keep the generated C++ code compact only the functions used
-will be present in the generated source file. Which means if you don't
-use /println/ anywhere in the code it won't be defined in the final
-C++ file, but if you use it, it and everything it uses will be
-defined, in the case of /println/ it will pull /apply/, /print/ and
-/newline/ with it.
+Since there is no support for vectors, they are converted to
+lists. Also zippers do not iterate over vectors.
 
 #+name: core-transformation-vector-list
 #+begin_src clojure :tangle no
@@ -160,20 +123,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
     (morph-form form vector? #(reverse (into '() %))))
 #+end_src
 
-Since there is no support for vectors, they are converted to lists.
-
-#+name: core-transformation-let-fn
-#+begin_src clojure :tangle no
-  (defn let->fn [form]
-    (morph-form form
-                (is-form? 'let)
-                (fn [[_ bindings & body]]
-                  (let [bindings (partition 2 bindings)
-                        vars (flatten (map first bindings))
-                        defs (map #(cons 'define-var %) bindings)
-                        body-fn (cons (concat ['fn vars] body) vars)]
-                    (list (concat ['fn []] defs [body-fn]))))))
-#+end_src
+*** let->fn
 
 let forms are transformed into nested functions which are then called
 immediately, bindings are setup in the outer function, expressions are
@@ -198,13 +148,20 @@ after transformation becomes,
         (+ a b)) a b)))
 #+end_src
 
-#+name: core-transformation-do-fn
+#+name: core-transformation-let-fn
 #+begin_src clojure :tangle no
-  (defn do->fn [form]
+  (defn let->fn [form]
     (morph-form form
-                (is-form? 'do)
-                #(list (concat ['fn []] (rest %)))))
+                (is-form? 'let)
+                (fn [[_ bindings & body]]
+                  (let [bindings (partition 2 bindings)
+                        vars (flatten (map first bindings))
+                        defs (map #(cons 'define-var %) bindings)
+                        body-fn (cons (concat ['fn vars] body) vars)]
+                    (list (concat ['fn []] defs [body-fn]))))))
 #+end_src
+
+*** do->fn
 
 A similar method is used for the do form, expressions are wrapped in a fn
 that takes no parameters and executed in place.
@@ -217,36 +174,15 @@ that takes no parameters and executed in place.
   ((fn [] (+ 1 1)))
 #+end_src
 
-#+name: core-transformation-closure-conversion 
+#+name: core-transformation-do-fn
 #+begin_src clojure :tangle no
-  (defn lambda-defined? [fns env args body]
-    (let [f (concat [env args] body)
-          name (reduce (fn[h v]
-                         (let [[_ n & r] v]
-                           (if (= r f) n))) nil @fns)]
-      (when name
-        (apply list 'lambda-object name env))))
-  
-  (defn define-lambda [fns env args body]
-    (let [n (gensym)]
-      (dosync (alter fns conj (concat ['define-lambda n env args] body)))
-      (apply list 'lambda-object n env)))
-  
-  (defn closure-conversion
-    ([form]
-       (let [fns (ref [])
-             form (closure-conversion form fns)]
-         (vector->list (concat @fns form))))
-    ([form fns & env]
-       (morph-form form
-                   (is-form? 'fn)
-                   (fn [[_ args & body]]
-                     (let [env (if (nil? env) '() (first env))
-                           body (closure-conversion body fns (concat args env))]
-                       (if-let [n (lambda-defined? fns env args body)]
-                         n
-                         (define-lambda fns env args body)))))))
+  (defn do->fn [form]
+    (morph-form form
+                (is-form? 'do)
+                #(list (concat ['fn []] (rest %)))))
 #+end_src
+
+*** Closure Conversion
 
 /closure-conversion/ handles the problem of free variables, 
 
@@ -279,6 +215,42 @@ constructor. Since every thing is already converted to fns this
 mechanism allows variables to be referenced down the line and solves
 the free variable problem.
 
+#+name: core-transformation-closure-conversion 
+#+begin_src clojure :tangle no
+  (defn lambda-defined? [fns env args body]
+    (let [f (concat [env args] body)
+          name (reduce (fn[h v]
+                         (let [[_ n & r] v]
+                           (if (= r f) n))) nil @fns)]
+      (when name
+        (apply list 'lambda-object name env))))
+  
+  (defn define-lambda [fns env args body]
+    (let [n (gensym)]
+      (dosync (alter fns conj (concat ['define-lambda n env args] body)))
+      (apply list 'lambda-object n env)))
+  
+  (defn closure-conversion
+    ([form]
+       (let [fns (ref [])
+             form (closure-conversion form fns)]
+         (vector->list (concat @fns form))))
+    ([form fns & env]
+       (morph-form form
+                   (is-form? 'fn)
+                   (fn [[_ args & body]]
+                     (let [env (if (nil? env) '() (first env))
+                           body (closure-conversion body fns (concat args env))]
+                       (if-let [n (lambda-defined? fns env args body)]
+                         n
+                         (define-lambda fns env args body)))))))
+#+end_src
+
+*** Symbol Conversion
+
+Next step converts all symbols that are not legal C++ identifiers
+into valid ones.
+
 #+name: core-transformation-symbol-conversion
 #+begin_src clojure :tangle no
   (defn symbol-conversion [form]
@@ -293,8 +265,34 @@ the free variable problem.
 
 #+end_src
 
-Next step converts all symbols that are not legal C++ identifiers
-into valid ones.
+*** Replace Fn Call Sites
+
+Final step replaces all functions calls with new function
+objects /define_lambda/ are renamed to /fn/. This removes all globals
+variables unless the /fn/ defined is a closure. In which case it is
+left as a global variable and the class implementation is prepended
+with the global name for readability.
+
+#+BEGIN_EXAMPLE
+  (process '((let [a 1]
+               (defn adder [x]
+                 (+ a x)))
+             (defn my-inc [x] (+ 1 x))))
+
+  (replace-fn-call-sites
+   '((define_lambda G__3885 (a) (x) (_plus_ a x))
+     (define_lambda G__3886 () (a) (def adder (lambda_object G__3885 a)))
+     (define_lambda G__3887 () () (define_var a 1) ((lambda_object G__3886) a))
+     (define_lambda G__3888 () (x) (_plus_ 1 x))
+     ((lambda_object G__3887))
+     (def my_inc (lambda_object G__3888))))
+
+  ((define_lambda adder_G__3885 (a) (x) (_plus_ a x))
+   (define_lambda G__3886 () (a) (def adder (lambda_object adder_G__3885 a)))
+   (define_lambda G__3887 () () (define_var a 1) ((lambda_object G__3886) a))
+   (define_lambda my_inc () (x) (_plus_ 1 x))
+   ((lambda_object G__3887)))
+#+END_EXAMPLE
 
 #+name: core-transformation-symbol-conversion
 #+begin_src clojure :tangle no
@@ -344,32 +342,53 @@ into valid ones.
               form closure-fn-table)))
 #+end_src
 
-Final step replaces all functions calls with new function
-objects /define_lambda/ are renamed to /fn/. This removes all globals
-variables unless the /fn/ defined is a closure. In which case it is
-left as a global variable and the class implementation is prepended
-with the global name for readability.
+*** Helpers
 
-#+BEGIN_EXAMPLE
-  (process '((let [a 1]
-               (defn adder [x]
-                 (+ a x)))
-             (defn my-inc [x] (+ 1 x))))
+During each pass we iterate over the nodes in the form using
+/morph-form/ and /remove-form/, they both take a s-expression and a
+predicate if the predicate returns true, morph-form will call /f/
+passing the current node as an argument and replace that node with
+/f/'s return value, remove-form on the other hand does what its name
+suggests and removes the node when predicate returns true.
 
-  (replace-fn-call-sites
-   '((define_lambda G__3885 (a) (x) (_plus_ a x))
-     (define_lambda G__3886 () (a) (def adder (lambda_object G__3885 a)))
-     (define_lambda G__3887 () () (define_var a 1) ((lambda_object G__3886) a))
-     (define_lambda G__3888 () (x) (_plus_ 1 x))
-     ((lambda_object G__3887))
-     (def my_inc (lambda_object G__3888))))
+#+name: core-transformation-form-fns
+#+begin_src clojure :tangle no
+  (defn morph-form [tree pred f]
+    (loop [loc (zip/seq-zip tree)]
+      (if (zip/end? loc)
+        (zip/root loc)
+        (recur
+         (zip/next
+          (if (pred (zip/node loc))
+            (zip/replace loc (f (zip/node loc)))
+            loc))))))
 
-  ((define_lambda adder_G__3885 (a) (x) (_plus_ a x))
-   (define_lambda G__3886 () (a) (def adder (lambda_object adder_G__3885 a)))
-   (define_lambda G__3887 () () (define_var a 1) ((lambda_object G__3886) a))
-   (define_lambda my_inc () (x) (_plus_ 1 x))
-   ((lambda_object G__3887)))
-#+END_EXAMPLE
+  (defn remove-form [tree pred]
+    (loop [loc (zip/seq-zip tree)]
+      (if (zip/end? loc)
+        (zip/root loc)
+        (recur
+         (zip/next
+          (if (pred (zip/node loc))
+            (zip/remove loc)
+            loc))))))
+
+  (defn select-form [tree pred]
+    (loop [loc (zip/seq-zip tree)
+           nodes []]
+      (if (zip/end? loc)
+        nodes
+        (recur
+         (zip/next loc)
+         (if (pred (zip/node loc))
+           (conj nodes (zip/node loc))
+           nodes)))))
+
+  (defn is-form? [& s]
+    (fn [f]
+      (and (seq? f)
+           (some true? (map #(= % (first f)) s)))))
+#+end_src
 
 *** Tests
 

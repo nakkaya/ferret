@@ -10,7 +10,7 @@ automatically translated to C++ so that I can program stuff in
 Clojure where JVM or any other Lisp dialect is not available.
 
 This is a literate program, the code in this document is the
-executable source, in order to extract it, open this [[https://github.com/nakkaya/nakkaya.com/tree/master/resources/posts/2011-06-29-ferret-an-experimental-clojure-compiler.org][raw file]]
+executable source, in order to extract it, open this raw file
 with emacs and run,
 
 #+begin_example

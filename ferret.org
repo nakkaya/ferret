@@ -468,7 +468,7 @@ suggests and removes the node when predicate returns true.
                                                   (+ a b n))))
 
                              (native-declare "int i = 0;")
-                             (defn inc-int [] "return i++;")
+                             (defn inc-int [] "__result =  i++;")
                              
                              (print (adder 9)
 
@@ -605,7 +605,7 @@ C++ skeleton.
 
   (defmethod emit 'def [[_ name & form] state]
     (append-to! state [:symbol-table] name)
-    (str name " = " (apply str (doall (map #(emit % state) form)))))
+    (str "(" name " = " (apply str (doall (map #(emit % state) form))) ")"))
 #+end_src
 
 *** Code Templates
@@ -1579,7 +1579,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
       NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
       NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
-      return VAR((an * bdn) < (bn * adn));") a (first more))
+      __result = VAR((an * bdn) < (bn * adn));") a (first more))
            (apply < more))))
 
   (defn > [a & more]
@@ -1592,7 +1592,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
       NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
       NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
-      return VAR((an * bdn) > (bn * adn));") a (first more))
+      __result =  VAR((an * bdn) > (bn * adn));") a (first more))
            (apply > more))))
 
   (defn >= [a & more]
@@ -1618,7 +1618,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
       NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
       NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
-      return VAR((an * bdn) <= (bn * adn));") a (first more))
+      __result = VAR((an * bdn) <= (bn * adn));") a (first more))
            (apply <= more))))
 
   (defmacro and
@@ -1691,7 +1691,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
         NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
-        return VAR(((hn * vdn) + (vn * hdn)),ndn);") 0 xs))
+        __result = VAR(((hn * vdn) + (vn * hdn)),ndn);") 0 xs))
 
   (defn * [& xs]
     (reduce (fn[h v] "
@@ -1703,7 +1703,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
         NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
-        return VAR(((hn * vdn) * (vn * hdn)),ndn);") 1 xs))
+        __result = VAR(((hn * vdn) * (vn * hdn)),ndn);") 1 xs))
 
   (defn - [& xs]
     (if (= (count xs) 1)
@@ -1717,7 +1717,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
         NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
-        return VAR(((hn * vdn) - (vn * hdn)),ndn);") (first xs) (rest xs))))
+        __result = VAR(((hn * vdn) - (vn * hdn)),ndn);") (first xs) (rest xs))))
 
   (defn / [& xs]
     (if (= (count xs) 1)
@@ -1729,7 +1729,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
         NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
         NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
 
-        return VAR((hn * vdn),(vn * hdn));") (first xs) (rest xs))))
+        __result = VAR((hn * vdn),(vn * hdn));") (first xs) (rest xs))))
 
   (defn inc [x]
     (+ x 1))

@@ -927,7 +927,7 @@ Math configuration,
            (capture-output '((print (= :test :test)
                                     (= :test :other_test)
                                     ((fn [keyword]
-                                       "__result = VAR((KEYWORD(keyword)->equals(Keyword(\":space\"))))")
+                                       "__result = VAR(keyword.equals(VAR(new ferret::Keyword(\":space\"))))")
                                      :space)))))))
 #+end_src
 
@@ -986,7 +986,7 @@ Math configuration,
       if (OBJECT(o)->getType() != CONS_TYPE)
         return false;
       
-      return OBJECT(data)->equals(o);
+      return data.equals(o);
     }
 
     int getType(){ return CONS_TYPE;}
@@ -1066,7 +1066,7 @@ Math configuration,
       var itOther = o;
       for(var it = this; !SEQUENCE(it)->isEmpty(); it = SEQUENCE(it)->rest()){
         if (SEQUENCE(itOther)->isEmpty() || 
-            BOOLEAN(OBJECT(SEQUENCE(it)->first())->equals(SEQUENCE(itOther)->first()))->asBool() == false)
+            SEQUENCE(it)->first().equals(SEQUENCE(itOther)->first())  == false)
           return false;
 
         itOther = SEQUENCE(itOther)->rest();
@@ -1171,7 +1171,7 @@ Math configuration,
     var equals(var o){
       if (OBJECT(o)->getType() != STRING_TYPE)
         return false;
-      return OBJECT(data)->equals(STRING(o)->getData());
+      return data.equals(STRING(o)->getData());
     }
 
     var reduce(var f){
@@ -1285,6 +1285,8 @@ reaches zero it will automatically free the Object.
     var& operator= (const var& p){
       return *this = p.m_ptr;
     }
+
+    bool equals (var rhs);
       
     var& operator= (Object* ptr){
       if (m_ptr != ptr){
@@ -1382,6 +1384,12 @@ reaches zero it will automatically free the Object.
     return *this;
   }
 
+  bool var::equals (var rhs){
+    if (get() == rhs.get())
+      return true;
+    else
+      return BOOLEAN(get()->equals(rhs))->asBool();
+  }
 #+end_src
 
 ** Lisp
@@ -1563,7 +1571,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
   (defn = [a & more]
     (if (empty? more)
       true
-      (and ((fn [a b] "__result = OBJECT(a)->equals(b);") a (first more))
+      (and ((fn [a b] "__result = a.equals(b);") a (first more))
            (apply = more))))
 
   (defmacro not= [& test]
@@ -1662,13 +1670,17 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                                     (= 2 2 2 2)
                                     (= 2 2.0 2))))))
 
-    (is (= "false true false true false false "
+    (is (= "false true false true false false true false "
            (capture-output '((print (= 2 2 2 2 3 5)
                                     (= (list 1 2) (list 1 2))
                                     (= (list 1 2) (list 1 3))
                                     (= true true)
                                     (not (= true true))
-                                    (not 1)))))))
+                                    (not 1))
+                             (let [a (fn [x] (+ 1 x))
+                                   b (fn [x] (inc x))]
+                               (print (= a a)
+                                      (= a b))))))))
 #+end_src
 
 *** Math
@@ -1848,13 +1860,13 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-arduino
 #+begin_src clojure :tangle no
   (defn pin-mode [pin mode]
-    "if (KEYWORD(mode)->equals(Keyword(\":input\")) == true)
+    "if (mode.equals(VAR(new ferret::Keyword(\":input\"))) == true)
         pinMode(NUMBER(pin)->intValue(), INPUT);
      else
         pinMode(NUMBER(pin)->intValue(), OUTPUT);")
 
   (defn digital-write [pin mode]
-    "if (KEYWORD(mode)->equals(Keyword(\":high\"))  == true)
+    "if (mode.equals(VAR(new ferret::Keyword(\":high\")))  == true)
         digitalWrite(NUMBER(pin)->intValue(), HIGH);
      else
         digitalWrite(NUMBER(pin)->intValue(), LOW);")

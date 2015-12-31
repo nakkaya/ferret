@@ -577,9 +577,10 @@ C++ skeleton.
     (new-lambda name (filter #(not (= '& %)) env)))
 
   (defmethod emit 'define_lambda [[_ name env args & body] state]
-    (let [body (if (string? (first body))
-                 ["VAR __result" body "__result"]
-                 (doall (map #(emit % state) body)))
+    (let [body (cond  (empty? body) ["VAR()"]
+                      (string? (first body))
+                      ["VAR __result" body "__result"]
+                      :default (doall (map #(emit % state) body)))
           env (filter #(not (= '& %)) env)
           reg-args (take-while #(not (= '& %)) args)
           va-args (if (some #{'&} args)
@@ -1670,7 +1671,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                                     (= 2 2 2 2)
                                     (= 2 2.0 2))))))
 
-    (is (= "false true false true false false true false "
+    (is (= "false true false true false false true false true true "
            (capture-output '((print (= 2 2 2 2 3 5)
                                     (= (list 1 2) (list 1 2))
                                     (= (list 1 2) (list 1 3))
@@ -1680,7 +1681,9 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                              (let [a (fn [x] (+ 1 x))
                                    b (fn [x] (inc x))]
                                (print (= a a)
-                                      (= a b))))))))
+                                      (= a b)
+                                      (= nil ((fn [] )))
+                                      (= nil ((fn [x y] ) 1 2)))))))))
 #+end_src
 
 *** Math

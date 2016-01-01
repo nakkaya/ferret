@@ -670,7 +670,8 @@ C++ skeleton.
                               equals :equals
                               toOutputStream :toOutputStream
                               interfaces :interfaces
-                              fns :fns}]
+                              fns :fns
+                              post-code :post-code}]
     (let [interface (if (nil? interface)
                       "Object"
                       (apply str (rest (str interface))))
@@ -700,6 +701,7 @@ C++ skeleton.
          }
        #endif} ;separator=\"\n\"$
        };
+       $post_code$
       }")]
       (fill-view! view "name" name)
       (fill-view! view "interface" interface)
@@ -712,6 +714,7 @@ C++ skeleton.
       (fill-view! view "interfaces" interfaces)
       (fill-view! view "fns" (filter #(= 3 (count %)) fns))
       (fill-view! view "ifdef_fns" (filter #(= 4 (count %)) fns))
+      (fill-view! view "post_code" post-code)
       (render-view view)))
 
   (defn solution-template [source]
@@ -750,8 +753,6 @@ following types,
   enum TYPE {NUMBER_TYPE,
              BOOLEAN_TYPE,
              KEYWORD_TYPE,
-             CONS_TYPE,
-             LIST_TYPE,
              LAMBDA_TYPE};
 #+end_src
 
@@ -1014,126 +1015,88 @@ Math configuration,
 
 *** Sequence
 
-#+name: runtime-native-sequence
-#+begin_src c++ :tangle no
-  class Cell : public Object{
-  public:
-    var data;
-    var next;
-
-    var equals(var o){
-      if (OBJECT(o)->getType() != CONS_TYPE)
-        return false;
-      
-      return data.equals(o);
-    }
-
-    int getType(){ return CONS_TYPE;}
-    var toOutputStream(){ OBJECT(data)->toOutputStream(); return var();};
-  };
-
-  class Sequence : public ISeekable{
-    var head;
-  public:
-    Sequence(){
-      head = NULL;
-    }
-
-    Sequence(var h){
-      head = h;
-    }
-
-    void cons(var x){
-      var v = var(new Cell());
-      CELL(v)->data = x;
-      CELL(v)->next = head;
-      head = v;
-    }
-
-    var first(){
-      if (head.get() == NULL )
-        return var();
-      else
-        return CELL(head)->data;
-    }
-
-    var rest(){
-      if ( head.get() == NULL || CELL(head)->next.get() == NULL )
-        return var(new Sequence());
-      else
-        return var(new Sequence(CELL(head)->next));
-    }
-
-    var nth(var i){
-      var it = head;
-      int index = NUMBER(i)->intValue();
-
-      for(int i = 0 ; i < index; i++){
-        if ((CELL(it)->next).get() == NULL )
-          return VAR();
-
-        it = CELL(it)->next;
-      }
-
-      return CELL(it)->data;
-    }
-
-    bool isEmpty(){
-      if (head.get() == NULL)
-        return true;
-
-      return false;
-    }
-
-    var toOutputStream(){
-      fprintf(OUTPUT_STREAM, "( ");
-
-      for(var it = head; it.get() != NULL ; it = CELL(it)->next){
-        OBJECT(CELL(it)->data)->toOutputStream();
-        fprintf(OUTPUT_STREAM, " ");
-      }
-
-      fprintf(OUTPUT_STREAM, ")");
-      return var();
-    }
-
-    var equals(var o){
-
-      if (OBJECT(o)->getType() != LIST_TYPE)
-        return false;
-
-      var itOther = o;
-      for(var it = this; !SEQUENCE(it)->isEmpty(); it = SEQUENCE(it)->rest()){
-        if (SEQUENCE(itOther)->isEmpty() || 
-            SEQUENCE(it)->first().equals(SEQUENCE(itOther)->first())  == false)
-          return false;
-
-        itOther = SEQUENCE(itOther)->rest();
-      }
-
-      return true;
-    }
-
-    var clone() { return var(new Sequence(head));}
-    int getType(){ return LIST_TYPE;}
-
-    var reduce(var f){
-      var acc = INVOKE(f,CELL(head)->data,CELL(CELL(head)->next)->data);
-
-      for(var it = CELL(CELL(head)->next)->next; it.get() != NULL ; it = CELL(it)->next)
-        acc = INVOKE(f, CELL(it)->data, acc);
-
-      return acc;
-    }
-
-    var reduce(var f, var acc){
-      for(var it = head; it.get() != NULL ; it = CELL(it)->next)
-        acc = INVOKE(f, CELL(it)->data, acc);
-
-      return acc;
-    }
-  };
+#+name: runtime-clojure-cell-object
+#+begin_src clojure :tangle no
+  (defobject Cell
+    {:data ["var data" "var next"]
+     :new [["" ""]
+           ["var d, var n" "data = d; next = n;"]]
+     :equals "if (OBJECT(o)->getType() != CELL_TYPE)
+               return false;
+              return data.equals(o);"
+     :toOutputStream "OBJECT(data)->toOutputStream(); return var();"})
 #+end_src
+
+#+name: runtime-clojure-sequence-object
+#+begin_src clojure :tangle no
+  (defobject Sequence
+    {:interface :ISeekable
+     :data ["var head"]
+     :new [["" "head = NULL;"]
+           ["var h" "head = h;"]]
+     :equals "if (OBJECT(o)->getType() != SEQUENCE_TYPE)
+               return false;
+             var itOther = o;
+             for(var it = this; !SEQUENCE(it)->isEmpty(); it = SEQUENCE(it)->rest()){
+               if (SEQUENCE(itOther)->isEmpty() || 
+                   SEQUENCE(it)->first().equals(SEQUENCE(itOther)->first())  == false)
+                 return false;
+         
+               itOther = SEQUENCE(itOther)->rest();
+             }
+             return true;"
+     :toOutputStream "fprintf(OUTPUT_STREAM, \"( \");
+                      for(var it = head; it.get() != NULL ; it = CELL(it)->next){
+                        OBJECT(CELL(it)->data)->toOutputStream();
+                        fprintf(OUTPUT_STREAM, \" \");
+                      }
+                      fprintf(OUTPUT_STREAM, \")\");
+                      return var();"
+     :fns [["void cons" "var x"
+            "var v = var(new Cell());
+             CELL(v)->data = x;
+             CELL(v)->next = head;
+             head = v;"]
+           ["var first" ""
+            "if (head.get() == NULL )
+              return var();
+             else
+              return CELL(head)->data;"]
+           ["var rest" ""
+            "if ( head.get() == NULL || CELL(head)->next.get() == NULL )
+              return var(new Sequence());
+             else
+              return var(new Sequence(CELL(head)->next));"]
+           ["var nth" "var i"
+            "var it = head;
+             int index = NUMBER(i)->intValue();
+             for(int i = 0 ; i < index; i++){
+               if ((CELL(it)->next).get() == NULL )
+                 return VAR();
+               it = CELL(it)->next;
+             }
+             return CELL(it)->data;"]
+           ["bool isEmpty" ""
+            "if (head.get() == NULL)
+               return true;
+             return false;"]
+           ["var clone" ""
+            "return var(new ferret::Sequence(head));"]
+           ["var reduce" "var f"
+            "var acc = INVOKE(f,CELL(head)->data,CELL(CELL(head)->next)->data);
+             for(var it = CELL(CELL(head)->next)->next; it.get() != NULL ; it = CELL(it)->next)
+               acc = INVOKE(f, CELL(it)->data, acc);
+             return acc;"]
+           ["var reduce" "var f, var acc"
+            "for(var it = head; it.get() != NULL ; it = CELL(it)->next)
+               acc = INVOKE(f, CELL(it)->data, acc);
+             return acc;"]]
+     :post-code "ferret::var& ferret::var::operator, (const var& m){
+                   static_cast<ferret::Sequence*>(m_ptr)->cons(m);
+                   return *this;
+                 }"})
+#+end_src
+
 *** String
 
 #+name: runtime-clojure-string-object
@@ -1365,11 +1328,6 @@ reaches zero it will automatically free the Object.
     addRef();
   }
 
-  var& var::operator, (const var& m){
-    static_cast<Sequence*>(m_ptr)->cons(m);
-    return *this;
-  }
-
   bool var::equals (var rhs){
     if (get() == rhs.get())
       return true;
@@ -1496,7 +1454,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+begin_src clojure :tangle no
   (defn list [& xs] "__result = xs;")
 
-  (defn list? [x] "__result = (OBJECT(x)->getType() == LIST_TYPE);")
+  (defn list? [x] "__result = (OBJECT(x)->getType() == SEQUENCE_TYPE);")
 
   (defn empty? [x] "__result = SEQUENCE(x)->isEmpty();")
 
@@ -2298,7 +2256,6 @@ Example build options map,
     <<runtime-native-keyword>>
     <<runtime-native-lambda>>
     <<native-seekable-interface>>
-    <<runtime-native-sequence>>
     <<runtime-native-var-descriptions>>
   }
   #endif
@@ -2308,6 +2265,8 @@ Example build options map,
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
   <<runtime-clojure-pointer-object>>
+  <<runtime-clojure-cell-object>>
+  <<runtime-clojure-sequence-object>>
   <<runtime-clojure-character-object>>
   <<runtime-clojure-string-object>>
   <<runtime-clojure-defn>>

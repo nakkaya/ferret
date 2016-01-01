@@ -765,8 +765,7 @@ following types,
 #+name: runtime-native-object-types-enum
 #+begin_src c++ :tangle no
   enum TYPE {NUMBER_TYPE,
-             BOOLEAN_TYPE,
-             KEYWORD_TYPE};
+             BOOLEAN_TYPE};
 #+end_src
 
 Object Casting macros,
@@ -951,35 +950,22 @@ Math configuration,
 
 *** Keyword
 
-#+name: runtime-native-keyword
-#+begin_src c++ :tangle no
-  class Keyword : public Object { 
-  public:
-    int id;
-
-    Keyword(int b){id = b;}
-    Keyword(const char * str){
-      id = 0;
-      for (int i = 0; str[i] != '\0'; i++){
-        id = id + (int)str[i];
-      }
-    }
-    
-    int getType(){ return KEYWORD_TYPE;}
-
-    var equals(var o){
-      if (OBJECT(o)->getType() != KEYWORD_TYPE)
-        return false;
-      
-      return (id == KEYWORD(o)->id);
-    }
-
-    bool equals(Keyword k){
-      return (id == k.id);
-    }
-    
-    var toOutputStream(){ fprintf(OUTPUT_STREAM, "%d", id); return var();};
-  };
+#+name: runtime-clojure-keyword-object
+#+begin_src clojure :tangle no
+  (defobject Keyword
+    {:data ["int id"]
+     :new [["int b" "id=b;"]
+           ["const char * str"
+            "id = 0;
+             for (int i = 0; str[i] != '\\0'; i++){
+               id = id + (int)str[i];
+             }"]]
+     :equals "if (OBJECT(o)->getType() != KEYWORD_TYPE)
+               return false;
+              return (id == KEYWORD(o)->id);"
+     :toOutputStream "fprintf(OUTPUT_STREAM, \"%d\", id); return var();"
+     :fns [["bool equals" "Keyword k"
+            "return (id == k.id);"]]})
 #+end_src
 
 **** Tests
@@ -2259,7 +2245,6 @@ Example build options map,
     <<runtime-native-var>>
     <<runtime-native-number>>
     <<runtime-native-boolean>>
-    <<runtime-native-keyword>>
     <<runtime-native-var-descriptions>>
   }
   #endif
@@ -2271,6 +2256,7 @@ Example build options map,
   <<runtime-clojure-pointer-object>>
   <<runtime-clojure-seekable-interface>>
   <<runtime-clojure-lambda-interface>>
+  <<runtime-clojure-keyword-object>>
   <<runtime-clojure-cell-object>>
   <<runtime-clojure-sequence-object>>
   <<runtime-clojure-character-object>>

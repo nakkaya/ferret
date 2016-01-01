@@ -559,7 +559,7 @@ C++ skeleton.
 
   (defmethod emit :char [form state] (str "VAR('" form "')"))
 
-  (defmethod emit :string [form state] (str "VAR(\"" form "\")"))
+  (defmethod emit :string [form state] (str "VAR(new ferret::String(\"" form "\"))"))
 
   (defmethod emit :nil [form state] "VAR()")
 
@@ -664,15 +664,20 @@ C++ skeleton.
                                          (assoc % :args (indexed args))) lambdas))
       (render-view view)))
 
-  (defn declare-object [name {data :data
+  (defn declare-object [name {interface :interface
+                              data :data
                               new :new delete :delete
                               equals :equals
                               toOutputStream :toOutputStream
-                              interfaces :interfaces}]
-    (let [view (create-view "
+                              interfaces :interfaces
+                              fns :fns}]
+    (let [interface (if (nil? interface)
+                      "Object"
+                      (apply str (rest (str interface))))
+          view (create-view "
       namespace ferret{
        int $type$_TYPE = $type_val$;
-       class $name$ : public Object {
+       class $name$ : public $interface$ {
        public:
          $data:{$it$;} ;separator=\"\n\"$
          $interfaces:{virtual $it$ = 0;} ;separator=\"\n\"$
@@ -686,9 +691,18 @@ C++ skeleton.
          var toOutputStream(){
           $toOutputStream$
          }
+         $fns:{it | $first(it)$($first(rest(it))$){
+           $first(rest(rest(it)))$
+         }} ;separator=\"\n\"$
+         $ifdef_fns:{it | #ifdef $first(it)$
+           $first(rest(it))$($first(rest(rest(it)))$){
+           $first(rest(rest(rest(it))))$
+         }
+       #endif} ;separator=\"\n\"$
        };
       }")]
       (fill-view! view "name" name)
+      (fill-view! view "interface" interface)
       (fill-view! view "type" (.toUpperCase (str name)))
       (fill-view! view "type_val" (gensym ""))
       (fill-view! view "data" data)
@@ -696,6 +710,8 @@ C++ skeleton.
       (fill-view! view "equals" equals)
       (fill-view! view "toOutputStream" toOutputStream)
       (fill-view! view "interfaces" interfaces)
+      (fill-view! view "fns" (filter #(= 3 (count %)) fns))
+      (fill-view! view "ifdef_fns" (filter #(= 4 (count %)) fns))
       (render-view view)))
 
   (defn solution-template [source]
@@ -737,7 +753,6 @@ following types,
              KEYWORD_TYPE,
              CONS_TYPE,
              LIST_TYPE,
-             STRING_TYPE,
              LAMBDA_TYPE};
 #+end_src
 
@@ -1133,91 +1148,57 @@ Math configuration,
 #+end_src
 *** String
 
-#+name: runtime-native-string
-#+begin_src c++ :tangle no
-  class String : public ISeekable{
-    var data;
-  public:
-    String(){
-      data = NULL;
-    }
-
-    String(var s){
-      data = s;
-    }
-
-    String(const char * str){
-      int length = 0;
-      for (length = 0; str[length] != '\0'; length++);
-      length--;
-      var s = var(new Sequence());
-        
-      for (int i = length; i >= 0; i--){
-        var ch = VAR(str[i]);
-        s = (SEQUENCE(s)->clone(),ch);
-      }
-      data = s;
-    }
-
-    var clone() {return var(new String(data));}
-    int getType(){return STRING_TYPE;}
-
-    void cons(var x){
-      ISEEKABLE(data)->cons(x);
-    }
-
-    var first(){
-      return ISEEKABLE(data)->first();
-    }
-
-    var rest(){
-      return ISEEKABLE(data)->rest();
-    }
-
-    var nth(var i){
-      return ISEEKABLE(data)->nth(i);
-    }
-
-    bool isEmpty(){
-      return ISEEKABLE(data)->isEmpty();
-    }
-
-    var toOutputStream(){
-      for(var it = data; ISEEKABLE(it)->isEmpty() == false ; it = ISEEKABLE(it)->rest()){
-        OBJECT(ISEEKABLE(it)->first())->toOutputStream();
-      }
-      return var();
-    }
-
-  #ifdef GNU_GCC
-    std::string toString(){
-      std::stringstream ss;
-
-      for(var it = data; ISEEKABLE(it)->isEmpty() == false ; it = ISEEKABLE(it)->rest())
-        ss << CHARACTER(ISEEKABLE(it)->first())->value;
-
-      return ss.str();
-    }
-  #endif
-    
-    var getData(){
-      return data;
-    }
-    
-    var equals(var o){
-      if (OBJECT(o)->getType() != STRING_TYPE)
-        return false;
-      return data.equals(STRING(o)->getData());
-    }
-
-    var reduce(var f){
-      return ISEEKABLE(data)->reduce(f);
-    }
-
-    var reduce(var f, var acc){
-      return ISEEKABLE(data)->reduce(f,acc);
-    }
-  };
+#+name: runtime-clojure-string-object
+#+begin_src clojure :tangle no
+  (defobject String
+    {:interface :ISeekable
+     :data ["var data"]
+     :new [[""
+            "data = NULL;"]
+           ["var s"
+            "data = s;"]
+           ["const char * str"
+            "int length = 0;
+             for (length = 0; str[length] != '\\0'; length++);
+             length--;
+             var s = var(new Sequence());
+               
+             for (int i = length; i >= 0; i--){
+               var ch = VAR(str[i]);
+               s = (SEQUENCE(s)->clone(),ch);
+             }
+             data = s;"]]
+     :equals "if (OBJECT(o)->getType() != STRING_TYPE)
+                return false;
+              return data.equals(STRING(o)->getData());"
+     :toOutputStream "for(var it = data; ISEEKABLE(it)->isEmpty() == false ; it = ISEEKABLE(it)->rest()){
+                        OBJECT(ISEEKABLE(it)->first())->toOutputStream();
+                      }
+                      return var();"
+     :fns [["var clone" ""
+            "return var(new String(data));"]
+           ["void cons" "var x"
+            "ISEEKABLE(data)->cons(x);"]
+           ["var first" ""
+            "return ISEEKABLE(data)->first();"]
+           ["var rest" ""
+            "return ISEEKABLE(data)->rest();"]
+           ["var nth" "var i"
+            "return ISEEKABLE(data)->nth(i);"]
+           ["bool isEmpty" ""
+            "return ISEEKABLE(data)->isEmpty();"]
+           ["var getData" ""
+            "return data;"]
+           ["var reduce" "var f"
+            "return ISEEKABLE(data)->reduce(f);"]
+           ["var reduce" "var f, var acc"
+            "return ISEEKABLE(data)->reduce(f,acc);"]
+           ["GNU_GCC"
+            "std::string toString" ""
+            "std::stringstream ss;
+             for(var it = data; ISEEKABLE(it)->isEmpty() == false ; it = ISEEKABLE(it)->rest())
+              ss << CHARACTER(ISEEKABLE(it)->first())->value;
+             return ss.str();"]]})
 #+end_src
 
 **** Tests
@@ -1234,13 +1215,6 @@ Math configuration,
                                      "String")
                                     ))))))
 #+end_src
-*** Pointer
-
-#+name: runtime-native-
-#+begin_src c++ :tangle no
-
-#+end_src
-
 *** Boolean
 
 #+name: runtime-native-boolean
@@ -1342,7 +1316,6 @@ reaches zero it will automatically free the Object.
     var(float f);
     var(bool b);
     var(char b);
-    var(const char* str);
       
     var& operator, (const var& m);
     var toOutputStream() {
@@ -1407,11 +1380,6 @@ reaches zero it will automatically free the Object.
 
   var::var(char b){
     m_ptr = new Character(b);
-    addRef();
-  }
-
-  var::var(const char* str){
-    m_ptr = new String(str);
     addRef();
   }
 
@@ -2344,14 +2312,12 @@ Example build options map,
     <<runtime-native-object>>
     <<runtime-native-var>>
     <<runtime-native-number>>
-    <<runtime-native-pointer>>
     <<runtime-native-boolean>>
     <<runtime-native-keyword>>
     <<runtime-native-lambda>>
     <<runtime-native-character>>
     <<native-seekable-interface>>
     <<runtime-native-sequence>>
-    <<runtime-native-string>>
     <<runtime-native-var-descriptions>>
   }
   #endif
@@ -2361,6 +2327,7 @@ Example build options map,
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
   <<runtime-clojure-pointer-object>>
+  <<runtime-clojure-string-object>>
   <<runtime-clojure-defn>>
   <<runtime-clojure-looping>>
   <<runtime-clojure-first>>

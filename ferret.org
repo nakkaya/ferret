@@ -20,6 +20,91 @@ and tests contained.
 #+END_ABSTRACT
 #+TOC: headlines 3
 
+* Example Code
+
+In order to compile the samples,
+
+#+begin_example
+lein run -in sample.clj
+#+end_example
+
+or 
+
+#+begin_example
+java -jar ferret-app.jar -in sample.clj
+#+end_example
+
+output will be placed in a a file /solution.cpp/,
+
+** Arduino LED
+
+   A sample Arduino skecth to blink the on board led.
+
+#+begin_src clojure :mkdirp yes :tangle ferret/examples/led.clj
+  (pin-mode 13 :output)
+  
+  (forever
+   (digital-write 13 :high)
+   (sleep 500)
+   (digital-write 13 :low)
+   (sleep 500))
+#+end_src 
+** FFI
+
+Compiler supports the option of reading build configuration from a
+file. Following /build.options/ file links the resulting code with
+OpenCV.
+
+#+BEGIN_EXAMPLE
+  {:include-path ["/usr/local/Cellar/opencv/2.4.9/include/"]
+   :library-path ["/usr/local/Cellar/opencv/2.4.9/lib/"]
+   :link ["opencv_core"
+          "opencv_highgui"]
+   :compiler-options ["-Wall"]
+   :name "cv-webcam"}
+#+END_EXAMPLE
+
+Compile the file using,
+
+#+BEGIN_EXAMPLE
+  lein run -i examples/webcam.clj -o build.options 
+#+END_EXAMPLE
+
+Display webcam in a window.
+
+#+begin_src clojure :mkdirp yes :tangle ferret/examples/webcam.clj
+  (native-declare "#include \"opencv/cv.h\"
+                   #include \"opencv/highgui.h\"")
+  
+  (defn wait-key [i] "__result = var((char)cvWaitKey(NUMBER(i)->intValue()));")
+  
+  (defn video-capture [i]
+    "cv::VideoCapture *cap = new cv::VideoCapture(NUMBER(i)->intValue());
+     if (cap->isOpened())
+      __result = var(new Pointer(cap));")
+  
+  (defn named-window [n] "cv::namedWindow(STRING(n)->toString(),1);")
+  
+  (defn query-frame [c]
+    "cv::VideoCapture *cap = static_cast<cv::VideoCapture*>(POINTER(c)->ptr);
+     cap->grab();
+     cv::Mat *image = new cv::Mat;
+     cap->retrieve(*image, 0);
+     __result = var(new Pointer(image));")
+  
+  (defn show-image [f img]
+    "cv::Mat *i = static_cast<cv::Mat*>(POINTER(img)->ptr);
+     imshow(STRING(f)->toString(), *i);")
+  
+  (def cam (video-capture 0))
+  
+  (named-window "cam")
+  
+  (while (not= (wait-key 1) \q)
+    (let [f (query-frame cam)]
+      (show-image "cam" f)))
+#+end_src 
+
 * Compiler
 
 Compiler has two major parts, transformation and code
@@ -1755,72 +1840,6 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
   (defn sleep [timeout] "::delay(NUMBER(timeout)->intValue());")
 #+end_src
-
-* Example Code
-
-In order to compile the samples,
-
-#+begin_example
-lein run -in sample.clj
-#+end_example
-
-output will be placed in a a file /solution.cpp/,
-
-** Arduino LED
-#+begin_src clojure :mkdirp yes :tangle ferret/examples/led.clj
-  (pin-mode 13 :output)
-  
-  (forever
-   (digital-write 13 :high)
-   (sleep 500)
-   (digital-write 13 :low)
-   (sleep 500))
-#+end_src 
-** FFI
-
-Example build options map,
-
-#+BEGIN_EXAMPLE
-  {:include-path ["/usr/local/Cellar/opencv/2.4.9/include/"]
-   :library-path ["/usr/local/Cellar/opencv/2.4.9/lib/"]
-   :link ["opencv_core"
-          "opencv_highgui"]
-   :compiler-options ["-Wall"]
-   :name "cv-webcam"}
-#+END_EXAMPLE
-
-#+begin_src clojure :mkdirp yes :tangle ferret/examples/webcam.clj
-  (native-declare "#include \"opencv/cv.h\"
-                   #include \"opencv/highgui.h\"")
-  
-  (defn wait-key [i] "__result = var((char)cvWaitKey(NUMBER(i)->intValue()));")
-  
-  (defn video-capture [i]
-    "cv::VideoCapture *cap = new cv::VideoCapture(NUMBER(i)->intValue());
-     if (cap->isOpened())
-      __result = var(new Pointer(cap));")
-  
-  (defn named-window [n] "cv::namedWindow(STRING(n)->toString(),1);")
-  
-  (defn query-frame [c]
-    "cv::VideoCapture *cap = static_cast<cv::VideoCapture*>(POINTER(c)->ptr);
-     cap->grab();
-     cv::Mat *image = new cv::Mat;
-     cap->retrieve(*image, 0);
-     __result = var(new Pointer(image));")
-  
-  (defn show-image [f img]
-    "cv::Mat *i = static_cast<cv::Mat*>(POINTER(img)->ptr);
-     imshow(STRING(f)->toString(), *i);")
-  
-  (def cam (video-capture 0))
-  
-  (named-window "cam")
-  
-  (while (not= (wait-key 1) \q)
-    (let [f (query-frame cam)]
-      (show-image "cam" f)))
-#+end_src 
 
 * Misc
 ** I/O

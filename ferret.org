@@ -707,7 +707,7 @@ C++ skeleton.
          $fns:{it | $first(it)$($first(rest(it))$){
            $first(rest(rest(it)))$
          }} ;separator=\"\n\"$
-         $ifdef_fns:{it | #ifdef $first(it)$
+         $ifdef_fns:{it | #$first(it)$
            $first(rest(it))$($first(rest(rest(it)))$){
            $first(rest(rest(rest(it))))$
          }
@@ -761,11 +761,6 @@ C++ skeleton.
 
 On the C++ side we define our own object system, which includes the
 following types,
-
-#+name: runtime-native-object-types-enum
-#+begin_src c++ :tangle no
-  enum TYPE {NUMBER_TYPE};
-#+end_src
 
 Object Casting macros,
 
@@ -850,101 +845,82 @@ Math configuration,
   #define NUMBER_TYPE_FORMAT "%d"
 #+end_src
 
-#+name: runtime-native-number
-#+begin_src c++ :tangle no
-  class Number : public Object{
-  public:
-  #if NUMBER_DATA_TYPE != int
-    Number(int x);
-  #endif
-    Number(NUMBER_DATA_TYPE x);
-    Number(NUMBER_DATA_TYPE n, NUMBER_DATA_TYPE dn);
-    Number(float x);
-    ~Number(){};
-    int getType(){ return NUMBER_TYPE;}
-    NUMBER_DATA_TYPE getNumerator(){ return numerator;}
-    NUMBER_DATA_TYPE getDenominator(){ return denominator;}
-
-    float floatValue(){return (float)numerator/(float)denominator;}
-    int intValue(){
-      if (denominator == 1)
-        return (int)numerator;
-      else
-        return (int)floatValue();
-    }
+#+name: runtime-clojure-number-object
+#+begin_src clojure :tangle no
+  (defobject Number
+    {:data ["NUMBER_DATA_TYPE numerator"
+            "NUMBER_DATA_TYPE denominator"]
+     :new [["NUMBER_DATA_TYPE x" "numerator = x; denominator = 1;"]
+           ["NUMBER_DATA_TYPE n, NUMBER_DATA_TYPE dn"
+            "numerator = n; denominator = dn; simplificate();"]
+           ["float x"
+            "float decimal = (x - (NUMBER_DATA_TYPE)x) * (float)NUMBER_PRECISION;
+             NUMBER_DATA_TYPE integer = (NUMBER_DATA_TYPE)x;
+             numerator = decimal + (integer * NUMBER_PRECISION);
+             denominator = NUMBER_PRECISION;
+             simplificate();"]]
+     :equals "int self_type = getType();
+              int other_type = OBJECT(o)->getType();
       
-    var equals(var o){
-      int self_type = getType();
-      int other_type = OBJECT(o)->getType();
-      
-      if (self_type == NUMBER_TYPE && other_type == NUMBER_TYPE)
-        if (getNumerator() == 0 && NUMBER(o)->getNumerator() == 0)
-          return true;
-        else
-          return ((getNumerator() == NUMBER(o)->getNumerator()) &&
-                  (getDenominator() == NUMBER(o)->getDenominator()));
-      else
-        return false;
-    }
-    
-    var toOutputStream(){
-      if (denominator == 1)
-        fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT, numerator);
-      else if (numerator == 0)
-        fprintf(OUTPUT_STREAM, "0");
-      else{
-        fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT,numerator);
-        fprintf(OUTPUT_STREAM, "/");
-        fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT,denominator);
-      }
-
-      return var();
-    };
-    
-  private:
-
-    void simplificate(){
-      int commondivisor = 1;
-      for(NUMBER_DATA_TYPE i=2;i<=MIN(ABS(numerator), ABS(denominator));i++)
-        if( numerator%i == 0 && denominator%i == 0 )
-          commondivisor = i;
-      numerator /= commondivisor;
-      denominator /= commondivisor;
-    }
-
-    NUMBER_DATA_TYPE numerator;
-    NUMBER_DATA_TYPE denominator;
-  };
-#+end_src
-
-#+name: runtime-native-number
-#+begin_src c++ :tangle no
+              if (self_type == NUMBER_TYPE && other_type == NUMBER_TYPE)
+                if (getNumerator() == 0 && NUMBER(o)->getNumerator() == 0)
+                  return true;
+                else
+                  return ((getNumerator() == NUMBER(o)->getNumerator()) &&
+                          (getDenominator() == NUMBER(o)->getDenominator()));
+              else
+                return false;"
+     :toOutputStream "
+            if (denominator == 1)
+              fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT, numerator);
+            else if (numerator == 0)
+              fprintf(OUTPUT_STREAM, \"0\");
+            else{
+              fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT,numerator);
+              fprintf(OUTPUT_STREAM, \"/\");
+              fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT,denominator);
+            }
+            return var();"
+     :fns [["NUMBER_DATA_TYPE getNumerator" "" "return numerator;"]
+           ["NUMBER_DATA_TYPE getDenominator" "" "return denominator;"]
+           ["float floatValue" "" "return (float)numerator/(float)denominator;"]
+           ["int intValue" ""
+            "if (denominator == 1)
+               return (int)numerator;
+             else
+               return (int)floatValue();"]
+           ["void simplificate" ""
+            "int commondivisor = 1;
+             for(NUMBER_DATA_TYPE i=2;i<=MIN(ABS(numerator), ABS(denominator));i++)
+               if( numerator%i == 0 && denominator%i == 0 )
+                 commondivisor = i;
+             numerator /= commondivisor;
+             denominator /= commondivisor;"]
+           ["~Number" "" ""]
+           ["if NUMBER_DATA_TYPE != int"
+            "Number" "int x" "numerator = x; denominator = 1;"]]
+     :post-code "
   #if NUMBER_DATA_TYPE != int
-  inline Number::Number(int x){
-    numerator = x;
-    denominator = 1;
-  }
-  #endif
+    var::var(int i){
+      m_ptr = new Number(i);
+      addRef();
+    }
+    #endif
 
-  inline Number::Number(NUMBER_DATA_TYPE x){
-    numerator = x;
-    denominator = 1;
-  }
+    var::var(NUMBER_DATA_TYPE i){
+      m_ptr = new Number(i);
+      addRef();
+    }
 
-  inline Number::Number(NUMBER_DATA_TYPE n, NUMBER_DATA_TYPE dn){
-    numerator = n;
-    denominator = dn;
-    simplificate();
-  }
+    var::var(NUMBER_DATA_TYPE n, NUMBER_DATA_TYPE dn){
+      m_ptr = new Number(n,dn);
+      addRef();
+    }
 
-  inline Number::Number(float x){
-    float decimal = (x - (NUMBER_DATA_TYPE)x) * (float)NUMBER_PRECISION;
-    NUMBER_DATA_TYPE integer = (NUMBER_DATA_TYPE)x;
-    
-    numerator = decimal + (integer * NUMBER_PRECISION);
-    denominator = NUMBER_PRECISION;
-    simplificate();
-  }
+    var::var(float f){
+      m_ptr = new Number(f);
+      addRef();
+    }"})
 #+end_src
 
 *** Keyword
@@ -1140,7 +1116,7 @@ Math configuration,
             "return ISEEKABLE(data)->reduce(f);"]
            ["var reduce" "var f, var acc"
             "return ISEEKABLE(data)->reduce(f,acc);"]
-           ["GNU_GCC"
+           ["ifdef GNU_GCC"
             "std::string toString" ""
             "std::stringstream ss;
              for(var it = data; ISEEKABLE(it)->isEmpty() == false ; it = ISEEKABLE(it)->rest())
@@ -1287,31 +1263,6 @@ reaches zero it will automatically free the Object.
       
     Object* m_ptr;
   };
-#+end_src
-
-#+name: runtime-native-var-descriptions
-#+begin_src c++ :tangle no
-  #if NUMBER_DATA_TYPE != int
-  var::var(int i){
-    m_ptr = new Number(i);
-    addRef();
-  }
-  #endif
-
-  var::var(NUMBER_DATA_TYPE i){
-    m_ptr = new Number(i);
-    addRef();
-  }
-
-  var::var(NUMBER_DATA_TYPE n, NUMBER_DATA_TYPE dn){
-    m_ptr = new Number(n,dn);
-    addRef();
-  }
-
-  var::var(float f){
-    m_ptr = new Number(f);
-    addRef();
-  }
 #+end_src
 
 ** Lisp
@@ -2226,11 +2177,8 @@ Example build options map,
 
     class var;
 
-    <<runtime-native-object-types-enum>>
     <<runtime-native-object>>
     <<runtime-native-var>>
-    <<runtime-native-number>>
-    <<runtime-native-var-descriptions>>
   }
   #endif
 
@@ -2240,6 +2188,7 @@ Example build options map,
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
   <<runtime-clojure-pointer-object>>
   <<runtime-clojure-boolean-object>>
+  <<runtime-clojure-number-object>>
   <<runtime-clojure-seekable-interface>>
   <<runtime-clojure-lambda-interface>>
   <<runtime-clojure-keyword-object>>

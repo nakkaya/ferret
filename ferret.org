@@ -734,8 +734,6 @@ C++ skeleton.
   (defn solution-template [source]
     (let [{:keys [body lambdas symbol-table native-declarations]} source
           view (create-view "
-      #include \"ferret.h\"
-
       $object_interface$
 
       $native_declarations:{$it$} ;separator=\"\n\"$
@@ -1760,7 +1758,7 @@ In order to compile the samples,
 lein run -in sample.clj
 #+end_example
 
-output will be placed in a directory called /solution//,
+output will be placed in a a file /solution.cpp/,
 
 ** Arduino LED
 #+begin_src clojure :mkdirp yes :tangle ferret/examples/led.clj
@@ -1782,8 +1780,7 @@ Example build options map,
    :link ["opencv_core"
           "opencv_highgui"]
    :compiler-options ["-Wall"]
-   :name "cv-webcam"
-   :delete-solution-folder true}
+   :name "cv-webcam"}
 #+END_EXAMPLE
 
 #+begin_src clojure :mkdirp yes :tangle ferret/examples/webcam.clj
@@ -1836,14 +1833,8 @@ Example build options map,
         (when (.exists file)
           (func func file))))
 
-    (defn init-solution-dir []
-      (doto (file "./solution/")
-        (delete-recursively)
-        (.mkdir))
-      (copy-to-solution "ferret.h" "./solution/ferret.h"))
-
     (defn write-to-solution [s f]
-      (FileUtils/writeStringToFile (file (str "./solution/" f)) s))
+      (FileUtils/writeStringToFile (file (str "./" f)) s))
 
     (defn append-to! [r ks v]
       (dosync 
@@ -1870,7 +1861,6 @@ Example build options map,
              options))
 
     (defn compile->cpp [form options]
-      (init-solution-dir)
       (let [source (emit-source form)]
         (write-to-solution (solution-template source) (str "solution." (:source-extension options)))))
 
@@ -1881,17 +1871,15 @@ Example build options map,
                               (map #(str "-L" %) (:library-path options))
                               (map #(str "-l" %) (:link options))
                               (str "solution." (:source-extension options))])
-            ret (with-sh-dir "solution/"
+            ret (with-sh-dir "./"
                   (apply sh command))]
         (println "Running=>" command)
         (println "Return=>" ret)
         (if (not= 0 (:exit ret))
           (System/exit 1)
           (do (when (:name options)
-                (with-sh-dir "solution/"
+                (with-sh-dir "./"
                   (sh "mv" "a.out" (str "../" (:name options)))))
-              (when (:delete-solution-folder options)
-                (sh "rm" "-rf" "solution/"))
               true))))
 
     (defn -main [& args]
@@ -2095,7 +2083,7 @@ Example build options map,
     (let [options (compile-options)]
       (compile->cpp form options)
       (compile->binary options)
-      (with-sh-dir "solution/"
+      (with-sh-dir "./"
         (let [r (sh "./a.out")]
           (:out r)))))
 
@@ -2109,11 +2097,9 @@ Example build options map,
     <<native-keyword-tests>>
 #+end_src 
 
-** resources/ferret.h
-#+begin_src c++ :mkdirp yes :noweb yes :tangle ferret/resources/ferret.h
-  #ifndef H_FERRET
-  #define H_FERRET
+** resources/Object.cpp
 
+#+begin_src c++ :mkdirp yes :noweb yes :tangle ferret/resources/Object.cpp
   #ifdef __AVR__
   # define AVR_GCC TRUE
   #else
@@ -2138,7 +2124,6 @@ Example build options map,
 
   #ifdef AVR_GCC
   extern "C" void __cxa_pure_virtual(void); 
-  void __cxa_pure_virtual(void) {}; 
 
   static FILE uartout = {0};
 
@@ -2163,25 +2148,20 @@ Example build options map,
 
   #define VAR ferret::var
 
-  <<runtime-native-math-config>>
-
   #define MIN(a,b) ((a)<(b)?(a):(b))
   #define ABS(a) ((a)<0 ? -(a) : (a))
 
   <<runtime-native-object-casting-macros>>
+
   <<runtime-native-lambda-invoke-macros>>
-  #endif
 
-#+end_src 
+  <<runtime-native-math-config>>
 
-** resources/Object.cpp
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle ferret/resources/Object.cpp
-namespace ferret{
-  class var;
-  <<runtime-native-object>>
-  <<runtime-native-var>>
-}
+  namespace ferret{
+    class var;
+    <<runtime-native-object>>
+    <<runtime-native-var>>
+  }
 #+end_src 
 
 ** resources/runtime.clj

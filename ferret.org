@@ -764,8 +764,7 @@ following types,
 
 #+name: runtime-native-object-types-enum
 #+begin_src c++ :tangle no
-  enum TYPE {NUMBER_TYPE,
-             BOOLEAN_TYPE};
+  enum TYPE {NUMBER_TYPE};
 #+end_src
 
 Object Casting macros,
@@ -1165,33 +1164,32 @@ Math configuration,
 #+end_src
 *** Boolean
 
-#+name: runtime-native-boolean
-#+begin_src c++ :tangle no
-    class Boolean : public Object { 
-    public:
-      Boolean(bool b){value = b;}
-      int getType(){ return BOOLEAN_TYPE;}
-  
-      bool asBool() { return value; }
-  
-      var equals(var o){
-        if (OBJECT(o)->getType() != BOOLEAN_TYPE)
-          return false;
-      
-        return (value == BOOLEAN(o)->asBool());
-      }
-  
-      var toOutputStream(){ 
-        if (value)
-          fprintf(OUTPUT_STREAM, "true"); 
-        else
-          fprintf(OUTPUT_STREAM, "false"); 
-        
-        return var();
-      }
-    private:
-      bool value;
-    };
+#+name: runtime-clojure-boolean-object
+#+begin_src clojure :tangle no
+  (defobject Boolean
+    {:data ["bool value"]
+     :new [["bool b" "value = b;"]]
+     :equals "if (OBJECT(o)->getType() != BOOLEAN_TYPE)
+                 return false;
+               return (value == BOOLEAN(o)->asBool());"
+     :toOutputStream "if (value)
+                        fprintf(OUTPUT_STREAM, \"true\"); 
+                      else
+                        fprintf(OUTPUT_STREAM, \"false\"); 
+                      return var();"
+     :fns [["bool asBool" "" "return value;"]]
+     :post-code "  
+    var::var(bool b){
+      m_ptr = new Boolean(b);
+      addRef();
+    }
+
+    bool var::equals (var rhs){
+      if (get() == rhs.get())
+        return true;
+      else
+        return BOOLEAN(get()->equals(rhs))->asBool();
+    }"})
 #+end_src
 
 *** Lambda
@@ -1313,18 +1311,6 @@ reaches zero it will automatically free the Object.
   var::var(float f){
     m_ptr = new Number(f);
     addRef();
-  }
-
-  var::var(bool b){
-    m_ptr = new Boolean(b);
-    addRef();
-  }
-
-  bool var::equals (var rhs){
-    if (get() == rhs.get())
-      return true;
-    else
-      return BOOLEAN(get()->equals(rhs))->asBool();
   }
 #+end_src
 
@@ -2244,7 +2230,6 @@ Example build options map,
     <<runtime-native-object>>
     <<runtime-native-var>>
     <<runtime-native-number>>
-    <<runtime-native-boolean>>
     <<runtime-native-var-descriptions>>
   }
   #endif
@@ -2254,6 +2239,7 @@ Example build options map,
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
   <<runtime-clojure-pointer-object>>
+  <<runtime-clojure-boolean-object>>
   <<runtime-clojure-seekable-interface>>
   <<runtime-clojure-lambda-interface>>
   <<runtime-clojure-keyword-object>>

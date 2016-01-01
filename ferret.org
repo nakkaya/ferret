@@ -675,9 +675,12 @@ C++ skeleton.
     (let [interface (if (nil? interface)
                       "Object"
                       (apply str (rest (str interface))))
+          interface-only (nil? new)
           view (create-view "
       namespace ferret{
+       $if(! interface_only)$
        int $type$_TYPE = $type_val$;
+       $endif$
        class $name$ : public $interface$ {
        public:
          $data:{$it$;} ;separator=\"\n\"$
@@ -685,13 +688,19 @@ C++ skeleton.
          $new:{it | $name$($first(it)$){
            $first(rest(it))$
          }} ;separator=\"\n\"$
+         $if(! interface_only)$
          int getType(){ return $type$_TYPE;}
+         $endif$
+         $if(equals)$
          var equals(var o){
           $equals$
          }
+         $endif$
+         $if(toOutputStream)$
          var toOutputStream(){
           $toOutputStream$
          }
+         $endif$
          $fns:{it | $first(it)$($first(rest(it))$){
            $first(rest(rest(it)))$
          }} ;separator=\"\n\"$
@@ -705,6 +714,7 @@ C++ skeleton.
       }")]
       (fill-view! view "name" name)
       (fill-view! view "interface" interface)
+      (fill-view! view "interface_only" interface-only)
       (fill-view! view "type" (.toUpperCase (str name)))
       (fill-view! view "type_val" (gensym ""))
       (fill-view! view "data" data)
@@ -998,19 +1008,17 @@ Math configuration,
 
 *** Seekable Interface
 
-#+name: native-seekable-interface
-#+begin_src c++ :tangle no
-  class ISeekable : public Object{
-  public:
-    virtual ~ISeekable() {}
-    virtual void cons(var x) = 0;
-    virtual var first() = 0;
-    virtual var rest() = 0;
-    virtual var nth(var i) = 0;
-    virtual bool isEmpty() = 0;
-    virtual var reduce(var f) = 0;
-    virtual var reduce(var f, var acc) = 0;
-  };
+#+name: runtime-clojure-seekable-interface
+#+begin_src clojure :tangle no
+  (defobject ISeekable
+    {:interfaces ["void cons(var x)"
+                  "var first()"
+                  "var rest()"
+                  "var nth(var i)"
+                  "bool isEmpty()"
+                  "var reduce(var f)"
+                  "var reduce(var f, var acc)"]
+     :fns [["virtual ~ISeekable" "" ""]]})
 #+end_src
 
 *** Sequence
@@ -2255,7 +2263,6 @@ Example build options map,
     <<runtime-native-boolean>>
     <<runtime-native-keyword>>
     <<runtime-native-lambda>>
-    <<native-seekable-interface>>
     <<runtime-native-var-descriptions>>
   }
   #endif
@@ -2265,6 +2272,7 @@ Example build options map,
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
   <<runtime-clojure-pointer-object>>
+  <<runtime-clojure-seekable-interface>>
   <<runtime-clojure-cell-object>>
   <<runtime-clojure-sequence-object>>
   <<runtime-clojure-character-object>>

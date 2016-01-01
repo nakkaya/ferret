@@ -735,7 +735,9 @@ C++ skeleton.
     (let [{:keys [body lambdas symbol-table native-declarations]} source
           view (create-view "
       #include \"ferret.h\"
-      
+
+      $object_interface$
+
       $native_declarations:{$it$} ;separator=\"\n\"$
       
       $symbols:{VAR $it$;} ;separator=\"\n\"$
@@ -749,6 +751,7 @@ C++ skeleton.
         $body:{$it$;} ;separator=\"\n\"$
         return 0;
       }")]
+      (fill-view! view "object_interface" (read-from-url "Object.cpp"))
       (fill-view! view "body" (filter #(not (empty? %)) body))
       (fill-view! view "lambdas" (declare-lambdas lambdas))
       (fill-view! view "symbols" symbol-table)
@@ -1821,12 +1824,6 @@ Example build options map,
   #+name: core-code-generation-misc
   #+begin_src clojure
     ;; I/O
-
-    (defn read-from-url [f]
-      (with-open [in (.getResourceAsStream (ClassLoader/getSystemClassLoader) f)
-                  rdr (BufferedReader. (InputStreamReader. in))]
-        (apply str (interpose \newline (line-seq rdr)))))
-
     (defn copy-to-solution [fin fout]
       (FileUtils/copyURLToFile (ClassLoader/getSystemResource fin) (file fout)))
 
@@ -1941,8 +1938,7 @@ Example build options map,
     (:use [ferret.string-template]
           [ferret.template]
           [clojure.java.shell])
-    (:import (org.apache.commons.io FileUtils)
-             (java.io BufferedReader StringReader InputStreamReader)))
+    (:import (org.apache.commons.io FileUtils)))
 
   <<core-code-generation-misc>>
 
@@ -1977,7 +1973,13 @@ Example build options map,
 ** src/template.clj
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/src/ferret/template.clj
   (ns ferret.template
-    (:use [ferret.string-template]))
+    (:use [ferret.string-template])
+    (:import (java.io BufferedReader InputStreamReader)))
+
+  (defn read-from-url [f]
+    (with-open [in (.getResourceAsStream (ClassLoader/getSystemClassLoader) f)
+                rdr (BufferedReader. (InputStreamReader. in))]
+      (apply str (interpose \newline (line-seq rdr)))))
 
   (defn indexed
     "Returns a lazy sequence of [index, item] pairs, where items come
@@ -2168,21 +2170,20 @@ Example build options map,
 
   <<runtime-native-object-casting-macros>>
   <<runtime-native-lambda-invoke-macros>>
-
-  namespace ferret{
-
-    //
-    // Objects
-    //
-
-    class var;
-
-    <<runtime-native-object>>
-    <<runtime-native-var>>
-  }
   #endif
 
 #+end_src 
+
+** resources/Object.cpp
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle ferret/resources/Object.cpp
+namespace ferret{
+  class var;
+  <<runtime-native-object>>
+  <<runtime-native-var>>
+}
+#+end_src 
+
 ** resources/runtime.clj
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj

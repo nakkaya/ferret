@@ -3,6 +3,7 @@
 #+STARTUP: hidestars
 #+TAGS: noexport(e)
 #+EXPORT_EXCLUDE_TAGS: noexport
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://thomasf.github.io/solarized-css/solarized-dark.min.css" />
 
 Ferret is an experimental Lisp to C++ compiler, the idea was to
 compile code that is written in a very small subset of Clojure to be

@@ -949,8 +949,6 @@ Math configuration,
           "return (id == k.id);")))
 #+end_src
 
-**** Tests
-
 #+name: native-keyword-tests
 #+begin_src clojure :tangle no
   (deftest native-keyword-test
@@ -1139,8 +1137,6 @@ Math configuration,
           ss << CHARACTER(ISEEKABLE(it)->first())->value;
         return ss.str();")))
 #+end_src
-
-**** Tests
 
 #+name: native-string-tests
 #+begin_src clojure :tangle no
@@ -1379,8 +1375,6 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
     (cons 'while `(true  ~@body)))
 #+end_src
 
-**** Tests
-
 #+name: runtime-clojure-conditionals-tests
 #+begin_src clojure :tangle no
   (deftest conditionals-test
@@ -1425,8 +1419,6 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                      count = count + 1;
                    __result = VAR(count);")
 #+end_src
-
-**** Tests
 
 #+name: runtime-clojure-sequences-tests
 #+begin_src clojure :tangle no
@@ -1541,8 +1533,6 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
         __result = !BOOLEAN(x)->asBool();")
 #+end_src
 
-**** Tests
-
 #+name: runtime-clojure-logical-operators-tests
 #+begin_src clojure :tangle no
   (deftest logical-operators-test
@@ -1655,8 +1645,6 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
     (= x 0))
 #+end_src
 
-**** Tests
-
 #+name: runtime-clojure-bit-arithmetic-tests
 #+begin_src clojure :tangle no
   (deftest arithmetic-test
@@ -1730,8 +1718,6 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
   (defn bit-shift-right [x n] "__result = VAR((NUMBER(x)->getNumerator() >>
                                                NUMBER(n)->getNumerator()));")
 #+end_src
-
-**** Tests
 
 #+name: runtime-clojure-bit-operations-tests
 #+begin_src clojure :tangle no
@@ -1837,6 +1823,7 @@ Example build options map,
 #+end_src 
 
 * Misc
+** I/O
 
   #+name: core-code-generation-misc
   #+begin_src clojure
@@ -1868,6 +1855,8 @@ Example build options map,
       (and (seq? f)
            (= (first f) s)))
   #+end_src
+
+** Main
 
   #+name: core-code-compile-code
   #+begin_src clojure

@@ -4,7 +4,9 @@
 #+TAGS: noexport(e)
 #+EXPORT_EXCLUDE_TAGS: noexport
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://thomasf.github.io/solarized-css/solarized-dark.min.css" />
+#+OPTIONS: toc:nil
 
+#+BEGIN_ABSTRACT
 Ferret is an experimental Lisp to C++ compiler, the idea was to
 compile code that is written in a very small subset of Clojure to be
 automatically translated to C++ so that I can program stuff in
@@ -12,14 +14,11 @@ Clojure where JVM or any other Lisp dialect is not available.
 
 This is a literate program, the code in this document is the
 executable source, in order to extract it, open this raw file
-with emacs and run,
-
-#+begin_example
- M-x org-babel-tangle
-#+end_example
-
+with emacs and run /M-x org-babel-tangle/.
 It will build the necessary directory structure and export the files
 and tests contained.
+#+END_ABSTRACT
+#+TOC: headlines 3
 
 * Compiler
 

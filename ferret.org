@@ -61,15 +61,19 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
     ([form]
      (let [runtime-form (read-string (str \( (read-from-url "runtime.clj") \)))
            built-in-defn (expand-macros-all runtime-form)
-           built-in-order (map second built-in-defn)
+           built-in-order (->> (filter #(not= 'defobject (first %)) built-in-defn)
+                               (map second))
            built-in (->> built-in-defn
                          (reduce (fn[h v] (assoc h (second v) v)) {}))
            fns (atom {})
            _ (add-built-in (->> form expand-macros-all vector->list) built-in fns)
            sorted-fns (->> @fns
                            (sort-by #(.indexOf built-in-order (key %)))
-                           (map #(second %)))]
-       (concat sorted-fns form)))
+                           (map #(second %)))
+           def-objects (filter #(= 'defobject (first %)) built-in-defn)]
+       (->> form
+            (concat sorted-fns)
+            (concat def-objects))))
     ([form built-in fns]
      (morph-form form symbol?
                  #(do (if-let [f (built-in %)]
@@ -498,7 +502,8 @@ string based on the form.
 #+name: core-code-generation-emit
 #+begin_src clojure :tangle no  
   (defmulti emit (fn [form _]
-                   (cond (is-special-form? 'define_lambda form) 'define_lambda
+                   (cond (is-special-form? 'defobject form) 'defobject
+                         (is-special-form? 'define_lambda form) 'define_lambda
                          (is-special-form? 'lambda_object form) 'lambda_object
                          (is-special-form? 'define_var form) 'define_var
                          (is-special-form? 'native_declare form) 'native_declare
@@ -607,6 +612,10 @@ C++ skeleton.
   (defmethod emit 'def [[_ name & form] state]
     (append-to! state [:symbol-table] name)
     (str "(" name " = " (apply str (doall (map #(emit % state) form))) ")"))
+
+  (defmethod emit 'defobject [[_ name spec] state]
+    (append-to! state [:native-declarations] (declare-object name spec))
+    "")
 #+end_src
 
 *** Code Templates
@@ -655,6 +664,37 @@ C++ skeleton.
                                          (assoc % :args (indexed args))) lambdas))
       (render-view view)))
 
+  (defn declare-object [name {data :data
+                              new :new delete :delete
+                              equals :equals
+                              toOutputStream :toOutputStream}]
+    (let [view (create-view "
+      namespace ferret{
+       int $type$_TYPE = $type_val$;
+       class $name$ : public Object {
+       public:
+         $data:{$it$;} ;separator=\"\n\"$
+         $new:{it | $name$($first(it)$){
+           $first(rest(it))$
+         }} ;separator=\"\n\"$
+         int getType(){ return $type$_TYPE;}
+         var equals(var o){
+          $equals$
+         }
+         var toOutputStream(){
+          $toOutputStream$
+         }
+       };
+      }")]
+      (fill-view! view "name" name)
+      (fill-view! view "type" (.toUpperCase (str name)))
+      (fill-view! view "type_val" (gensym ""))
+      (fill-view! view "data" data)
+      (fill-view! view "new" new)
+      (fill-view! view "equals" equals)
+      (fill-view! view "toOutputStream" toOutputStream)
+      (render-view view)))
+
   (defn solution-template [source]
     (let [{:keys [body lambdas symbol-table native-declarations]} source
           view (create-view "
@@ -688,8 +728,7 @@ following types,
 
 #+name: runtime-native-object-types-enum
 #+begin_src c++ :tangle no
-  enum TYPE {POINTER_TYPE,
-             NUMBER_TYPE,
+  enum TYPE {NUMBER_TYPE,
              CHARACTER_TYPE,
              BOOLEAN_TYPE,
              KEYWORD_TYPE,
@@ -759,21 +798,14 @@ new/delete is needed because in avr-gcc they are not defined.)
 
 *** Pointer
 
-#+name: runtime-native-pointer
-#+begin_src c++ :tangle no
-  class Pointer : public Object { 
-  public:
-    void* ptr;
-    Pointer(void* p){ptr = p;}
-
-    int getType(){ return POINTER_TYPE;}
-    var equals(var o){ return ptr = POINTER(o)->ptr; }
-
-    var toOutputStream(){ 
-      fprintf(OUTPUT_STREAM, "Pointer");
-      return var();
-    }
-  };
+#+name: runtime-clojure-pointer-object
+#+begin_src clojure :tangle no
+  (defobject Pointer
+    {:data ["void* ptr"]
+     :new [["void* p" "ptr = p;"]]
+     :equals "return ptr = POINTER(o)->ptr;"
+     :toOutputStream "fprintf(OUTPUT_STREAM, \"Pointer\");
+                      return var();"})
 #+end_src
 
 *** Number
@@ -2325,6 +2357,7 @@ Example build options map,
 ** resources/runtime.clj
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
+  <<runtime-clojure-pointer-object>>
   <<runtime-clojure-defn>>
   <<runtime-clojure-looping>>
   <<runtime-clojure-first>>

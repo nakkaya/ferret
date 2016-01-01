@@ -557,7 +557,7 @@ C++ skeleton.
 #+begin_src clojure :tangle no
   (defmethod emit :to-str [form state] (str "VAR("form ")"))
 
-  (defmethod emit :char [form state] (str "VAR('" form "')"))
+  (defmethod emit :char [form state] (str "VAR(new ferret::Character('" form "'))"))
 
   (defmethod emit :string [form state] (str "VAR(new ferret::String(\"" form "\"))"))
 
@@ -748,7 +748,6 @@ following types,
 #+name: runtime-native-object-types-enum
 #+begin_src c++ :tangle no
   enum TYPE {NUMBER_TYPE,
-             CHARACTER_TYPE,
              BOOLEAN_TYPE,
              KEYWORD_TYPE,
              CONS_TYPE,
@@ -984,27 +983,16 @@ Math configuration,
 
 *** Character
 
-#+name: runtime-native-character
-#+begin_src c++ :tangle no
-  class Character : public Object { 
-  public:
-    char value;
-    Character(char c){value = c;}
-    int getType(){ return CHARACTER_TYPE;}
-
-    var equals(var o){
-      if (OBJECT(o)->getType() != CHARACTER_TYPE)
-        return false;
-      
-      return (value == CHARACTER(o)->value);
-    }
-
-    var toOutputStream(){ 
-      fprintf(OUTPUT_STREAM, "%c",value);
-      return var();
-    }
-  };
-
+#+name: runtime-clojure-character-object
+#+begin_src clojure :tangle no
+  (defobject Character
+    {:data ["char value"]
+     :new [["char c" "value = c;"]]
+     :equals "if (OBJECT(o)->getType() != CHARACTER_TYPE)
+                 return false;
+              return (value == CHARACTER(o)->value);"
+     :toOutputStream "fprintf(OUTPUT_STREAM, \"%c\",value);
+                      return var();"})
 #+end_src
 
 *** Seekable Interface
@@ -1164,7 +1152,7 @@ Math configuration,
              var s = var(new Sequence());
                
              for (int i = length; i >= 0; i--){
-               var ch = VAR(str[i]);
+               var ch = VAR(new ferret::Character(str[i]));
                s = (SEQUENCE(s)->clone(),ch);
              }
              data = s;"]]
@@ -1315,7 +1303,6 @@ reaches zero it will automatically free the Object.
     var(NUMBER_DATA_TYPE n, NUMBER_DATA_TYPE dn);
     var(float f);
     var(bool b);
-    var(char b);
       
     var& operator, (const var& m);
     var toOutputStream() {
@@ -1375,11 +1362,6 @@ reaches zero it will automatically free the Object.
 
   var::var(bool b){
     m_ptr = new Boolean(b);
-    addRef();
-  }
-
-  var::var(char b){
-    m_ptr = new Character(b);
     addRef();
   }
 
@@ -2315,7 +2297,6 @@ Example build options map,
     <<runtime-native-boolean>>
     <<runtime-native-keyword>>
     <<runtime-native-lambda>>
-    <<runtime-native-character>>
     <<native-seekable-interface>>
     <<runtime-native-sequence>>
     <<runtime-native-var-descriptions>>
@@ -2327,6 +2308,7 @@ Example build options map,
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
   <<runtime-clojure-pointer-object>>
+  <<runtime-clojure-character-object>>
   <<runtime-clojure-string-object>>
   <<runtime-clojure-defn>>
   <<runtime-clojure-looping>>

@@ -671,14 +671,17 @@ C++ skeleton.
                               toOutputStream :toOutputStream
                               interfaces :interfaces
                               fns :fns
+                              force-type :force-type
                               post-code :post-code}]
     (let [interface (if (nil? interface)
                       "Object"
                       (apply str (rest (str interface))))
-          interface-only (nil? new)
+          interface-only (cond force-type false
+                               (nil? new) true
+                               :defaul false)
           view (create-view "
       namespace ferret{
-       $if(! interface_only)$
+       $if(!interface_only)$
        int $type$_TYPE = $type_val$;
        $endif$
        class $name$ : public $interface$ {
@@ -688,7 +691,7 @@ C++ skeleton.
          $new:{it | $name$($first(it)$){
            $first(rest(it))$
          }} ;separator=\"\n\"$
-         $if(! interface_only)$
+         $if(!interface_only)$
          int getType(){ return $type$_TYPE;}
          $endif$
          $if(equals)$
@@ -715,6 +718,7 @@ C++ skeleton.
       (fill-view! view "name" name)
       (fill-view! view "interface" interface)
       (fill-view! view "interface_only" interface-only)
+      (fill-view! view "force_type" (if force-type true false))
       (fill-view! view "type" (.toUpperCase (str name)))
       (fill-view! view "type_val" (gensym ""))
       (fill-view! view "data" data)
@@ -762,8 +766,7 @@ following types,
 #+begin_src c++ :tangle no
   enum TYPE {NUMBER_TYPE,
              BOOLEAN_TYPE,
-             KEYWORD_TYPE,
-             LAMBDA_TYPE};
+             KEYWORD_TYPE};
 #+end_src
 
 Object Casting macros,
@@ -1211,18 +1214,13 @@ except functors, they derive from the class Lambda, which has a single
 invoke method that takes a sequence of vars as argument, this allows us
 to execute them in a uniform fashion.
 
-#+name: runtime-native-lambda
-#+begin_src c++ :tangle no
-  class Lambda : public Object{ 
-  public:
-    virtual var invoke(var args) = 0;
-    int getType(){return LAMBDA_TYPE;}
-    VAR equals(VAR o){return false;}
-    VAR toOutputStream(){
-      fprintf(OUTPUT_STREAM, "lambda");
-      return VAR();
-    }
-  };
+#+name: runtime-clojure-lambda-interface
+#+begin_src clojure :tangle no
+  (defobject Lambda
+    {:interfaces ["var invoke(var args)"]
+     :equals "return false;"
+     :toOutputStream "fprintf(OUTPUT_STREAM, \"lambda\"); return VAR();"
+     :force-type true})
 #+end_src
 
 Function invocation macros,
@@ -2262,7 +2260,6 @@ Example build options map,
     <<runtime-native-number>>
     <<runtime-native-boolean>>
     <<runtime-native-keyword>>
-    <<runtime-native-lambda>>
     <<runtime-native-var-descriptions>>
   }
   #endif
@@ -2273,6 +2270,7 @@ Example build options map,
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
   <<runtime-clojure-pointer-object>>
   <<runtime-clojure-seekable-interface>>
+  <<runtime-clojure-lambda-interface>>
   <<runtime-clojure-cell-object>>
   <<runtime-clojure-sequence-object>>
   <<runtime-clojure-character-object>>

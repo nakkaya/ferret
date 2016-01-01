@@ -613,7 +613,7 @@ C++ skeleton.
     (append-to! state [:symbol-table] name)
     (str "(" name " = " (apply str (doall (map #(emit % state) form))) ")"))
 
-  (defmethod emit 'defobject [[_ name spec] state]
+  (defmethod emit 'defobject [[_ name & spec] state]
     (append-to! state [:native-declarations] (declare-object name spec))
     "")
 #+end_src
@@ -664,24 +664,20 @@ C++ skeleton.
                                          (assoc % :args (indexed args))) lambdas))
       (render-view view)))
 
-  (defn declare-object [name {interface :interface
-                              data :data
-                              new :new delete :delete
-                              equals :equals
-                              toOutputStream :toOutputStream
-                              interfaces :interfaces
-                              fns :fns
-                              force-type :force-type
-                              post-code :post-code}]
-    (let [interface (if (nil? interface)
+  (defn declare-object [name body]
+    (let [specs (into {} (map #(vector (first %) (rest %)) body))
+          interface (if (nil? (specs 'interface))
                       "Object"
-                      (apply str (rest (str interface))))
-          interface-only (cond force-type false
-                               (nil? new) true
+                      (apply str (rest (str (first (specs 'interface))))))
+          interface-only (cond (specs 'interface) false
+                               (empty? (specs 'new)) true
                                :defaul false)
           view (create-view "
       namespace ferret{
        $if(!interface_only)$
+       int $type$_TYPE = $type_val$;
+       $endif$
+       $if(force_type)$
        int $type$_TYPE = $type_val$;
        $endif$
        class $name$ : public $interface$ {
@@ -692,6 +688,9 @@ C++ skeleton.
            $first(rest(it))$
          }} ;separator=\"\n\"$
          $if(!interface_only)$
+         int getType(){ return $type$_TYPE;}
+         $endif$
+         $if(force_type)$
          int getType(){ return $type$_TYPE;}
          $endif$
          $if(equals)$
@@ -718,17 +717,17 @@ C++ skeleton.
       (fill-view! view "name" name)
       (fill-view! view "interface" interface)
       (fill-view! view "interface_only" interface-only)
-      (fill-view! view "force_type" (if force-type true false))
+      (fill-view! view "force_type" (if (specs 'force_type) true false))
       (fill-view! view "type" (.toUpperCase (str name)))
       (fill-view! view "type_val" (gensym ""))
-      (fill-view! view "data" data)
-      (fill-view! view "new" new)
-      (fill-view! view "equals" equals)
-      (fill-view! view "toOutputStream" toOutputStream)
-      (fill-view! view "interfaces" interfaces)
-      (fill-view! view "fns" (filter #(= 3 (count %)) fns))
-      (fill-view! view "ifdef_fns" (filter #(= 4 (count %)) fns))
-      (fill-view! view "post_code" post-code)
+      (fill-view! view "data" (specs 'data))
+      (fill-view! view "new" (specs 'new))
+      (fill-view! view "equals" (first (specs 'equals)))
+      (fill-view! view "toOutputStream" (first (specs 'toOutputStream)))
+      (fill-view! view "interfaces" (specs 'interfaces))
+      (fill-view! view "fns" (filter #(= 3 (count %)) (specs 'fns)))
+      (fill-view! view "ifdef_fns" (filter #(= 4 (count %)) (specs 'fns)))
+      (fill-view! view "post_code" (first (specs 'post_code)))
       (render-view view)))
 
   (defn solution-template [source]
@@ -826,11 +825,12 @@ new/delete is needed because in avr-gcc they are not defined.)
 #+name: runtime-clojure-pointer-object
 #+begin_src clojure :tangle no
   (defobject Pointer
-    {:data ["void* ptr"]
-     :new [["void* p" "ptr = p;"]]
-     :equals "return ptr = POINTER(o)->ptr;"
-     :toOutputStream "fprintf(OUTPUT_STREAM, \"Pointer\");
-                      return var();"})
+    (data "void* ptr")
+    (new ("void* p" "ptr = p;"))
+    (equals
+     "return ptr = POINTER(o)->ptr;")
+    (toOutputStream
+     "fprintf(OUTPUT_STREAM, \"Pointer\"); return var();"))
 #+end_src
 
 *** Number
@@ -849,59 +849,62 @@ Math configuration,
 #+name: runtime-clojure-number-object
 #+begin_src clojure :tangle no
   (defobject Number
-    {:data ["NUMBER_DATA_TYPE numerator"
-            "NUMBER_DATA_TYPE denominator"]
-     :new [["NUMBER_DATA_TYPE x" "numerator = x; denominator = 1;"]
-           ["NUMBER_DATA_TYPE n, NUMBER_DATA_TYPE dn"
-            "numerator = n; denominator = dn; simplificate();"]
-           ["float x"
-            "float decimal = (x - (NUMBER_DATA_TYPE)x) * (float)NUMBER_PRECISION;
-             NUMBER_DATA_TYPE integer = (NUMBER_DATA_TYPE)x;
-             numerator = decimal + (integer * NUMBER_PRECISION);
-             denominator = NUMBER_PRECISION;
-             simplificate();"]]
-     :equals "int self_type = getType();
-              int other_type = OBJECT(o)->getType();
-      
-              if (self_type == NUMBER_TYPE && other_type == NUMBER_TYPE)
-                if (getNumerator() == 0 && NUMBER(o)->getNumerator() == 0)
-                  return true;
-                else
-                  return ((getNumerator() == NUMBER(o)->getNumerator()) &&
-                          (getDenominator() == NUMBER(o)->getDenominator()));
-              else
-                return false;"
-     :toOutputStream "
-            if (denominator == 1)
-              fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT, numerator);
-            else if (numerator == 0)
-              fprintf(OUTPUT_STREAM, \"0\");
-            else{
-              fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT,numerator);
-              fprintf(OUTPUT_STREAM, \"/\");
-              fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT,denominator);
-            }
-            return var();"
-     :fns [["NUMBER_DATA_TYPE getNumerator" "" "return numerator;"]
-           ["NUMBER_DATA_TYPE getDenominator" "" "return denominator;"]
-           ["float floatValue" "" "return (float)numerator/(float)denominator;"]
-           ["int intValue" ""
-            "if (denominator == 1)
-               return (int)numerator;
+    (data "NUMBER_DATA_TYPE numerator"
+          "NUMBER_DATA_TYPE denominator")
+    (new ("NUMBER_DATA_TYPE x"
+          "numerator = x; denominator = 1;")
+         ("NUMBER_DATA_TYPE n, NUMBER_DATA_TYPE dn"
+          "numerator = n; denominator = dn; simplificate();")
+         ("float x"
+          "float decimal = (x - (NUMBER_DATA_TYPE)x) * (float)NUMBER_PRECISION;
+           NUMBER_DATA_TYPE integer = (NUMBER_DATA_TYPE)x;
+           numerator = decimal + (integer * NUMBER_PRECISION);
+           denominator = NUMBER_PRECISION;
+           simplificate();"))
+    (equals "int self_type = getType();
+             int other_type = OBJECT(o)->getType();
+             if (self_type == NUMBER_TYPE && other_type == NUMBER_TYPE)
+               if (getNumerator() == 0 && NUMBER(o)->getNumerator() == 0)
+                 return true;
+               else
+                 return ((getNumerator() == NUMBER(o)->getNumerator()) &&
+                         (getDenominator() == NUMBER(o)->getDenominator()));
              else
-               return (int)floatValue();"]
-           ["void simplificate" ""
-            "int commondivisor = 1;
-             for(NUMBER_DATA_TYPE i=2;i<=MIN(ABS(numerator), ABS(denominator));i++)
-               if( numerator%i == 0 && denominator%i == 0 )
-                 commondivisor = i;
-             numerator /= commondivisor;
-             denominator /= commondivisor;"]
-           ["~Number" "" ""]
-           ["if NUMBER_DATA_TYPE != int"
-            "Number" "int x" "numerator = x; denominator = 1;"]]
-     :post-code "
-  #if NUMBER_DATA_TYPE != int
+               return false;")
+    (toOutputStream
+     "if (denominator == 1)
+        fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT, numerator);
+      else if (numerator == 0)
+        fprintf(OUTPUT_STREAM, \"0\");
+      else{
+        fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT,numerator);
+        fprintf(OUTPUT_STREAM, \"/\");
+        fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT,denominator);
+      }
+      return var();")
+    
+    (fns
+      ("NUMBER_DATA_TYPE getNumerator" "" "return numerator;")
+      ("NUMBER_DATA_TYPE getDenominator" "" "return denominator;")
+      ("float floatValue" "" "return (float)numerator/(float)denominator;")
+      ("int intValue" ""
+       "if (denominator == 1)
+          return (int)numerator;
+        else
+          return (int)floatValue();")
+      ("void simplificate" ""
+       "int commondivisor = 1;
+        for(NUMBER_DATA_TYPE i=2;i<=MIN(ABS(numerator), ABS(denominator));i++)
+          if( numerator%i == 0 && denominator%i == 0 )
+            commondivisor = i;
+        numerator /= commondivisor;
+        denominator /= commondivisor;")
+      ("~Number" "" "")
+      ("if NUMBER_DATA_TYPE != int"
+       "Number" "int x" "numerator = x; denominator = 1;"))
+    
+    (post-code "
+    #if NUMBER_DATA_TYPE != int
     var::var(int i){
       m_ptr = new Number(i);
       addRef();
@@ -921,7 +924,7 @@ Math configuration,
     var::var(float f){
       m_ptr = new Number(f);
       addRef();
-    }"})
+    }"))
 #+end_src
 
 *** Keyword
@@ -929,19 +932,21 @@ Math configuration,
 #+name: runtime-clojure-keyword-object
 #+begin_src clojure :tangle no
   (defobject Keyword
-    {:data ["int id"]
-     :new [["int b" "id=b;"]
-           ["const char * str"
-            "id = 0;
-             for (int i = 0; str[i] != '\\0'; i++){
-               id = id + (int)str[i];
-             }"]]
-     :equals "if (OBJECT(o)->getType() != KEYWORD_TYPE)
-               return false;
-              return (id == KEYWORD(o)->id);"
-     :toOutputStream "fprintf(OUTPUT_STREAM, \"%d\", id); return var();"
-     :fns [["bool equals" "Keyword k"
-            "return (id == k.id);"]]})
+    (data "int id")
+    (new ("int b" "id=b;")
+         ("const char * str"
+          "id = 0;
+           for (int i = 0; str[i] != '\\0'; i++){
+             id = id + (int)str[i];
+           }"))
+    (equals
+     "if (OBJECT(o)->getType() != KEYWORD_TYPE)
+        return false;
+      return (id == KEYWORD(o)->id);")
+    (toOutputStream
+     "fprintf(OUTPUT_STREAM, \"%d\", id); return var();")
+    (fns ("bool equals" "Keyword k"
+          "return (id == k.id);")))
 #+end_src
 
 **** Tests
@@ -962,13 +967,14 @@ Math configuration,
 #+name: runtime-clojure-character-object
 #+begin_src clojure :tangle no
   (defobject Character
-    {:data ["char value"]
-     :new [["char c" "value = c;"]]
-     :equals "if (OBJECT(o)->getType() != CHARACTER_TYPE)
-                 return false;
-              return (value == CHARACTER(o)->value);"
-     :toOutputStream "fprintf(OUTPUT_STREAM, \"%c\",value);
-                      return var();"})
+    (data "char value")
+    (new ("char c" "value = c;"))
+    (equals
+     "if (OBJECT(o)->getType() != CHARACTER_TYPE)
+        return false;
+      return (value == CHARACTER(o)->value);")
+    (toOutputStream
+     "fprintf(OUTPUT_STREAM, \"%c\",value); return var();"))
 #+end_src
 
 *** Seekable Interface
@@ -976,14 +982,14 @@ Math configuration,
 #+name: runtime-clojure-seekable-interface
 #+begin_src clojure :tangle no
   (defobject ISeekable
-    {:interfaces ["void cons(var x)"
-                  "var first()"
-                  "var rest()"
-                  "var nth(var i)"
-                  "bool isEmpty()"
-                  "var reduce(var f)"
-                  "var reduce(var f, var acc)"]
-     :fns [["virtual ~ISeekable" "" ""]]})
+    (interfaces "void cons(var x)"
+                "var first()"
+                "var rest()"
+                "var nth(var i)"
+                "bool isEmpty()"
+                "var reduce(var f)"
+                "var reduce(var f, var acc)")
+    (fns ("virtual ~ISeekable" "" "")))
 #+end_src
 
 *** Sequence
@@ -991,83 +997,89 @@ Math configuration,
 #+name: runtime-clojure-cell-object
 #+begin_src clojure :tangle no
   (defobject Cell
-    {:data ["var data" "var next"]
-     :new [["" ""]
-           ["var d, var n" "data = d; next = n;"]]
-     :equals "if (OBJECT(o)->getType() != CELL_TYPE)
-               return false;
-              return data.equals(o);"
-     :toOutputStream "OBJECT(data)->toOutputStream(); return var();"})
+    (data "var data"
+          "var next")
+    (new ("" "")
+         ("var d, var n" "data = d; next = n;"))
+    (equals "if (OBJECT(o)->getType() != CELL_TYPE)
+              return false;
+             return data.equals(o);")
+    (toOutputStream
+     "OBJECT(data)->toOutputStream(); return var();"))
 #+end_src
 
 #+name: runtime-clojure-sequence-object
 #+begin_src clojure :tangle no
   (defobject Sequence
-    {:interface :ISeekable
-     :data ["var head"]
-     :new [["" "head = NULL;"]
-           ["var h" "head = h;"]]
-     :equals "if (OBJECT(o)->getType() != SEQUENCE_TYPE)
-               return false;
-             var itOther = o;
-             for(var it = this; !SEQUENCE(it)->isEmpty(); it = SEQUENCE(it)->rest()){
-               if (SEQUENCE(itOther)->isEmpty() || 
-                   SEQUENCE(it)->first().equals(SEQUENCE(itOther)->first())  == false)
-                 return false;
-         
-               itOther = SEQUENCE(itOther)->rest();
-             }
-             return true;"
-     :toOutputStream "fprintf(OUTPUT_STREAM, \"( \");
-                      for(var it = head; it.get() != NULL ; it = CELL(it)->next){
-                        OBJECT(CELL(it)->data)->toOutputStream();
-                        fprintf(OUTPUT_STREAM, \" \");
-                      }
-                      fprintf(OUTPUT_STREAM, \")\");
-                      return var();"
-     :fns [["void cons" "var x"
-            "var v = var(new Cell());
-             CELL(v)->data = x;
-             CELL(v)->next = head;
-             head = v;"]
-           ["var first" ""
-            "if (head.get() == NULL )
-              return var();
-             else
-              return CELL(head)->data;"]
-           ["var rest" ""
-            "if ( head.get() == NULL || CELL(head)->next.get() == NULL )
-              return var(new Sequence());
-             else
-              return var(new Sequence(CELL(head)->next));"]
-           ["var nth" "var i"
-            "var it = head;
-             int index = NUMBER(i)->intValue();
-             for(int i = 0 ; i < index; i++){
-               if ((CELL(it)->next).get() == NULL )
-                 return VAR();
-               it = CELL(it)->next;
-             }
-             return CELL(it)->data;"]
-           ["bool isEmpty" ""
-            "if (head.get() == NULL)
-               return true;
-             return false;"]
-           ["var clone" ""
-            "return var(new ferret::Sequence(head));"]
-           ["var reduce" "var f"
-            "var acc = INVOKE(f,CELL(head)->data,CELL(CELL(head)->next)->data);
-             for(var it = CELL(CELL(head)->next)->next; it.get() != NULL ; it = CELL(it)->next)
-               acc = INVOKE(f, CELL(it)->data, acc);
-             return acc;"]
-           ["var reduce" "var f, var acc"
-            "for(var it = head; it.get() != NULL ; it = CELL(it)->next)
-               acc = INVOKE(f, CELL(it)->data, acc);
-             return acc;"]]
-     :post-code "ferret::var& ferret::var::operator, (const var& m){
-                   static_cast<ferret::Sequence*>(m_ptr)->cons(m);
-                   return *this;
-                 }"})
+    (interface :ISeekable)
+    (data "var head")
+    (new ("" "head = NULL;")
+         ("var h" "head = h;"))
+    (equals
+     "if (OBJECT(o)->getType() != SEQUENCE_TYPE)
+       return false;
+      var itOther = o;
+      for(var it = this; !SEQUENCE(it)->isEmpty(); it = SEQUENCE(it)->rest()){
+        if (SEQUENCE(itOther)->isEmpty() || 
+            SEQUENCE(it)->first().equals(SEQUENCE(itOther)->first())  == false)
+          return false;
+            itOther = SEQUENCE(itOther)->rest();
+     }
+     return true;")
+    (toOutputStream
+     "fprintf(OUTPUT_STREAM, \"( \");
+      for(var it = head; it.get() != NULL ; it = CELL(it)->next){
+        OBJECT(CELL(it)->data)->toOutputStream();
+        fprintf(OUTPUT_STREAM, \" \");
+      }
+      fprintf(OUTPUT_STREAM, \")\");
+      return var();")
+
+    (fns
+      ("void cons" "var x"
+       "var v = var(new Cell());
+        CELL(v)->data = x;
+        CELL(v)->next = head;
+        head = v;")
+      ("var first" ""
+       "if (head.get() == NULL )
+         return var();
+        else
+         return CELL(head)->data;")
+      ("var rest" ""
+       "if ( head.get() == NULL || CELL(head)->next.get() == NULL )
+         return var(new Sequence());
+        else
+         return var(new Sequence(CELL(head)->next));")
+      ("var nth" "var i"
+       "var it = head;
+        int index = NUMBER(i)->intValue();
+        for(int i = 0 ; i < index; i++){
+          if ((CELL(it)->next).get() == NULL )
+             return VAR();
+        it = CELL(it)->next;
+        }
+        return CELL(it)->data;")
+      ("bool isEmpty" ""
+       "if (head.get() == NULL)
+          return true;
+        return false;")
+      ("var clone" ""
+       "return var(new ferret::Sequence(head));")
+      ("var reduce" "var f"
+       "var acc = INVOKE(f,CELL(head)->data,CELL(CELL(head)->next)->data);
+        for(var it = CELL(CELL(head)->next)->next; it.get() != NULL ; it = CELL(it)->next)
+          acc = INVOKE(f, CELL(it)->data, acc);
+        return acc;")
+      ("var reduce" "var f, var acc"
+       "for(var it = head; it.get() != NULL ; it = CELL(it)->next)
+          acc = INVOKE(f, CELL(it)->data, acc);
+        return acc;"))
+    (post-code
+     "ferret::var& ferret::var::operator, (const var& m){
+        static_cast<ferret::Sequence*>(m_ptr)->cons(m);
+        return *this;
+      }"))
 #+end_src
 
 *** String
@@ -1075,54 +1087,57 @@ Math configuration,
 #+name: runtime-clojure-string-object
 #+begin_src clojure :tangle no
   (defobject String
-    {:interface :ISeekable
-     :data ["var data"]
-     :new [[""
-            "data = NULL;"]
-           ["var s"
-            "data = s;"]
-           ["const char * str"
-            "int length = 0;
-             for (length = 0; str[length] != '\\0'; length++);
-             length--;
-             var s = var(new Sequence());
+    (interface :ISeekable)
+    (data "var data")
+    (new (""
+          "data = NULL;")
+         ("var s"
+          "data = s;")
+         ("const char * str"
+          "int length = 0;
+           for (length = 0; str[length] != '\\0'; length++);
+           length--;
+           var s = var(new Sequence());
                
-             for (int i = length; i >= 0; i--){
-               var ch = VAR(new ferret::Character(str[i]));
-               s = (SEQUENCE(s)->clone(),ch);
-             }
-             data = s;"]]
-     :equals "if (OBJECT(o)->getType() != STRING_TYPE)
-                return false;
-              return data.equals(STRING(o)->getData());"
-     :toOutputStream "for(var it = data; ISEEKABLE(it)->isEmpty() == false ; it = ISEEKABLE(it)->rest()){
-                        OBJECT(ISEEKABLE(it)->first())->toOutputStream();
-                      }
-                      return var();"
-     :fns [["var clone" ""
-            "return var(new String(data));"]
-           ["void cons" "var x"
-            "ISEEKABLE(data)->cons(x);"]
-           ["var first" ""
-            "return ISEEKABLE(data)->first();"]
-           ["var rest" ""
-            "return ISEEKABLE(data)->rest();"]
-           ["var nth" "var i"
-            "return ISEEKABLE(data)->nth(i);"]
-           ["bool isEmpty" ""
-            "return ISEEKABLE(data)->isEmpty();"]
-           ["var getData" ""
-            "return data;"]
-           ["var reduce" "var f"
-            "return ISEEKABLE(data)->reduce(f);"]
-           ["var reduce" "var f, var acc"
-            "return ISEEKABLE(data)->reduce(f,acc);"]
-           ["ifdef GNU_GCC"
-            "std::string toString" ""
-            "std::stringstream ss;
-             for(var it = data; ISEEKABLE(it)->isEmpty() == false ; it = ISEEKABLE(it)->rest())
-              ss << CHARACTER(ISEEKABLE(it)->first())->value;
-             return ss.str();"]]})
+           for (int i = length; i >= 0; i--){
+             var ch = VAR(new ferret::Character(str[i]));
+             s = (SEQUENCE(s)->clone(),ch);
+           }
+           data = s;"))
+    (equals
+     "if (OBJECT(o)->getType() != STRING_TYPE)
+       return false;
+      return data.equals(STRING(o)->getData());")
+    (toOutputStream
+     "for(var it = data; ISEEKABLE(it)->isEmpty() == false ; it = ISEEKABLE(it)->rest()){
+         OBJECT(ISEEKABLE(it)->first())->toOutputStream();
+      }
+      return var();")
+    (fns
+     ("var clone" ""
+      "return var(new String(data));")
+     ("void cons" "var x"
+      "ISEEKABLE(data)->cons(x);")
+     ("var first" ""
+      "return ISEEKABLE(data)->first();")
+     ("var rest" ""
+      "return ISEEKABLE(data)->rest();")
+     ("var nth" "var i"
+      "return ISEEKABLE(data)->nth(i);")
+     ("bool isEmpty" ""
+      "return ISEEKABLE(data)->isEmpty();")
+     ("var getData" ""
+      "return data;")
+     ("var reduce" "var f"
+      "return ISEEKABLE(data)->reduce(f);")
+     ("var reduce" "var f, var acc"
+      "return ISEEKABLE(data)->reduce(f,acc);")
+     ("ifdef GNU_GCC"
+      "std::string toString" ""
+      "std::stringstream ss;
+        for(var it = data; ISEEKABLE(it)->isEmpty() == false ; it = ISEEKABLE(it)->rest())
+          ss << CHARACTER(ISEEKABLE(it)->first())->value;
+        return ss.str();")))
 #+end_src
 
 **** Tests
@@ -1144,18 +1159,22 @@ Math configuration,
 #+name: runtime-clojure-boolean-object
 #+begin_src clojure :tangle no
   (defobject Boolean
-    {:data ["bool value"]
-     :new [["bool b" "value = b;"]]
-     :equals "if (OBJECT(o)->getType() != BOOLEAN_TYPE)
-                 return false;
-               return (value == BOOLEAN(o)->asBool());"
-     :toOutputStream "if (value)
-                        fprintf(OUTPUT_STREAM, \"true\"); 
-                      else
-                        fprintf(OUTPUT_STREAM, \"false\"); 
-                      return var();"
-     :fns [["bool asBool" "" "return value;"]]
-     :post-code "  
+    (data "bool value")
+    (new ("bool b" "value = b;"))
+    (equals "if (OBJECT(o)->getType() != BOOLEAN_TYPE)
+               return false;
+             return (value == BOOLEAN(o)->asBool());")
+    (toOutputStream
+     "if (value)
+        fprintf(OUTPUT_STREAM, \"true\"); 
+      else
+      fprintf(OUTPUT_STREAM, \"false\"); 
+      return var();")
+    
+    (fns
+     ("bool asBool" "" "return value;"))
+    
+    (post-code "  
     var::var(bool b){
       m_ptr = new Boolean(b);
       addRef();
@@ -1166,7 +1185,7 @@ Math configuration,
         return true;
       else
         return BOOLEAN(get()->equals(rhs))->asBool();
-    }"})
+    }"))
 #+end_src
 
 *** Lambda
@@ -1178,10 +1197,11 @@ to execute them in a uniform fashion.
 #+name: runtime-clojure-lambda-interface
 #+begin_src clojure :tangle no
   (defobject Lambda
-    {:interfaces ["var invoke(var args)"]
-     :equals "return false;"
-     :toOutputStream "fprintf(OUTPUT_STREAM, \"lambda\"); return VAR();"
-     :force-type true})
+    (interfaces "var invoke(var args)")
+    (equals "return false;")
+    (toOutputStream
+     "fprintf(OUTPUT_STREAM, \"lambda\"); return VAR();")
+    (force-type true))
 #+end_src
 
 Function invocation macros,

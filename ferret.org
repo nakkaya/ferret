@@ -667,13 +667,15 @@ C++ skeleton.
   (defn declare-object [name {data :data
                               new :new delete :delete
                               equals :equals
-                              toOutputStream :toOutputStream}]
+                              toOutputStream :toOutputStream
+                              interfaces :interfaces}]
     (let [view (create-view "
       namespace ferret{
        int $type$_TYPE = $type_val$;
        class $name$ : public Object {
        public:
          $data:{$it$;} ;separator=\"\n\"$
+         $interfaces:{virtual $it$ = 0;} ;separator=\"\n\"$
          $new:{it | $name$($first(it)$){
            $first(rest(it))$
          }} ;separator=\"\n\"$
@@ -693,6 +695,7 @@ C++ skeleton.
       (fill-view! view "new" new)
       (fill-view! view "equals" equals)
       (fill-view! view "toOutputStream" toOutputStream)
+      (fill-view! view "interfaces" interfaces)
       (render-view view)))
 
   (defn solution-template [source]

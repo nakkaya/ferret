@@ -1504,6 +1504,11 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
          "::sleep(NUMBER(timeout)->intValue());")
      (on "defined AVR_GCC"
          "::delay(NUMBER(timeout)->intValue());")))
+
+  (defn get-char []
+    (native-block
+     (on "defined GNU_GCC"
+         "__result = ferret::var(getchar());")))
 #+end_src
 
 *** Console I/O

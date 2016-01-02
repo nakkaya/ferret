@@ -156,9 +156,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
                            (sort-by #(.indexOf built-in-order (key %)))
                            (map #(second %)))
            def-objects (filter #(= 'defobject (first %)) built-in-defn)]
-       (->> form
-            (concat sorted-fns)
-            (concat def-objects))))
+       (concat def-objects sorted-fns form)))
     ([form built-in fns]
      (morph-form form symbol?
                  #(do (if-let [f (built-in %)]
@@ -330,7 +328,7 @@ the free variable problem.
     ([form]
        (let [fns (ref [])
              form (closure-conversion form fns)]
-         (vector->list (concat @fns form))))
+         (vector->list (concat form @fns))))
     ([form fns & env]
        (morph-form form
                    (is-form? 'fn)
@@ -495,10 +493,10 @@ suggests and removes the node when predicate returns true.
     (is (= (symbol-conversion '(make-adder* 2)) '(make_adder_star_ 2)))
 
     (let [form (closure-conversion '((def make-adder (fn [n] (fn [x] (+ x n))))))]
-      (is (= (ffirst form) 'define-lambda))
-      (is (= (last (first form)) '(+ x n)))
-      (is (= (second (last form)) 'make-adder))
-      (is (= (first (last form)) 'def))))
+      (is (= (first (second form)) 'define-lambda))
+      (is (= (last (second form)) '(+ x n)))
+      (is (= (second (first form)) 'make-adder))
+      (is (= (first (first form)) 'def))))
 
   (deftest transformation-macro-test
     (is (= "1 1 1 true false true true true 0 1 2 3 4 3 "
@@ -851,11 +849,11 @@ C++ skeleton.
     (let [{:keys [body lambdas symbol-table native-declarations]} source
           view (create-view "
       $object_interface$
-
-      $native_declarations:{$it$} ;separator=\"\n\"$
       
       $symbols:{VAR $it$;} ;separator=\"\n\"$
-      
+
+      $native_declarations:{$it$} ;separator=\"\n\"$      
+
       namespace ferret{
         $lambdas:{$it$} ;separator=\"\n\"$
       }

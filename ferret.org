@@ -666,10 +666,36 @@ C++ skeleton.
   (defmethod emit 'lambda_object [[_ name & env] state]
     (new-lambda name (filter #(not (= '& %)) env)))
 
+  (defn emit-native-block [form state]
+    (let [includes (->> (filter #(= 4 (count %)) (rest form))
+                        (map #(cons (nth % 1) (apply list (nth % 2))))
+                        (map (fn [[guard & headers]]
+                               (str "\n#if " guard " \n"
+                                    (apply str (map #(str "#include \"" % "\"\n") headers))
+                                    "#endif\n"))))
+          body (->> (map #(vector (second %) (last %)) (rest form))
+                    (map #(str "\n#if " (first %) " \n"
+                               (second %)
+                               "\n#endif\n")))
+          pre-ample (->> (map #(vector (second %) (drop-last (drop 3 %))) (rest form))
+                         (map #(str "\n#if " (first %) " \n"
+                                    (apply str (map (fn [line] (str line "\n")) (second %)))
+                                    "\n#endif\n")))]
+      (doseq [inc includes] 
+        (append-to! state [:native-declarations] inc))
+      (doseq [pre pre-ample] 
+        (append-to! state [:native-declarations] pre))
+      ["VAR __result" body "__result"]))
+
   (defmethod emit 'define_lambda [[_ name env args & body] state]
     (let [body (cond  (empty? body) ["VAR()"]
-                      (string? (first body))
+                      (and (= 1 (count body))
+                           (string? (first body)))
                       ["VAR __result" body "__result"]
+                      (and (= 1 (count body))
+                           (seq? (-> body first))
+                           (= 'native_block (-> body first first)))
+                      (emit-native-block (first body) state)
                       :default (doall (map #(emit % state) body)))
           env (filter #(not (= '& %)) env)
           reg-args (take-while #(not (= '& %)) args)
@@ -1469,6 +1495,19 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
     (list 'def name (cons 'fn `( ~args ~@body))))
 #+end_src
 
+*** Misc
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no
+  (defn sleep [timeout]
+    (native-block
+     (on "defined GNU_GCC"
+         ("unistd.h")
+         "::sleep(NUMBER(timeout)->intValue());")
+     (on "defined AVR_GCC"
+         "::delay(NUMBER(timeout)->intValue());")))
+#+end_src
+
 *** Console I/O
 
 #+name: runtime-clojure-console-io
@@ -1899,8 +1938,6 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
         digitalWrite(NUMBER(pin)->intValue(), HIGH);
      else
         digitalWrite(NUMBER(pin)->intValue(), LOW);")
-
-  (defn sleep [timeout] "::delay(NUMBER(timeout)->intValue());")
 #+end_src
 
 * Misc
@@ -2227,5 +2264,6 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
   <<runtime-clojure-math>>
   <<runtime-clojure-bit-operations>>
   <<runtime-clojure-console-io>>
+  <<runtime-clojure-misc>>
   <<runtime-clojure-arduino>>
 #+end_src

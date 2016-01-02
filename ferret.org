@@ -1921,6 +1921,42 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                                     (bit-shift-right 4 2)))))))
 #+end_src
 
+*** Concurrency
+
+Runs the given lambda in a posix thread,
+
+#+name: runtime-clojure-bit-operations
+#+begin_src clojure :tangle no
+  (defn pthread-create [f]
+    (native-block
+     (on "defined GNU_GCC"
+         ("pthread.h")
+          "void *PTHREAD_LAMBDA_INVOKER(void *data) {
+            ferret::var fn = ferret::var(static_cast<ferret::Object*>(data));
+            OBJECT(fn)->subRef();
+            INVOKE(fn);
+            pthread_exit(NULL);
+           }"
+          "pthread_t th;
+           OBJECT(f)->addRef();
+           if(::pthread_create(&th, 0, &PTHREAD_LAMBDA_INVOKER, static_cast<void*>(f.get())))
+             return VAR();
+           __result = pthread_detach(th);")))
+#+end_src
+
+#+name: runtime-clojure-bit-operations-tests
+#+begin_src clojure :tangle no
+  (deftest pthreads-test
+    (is (= "Thread-1 Thread-2 "
+           (capture-output '((defn print-some [y x]
+                               (fn []
+                                 (sleep y)
+                                 (print x)))
+                             (pthread-create (print-some 0 "Thread-1"))
+                             (pthread-create (print-some 1 "Thread-2"))
+                             (sleep 3))))))
+#+end_src
+
 *** Arduino
 
 #+name: runtime-clojure-arduino

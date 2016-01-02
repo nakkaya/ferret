@@ -1367,6 +1367,62 @@ reaches zero it will automatically free the Object.
   };
 #+end_src
 
+*** Program Header
+
+#+name: runtime-native-program-header
+#+begin_src c++ :tangle no
+  #ifdef __AVR__
+  # define AVR_GCC TRUE
+  #else
+  # define GNU_GCC TRUE
+  #endif
+
+  #include <stdlib.h>
+  #include <stdio.h>
+
+  #ifdef GNU_GCC
+  #include <iostream>
+  #include <sstream>
+  #endif
+
+  #ifdef AVR_GCC
+  #include "Arduino.h"
+  #endif
+
+  //
+  // Compiler Specific
+  //
+
+  #ifdef AVR_GCC
+  extern "C" void __cxa_pure_virtual(void); 
+
+  static FILE uartout = {0};
+
+  static int uart_putchar (char c, FILE *stream){
+    Serial.write(c);
+    return 0 ;
+  }
+
+  #define OUTPUT_STREAM &uartout
+
+  #define INIT_ENV                                                        \
+    init();                                                               \
+    Serial.begin(9600);                                                   \
+    fdev_setup_stream (&uartout, uart_putchar, NULL, _FDEV_SETUP_WRITE);  \
+
+  #endif
+
+  #ifdef GNU_GCC
+  #define OUTPUT_STREAM stdout
+  #define INIT_ENV 
+  #endif
+
+  #define VAR ferret::var
+
+  #define MIN(a,b) ((a)<(b)?(a):(b))
+  #define ABS(a) ((a)<0 ? -(a) : (a))
+#+end_src
+
 ** Lisp
 
 Once our object system is in place we can define rest of the runtime
@@ -2128,56 +2184,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 ** resources/Object.cpp
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle ferret/resources/Object.cpp
-  #ifdef __AVR__
-  # define AVR_GCC TRUE
-  #else
-  # define GNU_GCC TRUE
-  #endif
-
-  #include <stdlib.h>
-  #include <stdio.h>
-
-  #ifdef GNU_GCC
-  #include <iostream>
-  #include <sstream>
-  #endif
-
-  #ifdef AVR_GCC
-  #include "Arduino.h"
-  #endif
-
-  //
-  // Compiler Specific
-  //
-
-  #ifdef AVR_GCC
-  extern "C" void __cxa_pure_virtual(void); 
-
-  static FILE uartout = {0};
-
-  static int uart_putchar (char c, FILE *stream){
-    Serial.write(c);
-    return 0 ;
-  }
-
-  #define OUTPUT_STREAM &uartout
-
-  #define INIT_ENV                                                        \
-    init();                                                               \
-    Serial.begin(9600);                                                   \
-    fdev_setup_stream (&uartout, uart_putchar, NULL, _FDEV_SETUP_WRITE);  \
-
-  #endif
-
-  #ifdef GNU_GCC
-  #define OUTPUT_STREAM stdout
-  #define INIT_ENV 
-  #endif
-
-  #define VAR ferret::var
-
-  #define MIN(a,b) ((a)<(b)?(a):(b))
-  #define ABS(a) ((a)<0 ? -(a) : (a))
+  <<runtime-native-program-header>>
 
   <<runtime-native-object-casting-macros>>
 

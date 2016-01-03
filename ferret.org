@@ -186,7 +186,7 @@ is replaced with its expanded form.
       
       (create-ns temp-ns)
       (binding [*ns* (the-ns temp-ns)]
-        (refer 'clojure.core :exclude (concat (map second macros) ['fn 'let 'def]))
+        (refer 'clojure.core :exclude (concat (map second macros) ['fn 'let* 'def]))
         (doseq [m macros]
           (eval m)))
 
@@ -246,7 +246,7 @@ after transformation becomes,
 #+begin_src clojure :tangle no
   (defn let->fn [form]
     (morph-form form
-                (is-form? 'let)
+                (is-form? 'let*)
                 (fn [[_ bindings & body]]
                   (let [bindings (partition 2 bindings)
                         vars (flatten (map first bindings))
@@ -592,7 +592,6 @@ string based on the form.
                          (is-special-form? 'native_declare form) 'native_declare
                          (is-special-form? 'if form) 'if
                          (is-special-form? 'def form) 'def
-                         (is-special-form? 'reduce form) 'reduce
                          (to-str? form) :to-str
                          (keyword? form) :keyword
                          (number? form) :number
@@ -710,13 +709,6 @@ C++ skeleton.
           t (emit t state)
           f (if (nil? f) "VAR()" (emit f state))]
       (if-statement cond t f)))
-
-  (defmethod emit 'reduce [[_ & args] state]
-    (if (= 2 (count args))
-      (let [[f s] args]
-        (str "(ISEEKABLE(" (emit s state) ")->reduce(" (emit f state) "))"))
-      (let [[f v s] args]
-        (str "(ISEEKABLE(" (emit s state) ")->reduce(" (emit f state) " , " (emit v state) "))"))))
 
   (defmethod emit 'def [[_ name & form] state]
     (append-to! state [:symbol-table] name)
@@ -1117,9 +1109,7 @@ Math configuration,
     (interfaces "void cons(var x)"
                 "var first()"
                 "var rest()"
-                "var nth(var i)"
-                "var reduce(var f)"
-                "var reduce(var f, var acc)")
+                "var nth(var i)")
     (fns ("virtual ~ISeekable" "" "")))
 #+end_src
 
@@ -1191,16 +1181,7 @@ Math configuration,
         }
         return CELL(it)->data;")
       ("var clone" ""
-       "return var(new ferret::Sequence(head));")
-      ("var reduce" "var f"
-       "var acc = INVOKE(f,CELL(head)->data,CELL(CELL(head)->next)->data);
-        for(var it = CELL(CELL(head)->next)->next; IS_NOT_NIL(it) ; it = CELL(it)->next)
-          acc = INVOKE(f, CELL(it)->data, acc);
-        return acc;")
-      ("var reduce" "var f, var acc"
-       "for(var it = head; IS_NOT_NIL(it) ; it = CELL(it)->next)
-          acc = INVOKE(f, CELL(it)->data, acc);
-        return acc;"))
+       "return var(new ferret::Sequence(head));"))
     (post-code
      "ferret::var& ferret::var::operator, (const var& m){
         static_cast<ferret::Sequence*>(m_ptr)->cons(m);
@@ -1252,10 +1233,6 @@ Math configuration,
       "return ISEEKABLE(data)->nth(i);")
      ("var getData" ""
       "return data;")
-     ("var reduce" "var f"
-      "return ISEEKABLE(data)->reduce(f);")
-     ("var reduce" "var f, var acc"
-      "return ISEEKABLE(data)->reduce(f,acc);")
      ("ifdef GNU_GCC"
       "std::string toString" ""
       "std::stringstream ss;
@@ -1502,6 +1479,9 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+begin_src clojure :tangle no
   (defmacro defn [name args & body]
     (list 'def name (cons 'fn `( ~args ~@body))))
+
+  (defmacro let [bindings & body]
+    (cons 'let* `(~bindings ~@body)))
 #+end_src
 
 *** Misc
@@ -1593,6 +1573,29 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+end_src
 
 *** Sequence
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
+  (defn _reduce_2_arg_ [f coll]
+    "var first = ISEEKABLE(coll)->first();
+     var rest = ISEEKABLE(coll)->rest();
+     var acc = INVOKE(f,first,ISEEKABLE(rest)->first());
+     for(var it = ISEEKABLE(rest)->rest(); IS_NOT_NIL(it) ; it = ISEEKABLE(it)->rest())
+       acc = INVOKE(f, ISEEKABLE(it)->first(), acc);
+     return acc;")
+
+  (defn _reduce_3_arg_ [f val coll]
+    "if (IS_NIL(coll) || IS_NIL(SEQUENCE(coll)->head))
+      return val;
+     for(var it = coll; IS_NOT_NIL(it) ; it = ISEEKABLE(it)->rest())
+        val = INVOKE(f, ISEEKABLE(it)->first(), val);
+     return val;")
+
+  (defmacro reduce [& args]
+    (if (= 2 (count args))
+      (cons '_reduce_2_arg_ `~args)
+      (cons '_reduce_3_arg_ `~args)))
+#+end_src
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no

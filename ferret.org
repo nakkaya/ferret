@@ -1159,10 +1159,7 @@ Math configuration,
 
     (fns
       ("void cons" "var x"
-       "var v = var(new Cell());
-        CELL(v)->data = x;
-        CELL(v)->next = head;
-        head = v;")
+       "head = var(new Cell(x,head));")
       ("var first" ""
        "if (head.get() == NULL )
          return var();
@@ -1207,7 +1204,7 @@ Math configuration,
     (equals
      "if (OBJECT(o)->getType() != STRING_TYPE)
        return false;
-      return data.equals(STRING(o)->getData());")
+      return data.equals(STRING(o)->data);")
     (toOutputStream
      "for(var it = data; IS_NOT_NIL(it) ; it = ISEEKABLE(it)->rest()){
          OBJECT(ISEEKABLE(it)->first())->toOutputStream();
@@ -1222,8 +1219,6 @@ Math configuration,
       "return ISEEKABLE(data)->first();")
      ("var rest" ""
       "return ISEEKABLE(data)->rest();")
-     ("var getData" ""
-      "return data;")
      ("ifdef GNU_GCC"
       "std::string toString" ""
       "std::stringstream ss;

@@ -1144,15 +1144,15 @@ Math configuration,
      "if (OBJECT(o)->getType() != SEQUENCE_TYPE)
        return false;
       var itOther = o;
-      for(var it = this; IS_NOT_NIL(it) && IS_NOT_NIL(itOther) ; it = SEQUENCE(it)->rest()){
-        if (SEQUENCE(it)->first().equals(SEQUENCE(itOther)->first())  == false)
+      ITERATE(this,it){
+        if (IS_NIL(itOther) || FIRST(it).equals(FIRST(itOther))  == false)
           return false;
-            itOther = SEQUENCE(itOther)->rest();
-     }
-     return true;")
+        itOther = REST(itOther);
+      }
+      return true;")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"( \");
-      ITERATE(var(new Sequence(head)),it){
+      ITERATE(this,it){
         FIRST(it).toOutputStream();
         fprintf(OUTPUT_STREAM, \" \");
       }
@@ -1174,7 +1174,7 @@ Math configuration,
          return var(new Sequence(CELL(head)->next));"))
     (post-code
      "ferret::var& ferret::var::operator, (const var& m){
-        *this = static_cast<ferret::Sequence*>(m_ptr)->cons(m);
+        ,*this = static_cast<ferret::Sequence*>(m_ptr)->cons(m);
         return *this;
       }"))
 #+end_src
@@ -1203,23 +1203,20 @@ Math configuration,
        return false;
       return data.equals(STRING(o)->data);")
     (toOutputStream
-     "for(var it = data; IS_NOT_NIL(it) ; it = ISEEKABLE(it)->rest()){
-         OBJECT(ISEEKABLE(it)->first())->toOutputStream();
-      }
+     "ITERATE(data,it){ FIRST(it).toOutputStream(); }
       return var();")
     (fns
      ("var cons" "var x"
       "return ISEEKABLE(data)->cons(x);")
      ("var first" ""
-      "return ISEEKABLE(data)->first();")
+      "return FIRST(data);")
      ("var rest" ""
-      "return ISEEKABLE(data)->rest();")
+      "return REST(data);")
      ("ifdef GNU_GCC"
       "std::string toString" ""
       "std::stringstream ss;
-        for(var it = data; IS_NOT_NIL(it) ; it = ISEEKABLE(it)->rest())
-          ss << CHARACTER(ISEEKABLE(it)->first())->value;
-        return ss.str();")))
+       ITERATE(data,it){ss << CHARACTER(FIRST(it))->value;}
+       return ss.str();")))
 #+end_src
 
 #+name: native-string-tests
@@ -1433,7 +1430,7 @@ Once our object system is in place we can define rest of the runtime
     "if(x.get() == NULL)
       __result = VAR();
     else
-      __result = SEQUENCE(x)->first();")
+      __result = FIRST(x);")
 
   (defn nil? [x] "__result = (x.get() == NULL)")
 
@@ -1488,8 +1485,8 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-console-io
 #+begin_src clojure :tangle no
   (defn print [& more]
-    "for(var it = ISEEKABLE(more); IS_NOT_NIL(it) ; it = ISEEKABLE(it)->rest()){
-         ISEEKABLE(it)->first().toOutputStream();
+    "ITERATE(more,it){
+         FIRST(it).toOutputStream();
          fprintf(OUTPUT_STREAM, \" \");
      }")
 
@@ -1559,18 +1556,20 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn _reduce_2_arg_ [f coll]
-    "var first = ISEEKABLE(coll)->first();
-     var rest = ISEEKABLE(coll)->rest();
-     var acc = INVOKE(f,first,ISEEKABLE(rest)->first());
-     for(var it = ISEEKABLE(rest)->rest(); IS_NOT_NIL(it) ; it = ISEEKABLE(it)->rest())
-       acc = INVOKE(f, ISEEKABLE(it)->first(), acc);
+    "var first = FIRST(coll);
+     var rest = REST(coll);
+     var acc = INVOKE(f,first,FIRST(rest));
+     ITERATE(REST(rest),it){
+       acc = INVOKE(f, FIRST(it), acc);
+     }
      return acc;")
 
   (defn _reduce_3_arg_ [f val coll]
     "if (IS_NIL(coll) || IS_NIL(SEQUENCE(coll)->head))
       return val;
-     for(var it = coll; IS_NOT_NIL(it) ; it = ISEEKABLE(it)->rest())
-        val = INVOKE(f, ISEEKABLE(it)->first(), val);
+     ITERATE(coll,it){
+       val = INVOKE(f, FIRST(it), val);
+     }
      return val;")
 
   (defmacro reduce [& args]
@@ -1587,7 +1586,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
   (defn empty? [x] "__result = (IS_NIL(x) || IS_NIL(SEQUENCE(x)->head))")
 
-  (defn rest [x] "__result = SEQUENCE(x)->rest();")
+  (defn rest [x] "__result = REST(x);")
 
   (defn cons [x seq] "if IS_NIL(seq)
                        seq = VAR(new Sequence());
@@ -1602,8 +1601,9 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
     (reduce conj (list) s))
 
   (defn count [s] "NUMBER_DATA_TYPE count = (NUMBER_DATA_TYPE)0;
-                   for(var it = s; IS_NOT_NIL(it) ; it = ISEEKABLE(it)->rest())
+                   ITERATE(s,it){
                      count = count + 1;
+                   }
                    __result = VAR(count);")
 #+end_src
 

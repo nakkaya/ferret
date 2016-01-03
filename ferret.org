@@ -1507,9 +1507,10 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-console-io
 #+begin_src clojure :tangle no
   (defn print [& more]
-    (dotimes [i (count more)]
-      "SEQUENCE(more)->nth(NUMBER(i)->intValue()).toOutputStream();
-       fprintf(OUTPUT_STREAM, \" \");"))
+    "for(var it = ISEEKABLE(more); IS_NOT_NIL(it) ; it = ISEEKABLE(it)->rest()){
+         ISEEKABLE(it)->first().toOutputStream();
+         fprintf(OUTPUT_STREAM, \" \");
+     }")
 
   (defn newline []
     "fprintf(OUTPUT_STREAM, \"\\n\");")

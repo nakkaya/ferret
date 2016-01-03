@@ -864,7 +864,8 @@ C++ skeleton.
       #ifdef GNU_GCC
         _star_command_line_args_star_ = VAR(new ferret::Sequence());
         for (int i = argc - 1; i > -1 ; i--)
-          SEQUENCE(_star_command_line_args_star_)->cons(VAR(new ferret::String(argv[i])));
+          _star_command_line_args_star_ =
+             SEQUENCE(_star_command_line_args_star_)->cons(VAR(new ferret::String(argv[i])));
       #endif
         $body:{$it$;} ;separator=\"\n\"$
         return 0;
@@ -1103,7 +1104,7 @@ Math configuration,
 #+name: runtime-clojure-seekable-interface
 #+begin_src clojure :tangle no
   (defobject ISeekable
-    (interfaces "void cons(var x)"
+    (interfaces "var cons(var x)"
                 "var first()"
                 "var rest()")
     (fns ("virtual ~ISeekable" "" "")))
@@ -1158,8 +1159,8 @@ Math configuration,
       return var();")
 
     (fns
-      ("void cons" "var x"
-       "head = var(new Cell(x,head));")
+      ("var cons" "var x"
+       "return var(new Sequence(var(new Cell(x,head))));")
       ("var first" ""
        "if (head.get() == NULL )
          return var();
@@ -1169,12 +1170,10 @@ Math configuration,
        "if ( head.get() == NULL || CELL(head)->next.get() == NULL )
          return var();
         else
-         return var(new Sequence(CELL(head)->next));")
-      ("var clone" ""
-       "return var(new ferret::Sequence(head));"))
+         return var(new Sequence(CELL(head)->next));"))
     (post-code
      "ferret::var& ferret::var::operator, (const var& m){
-        static_cast<ferret::Sequence*>(m_ptr)->cons(m);
+        *this = static_cast<ferret::Sequence*>(m_ptr)->cons(m);
         return *this;
       }"))
 #+end_src
@@ -1195,11 +1194,8 @@ Math configuration,
            for (length = 0; str[length] != '\\0'; length++);
            length--;
            var s = var(new Sequence());
-               
-           for (int i = length; i >= 0; i--){
-             var ch = VAR(new ferret::Character(str[i]));
-             s = (SEQUENCE(s)->clone(),ch);
-           }
+           for (int i = length; i >= 0; i--)
+             s = ISEEKABLE(s)->cons(VAR(new ferret::Character(str[i])));
            data = s;"))
     (equals
      "if (OBJECT(o)->getType() != STRING_TYPE)
@@ -1211,10 +1207,8 @@ Math configuration,
       }
       return var();")
     (fns
-     ("var clone" ""
-      "return var(new String(data));")
-     ("void cons" "var x"
-      "ISEEKABLE(data)->cons(x);")
+     ("var cons" "var x"
+      "return ISEEKABLE(data)->cons(x);")
      ("var first" ""
       "return ISEEKABLE(data)->first();")
      ("var rest" ""
@@ -1594,7 +1588,9 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
   (defn rest [x] "__result = SEQUENCE(x)->rest();")
 
-  (defn cons [x seq] "__result = (SEQUENCE(seq)->clone(),x);")
+  (defn cons [x seq] "if IS_NIL(seq)
+                       seq = VAR(new Sequence());
+                      __result = SEQUENCE(seq)->cons(x);")
 
   (defn apply [f args] "__result = LAMBDA(f)->invoke(args);")
 

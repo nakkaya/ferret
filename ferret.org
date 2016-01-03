@@ -898,6 +898,8 @@ Object Casting macros,
 
 #+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
+  #define IS_NIL(o) (o.get() == NULL)
+  #define IS_NOT_NIL(o) (o.get() != NULL)
   #define OBJECT(v) static_cast<ferret::Object*>(v.get())
   #define POINTER(v) static_cast<ferret::Pointer*>(v.get())
   #define NUMBER(v) static_cast<ferret::Number*>(v.get())
@@ -1116,7 +1118,6 @@ Math configuration,
                 "var first()"
                 "var rest()"
                 "var nth(var i)"
-                "bool isEmpty()"
                 "var reduce(var f)"
                 "var reduce(var f, var acc)")
     (fns ("virtual ~ISeekable" "" "")))
@@ -1149,16 +1150,15 @@ Math configuration,
      "if (OBJECT(o)->getType() != SEQUENCE_TYPE)
        return false;
       var itOther = o;
-      for(var it = this; !SEQUENCE(it)->isEmpty(); it = SEQUENCE(it)->rest()){
-        if (SEQUENCE(itOther)->isEmpty() || 
-            SEQUENCE(it)->first().equals(SEQUENCE(itOther)->first())  == false)
+      for(var it = this; IS_NOT_NIL(it) && IS_NOT_NIL(itOther) ; it = SEQUENCE(it)->rest()){
+        if (SEQUENCE(it)->first().equals(SEQUENCE(itOther)->first())  == false)
           return false;
             itOther = SEQUENCE(itOther)->rest();
      }
      return true;")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"( \");
-      for(var it = head; it.get() != NULL ; it = CELL(it)->next){
+      for(var it = head; IS_NOT_NIL(it) ; it = CELL(it)->next){
         OBJECT(CELL(it)->data)->toOutputStream();
         fprintf(OUTPUT_STREAM, \" \");
       }
@@ -1178,7 +1178,7 @@ Math configuration,
          return CELL(head)->data;")
       ("var rest" ""
        "if ( head.get() == NULL || CELL(head)->next.get() == NULL )
-         return var(new Sequence());
+         return var();
         else
          return var(new Sequence(CELL(head)->next));")
       ("var nth" "var i"
@@ -1190,19 +1190,15 @@ Math configuration,
         it = CELL(it)->next;
         }
         return CELL(it)->data;")
-      ("bool isEmpty" ""
-       "if (head.get() == NULL)
-          return true;
-        return false;")
       ("var clone" ""
        "return var(new ferret::Sequence(head));")
       ("var reduce" "var f"
        "var acc = INVOKE(f,CELL(head)->data,CELL(CELL(head)->next)->data);
-        for(var it = CELL(CELL(head)->next)->next; it.get() != NULL ; it = CELL(it)->next)
+        for(var it = CELL(CELL(head)->next)->next; IS_NOT_NIL(it) ; it = CELL(it)->next)
           acc = INVOKE(f, CELL(it)->data, acc);
         return acc;")
       ("var reduce" "var f, var acc"
-       "for(var it = head; it.get() != NULL ; it = CELL(it)->next)
+       "for(var it = head; IS_NOT_NIL(it) ; it = CELL(it)->next)
           acc = INVOKE(f, CELL(it)->data, acc);
         return acc;"))
     (post-code
@@ -1239,7 +1235,7 @@ Math configuration,
        return false;
       return data.equals(STRING(o)->getData());")
     (toOutputStream
-     "for(var it = data; ISEEKABLE(it)->isEmpty() == false ; it = ISEEKABLE(it)->rest()){
+     "for(var it = data; IS_NOT_NIL(it) ; it = ISEEKABLE(it)->rest()){
          OBJECT(ISEEKABLE(it)->first())->toOutputStream();
       }
       return var();")
@@ -1254,8 +1250,6 @@ Math configuration,
       "return ISEEKABLE(data)->rest();")
      ("var nth" "var i"
       "return ISEEKABLE(data)->nth(i);")
-     ("bool isEmpty" ""
-      "return ISEEKABLE(data)->isEmpty();")
      ("var getData" ""
       "return data;")
      ("var reduce" "var f"
@@ -1265,7 +1259,7 @@ Math configuration,
      ("ifdef GNU_GCC"
       "std::string toString" ""
       "std::stringstream ss;
-        for(var it = data; ISEEKABLE(it)->isEmpty() == false ; it = ISEEKABLE(it)->rest())
+        for(var it = data; IS_NOT_NIL(it) ; it = ISEEKABLE(it)->rest())
           ss << CHARACTER(ISEEKABLE(it)->first())->value;
         return ss.str();")))
 #+end_src
@@ -1606,7 +1600,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
   (defn list? [x] "__result = (OBJECT(x)->getType() == SEQUENCE_TYPE);")
 
-  (defn empty? [x] "__result = SEQUENCE(x)->isEmpty();")
+  (defn empty? [x] "__result = (IS_NIL(x) || IS_NIL(SEQUENCE(x)->head))")
 
   (defn rest [x] "__result = SEQUENCE(x)->rest();")
 
@@ -1621,7 +1615,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
     (reduce conj (list) s))
 
   (defn count [s] "NUMBER_DATA_TYPE count = (NUMBER_DATA_TYPE)0;
-                   for(var it = s; ISEEKABLE(it)->isEmpty() == false ; it = ISEEKABLE(it)->rest())
+                   for(var it = s; IS_NOT_NIL(it) ; it = ISEEKABLE(it)->rest())
                      count = count + 1;
                    __result = VAR(count);")
 #+end_src

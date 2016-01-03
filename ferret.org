@@ -1111,9 +1111,10 @@ Math configuration,
 #+end_src
 
 #+name: runtime-native-iseekable-macros
-#+begin_src clojure :tangle no
+#+begin_src c++ :tangle no
   #define FIRST(coll) (ISEEKABLE(coll)->first())
   #define REST(coll) (ISEEKABLE(coll)->rest())
+  #define ITERATE(c,i) for(var i = c; IS_NOT_NIL(i) ; it = REST(i))
 #+end_src
 
 *** Sequence
@@ -1151,23 +1152,23 @@ Math configuration,
      return true;")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"( \");
-      for(var it = head; IS_NOT_NIL(it) ; it = CELL(it)->next){
-        OBJECT(CELL(it)->data)->toOutputStream();
+      ITERATE(var(new Sequence(head)),it){
+        FIRST(it).toOutputStream();
         fprintf(OUTPUT_STREAM, \" \");
       }
       fprintf(OUTPUT_STREAM, \")\");
       return var();")
 
     (fns
-      ("var cons" "var x"
-       "return var(new Sequence(var(new Cell(x,head))));")
-      ("var first" ""
-       "if (head.get() == NULL )
+     ("var cons" "var x"
+      "return var(new Sequence(var(new Cell(x,head))));")
+     ("var first" ""
+      "if (head.get() == NULL )
          return var();
         else
          return CELL(head)->data;")
-      ("var rest" ""
-       "if ( head.get() == NULL || CELL(head)->next.get() == NULL )
+     ("var rest" ""
+      "if ( head.get() == NULL || CELL(head)->next.get() == NULL )
          return var();
         else
          return var(new Sequence(CELL(head)->next));"))
@@ -1609,7 +1610,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-sequences-tests
 #+begin_src clojure :tangle no
   (deftest sequences-test
-    (is (= "( 1 2 3 4 ) 1 ( 2 3 4 ) ( 3 4 ) ( 3 3 4 ) 3 4 ( 4 3 2 1 1 2 ) ( 4 3 2 1 ) 21 21 "
+    (is (= "( 1 2 3 4 ) 1 ( 2 3 4 ) ( 3 4 ) ( 3 3 4 ) 3 4 ( 4 3 2 1 1 2 ) ( 4 3 2 1 ) 21 21 ( nil ) ( 1 ) "
            (capture-output '((print (list 1 2 3 4)
                                     (first (list 1 2 3 4))
                                     (rest (list 1 2 3 4))
@@ -1620,7 +1621,9 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                                     (conj (list 1 2) 1 2 3 4)
                                     (conj nil 1 2 3 4)
                                     (reduce + (list 1 2 3 4 5 6))
-                                    (apply + (list 1 2 3 4 5 6)))))))
+                                    (apply + (list 1 2 3 4 5 6))
+                                    (cons nil nil)
+                                    (cons 1 nil))))))
     (is (= "( 6 5 4 3 2 1 ) ( 6 5 4 3 2 ) ( 4 3 2 1 0 ) ( . o l l e H ) "
            (capture-output '((print (reverse (list 1 2 3 4 5 6))
                                     (reduce (fn [h v]

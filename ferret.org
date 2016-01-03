@@ -849,7 +849,11 @@ C++ skeleton.
     (let [{:keys [body lambdas symbol-table native-declarations]} source
           view (create-view "
       $object_interface$
-      
+
+      #ifdef GNU_GCC
+        VAR _star_command_line_args_star_;
+      #endif
+
       $symbols:{VAR $it$;} ;separator=\"\n\"$
 
       $native_declarations:{$it$} ;separator=\"\n\"$      
@@ -857,9 +861,22 @@ C++ skeleton.
       namespace ferret{
         $lambdas:{$it$} ;separator=\"\n\"$
       }
-      
+
+      #ifdef GNU_GCC
+      int main(int argc, char* argv[]){
+      #endif
+
+      #ifdef AVR_GCC
       int main(void){
+      #endif
+      
         INIT_ENV
+
+      #ifdef GNU_GCC
+        _star_command_line_args_star_ = VAR(new ferret::Sequence());
+        for (int i = argc - 1; i > -1 ; i--)
+          SEQUENCE(_star_command_line_args_star_)->cons(VAR(new ferret::String(argv[i])));
+      #endif
         $body:{$it$;} ;separator=\"\n\"$
         return 0;
       }")]

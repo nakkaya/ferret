@@ -698,10 +698,7 @@ C++ skeleton.
           reg-args (take-while #(not (= '& %)) args)
           va-args (if (some #{'&} args)
                     (let [arg (last args)]
-                      (str "VAR " arg " = "
-                           (reduce (fn[h v]
-                                     (str "SEQUENCE(" h ")->rest()"))
-                                   "_args_" (range (count reg-args))) ";\n")))]
+                      (str "VAR " arg " = _args_;\n")))]
       (append-to! state [:lambdas] {:name name :env env :args reg-args :var_args va-args :body body}) ""))
 
   (defmethod emit 'if [[_ cond t f] state]
@@ -753,7 +750,7 @@ C++ skeleton.
           }
 
           VAR invoke (VAR _args_){
-            $lambda.args:{args | VAR $last(args)$ = SEQUENCE(_args_)->nth($first(args)$); } ;separator=\"\n\"$
+            $lambda.args:{args | VAR $last(args)$ = FIRST(_args_); _args_ = REST(_args_); } ;separator=\"\n\"$
 
             $lambda.var_args$
 
@@ -1108,9 +1105,14 @@ Math configuration,
   (defobject ISeekable
     (interfaces "void cons(var x)"
                 "var first()"
-                "var rest()"
-                "var nth(var i)")
+                "var rest()")
     (fns ("virtual ~ISeekable" "" "")))
+#+end_src
+
+#+name: runtime-native-iseekable-macros
+#+begin_src clojure :tangle no
+  #define FIRST(coll) (ISEEKABLE(coll)->first())
+  #define REST(coll) (ISEEKABLE(coll)->rest())
 #+end_src
 
 *** Sequence
@@ -1171,15 +1173,6 @@ Math configuration,
          return var();
         else
          return var(new Sequence(CELL(head)->next));")
-      ("var nth" "var i"
-       "var it = head;
-        int index = NUMBER(i)->intValue();
-        for(int i = 0 ; i < index; i++){
-          if ((CELL(it)->next).get() == NULL )
-             return VAR();
-        it = CELL(it)->next;
-        }
-        return CELL(it)->data;")
       ("var clone" ""
        "return var(new ferret::Sequence(head));"))
     (post-code
@@ -1229,8 +1222,6 @@ Math configuration,
       "return ISEEKABLE(data)->first();")
      ("var rest" ""
       "return ISEEKABLE(data)->rest();")
-     ("var nth" "var i"
-      "return ISEEKABLE(data)->nth(i);")
      ("var getData" ""
       "return data;")
      ("ifdef GNU_GCC"
@@ -2286,6 +2277,8 @@ Runs the given lambda in a posix thread,
   <<runtime-native-object-casting-macros>>
 
   <<runtime-native-lambda-invoke-macros>>
+
+  <<runtime-native-iseekable-macros>>
 
   <<runtime-native-math-config>>
 

@@ -851,13 +851,7 @@ C++ skeleton.
         $lambdas:{$it$} ;separator=\"\n\"$
       }
 
-      #ifdef GNU_GCC
       int main(int argc, char* argv[]){
-      #endif
-
-      #ifdef AVR_GCC
-      int main(void){
-      #endif
       
         INIT_ENV
 

@@ -1504,6 +1504,11 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
 #+name: runtime-clojure-looping
 #+begin_src clojure :tangle no
+  (defmacro doseq [binding & body]
+    (list '_doseq_ (second binding) (cons 'fn `( [~(first binding)] ~@body))))
+
+  (defn _doseq_ [seq f] "ITERATE(seq,it){INVOKE(f,FIRST(it));}")
+
   (defmacro dotimes [binding & body]
     (list '_dotimes_ (second binding) (cons 'fn `( [~(first binding)] ~@body))))
 

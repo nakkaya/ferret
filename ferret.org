@@ -951,6 +951,11 @@ new/delete is needed because in avr-gcc they are not defined.)
      "fprintf(OUTPUT_STREAM, \"Pointer\"); return var();"))
 #+end_src
 
+#+name: runtime-native-iseekable-macros
+#+begin_src c++ :tangle no
+  #define TO_POINTER(p,type) ((type *)POINTER(p)->ptr)
+#+end_src
+
 *** Number
 
 Math configuration,
@@ -1211,6 +1216,11 @@ Math configuration,
       "std::stringstream ss;
        ITERATE(data,it){ss << CHARACTER(FIRST(it))->value;}
        return ss.str();")))
+#+end_src
+
+#+name: runtime-native-iseekable-macros
+#+begin_src c++ :tangle no
+  #define TO_C_STR(s) (STRING(s)->toString().c_str())
 #+end_src
 
 #+name: native-string-tests

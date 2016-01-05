@@ -264,6 +264,7 @@ is replaced with its expanded form.
       (create-ns temp-ns)
       (binding [*ns* (the-ns temp-ns)]
         (refer 'clojure.core :exclude (concat (map second macros) ['fn 'let* 'def]))
+        (use '[ferret.core :only [symbol-conversion]])
         (doseq [m macros]
           (eval m)))
 

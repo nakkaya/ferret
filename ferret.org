@@ -2416,7 +2416,7 @@ Runs the given lambda in a posix thread,
   (defn capture-output [form]
     (let [options (compile-options)]
       (compile->cpp form options)
-      (compile->binary options)
+      (compile->binary options [])
       (with-sh-dir "./"
         (let [r (sh "./a.out")]
           (:out r)))))

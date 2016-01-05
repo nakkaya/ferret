@@ -1128,6 +1128,11 @@ Math configuration,
     }"))
 #+end_src
 
+#+name: runtime-native-math-config
+#+begin_src c++ :tangle no
+  #define TO_INT(i) (NUMBER(i)->intValue())
+#+end_src
+
 *** Keyword
 
 #+name: runtime-clojure-keyword-object

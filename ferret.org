@@ -49,7 +49,7 @@ file.
 #+end_src 
 
 #+begin_src clojure :mkdirp yes :tangle ferret/examples/sqlite.clj
-  (native-declare "#include \"sqlite3.h\"")
+  (native-header sqlite3.h)
 
   (defn open-db []
     "sqlite3 *db;
@@ -150,8 +150,8 @@ Compile the file using,
 Display webcam in a window.
 
 #+begin_src clojure :mkdirp yes :tangle ferret/examples/webcam.clj
-  (native-declare "#include \"opencv/cv.h\"
-                   #include \"opencv/highgui.h\"")
+  (native-header "opencv/cv.h"
+                 "opencv/highgui.h")
   
   (defn wait-key [i] "__result = var((char)cvWaitKey(NUMBER(i)->intValue()));")
   
@@ -1546,6 +1546,12 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
   (defmacro let [bindings & body]
     (cons 'let* `(~bindings ~@body)))
+
+  (defmacro native-header [& body]
+    (cons 'native-declare
+          (->> (map #(str "#include \"" (str %) "\"\n") body)
+               (apply str)
+               (list))))
 #+end_src
 
 *** Misc

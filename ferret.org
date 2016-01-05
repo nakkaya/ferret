@@ -1576,6 +1576,15 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
     (native-block
      (on "defined GNU_GCC"
          "__result = ferret::var(getchar());")))
+
+  (defmacro create-callback [callback out in & pass-vars]
+    (list 'do
+          (list 'native-declare
+                `~(str "\n" out " " (symbol-conversion callback) "_callback" "(" in "){\n"
+                       "INVOKE(" (str (symbol-conversion callback) "_callback_fn")
+                       (str \, (apply str (interpose " , " (reverse pass-vars)))) ");"
+                       "\n}\n"))
+          (list 'def `~(symbol (str callback "-callback-fn")) `~callback)))
 #+end_src
 
 *** Console I/O

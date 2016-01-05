@@ -2132,12 +2132,19 @@ Runs the given lambda in a posix thread,
       (let [source (emit-source form)]
         (write-to-solution (solution-template source) (str "solution." (:source-extension options)))))
 
-    (defn compile->binary [options]
+    (defn compile->binary [options extra-source-files]
       (let [command (flatten [(:compiler options)
                               (map #(str %) (:compiler-options options))
                               (map #(str "-I" %) (:include-path options))
                               (map #(str "-L" %) (:library-path options))
                               (map #(str "-l" %) (:link options))
+                              (map #(let [extension (org.apache.commons.io.FilenameUtils/getExtension %)]
+                                      [(cond (= extension "c") ["-x" "c"]
+                                             (= extension "c++") ["-x" "c++"]
+                                             :default "")
+                                       %])
+                                   extra-source-files)
+                              ["-x" "c++"]
                               (str "solution." (:source-extension options))])
             ret (with-sh-dir "./"
                   (apply sh command))]
@@ -2147,7 +2154,7 @@ Runs the given lambda in a posix thread,
           (System/exit 1)
           (do (when (:name options)
                 (with-sh-dir "./"
-                  (sh "mv" "a.out" (str "../" (:name options)))))
+                  (sh "mv" "a.out" (str "./" (:name options)))))
               true))))
 
     (defn -main [& args]
@@ -2156,13 +2163,17 @@ Runs the given lambda in a posix thread,
                   ["-c" "--compile" "Compile Solution"]
                   ["-o" "--compile-options FILE" "Compile Options File"
                    :parse-fn #(read-string (FileUtils/readFileToString (file %)))]
+                  ["-f" "--source-files FILE" "Extra Source Files to Pass to GCC"]
                   ["-h" "--help"]]
             args (parse-opts args opts)
-            options (compile-options (->> args :options :compile-options))]
+            options (compile-options (->> args :options :compile-options))
+            extra-source-files (cond (not (empty? (:arguments args))) (:arguments args)
+                                     (not (empty? (:extra-source-files options))) (:extra-source-files options)
+                                     :default [])]
         (if (->> args :options :input)
           (do (compile->cpp (->> args :options :input) options)
               (when (->> args :options :compile)
-                (compile->binary options)
+                (compile->binary options extra-source-files)
                 (shutdown-agents)))
           (println "No Input File."))))
   #+end_src

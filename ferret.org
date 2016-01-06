@@ -243,7 +243,8 @@ code generation phase.
 #+name: core-transformation-process
 #+begin_src clojure :tangle no
   (defn process [form]
-    (->> (add-built-in form)
+    (->> (import-modules-all form)
+         (add-built-in)
          (expand-macros-all)
          (vector->list)
          (let->fn)
@@ -251,6 +252,92 @@ code generation phase.
          (closure-conversion)
          (symbol-conversion)
          (replace-fn-call-sites)))
+
+  ;;(process '((require '[examples.sqlite :as io]) (asdasdasdads)))
+#+end_src
+
+*** Import Modules
+
+Import other ferret files using,
+
+#+BEGIN_SRC clojure :tangle no
+  (require '[package.io :as io])
+#+END_SRC
+
+Compiler will look for a file under current working directory called,
+/package/io.clj/ all expression in the that file will be added to the
+front of the current form with symbols renamed to /some-fn/ =>
+/io/some-function/.
+
+#+name: core-transformation-add-built-in
+#+begin_src clojure :tangle no
+  (defn import-modules [form]
+      (let [package-list (select-form form (is-form? 'require))
+            imports (->> package-list
+                         (map rest)
+                         (map first)
+                         (map rest)
+                         (map first)
+                         (map (fn [[mod _ as]]
+                                [(str (.replace (str mod) "." "/") ".clj") as]))
+                         (map (fn [[mod as]]
+                                [(read-string (str \( (FileUtils/readFileToString (file mod)) \))) as]))
+                         (map (fn [[mod as]]
+                                (let [symbols (->> (select-form
+                                                    (expand-macros-all mod) (is-form? 'def))
+                                                   (map second)
+                                                   (into #{}))
+                                      mod (morph-form mod symbol?
+                                                      (fn [f]
+                                                        (if (symbols f)
+                                                          (symbol (str as "/" f))
+                                                          f)))]
+                                  mod)))
+                         (reduce (fn[mod form]
+                                   (reduce (fn[h v] (cons v h)) form mod)) [])
+                         vec)
+            form-no-require (remove-form form (is-form? 'require))]
+        (apply list (reduce (fn[h v] (conj h v)) imports form-no-require))))
+
+  (defn import-modules-all [form]
+    (loop [f form]
+      (let [expanded (import-modules f)]
+        (if (= f expanded)
+          expanded
+          (recur expanded)))))
+#+end_src
+
+**** Tests
+
+Create some dummy libs under /examples/modules/,
+
+#+begin_src clojure :mkdirp yes :tangle ferret/examples/modules/module-a.clj
+  (defn helper-a []
+    (print "Module A"))
+#+end_src 
+
+#+begin_src clojure :mkdirp yes :tangle ferret/examples/modules/module-b.clj
+  (require '[examples.modules.module-c :as mod-c])
+
+  (defn helper-b []
+    (mod-c/helper-c))
+#+end_src 
+
+#+begin_src clojure :mkdirp yes :tangle ferret/examples/modules/module-c.clj
+  (defn helper-c []
+    (print "Module C"))
+#+end_src 
+
+Run import tests,
+
+#+name: compiler-import-module-test
+#+begin_src clojure :tangle no
+  (deftest import-module-test
+    (is (= "Module A Module C "
+           (capture-output '((require '[examples.modules.module-a :as mod-a])
+                             (require '[examples.modules.module-b :as mod-b])
+                             (mod-a/helper-a)
+                             (mod-b/helper-b))))))
 #+end_src
 
 *** Add Runtime
@@ -2422,6 +2509,7 @@ Runs the given lambda in a posix thread,
           (:out r)))))
 
     <<compiler-transformation-tests>>
+    <<compiler-import-module-test>>
     <<runtime-clojure-bit-operations-tests>>
     <<runtime-clojure-bit-arithmetic-tests>>
     <<runtime-clojure-logical-operators-tests>>

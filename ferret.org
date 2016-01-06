@@ -281,7 +281,7 @@ front of the current form with symbols renamed to /some-fn/ =>
                          (map (fn [[mod _ as]]
                                 [(str (.replace (str mod) "." "/") ".clj") as]))
                          (map (fn [[mod as]]
-                                [(read-string (str \( (FileUtils/readFileToString (file mod)) \))) as]))
+                                [(read-clojure-file mod) as]))
                          (map (fn [[mod as]]
                                 (let [symbols (->> (select-form
                                                     (expand-macros-all mod) (is-form? 'def))
@@ -2229,6 +2229,13 @@ Runs the given lambda in a posix thread,
   #+name: core-code-generation-misc
   #+begin_src clojure
     ;; I/O
+    (defn read-clojure-file [f]
+      (try
+        (read-string (str \( (FileUtils/readFileToString (file f)) \)))
+        (catch Exception e
+          (println "Error Reading," f e)
+          (System/exit 1))))
+
     (defn copy-to-solution [fin fout]
       (FileUtils/copyURLToFile (ClassLoader/getSystemResource fin) (file fout)))
 
@@ -2301,7 +2308,7 @@ Runs the given lambda in a posix thread,
 
     (defn -main [& args]
       (let [opts [["-i" "--input FILE" "Input File"
-                   :parse-fn #(read-string (str \( (FileUtils/readFileToString (file %)) \)))]
+                   :parse-fn #(read-clojure-file %)]
                   ["-c" "--compile" "Compile Solution"]
                   ["-o" "--compile-options FILE" "Compile Options File"
                    :parse-fn #(read-string (FileUtils/readFileToString (file %)))]

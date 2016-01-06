@@ -844,6 +844,7 @@ C++ skeleton.
 #+end_src
 
 *** Code Emitting
+**** Object Types
 
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
@@ -869,7 +870,12 @@ C++ skeleton.
 
   (defmethod emit 'native_declare [[_ declaration] state]
     (append-to! state [:native-declarations] declaration) "")
+#+end_src
 
+**** Lambdas
+
+#+name: core-code-generation-emit-source-methods
+#+begin_src clojure :tangle no
   (defmethod emit 'lambda_object [[_ name & env] state]
     (new-lambda name (filter #(not (= '& %)) env)))
 
@@ -910,6 +916,15 @@ C++ skeleton.
                     (let [arg (last args)]
                       (str "VAR " arg " = _args_;\n")))]
       (append-to! state [:lambdas] {:name name :env env :args reg-args :var_args va-args :body body}) ""))
+#+end_src
+
+**** Misc
+
+#+name: core-code-generation-emit-source-methods
+#+begin_src clojure :tangle no
+  (defmethod emit 'defobject [[_ name & spec] state]
+    (append-to! state [:native-declarations] (declare-object name spec))
+    "")
 
   (defmethod emit 'if [[_ cond t f] state]
     (let [cond (emit cond state)
@@ -920,10 +935,6 @@ C++ skeleton.
   (defmethod emit 'def [[_ name & form] state]
     (append-to! state [:symbol-table] name)
     (str "(" name " = " (apply str (doall (map #(emit % state) form))) ")"))
-
-  (defmethod emit 'defobject [[_ name & spec] state]
-    (append-to! state [:native-declarations] (declare-object name spec))
-    "")
 #+end_src
 
 *** Code Templates

@@ -1902,7 +1902,10 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
   (defn empty? [x] "__result = (IS_NIL(x) || IS_NIL(SEQUENCE(x)->head))")
 
-  (defn rest [x] "__result = REST(x);")
+  (defn rest [x] "if (IS_NIL(x) || IS_NIL(SEQUENCE(x)->head))
+                    __result = VAR(new Sequence());
+                  else 
+                    __result = REST(x);")
 
   (defn cons [x seq] "if IS_NIL(seq)
                        seq = VAR(new Sequence());

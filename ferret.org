@@ -270,32 +270,35 @@ front of the current form with symbols renamed to /some-fn/ =>
 #+name: core-transformation-add-built-in
 #+begin_src clojure :tangle no
   (defn import-modules [form]
-      (let [package-list (select-form form (is-form? 'require))
-            imports (->> package-list
-                         (map rest)
-                         (map first)
-                         (map rest)
-                         (map first)
-                         (map (fn [[mod _ as]]
-                                [(str (.replace (str mod) "." "/") ".clj") as]))
-                         (map (fn [[mod as]]
-                                [(read-clojure-file mod) as]))
-                         (map (fn [[mod as]]
-                                (let [symbols (->> (select-form
-                                                    (expand-macros-all mod) (is-form? 'def))
-                                                   (map second)
-                                                   (into #{}))
-                                      mod (morph-form mod symbol?
-                                                      (fn [f]
-                                                        (if (symbols f)
-                                                          (symbol (str as "/" f))
-                                                          f)))]
-                                  mod)))
-                         (reduce (fn[mod form]
-                                   (reduce (fn[h v] (cons v h)) form mod)) [])
-                         vec)
-            form-no-require (remove-form form (is-form? 'require))]
-        (apply list (reduce (fn[h v] (conj h v)) imports form-no-require))))
+    (let [package-list (select-form form (is-form? 'require))
+          imports (->> package-list
+                       (map rest)
+                       (map first)
+                       (map rest)
+                       (map first)
+                       (map (fn [[mod _ as]]
+                              [(str (.replace (str mod) "." "/") ".clj") as]))
+                       (map (fn [[mod as]]
+                              [(read-clojure-file mod) as]))
+                       (map (fn [[mod as]]
+                              (let [symbols (->> (select-form
+                                                  (expand-macros-all mod) (is-form? 'def))
+                                                 (map second)
+                                                 (into #{}))
+                                    mod (morph-form mod symbol?
+                                                    (fn [f]
+                                                      (if (symbols f)
+                                                        (symbol (str as "/" f))
+                                                        f)))]
+                                mod)))
+                       (reduce (fn[mod form]
+                                 (reduce (fn[h v] (cons v h)) form mod)) [])
+                       vec)
+          form-no-require (if (and (= (count form) 1)
+                                   (= (first (first form))) 'require)
+                            (list )
+                            (remove-form form (is-form? 'require)))]
+      (apply list (reduce (fn[h v] (conj h v)) imports form-no-require))))
 
   (defn import-modules-all [form]
     (loop [f form]

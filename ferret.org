@@ -1903,13 +1903,13 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
   (defn empty? [x] "__result = (IS_NIL(x) || IS_NIL(FIRST(x)))")
 
   (defn rest [x] "if (IS_NIL(x) || IS_NIL(FIRST(x)))
-                    __result = VAR(new Sequence());
+                    __result = NEW_SEQUENCE();
                   else 
                     __result = REST(x);")
 
   (defn cons [x seq] "if IS_NIL(seq)
-                       seq = VAR(new Sequence());
-                      __result = SEQUENCE(seq)->cons(x);")
+                       seq = NEW_SEQUENCE();
+                      __result = CONS(seq,x);")
 
   (defn apply [f args] "__result = LAMBDA(f)->invoke(args);")
 

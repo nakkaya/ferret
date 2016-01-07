@@ -1387,7 +1387,7 @@ Math configuration,
 #+begin_src c++ :tangle no
   #define FIRST(coll) (ISEEKABLE(coll)->first())
   #define REST(coll) (ISEEKABLE(coll)->rest())
-  #define ITERATE(c,i) for(var i = c; IS_NOT_NIL(i) ; i = REST(i))
+  #define ITERATE(c,i) for(var i = c; IS_NOT_NIL(i) && IS_NOT_NIL(FIRST(i)) ; i = REST(i))
 
   #define NEW_SEQUENCE() (VAR(new ferret::Sequence()))
   #define CONS(s,v) (s = ISEEKABLE(s)->cons(v))
@@ -1900,9 +1900,9 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
   (defn list? [x] "__result = (OBJECT(x)->getType() == SEQUENCE_TYPE);")
 
-  (defn empty? [x] "__result = (IS_NIL(x) || IS_NIL(SEQUENCE(x)->head))")
+  (defn empty? [x] "__result = (IS_NIL(x) || IS_NIL(FIRST(x)))")
 
-  (defn rest [x] "if (IS_NIL(x) || IS_NIL(SEQUENCE(x)->head))
+  (defn rest [x] "if (IS_NIL(x) || IS_NIL(FIRST(x)))
                     __result = VAR(new Sequence());
                   else 
                     __result = REST(x);")
@@ -1929,7 +1929,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-sequences-tests
 #+begin_src clojure :tangle no
   (deftest sequences-test
-    (is (= "( 1 2 3 4 ) 1 ( 2 3 4 ) ( 3 4 ) ( 3 3 4 ) 3 4 ( 4 3 2 1 1 2 ) ( 4 3 2 1 ) 21 21 ( nil ) ( 1 ) "
+    (is (= "( 1 2 3 4 ) 1 ( 2 3 4 ) ( 3 4 ) ( 3 3 4 ) 3 4 ( 4 3 2 1 1 2 ) ( 4 3 2 1 ) 21 21 ( ) ( 1 ) "
            (capture-output '((print (list 1 2 3 4)
                                     (first (list 1 2 3 4))
                                     (rest (list 1 2 3 4))

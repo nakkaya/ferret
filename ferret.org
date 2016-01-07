@@ -252,8 +252,6 @@ code generation phase.
          (closure-conversion)
          (symbol-conversion)
          (replace-fn-call-sites)))
-
-  ;;(process '((require '[examples.sqlite :as io]) (asdasdasdads)))
 #+end_src
 
 *** Import Modules

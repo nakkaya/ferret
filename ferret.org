@@ -874,6 +874,57 @@ C++ skeleton.
 
 **** Lambdas
 
+List Destructuring,
+
+#+name: core-code-generation-emit-source-methods
+#+begin_src clojure :tangle no
+  (defn destructure-set-var [val arg accesor]
+    (if (not= val '_)
+      (str "VAR " val " = "
+           (reduce (fn[h v] (str v "(" h ")")) arg accesor))
+      ""))
+
+  (defn destructure-arguments [seq arg]
+    (->> seq
+         (map-indexed (fn [pos val]
+                        (vector pos val)))
+         (reduce (fn[h [pos val]]
+                   (let [accesor (flatten [(repeat pos "REST") "FIRST"])]
+                     (if (coll? val)
+                       (conj h (destructure-arguments
+                                val (reduce (fn[h v] (str v "(" h ")")) arg accesor)))
+                       (conj h (destructure-set-var val arg accesor))))) [])))
+
+  (defn destructure-lambda [args]
+    (let [[args va-args] (if (some #{'&} args)
+                           (split-at (.indexOf args '&) args)
+                           [args []])
+          args (destructure-arguments args "_args_")
+          va-args (if (empty? va-args)
+                    []
+                    (destructure-set-var
+                     (last va-args) "_args_" (repeat (count args) "REST")))]
+      (flatten [args va-args])))
+#+end_src
+
+#+name: clojure-destructure-tests
+#+begin_src clojure :tangle no
+  (deftest destructure-test
+    (is (= "( 1 2 3 ) 2 3 ( ( 1 2 3 ) ) "
+           (capture-output '((defn destructure-test-1 [[a b c]]
+                               (list a b c))
+                             (defn destructure-test-2 [[a [b] c]]
+                               b)
+                             (defn destructure-test-3 [[a [_ b] c]]
+                               b)
+                             (defn destructure-test-4 [& a]
+                               a)
+                             (print (destructure-test-1 (list 1 2 3))
+                                    (destructure-test-2 (list 1 (list 2) 3))
+                                    (destructure-test-3 (list 1 (list 2 3) 3))
+                                    (destructure-test-4 (list 1 2 3))))))))
+#+end_src
+
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
   (defmethod emit 'lambda_object [[_ name & env] state]
@@ -910,12 +961,10 @@ C++ skeleton.
                            (= 'native_block (-> body first first)))
                       (emit-native-block (first body) state)
                       :default (doall (map #(emit % state) body)))
-          env (filter #(not (= '& %)) env)
-          reg-args (take-while #(not (= '& %)) args)
-          va-args (if (some #{'&} args)
-                    (let [arg (last args)]
-                      (str "VAR " arg " = _args_;\n")))]
-      (append-to! state [:lambdas] {:name name :env env :args reg-args :var_args va-args :body body}) ""))
+          env (filter #(not (= '& %)) env)]
+      (append-to! state [:lambdas] {:name name :env env
+                                    :args (destructure-lambda args)
+                                    :body body}) ""))
 #+end_src
 
 **** Misc
@@ -971,16 +1020,13 @@ C++ skeleton.
           }
 
           VAR invoke (VAR _args_){
-            $lambda.args:{args | VAR $last(args)$ = FIRST(_args_); _args_ = REST(_args_); } ;separator=\"\n\"$
-
-            $lambda.var_args$
+            $lambda.args:{args | $args$; } ;separator=\"\n\"$
 
             $trunc(lambda.body):{$it$;} ;separator=\"\n\"$
             return $last(lambda.body):{ $it$;} ;separator=\"\n\"$
           }
         };};separator=\"\n\n\"$")]
-      (fill-view! view "lambdas" (map #(let [args (:args %)]
-                                         (assoc % :args (indexed args))) lambdas))
+      (fill-view! view "lambdas" lambdas)
       (render-view view)))
 
   (defn declare-object [name body]
@@ -1894,6 +1940,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                                    l3 (cons 1 l2)]
                                (print l1 l2 l3)))))))
 #+end_src
+
 *** Logical Operators
 
 #+name: runtime-clojure-logical-operators
@@ -2533,6 +2580,7 @@ Runs the given lambda in a posix thread,
     <<runtime-clojure-logical-operators-tests>>
     <<runtime-clojure-conditionals-tests>>
     <<runtime-clojure-sequences-tests>>
+    <<clojure-destructure-tests>>
     <<native-string-tests>>
     <<native-keyword-tests>>
 #+end_src 

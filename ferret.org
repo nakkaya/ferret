@@ -295,7 +295,7 @@ front of the current form with symbols renamed to /some-fn/ =>
                                  (reduce (fn[h v] (cons v h)) form mod)) [])
                        vec)
           form-no-require (if (and (= (count form) 1)
-                                   (= (first (first form))) 'require)
+                                   (= (first (first form)) 'require))
                             (list )
                             (remove-form form (is-form? 'require)))]
       (apply list (reduce (fn[h v] (conj h v)) imports form-no-require))))

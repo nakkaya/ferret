@@ -1775,6 +1775,20 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                        (str \, (apply str (interpose " , " (reverse pass-vars)))) ");"
                        "\n}\n"))
           (list 'def `~(symbol (str callback "-callback-fn")) `~callback)))
+
+  (defn sh [cmd]
+    (native-block
+     (on "defined GNU_GCC"
+         ("memory")
+         "std::shared_ptr<FILE> pipe(popen(TO_C_STR(cmd), \"r\"), pclose);
+          if (!pipe) 
+             __result = VAR();
+          char buffer[128];
+          std::string result = \"\";
+          while (!feof(pipe.get()))
+           if (fgets(buffer, 128, pipe.get()) != NULL)
+            result += buffer;
+          __result = NEW_STRING(result.c_str());")))
 #+end_src
 
 *** Console I/O

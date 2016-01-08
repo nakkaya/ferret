@@ -1363,7 +1363,8 @@ Math configuration,
   (defobject ISeekable
     (interfaces "var cons(var x)"
                 "var first()"
-                "var rest()")
+                "var rest()"
+                "bool isEmpty()")
     (fns ("virtual ~ISeekable" "" "")))
 #+end_src
 
@@ -1371,7 +1372,7 @@ Math configuration,
 #+begin_src c++ :tangle no
   #define FIRST(coll) (ISEEKABLE(coll)->first())
   #define REST(coll) (ISEEKABLE(coll)->rest())
-  #define ITERATE(c,i) for(var i = c; IS_NOT_NIL(i) && IS_NOT_NIL(SEQUENCE(i)->head); i = REST(i))
+  #define ITERATE(c,i) for(var i = c; !ISEEKABLE(i)->isEmpty(); i = REST(i))
 
   #define NEW_SEQUENCE() (VAR(new ferret::Sequence()))
   #define CONS(s,v) (s = ISEEKABLE(s)->cons(v))
@@ -1438,9 +1439,11 @@ Math configuration,
          return CELL(head)->data;")
      ("var rest" ""
       "if ( head.get() == NULL || CELL(head)->next.get() == NULL )
-         return var();
+         return NEW_SEQUENCE();
         else
-         return var(new Sequence(CELL(head)->next));"))
+         return var(new Sequence(CELL(head)->next));")
+     ("bool isEmpty" ""
+      "return (head.get() == NULL );"))
     (post-code
      "ferret::var& ferret::var::operator, (const var& m){
         ,*this = static_cast<ferret::Sequence*>(m_ptr)->cons(m);
@@ -1481,6 +1484,8 @@ Math configuration,
       "return FIRST(data);")
      ("var rest" ""
       "return REST(data);")
+     ("bool isEmpty" ""
+      "return ISEEKABLE(data)->isEmpty();")
      ("ifdef GNU_GCC"
       "std::string toString" ""
       "std::stringstream ss;
@@ -1885,9 +1890,9 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
   (defn list? [x] "__result = NEW_BOOLEAN(OBJECT(x)->getType() == SEQUENCE_TYPE);")
 
-  (defn empty? [x] "__result = NEW_BOOLEAN(IS_NIL(x) || IS_NIL(FIRST(x)))")
+  (defn empty? [x] "__result = NEW_BOOLEAN(ISEEKABLE(x)->isEmpty())")
 
-  (defn rest [x] "if (IS_NIL(x) || IS_NIL(FIRST(x)))
+  (defn rest [x] "if (IS_NIL(x) || ISEEKABLE(x)->isEmpty())
                     __result = NEW_SEQUENCE();
                   else 
                     __result = REST(x);")

@@ -1387,7 +1387,7 @@ Math configuration,
 #+begin_src c++ :tangle no
   #define FIRST(coll) (ISEEKABLE(coll)->first())
   #define REST(coll) (ISEEKABLE(coll)->rest())
-  #define ITERATE(c,i) for(var i = c; IS_NOT_NIL(i) && IS_NOT_NIL(FIRST(i)) ; i = REST(i))
+  #define ITERATE(c,i) for(var i = c; IS_NOT_NIL(i) && IS_NOT_NIL(SEQUENCE(i)->head); i = REST(i))
 
   #define NEW_SEQUENCE() (VAR(new ferret::Sequence()))
   #define CONS(s,v) (s = ISEEKABLE(s)->cons(v))
@@ -1796,10 +1796,9 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-console-io
 #+begin_src clojure :tangle no
   (defn print [& more]
-    "ITERATE(more,it){
-         FIRST(it).toOutputStream();
-         fprintf(OUTPUT_STREAM, \" \");
-     }")
+    (doseq [i more] 
+      "i.toOutputStream();
+       fprintf(OUTPUT_STREAM, \" \");"))
 
   (defn newline []
     "fprintf(OUTPUT_STREAM, \"\\n\");")
@@ -1819,7 +1818,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
   (defmacro dotimes [binding & body]
     (list '_dotimes_ (second binding) (cons 'fn `( [~(first binding)] ~@body))))
 
-  (defn _dotimes_ [t f] "for(int i = 0; i < NUMBER(t)->intValue(); i++) INVOKE(f,i);")
+  (defn _dotimes_ [t f] "for(int i = 0; i < TO_INT(t); i++) INVOKE(f,i);")
 #+end_src
 
 *** Conditionals
@@ -1881,9 +1880,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
      return acc;")
 
   (defn _reduce_3_arg_ [f val coll]
-    "if (IS_NIL(coll) || IS_NIL(SEQUENCE(coll)->head))
-      return val;
-     ITERATE(coll,it){
+    "ITERATE(coll,it){
        val = INVOKE(f, FIRST(it), val);
      }
      return val;")
@@ -1918,18 +1915,17 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
   (defn reverse [s]
     (reduce conj (list) s))
+#+end_src
 
-  (defn count [s] "NUMBER_DATA_TYPE count = (NUMBER_DATA_TYPE)0;
-                   ITERATE(s,it){
-                     count = count + 1;
-                   }
-                   __result = VAR(count);")
+#+name: runtime-clojure-sequence-count
+#+begin_src clojure :tangle no
+  (defn count [s] (reduce inc 0 s))
 #+end_src
 
 #+name: runtime-clojure-sequences-tests
 #+begin_src clojure :tangle no
   (deftest sequences-test
-    (is (= "( 1 2 3 4 ) 1 ( 2 3 4 ) ( 3 4 ) ( 3 3 4 ) 3 4 ( 4 3 2 1 1 2 ) ( 4 3 2 1 ) 21 21 ( ) ( 1 ) "
+    (is (= "( 1 2 3 4 ) 1 ( 2 3 4 ) ( 3 4 ) ( 3 3 4 ) 3 4 ( 4 3 2 1 1 2 ) ( 4 3 2 1 ) 21 21 ( nil ) ( 1 ) ( ) nil 0 "
            (capture-output '((print (list 1 2 3 4)
                                     (first (list 1 2 3 4))
                                     (rest (list 1 2 3 4))
@@ -1942,7 +1938,10 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                                     (reduce + (list 1 2 3 4 5 6))
                                     (apply + (list 1 2 3 4 5 6))
                                     (cons nil nil)
-                                    (cons 1 nil))))))
+                                    (cons 1 nil)
+                                    (rest (list))
+                                    (first (rest (rest (list))))
+                                    (count (list )))))))
     (is (= "( 6 5 4 3 2 1 ) ( 6 5 4 3 2 ) ( 4 3 2 1 0 ) ( . o l l e H ) "
            (capture-output '((print (reverse (list 1 2 3 4 5 6))
                                     (reduce (fn [h v]
@@ -2081,7 +2080,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 *** Math
 
 #+name: runtime-clojure-math
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb yes
   (defn integer? [x] "__result = ((OBJECT(x)->getType() == NUMBER_TYPE) &&
                                     (NUMBER(x)->getDenominator() == 1));")
 
@@ -2099,6 +2098,11 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
         NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
         __result = VAR(((hn * vdn) + (vn * hdn)),ndn);") 0 xs))
+
+  (defn inc [x]
+    (+ x 1))
+
+  <<runtime-clojure-sequence-count>>
 
   (defn * [& xs]
     (reduce (fn[h v] "
@@ -2137,9 +2141,6 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
         NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
 
         __result = VAR((hn * vdn),(vn * hdn));") (first xs) (rest xs))))
-
-  (defn inc [x]
-    (+ x 1))
 
   (defn dec [x]
     (- x 1))

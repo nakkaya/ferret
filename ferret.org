@@ -1403,6 +1403,10 @@ Math configuration,
     (equals
      "if (OBJECT(o)->getType() != SEQUENCE_TYPE)
        return NEW_BOOLEAN(false);
+
+      if(head.get() == NULL && SEQUENCE(o)->head.get() == NULL)
+        return NEW_BOOLEAN(true);
+
       var itOther = o;
       ITERATE(this,it){
         if (IS_NIL(itOther) || FIRST(it).equals(FIRST(itOther))  == false)
@@ -1926,14 +1930,15 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                                     (rest (list))
                                     (first (rest (rest (list))))
                                     (count (list )))))))
-    (is (= "(6 5 4 3 2 1) (6 5 4 3 2) (4 3 2 1 0) (. o l l e H)"
+    (is (= "(6 5 4 3 2 1) (6 5 4 3 2) (4 3 2 1 0) (. o l l e H) true"
            (capture-output '((print (reverse (list 1 2 3 4 5 6))
                                     (reduce (fn [h v]
                                               (conj h (inc v))) (list) (list 1 2 3 4 5))
                                     (reduce (fn [h v]
                                               (conj h (dec v))) (list) (list 1 2 3 4 5))
                                     (reduce (fn [h v]
-                                              (conj h v)) (list) "Hello."))))))
+                                              (conj h v)) (list) "Hello.")
+                                    (= (list ) (list )))))))
 
     (is (= "(1 2 3 4 5 6) (7 6 5 4 3 2) (1 7 6 5 4 3 2) true"
            (capture-output '((let [l1 (list 1 2 3 4 5 6)

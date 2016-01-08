@@ -162,6 +162,10 @@ file.
 
    A sample Arduino skecth to blink the on board led.
 
+#+begin_src clojure :mkdirp yes :tangle ferret/examples/arduino-build.options
+  {:source-extension "pde"}
+#+end_src 
+
 #+begin_src clojure :mkdirp yes :tangle ferret/examples/led.clj
   (pin-mode 13 :output)
   

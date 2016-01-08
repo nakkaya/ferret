@@ -892,27 +892,26 @@ List Destructuring,
            (reduce (fn[h v] (str v "(" h ")")) arg accesor))
       ""))
 
-  (defn destructure-arguments [seq arg]
-    (->> seq
-         (map-indexed (fn [pos val]
-                        (vector pos val)))
-         (reduce (fn[h [pos val]]
-                   (let [accesor (flatten [(repeat pos "REST") "FIRST"])]
-                     (if (coll? val)
-                       (conj h (destructure-arguments
-                                val (reduce (fn[h v] (str v "(" h ")")) arg accesor)))
-                       (conj h (destructure-set-var val arg accesor))))) [])))
-
-  (defn destructure-lambda [args]
+  (defn destructure-arguments [args name]
     (let [[args va-args] (if (some #{'&} args)
                            (split-at (.indexOf args '&) args)
                            [args []])
-          args (destructure-arguments args "_args_")
-          va-args (if (empty? va-args)
-                    []
-                    (destructure-set-var
-                     (last va-args) "_args_" (repeat (count args) "REST")))]
-      (flatten [args va-args])))
+          args (->> args
+                    (map-indexed (fn [pos val]
+                                   (vector pos val)))
+                    (reduce (fn[h [pos val]]
+                              (let [accesor (flatten [(repeat pos "REST") "FIRST"])]
+                                (if (coll? val)
+                                  (conj h (destructure-arguments
+                                           val (reduce (fn[h v] (str v "(" h ")")) name accesor)))
+                                  (conj h (destructure-set-var val name accesor))))) []))]
+      [args (if (empty? va-args)
+              []
+              (destructure-set-var
+               (last va-args) name (repeat (count args) "REST")))]))
+
+  (defn destructure-lambda [args]
+    (flatten (destructure-arguments args "_args_")))
 #+end_src
 
 #+name: clojure-destructure-tests

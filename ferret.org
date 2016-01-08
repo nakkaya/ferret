@@ -338,7 +338,7 @@ Run import tests,
 #+name: compiler-import-module-test
 #+begin_src clojure :tangle no
   (deftest import-module-test
-    (is (= "Module A Module C "
+    (is (= "Module AModule C"
            (capture-output '((require '[examples.modules.module-a :as mod-a])
                              (require '[examples.modules.module-b :as mod-b])
                              (mod-a/helper-a)
@@ -714,7 +714,7 @@ suggests and removes the node when predicate returns true.
       (is (= (first (first form)) 'def))))
 
   (deftest transformation-macro-test
-    (is (= "1 1 1 true false true true true 0 1 2 3 4 3 "
+    (is (= "1 1 1 true false true true true012343"
            (capture-output '((defmacro my-when [test & body]
                                (list 'if test (cons 'do body)))
                              
@@ -748,7 +748,7 @@ suggests and removes the node when predicate returns true.
                              (print (my-inc 1)))))))
 
   (deftest transformation-special-forms-test
-    (is (= "10 89 11 3 1 5 5 1 1 1 1 1 1 1 1 1 1 "
+    (is (= "10 89 11 3 1 5 51111111111"
            (capture-output '((def make-adder
                                (fn [n] (fn [x] (+ x n))))
                              (def adder
@@ -917,7 +917,7 @@ List Destructuring,
 #+name: clojure-destructure-tests
 #+begin_src clojure :tangle no
   (deftest destructure-test
-    (is (= "( 1 2 3 ) 2 3 ( ( 1 2 3 ) ) "
+    (is (= "(1 2 3) 2 3 ((1 2 3))"
            (capture-output '((defn destructure-test-1 [[a b c]]
                                (list a b c))
                              (defn destructure-test-2 [[a [b] c]]
@@ -1333,7 +1333,7 @@ Math configuration,
 #+name: native-keyword-tests
 #+begin_src clojure :tangle no
   (deftest native-keyword-test
-    (is (= "true false true "
+    (is (= "true false true"
            (capture-output '((print (= :test :test)
                                     (= :test :other_test)
                                     ((fn [keyword]
@@ -1411,10 +1411,15 @@ Math configuration,
       }
       return NEW_BOOLEAN(true);")
     (toOutputStream
-     "fprintf(OUTPUT_STREAM, \"( \");
-      ITERATE(this,it){
-        FIRST(it).toOutputStream();
-        fprintf(OUTPUT_STREAM, \" \");
+     "fprintf(OUTPUT_STREAM, \"(\");
+      if (IS_NOT_NIL(head)){ 
+        var f = this->first();
+        f.toOutputStream();
+        var r = this->rest();
+        ITERATE(r,it){
+          fprintf(OUTPUT_STREAM, \" \");
+          FIRST(it).toOutputStream();
+        }
       }
       fprintf(OUTPUT_STREAM, \")\");
       return var();")
@@ -1488,7 +1493,7 @@ Math configuration,
 #+name: native-string-tests
 #+begin_src clojure :tangle no
   (deftest native-string-test
-    (is (= "Some String false true false true "
+    (is (= "Some String false true false true"
            (capture-output '((print "Some String"
                                     (= "Some String" "Other String")
                                     (= "Some String" "Some String")
@@ -1771,9 +1776,13 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-console-io
 #+begin_src clojure :tangle no
   (defn print [& more]
-    (doseq [i more] 
-      "i.toOutputStream();
-       fprintf(OUTPUT_STREAM, \" \");"))
+    "var f = ISEEKABLE(more)->first();
+     f.toOutputStream();
+     var r = ISEEKABLE(more)->rest();
+     ITERATE(r,it){
+      fprintf(OUTPUT_STREAM, \" \");
+      FIRST(it).toOutputStream();
+     }")
 
   (defn newline []
     "fprintf(OUTPUT_STREAM, \"\\n\");")
@@ -1827,7 +1836,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-conditionals-tests
 #+begin_src clojure :tangle no
   (deftest conditionals-test
-    (is (= "2 1 -1 2 2 2 1 "
+    (is (= "2 1 -1 2 2 2 1"
            (capture-output '((print (if 1 2)
                                     (if (zero? 0) 1 -1)
                                     (if (zero? 1) 1 -1)
@@ -1900,7 +1909,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-sequences-tests
 #+begin_src clojure :tangle no
   (deftest sequences-test
-    (is (= "( 1 2 3 4 ) 1 ( 2 3 4 ) ( 3 4 ) ( 3 3 4 ) 3 4 ( 4 3 2 1 1 2 ) ( 4 3 2 1 ) 21 21 ( nil ) ( 1 ) ( ) nil 0 "
+    (is (= "(1 2 3 4) 1 (2 3 4) (3 4) (3 3 4) 3 4 (4 3 2 1 1 2) (4 3 2 1) 21 21 (nil) (1) () nil 0"
            (capture-output '((print (list 1 2 3 4)
                                     (first (list 1 2 3 4))
                                     (rest (list 1 2 3 4))
@@ -1917,7 +1926,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                                     (rest (list))
                                     (first (rest (rest (list))))
                                     (count (list )))))))
-    (is (= "( 6 5 4 3 2 1 ) ( 6 5 4 3 2 ) ( 4 3 2 1 0 ) ( . o l l e H ) "
+    (is (= "(6 5 4 3 2 1) (6 5 4 3 2) (4 3 2 1 0) (. o l l e H)"
            (capture-output '((print (reverse (list 1 2 3 4 5 6))
                                     (reduce (fn [h v]
                                               (conj h (inc v))) (list) (list 1 2 3 4 5))
@@ -1926,11 +1935,11 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                                     (reduce (fn [h v]
                                               (conj h v)) (list) "Hello."))))))
 
-    (is (= "( 1 2 3 4 5 6 ) ( 7 6 5 4 3 2 ) ( 1 7 6 5 4 3 2 ) "
+    (is (= "(1 2 3 4 5 6) (7 6 5 4 3 2) (1 7 6 5 4 3 2) true"
            (capture-output '((let [l1 (list 1 2 3 4 5 6)
                                    l2 (reduce (fn[h v] (conj h (inc v))) (list) l1)
                                    l3 (cons 1 l2)]
-                               (print l1 l2 l3)))))))
+                               (print l1 l2 l3 (empty? (rest nil)))))))))
 #+end_src
 
 *** Logical Operators
@@ -2019,7 +2028,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-logical-operators-tests
 #+begin_src clojure :tangle no
   (deftest logical-operators-test
-    (is (= "true true false true false true true true false true true false true false true true "
+    (is (= "true true false true false true true true false true true false true false true true"
            (capture-output '((print (< 2)
                                     (< 2 3 4 5)
                                     (< 2 3 6 5)
@@ -2037,7 +2046,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                                     (= 2 2 2 2)
                                     (= 2 2.0 2))))))
 
-    (is (= "false true false true false false true false true true "
+    (is (= "false true false true false falsetrue false true true"
            (capture-output '((print (= 2 2 2 2 3 5)
                                     (= (list 1 2) (list 1 2))
                                     (= (list 1 2) (list 1 3))
@@ -2133,7 +2142,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-bit-arithmetic-tests
 #+begin_src clojure :tangle no
   (deftest arithmetic-test
-    (is (= "3/5 0 1 10 10 -1 0 0 1 8 8 1 1/2 1 1 "
+    (is (= "3/5 0 1 10 10 -1 0 0 1 8 8 1 1/2 1 1"
            (capture-output '((print (+ 0.3 0.3)
                                     (+ )
                                     (+ 1)
@@ -2153,7 +2162,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                                     (/ 4 2 2)
                                     (/ 4 2 2.0))))))
 
-    (is (= "true true false false true true false true true true "
+    (is (= "true true false false true true false true true true"
            (capture-output '((print (pos? 1)
                                     (pos? 0.2)
                                     (pos? 0)
@@ -2165,7 +2174,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                                     (zero? (- 1.2 1.2))
                                     (zero? (+ 1.2 -1.2)))))))
 
-    (is (= "1 2 1 2 1 2 1 2 "
+    (is (= "1 21 21 21 2"
            (capture-output '((let [a 1
                                    b 2]
                                (+ 1 a)
@@ -2207,7 +2216,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-bit-operations-tests
 #+begin_src clojure :tangle no
   (deftest bit-operations-test
-    (is (= "-5 -1 7 1 0 0 0 1 8 16 2 1 "
+    (is (= "-5 -1 7 1 0 0 0 1 8 16 2 1"
            (capture-output '((print (bit-not  4)
                                     (bit-not  0)
                                     (bit-or   4 3)
@@ -2248,7 +2257,7 @@ Runs the given lambda in a posix thread,
 #+name: runtime-clojure-bit-operations-tests
 #+begin_src clojure :tangle no
   (deftest pthreads-test
-    (is (= "Thread-1 Thread-2 "
+    (is (= "Thread-1Thread-2"
            (capture-output '((defn print-some [y x]
                                (fn []
                                  (sleep y)

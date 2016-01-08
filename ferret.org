@@ -66,7 +66,7 @@ file.
     "char *err_msg = 0;
      int rc = sqlite3_exec(TO_POINTER(db,sqlite3), TO_C_STR(sql), 0, 0, &err_msg);
      if (rc == SQLITE_OK)
-       __result = VAR(true);
+       __result = NEW_BOOLEAN(true);
      else{
        fprintf(stderr, \"SQL error: %s\\n\", err_msg);
        sqlite3_free(err_msg);}")
@@ -766,7 +766,7 @@ suggests and removes the node when predicate returns true.
                                                   (+ a b n))))
 
                              (native-declare "int i = 0;")
-                             (defn inc-int [] "__result =  i++;")
+                             (defn inc-int [] "__result =  NEW_NUMBER(i++);")
                              
                              (print (adder 9)
 
@@ -809,6 +809,7 @@ string based on the form.
                          (nil? form) :nil
                          (char? form) :char
                          (string? form) :string
+                         (or (true? form) (false? form)) :boolean
                          (seq? form) :sequence)))
 #+end_src
 
@@ -849,11 +850,13 @@ C++ skeleton.
 
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
-  (defmethod emit :to-str [form state] (str "VAR("form ")"))
+  (defmethod emit :to-str [form state] (str form))
 
   (defmethod emit :char [form state] (str "VAR(new ferret::Character('" form "'))"))
 
   (defmethod emit :string [form state] (str "VAR(new ferret::String(\"" form "\"))"))
+
+  (defmethod emit :boolean [form state] (str "NEW_BOOLEAN(" form ")"))
 
   (defmethod emit :nil [form state] "VAR()")
 
@@ -861,7 +864,7 @@ C++ skeleton.
     (str "VAR(new ferret::Keyword(" (reduce (fn[h v] (+ h (int v))) 0 (str form))"))"))
 
   (defmethod emit :number [form state]
-    (str "VAR("form (if (float? form) "f") ")"))
+    (str "NEW_NUMBER("form (if (float? form) "f") ")"))
 
   (defmethod emit :sequence [[fn & args] state]
     (invoke-lambda (emit fn state) (doall (map #(emit % state) args))))
@@ -1004,7 +1007,7 @@ List Destructuring,
       (render-view view)))
 
   (defn if-statement [cond t f]
-    (apply str "(BOOLEAN(" cond ")->asBool() ? (VAR)" t " : (VAR)" f ")"))
+    (apply str "(BOOLEAN(" cond ")->asBool() ? " t " : " f ")"))
 
   (defn declare-lambdas [lambdas]
     (let [view (create-view
@@ -1214,7 +1217,7 @@ new/delete is needed because in avr-gcc they are not defined.)
     (data "void* ptr")
     (new ("void* p" "ptr = p;"))
     (equals
-     "return ptr = POINTER(o)->ptr;")
+     "return NEW_BOOLEAN(ptr == POINTER(o)->ptr);")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"Pointer\"); return var();"))
 #+end_src
@@ -1257,12 +1260,12 @@ Math configuration,
              int other_type = OBJECT(o)->getType();
              if (self_type == NUMBER_TYPE && other_type == NUMBER_TYPE)
                if (getNumerator() == 0 && NUMBER(o)->getNumerator() == 0)
-                 return true;
+                 return NEW_BOOLEAN(true);
                else
-                 return ((getNumerator() == NUMBER(o)->getNumerator()) &&
-                         (getDenominator() == NUMBER(o)->getDenominator()));
+                 return NEW_BOOLEAN((getNumerator() == NUMBER(o)->getNumerator()) &&
+                                    (getDenominator() == NUMBER(o)->getDenominator()));
              else
-               return false;")
+               return NEW_BOOLEAN(false);")
     (toOutputStream
      "if (denominator == 1)
         fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT, numerator);
@@ -1291,37 +1294,15 @@ Math configuration,
             commondivisor = i;
         numerator /= commondivisor;
         denominator /= commondivisor;")
-      ("~Number" "" "")
-      ("if NUMBER_DATA_TYPE != int"
-       "Number" "int x" "numerator = x; denominator = 1;"))
-    
-    (post-code "
-    #if NUMBER_DATA_TYPE != int
-    var::var(int i){
-      m_ptr = new Number(i);
-      addRef();
-    }
-    #endif
-
-    var::var(NUMBER_DATA_TYPE i){
-      m_ptr = new Number(i);
-      addRef();
-    }
-
-    var::var(NUMBER_DATA_TYPE n, NUMBER_DATA_TYPE dn){
-      m_ptr = new Number(n,dn);
-      addRef();
-    }
-
-    var::var(float f){
-      m_ptr = new Number(f);
-      addRef();
-    }"))
+      ("~Number" "" "")))
 #+end_src
 
 #+name: runtime-native-math-config
 #+begin_src c++ :tangle no
   #define TO_INT(i) (NUMBER(i)->intValue())
+
+  #define NEW_NUMBER(i) (VAR(new ferret::Number(i)))
+  #define NEW_RATIO(n,dn) (VAR(new ferret::Number(n,dn)))
 #+end_src
 
 *** Keyword
@@ -1338,8 +1319,8 @@ Math configuration,
            }"))
     (equals
      "if (OBJECT(o)->getType() != KEYWORD_TYPE)
-        return false;
-      return (id == KEYWORD(o)->id);")
+        return NEW_BOOLEAN(false);
+      return NEW_BOOLEAN(id == KEYWORD(o)->id);")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"%d\", id); return var();")
     (fns ("bool equals" "Keyword k"
@@ -1353,7 +1334,7 @@ Math configuration,
            (capture-output '((print (= :test :test)
                                     (= :test :other_test)
                                     ((fn [keyword]
-                                       "__result = VAR(keyword.equals(VAR(new ferret::Keyword(\":space\"))))")
+                                       "__result = NEW_BOOLEAN(keyword.equals(VAR(new ferret::Keyword(\":space\"))))")
                                      :space)))))))
 #+end_src
 
@@ -1366,8 +1347,8 @@ Math configuration,
     (new ("char c" "value = c;"))
     (equals
      "if (OBJECT(o)->getType() != CHARACTER_TYPE)
-        return false;
-      return (value == CHARACTER(o)->value);")
+        return NEW_BOOLEAN(false);
+      return NEW_BOOLEAN(value == CHARACTER(o)->value);")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"%c\",value); return var();"))
 #+end_src
@@ -1403,8 +1384,8 @@ Math configuration,
     (new ("" "")
          ("var d, var n" "data = d; next = n;"))
     (equals "if (OBJECT(o)->getType() != CELL_TYPE)
-              return false;
-             return data.equals(o);")
+              return NEW_BOOLEAN(false);
+             return NEW_BOOLEAN(data.equals(o));")
     (toOutputStream
      "OBJECT(data)->toOutputStream(); return var();"))
 #+end_src
@@ -1418,14 +1399,14 @@ Math configuration,
          ("var h" "head = h;"))
     (equals
      "if (OBJECT(o)->getType() != SEQUENCE_TYPE)
-       return false;
+       return NEW_BOOLEAN(false);
       var itOther = o;
       ITERATE(this,it){
         if (IS_NIL(itOther) || FIRST(it).equals(FIRST(itOther))  == false)
-          return false;
+          return NEW_BOOLEAN(false);
         itOther = REST(itOther);
       }
-      return true;")
+      return NEW_BOOLEAN(true);")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"( \");
       ITERATE(this,it){
@@ -1476,8 +1457,8 @@ Math configuration,
            data = s;"))
     (equals
      "if (OBJECT(o)->getType() != STRING_TYPE)
-       return false;
-      return data.equals(STRING(o)->data);")
+       return NEW_BOOLEAN(false);
+      return NEW_BOOLEAN(data.equals(STRING(o)->data));")
     (toOutputStream
      "ITERATE(data,it){ FIRST(it).toOutputStream(); }
       return var();")
@@ -1509,7 +1490,7 @@ Math configuration,
                                     (= "Some String" "Other String")
                                     (= "Some String" "Some String")
                                     (= "Some String" 1)
-                                    ((fn [str] "__result = VAR((STRING(str)->toString() == \"String\"))")
+                                    ((fn [str] "__result = NEW_BOOLEAN((STRING(str)->toString() == \"String\"))")
                                      "String")
                                     ))))))
 #+end_src
@@ -1521,8 +1502,8 @@ Math configuration,
     (data "bool value")
     (new ("bool b" "value = b;"))
     (equals "if (OBJECT(o)->getType() != BOOLEAN_TYPE)
-               return false;
-             return (value == BOOLEAN(o)->asBool());")
+               return NEW_BOOLEAN(false);
+             return NEW_BOOLEAN(value == BOOLEAN(o)->asBool());")
     (toOutputStream
      "if (value)
         fprintf(OUTPUT_STREAM, \"true\"); 
@@ -1533,18 +1514,18 @@ Math configuration,
     (fns
      ("bool asBool" "" "return value;"))
     
-    (post-code "  
-    var::var(bool b){
-      m_ptr = new Boolean(b);
-      addRef();
-    }
-
+    (post-code "
     bool var::equals (var rhs){
       if (get() == rhs.get())
         return true;
       else
         return BOOLEAN(get()->equals(rhs))->asBool();
     }"))
+#+end_src
+
+#+name: runtime-native-iseekable-macros
+#+begin_src c++ :tangle no
+  #define NEW_BOOLEAN(b) (VAR(new ferret::Boolean(b)))
 #+end_src
 
 *** Lambda
@@ -1557,7 +1538,7 @@ to execute them in a uniform fashion.
 #+begin_src clojure :tangle no
   (defobject Lambda
     (interfaces "var invoke(var args)")
-    (equals "return false;")
+    (equals "return NEW_BOOLEAN(false);")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"lambda\"); return VAR();")
     (force-type true))
@@ -1603,15 +1584,6 @@ reaches zero it will automatically free the Object.
       }
       return *this;
     }
-
-  #if NUMBER_DATA_TYPE != int
-    var(int i);
-  #endif
-
-    var(NUMBER_DATA_TYPE i);
-    var(NUMBER_DATA_TYPE n, NUMBER_DATA_TYPE dn);
-    var(float f);
-    var(bool b);
       
     var& operator, (const var& m);
     var toOutputStream() {
@@ -1714,7 +1686,7 @@ Once our object system is in place we can define rest of the runtime
     else
       __result = FIRST(x);")
 
-  (defn nil? [x] "__result = (x.get() == NULL)")
+  (defn nil? [x] "__result = NEW_BOOLEAN(x.get() == NULL)")
 
   (defn char? [x] "__result = (OBJECT(x)->getType() == CHARACTER_TYPE);")
 #+end_src
@@ -1818,7 +1790,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
   (defmacro dotimes [binding & body]
     (list '_dotimes_ (second binding) (cons 'fn `( [~(first binding)] ~@body))))
 
-  (defn _dotimes_ [t f] "for(int i = 0; i < TO_INT(t); i++) INVOKE(f,i);")
+  (defn _dotimes_ [t f] "for(int i = 0; i < TO_INT(t); i++) INVOKE(f,NEW_NUMBER(i));")
 #+end_src
 
 *** Conditionals
@@ -1895,9 +1867,9 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+begin_src clojure :tangle no
   (defn list [& xs] "__result = xs;")
 
-  (defn list? [x] "__result = (OBJECT(x)->getType() == SEQUENCE_TYPE);")
+  (defn list? [x] "__result = NEW_BOOLEAN(OBJECT(x)->getType() == SEQUENCE_TYPE);")
 
-  (defn empty? [x] "__result = (IS_NIL(x) || IS_NIL(FIRST(x)))")
+  (defn empty? [x] "__result = NEW_BOOLEAN(IS_NIL(x) || IS_NIL(FIRST(x)))")
 
   (defn rest [x] "if (IS_NIL(x) || IS_NIL(FIRST(x)))
                     __result = NEW_SEQUENCE();
@@ -1965,7 +1937,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
   (defn = [a & more]
     (if (empty? more)
       true
-      (and ((fn [a b] "__result = a.equals(b);") a (first more))
+      (and ((fn [a b] "__result = NEW_BOOLEAN(a.equals(b));") a (first more))
            (apply = more))))
 
   (defmacro not= [& test]
@@ -1981,7 +1953,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
       NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
       NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
-      __result = VAR((an * bdn) < (bn * adn));") a (first more))
+      __result = NEW_BOOLEAN((an * bdn) < (bn * adn));") a (first more))
            (apply < more))))
 
   (defn > [a & more]
@@ -1994,7 +1966,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
       NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
       NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
-      __result =  VAR((an * bdn) > (bn * adn));") a (first more))
+      __result =  NEW_BOOLEAN((an * bdn) > (bn * adn));") a (first more))
            (apply > more))))
 
   (defn >= [a & more]
@@ -2007,7 +1979,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
       NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
       NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
-      return VAR((an * bdn) >= (bn * adn));") a (first more))
+      return NEW_BOOLEAN((an * bdn) >= (bn * adn));") a (first more))
            (apply >= more))))
 
   (defn <= [a & more]
@@ -2020,7 +1992,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
       NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
       NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
-      __result = VAR((an * bdn) <= (bn * adn));") a (first more))
+      __result = NEW_BOOLEAN((an * bdn) <= (bn * adn));") a (first more))
            (apply <= more))))
 
   (defmacro and
@@ -2037,8 +2009,8 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
   (defn not [x]
     "if (OBJECT(x)->getType() != BOOLEAN_TYPE)
-        return false;
-        __result = !BOOLEAN(x)->asBool();")
+        return NEW_BOOLEAN(false);
+        __result = NEW_BOOLEAN(!BOOLEAN(x)->asBool());")
 #+end_src
 
 #+name: runtime-clojure-logical-operators-tests
@@ -2081,11 +2053,11 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn integer? [x] "__result = ((OBJECT(x)->getType() == NUMBER_TYPE) &&
-                                    (NUMBER(x)->getDenominator() == 1));")
+  (defn integer? [x] "__result = NEW_BOOLEAN((OBJECT(x)->getType() == NUMBER_TYPE) &&
+                                             (NUMBER(x)->getDenominator() == 1));")
 
-  (defn float? [x] "__result = ((OBJECT(x)->getType() == NUMBER_TYPE) &&
-                                  (NUMBER(x)->getDenominator() != 1));")
+  (defn float? [x] "__result = NEW_BOOLEAN((OBJECT(x)->getType() == NUMBER_TYPE) &&
+                                           (NUMBER(x)->getDenominator() != 1));")
 
   (defn + [& xs]
     (reduce (fn[h v] "
@@ -2097,7 +2069,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
         NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
-        __result = VAR(((hn * vdn) + (vn * hdn)),ndn);") 0 xs))
+        __result = NEW_RATIO(((hn * vdn) + (vn * hdn)),ndn);") 0 xs))
 
   (defn inc [x]
     (+ x 1))
@@ -2114,7 +2086,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
         NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
-        __result = VAR(((hn * vdn) * (vn * hdn)),ndn);") 1 xs))
+        __result = NEW_RATIO(((hn * vdn) * (vn * hdn)),ndn);") 1 xs))
 
   (defn - [& xs]
     (if (= (count xs) 1)
@@ -2128,7 +2100,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
         NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
-        __result = VAR(((hn * vdn) - (vn * hdn)),ndn);") (first xs) (rest xs))))
+        __result = NEW_RATIO(((hn * vdn) - (vn * hdn)),ndn);") (first xs) (rest xs))))
 
   (defn / [& xs]
     (if (= (count xs) 1)
@@ -2140,7 +2112,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
         NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
         NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
 
-        __result = VAR((hn * vdn),(vn * hdn));") (first xs) (rest xs))))
+        __result = NEW_RATIO((hn * vdn),(vn * hdn));") (first xs) (rest xs))))
 
   (defn dec [x]
     (- x 1))
@@ -2211,22 +2183,22 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
 #+name: runtime-clojure-bit-operations
 #+begin_src clojure :tangle no
-  (defn bit-not [x] "__result = VAR(~NUMBER(x)->getNumerator());")
+  (defn bit-not [x] "__result = NEW_NUMBER(~NUMBER(x)->getNumerator());")
 
-  (defn bit-and [x y] "__result = VAR((NUMBER(x)->getNumerator() &
-                                       NUMBER(y)->getNumerator()));")
+  (defn bit-and [x y] "__result = NEW_NUMBER((NUMBER(x)->getNumerator() &
+                                              NUMBER(y)->getNumerator()));")
 
-  (defn bit-or [x y] "__result = VAR((NUMBER(x)->getNumerator() |
-                                      NUMBER(y)->getNumerator()));")
+  (defn bit-or [x y] "__result = NEW_NUMBER((NUMBER(x)->getNumerator() |
+                                             NUMBER(y)->getNumerator()));")
 
-  (defn bit-xor [x y] "__result = VAR((NUMBER(x)->getNumerator() ^
-                                       NUMBER(y)->getNumerator()));")
+  (defn bit-xor [x y] "__result = NEW_NUMBER((NUMBER(x)->getNumerator() ^
+                                              NUMBER(y)->getNumerator()));")
 
-  (defn bit-shift-left [x n] "__result = VAR((NUMBER(x)->getNumerator() <<
-                                              NUMBER(n)->getNumerator()));")
+  (defn bit-shift-left [x n] "__result = NEW_NUMBER((NUMBER(x)->getNumerator() <<
+                                                     NUMBER(n)->getNumerator()));")
 
-  (defn bit-shift-right [x n] "__result = VAR((NUMBER(x)->getNumerator() >>
-                                               NUMBER(n)->getNumerator()));")
+  (defn bit-shift-right [x n] "__result = NEW_NUMBER((NUMBER(x)->getNumerator() >>
+                                                      NUMBER(n)->getNumerator()));")
 #+end_src
 
 #+name: runtime-clojure-bit-operations-tests
@@ -2267,7 +2239,7 @@ Runs the given lambda in a posix thread,
            OBJECT(f)->addRef();
            if(::pthread_create(&th, 0, &PTHREAD_LAMBDA_INVOKER, static_cast<void*>(f.get())))
              return VAR();
-           __result = pthread_detach(th);")))
+           __result = NEW_NUMBER(pthread_detach(th));")))
 #+end_src
 
 #+name: runtime-clojure-bit-operations-tests
@@ -2334,7 +2306,7 @@ Runs the given lambda in a posix thread,
          (alter r assoc-in ks (conj cv v)))))
 
     (defn to-str? [f]
-      (or (true? f) (false? f) (symbol? f)))
+      (symbol? f))
 
     (defn is-special-form? [s f]
       (and (seq? f)
@@ -2627,8 +2599,8 @@ Runs the given lambda in a posix thread,
 ** resources/runtime.clj
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
-  <<runtime-clojure-pointer-object>>
   <<runtime-clojure-boolean-object>>
+  <<runtime-clojure-pointer-object>>
   <<runtime-clojure-number-object>>
   <<runtime-clojure-seekable-interface>>
   <<runtime-clojure-lambda-interface>>

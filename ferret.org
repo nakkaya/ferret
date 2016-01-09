@@ -389,6 +389,8 @@ is replaced with its expanded form.
 
 #+name: core-transformation-expand-macros
 #+begin_src clojure :tangle no
+  (declare expand-macros-all)
+
   (defn expand-macros [form]
     (let [macros (->> (read-string (str \( (read-from-url "runtime.clj") \)))
                       ;;get built in macros
@@ -400,7 +402,7 @@ is replaced with its expanded form.
       
       (create-ns temp-ns)
       (binding [*ns* (the-ns temp-ns)]
-        (refer 'clojure.core :exclude (concat (map second macros) ['fn 'let* 'def]))
+        (refer 'clojure.core :exclude (concat (map second macros) ['fn 'def]))
         (use '[ferret.core :only [symbol-conversion]])
         (doseq [m macros]
           (eval m)))
@@ -409,7 +411,12 @@ is replaced with its expanded form.
                              (apply is-form? (map second macros))
                              (fn [f]
                                (binding [*ns* (the-ns temp-ns)]
-                                 (macroexpand-all f))))]
+                                 (macroexpand-all f))))
+            form (morph-form form
+                             (is-form? 'let)
+                             (fn [[_ bindings & body]]
+                               (let [form (cons 'let* (cons bindings (expand-macros-all body)))]
+                                 (->> form vector->list expand-macros-all))))]
         (remove-ns temp-ns)
         form)))
 
@@ -714,9 +721,13 @@ suggests and removes the node when predicate returns true.
       (is (= (first (first form)) 'def))))
 
   (deftest transformation-macro-test
-    (is (= "1 1 1 true false true true true012343"
+    (is (= "1 1 1 true false true true true (3 3)012343"
            (capture-output '((defmacro my-when [test & body]
                                (list 'if test (cons 'do body)))
+
+                             (defmacro some-list [a]
+                               (let [a (inc a)]
+                                 (list 'list a a)))
                              
                              (print (my-when (< 2 3) 1)
 
@@ -738,7 +749,9 @@ suggests and removes the node when predicate returns true.
 
                                     (let [a 11]
                                       (or (> a 0)
-                                          (< a 10))))
+                                          (< a 10)))
+
+                                    (some-list 2))
                              
                              (dotimes [i 5] (print i))
                              (let [a 1]
@@ -1728,9 +1741,6 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+begin_src clojure :tangle no
   (defmacro defn [name args & body]
     (list 'def name (cons 'fn `( ~args ~@body))))
-
-  (defmacro let [bindings & body]
-    (cons 'let* `(~bindings ~@body)))
 
   (defmacro native-header [& body]
     (cons 'native-declare

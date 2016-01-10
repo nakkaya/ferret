@@ -2388,24 +2388,35 @@ Runs the given lambda in a posix thread,
               true))))
 
     (defn -main [& args]
-      (let [opts [["-i" "--input FILE" "Input File"
-                   :parse-fn #(read-clojure-file %)]
+      (let [opts [["-i" "--input FILE" "Input File"]
                   ["-c" "--compile" "Compile Solution"]
                   ["-o" "--compile-options FILE" "Compile Options File"
                    :parse-fn #(read-string (FileUtils/readFileToString (file %)))]
                   ["-f" "--source-files FILE" "Extra Source Files to Pass to GCC"]
+                  ["-w" "--watch-input" "Automatically recompile input file on change."]
                   ["-h" "--help"]]
             args (parse-opts args opts)
+            input (if (and (->> args :options :input)
+                           (.exists (file (->> args :options :input))))
+                    (->> args :options :input)
+                    (do (println "No Input File.")
+                        (System/exit 1)))
             options (compile-options (->> args :options :compile-options))
             extra-source-files (cond (not (empty? (:arguments args))) (:arguments args)
                                      (not (empty? (:extra-source-files options))) (:extra-source-files options)
-                                     :default [])]
-        (if (->> args :options :input)
-          (do (compile->cpp (->> args :options :input) options)
-              (when (->> args :options :compile)
-                (compile->binary options extra-source-files)
-                (shutdown-agents)))
-          (println "No Input File."))))
+                                     :default [])
+            build-fn (fn []
+                       (let [input (read-clojure-file input)]
+                         (compile->cpp input options)
+                         (when (->> args :options :compile)
+                           (compile->binary options extra-source-files))))]
+        (if (nil? (->> args :options :watch-input))
+          (build-fn)
+          (do (watcher/watcher [input]
+                               (watcher/rate 1000)
+                               (watcher/on-change (fn [_] (build-fn))))
+              @(promise)))
+        (shutdown-agents)))
   #+end_src
 
 * Files                                                            :noexport:
@@ -2415,7 +2426,8 @@ Runs the given lambda in a posix thread,
     :dependencies [[org.clojure/clojure "1.7.0"]
                    [org.clojure/tools.cli "0.3.3"]
                    [org.bituf/clj-stringtemplate "0.2"]
-                   [org.clojars.amit/commons-io "1.4.0"]]
+                   [org.clojars.amit/commons-io "1.4.0"]
+                   [watchtower "0.1.1"]]
     :repl-options {:host "0.0.0.0"
                    :port 7888
                    :init-ns ferret.core}
@@ -2431,7 +2443,8 @@ Runs the given lambda in a posix thread,
     (:use [clojure.java.io]
           [clojure.walk :only [macroexpand-all]])
     (:require [clojure.zip :as zip]
-              [clojure.tools.cli :refer [parse-opts]])
+              [clojure.tools.cli :refer [parse-opts]]
+              [watchtower.core :as watcher])
     (:use [ferret.string-template]
           [ferret.template]
           [clojure.java.shell])

@@ -950,38 +950,19 @@ List Destructuring,
   (defmethod emit 'lambda_object [[_ name & env] state]
     (new-lambda name (filter #(not (= '& %)) env)))
 
-  (defn emit-native-block [form state]
-    (let [includes (->> (filter #(= 4 (count %)) (rest form))
-                        (map #(cons (nth % 1) (apply list (nth % 2))))
-                        (map (fn [[guard & headers]]
-                               (str "\n#if " guard " \n"
-                                    (apply str (map #(str "#include \"" % "\"\n") headers))
-                                    "#endif\n"))))
-          body (->> (map #(vector (second %) (last %)) (rest form))
-                    (map #(str "\n#if " (first %) " \n"
-                               (second %)
-                               "\n#endif\n")))
-          pre-ample (->> (map #(vector (second %) (drop-last (drop 3 %))) (rest form))
-                         (map #(str "\n#if " (first %) " \n"
-                                    (apply str (map (fn [line] (str line "\n")) (second %)))
-                                    "\n#endif\n")))]
-      (doseq [inc includes] 
-        (append-to! state [:native-declarations] inc))
-      (doseq [pre pre-ample] 
-        (append-to! state [:native-declarations] pre))
-      ["VAR __result" body "__result"]))
-
   (defmethod emit 'define_lambda [[_ name env args & body] state]
-    (let [body (cond  (empty? body) ["VAR()"]
+    (let [native-declarations (filter #(and (seq? %)
+                                            (= (first %) 'native_declare)) body)
+          body (filter #(not (and (seq? %)
+                                  (= (first %) 'native_declare))) body)
+          body (cond  (empty? body) ["VAR()"]
                       (and (= 1 (count body))
                            (string? (first body)))
                       ["VAR __result" body "__result"]
-                      (and (= 1 (count body))
-                           (seq? (-> body first))
-                           (= 'native_block (-> body first first)))
-                      (emit-native-block (first body) state)
                       :default (doall (map #(emit % state) body)))
           env (filter #(not (= '& %)) env)]
+      (doseq [dec native-declarations] 
+        (emit dec state))
       (append-to! state [:lambdas] {:name name :env env
                                     :args (destructure-lambda args)
                                     :body body}) ""))
@@ -1747,24 +1728,43 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
           (->> (map #(str "#include \"" (str %) "\"\n") body)
                (apply str)
                (list))))
+
+  (defmacro defnative [name args & form]
+    (let [includes (->> (filter #(seq? (nth % 2)) form)
+                        (map #(cons (nth % 1) (apply list (nth % 2))))
+                        (map (fn* ([form]
+                                   (let [[guard & headers] form]
+                                     (str "\n#if " guard " \n"
+                                          (apply str (map #(str "#include \"" % "\"\n") headers))
+                                          "#endif\n")))))
+                        (map #(list 'native-declare %)))
+          body (->> (map #(vector (second %) (last %)) form)
+                    (map #(str "\n#if " (first %) " \n"
+                               (second %)
+                               "\n#endif\n"))
+                    (apply str))
+          pre-ample (->> (map #(vector (second %) (drop-last (drop 3 %))) form)
+                         (map #(str "\n#if " (first %) " \n"
+                                    (apply str (map (fn* ([line] (str line "\n"))) (second %)))
+                                    "\n#endif\n"))
+                         (map #(list 'native-declare %)))]
+      (list 'def name (cons 'fn `( ~args ~@includes ~@pre-ample  ~body)))))
 #+end_src
 
 *** Misc
 
 #+name: runtime-clojure-misc
 #+begin_src clojure :tangle no
-  (defn sleep [timeout]
-    (native-block
-     (on "defined GNU_GCC"
-         ("unistd.h")
-         "::sleep(NUMBER(timeout)->intValue());")
-     (on "defined AVR_GCC"
-         "::delay(NUMBER(timeout)->intValue());")))
+  (defnative sleep [timeout]
+    (on "defined GNU_GCC"
+        ("unistd.h")
+        "::sleep(NUMBER(timeout)->intValue());")
+    (on "defined AVR_GCC"
+        "::delay(NUMBER(timeout)->intValue());"))
 
-  (defn get-char []
-    (native-block
-     (on "defined GNU_GCC"
-         "__result = ferret::var(getchar());")))
+  (defnative get-char []
+    (on "defined GNU_GCC"
+        "__result = ferret::var(getchar());"))
 
   (defmacro create-callback [callback out in & pass-vars]
     (list 'do
@@ -1775,19 +1775,18 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                        "\n}\n"))
           (list 'def `~(symbol (str callback "-callback-fn")) `~callback)))
 
-  (defn sh [cmd]
-    (native-block
-     (on "defined GNU_GCC"
-         ("memory")
-         "std::shared_ptr<FILE> pipe(popen(TO_C_STR(cmd), \"r\"), pclose);
-          if (!pipe) 
-             __result = VAR();
-          char buffer[128];
-          std::string result = \"\";
-          while (!feof(pipe.get()))
-           if (fgets(buffer, 128, pipe.get()) != NULL)
-            result += buffer;
-          __result = NEW_STRING(result.c_str());")))
+  (defnative sh [cmd]
+    (on "defined GNU_GCC"
+        ("memory")
+        "std::shared_ptr<FILE> pipe(popen(TO_C_STR(cmd), \"r\"), pclose);
+         if (!pipe) 
+            __result = VAR();
+         char buffer[128];
+         std::string result = \"\";
+         while (!feof(pipe.get()))
+          if (fgets(buffer, 128, pipe.get()) != NULL)
+           result += buffer;
+         __result = NEW_STRING(result.c_str());"))
 #+end_src
 
 *** Console I/O
@@ -2257,21 +2256,20 @@ Runs the given lambda in a posix thread,
 
 #+name: runtime-clojure-bit-operations
 #+begin_src clojure :tangle no
-  (defn pthread-create [f]
-    (native-block
-     (on "defined GNU_GCC"
-         ("pthread.h")
-          "void *PTHREAD_LAMBDA_INVOKER(void *data) {
+  (defnative pthread-create [f]
+    (on "defined GNU_GCC"
+        ("pthread.h")
+        "void *PTHREAD_LAMBDA_INVOKER(void *data) {
             ferret::var fn = ferret::var(static_cast<ferret::Object*>(data));
             OBJECT(fn)->subRef();
             INVOKE(fn);
             pthread_exit(NULL);
-           }"
-          "pthread_t th;
-           OBJECT(f)->addRef();
-           if(::pthread_create(&th, 0, &PTHREAD_LAMBDA_INVOKER, static_cast<void*>(f.get())))
-             return VAR();
-           __result = NEW_NUMBER(pthread_detach(th));")))
+         }"
+        "pthread_t th;
+         OBJECT(f)->addRef();
+         if(::pthread_create(&th, 0, &PTHREAD_LAMBDA_INVOKER, static_cast<void*>(f.get())))
+           return VAR();
+         __result = NEW_NUMBER(pthread_detach(th));"))
 #+end_src
 
 #+name: runtime-clojure-bit-operations-tests

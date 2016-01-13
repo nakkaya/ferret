@@ -241,7 +241,7 @@ we iterate over the code and spit valid C++.
 
 ** Transformation
 
-Forms go through eight transformations before they are passed to the
+Forms go through nine transformations before they are passed to the
 code generation phase.
 
 #+name: core-transformation-process

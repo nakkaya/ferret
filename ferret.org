@@ -1165,6 +1165,97 @@ Object Casting macros,
   #define LAMBDA(v) static_cast<ferret::Lambda*>(v.get())
 #+end_src
 
+*** Memory Pool
+
+#+name: runtime-native-memory-pool
+#+begin_src c++ :tangle no
+  #include <cmath>
+
+  template<typename PageSize>
+  class MemoryPage{
+  public:
+    PageSize* data;
+    size_t size;
+    bool used;
+  };
+
+  template<typename PageSize, size_t poolSize>
+  class MemoryPool{
+  public:
+    PageSize pool[poolSize];
+    MemoryPage<PageSize> pages[poolSize];
+
+    size_t calculatePageSize(size_t index){
+      size_t totalPoolSize = poolSize * sizeof(PageSize);
+      return (sizeof(PageSize) * (poolSize - index));
+    }
+
+    size_t calculateNeededPages(size_t size){
+      float f = (float) (((float)size) / ((float)sizeof(PageSize))) ;
+      return ((size_t) ceil(f)) ;
+    }
+
+    size_t findPage(size_t size){
+      for(int i=0; i < poolSize; i++){
+        if(pages[i].size >= size){
+          if(pages[i].used == false){
+            return i;
+          }
+        }
+      }
+      return -1;
+    }
+    
+    MemoryPool(){
+      MemoryPage<PageSize> root = MemoryPage<PageSize>();
+      root.size = calculatePageSize(0);
+      root.data = &pool[0];
+      pages[0] = root;
+
+      for(size_t i = 1; i < poolSize; i++){
+        MemoryPage<PageSize> curr = MemoryPage<PageSize>();
+        curr.size = calculatePageSize(i);
+        curr.data = &pool[i];
+        pages[i] = curr;
+      }
+    }
+
+    void *allocate(size_t size){
+      size_t page = findPage(size);
+
+      if ( page == -1)
+        return NULL;
+
+      size_t length = calculateNeededPages(size);
+
+      for(size_t i = page; i < (page+length); i++){
+        pages[i].size = size;
+        pages[i].used = true;
+      }
+
+      std::cout<< "Alloc Page " << page << " End " << (page+length) << std::endl;
+      return pages[page].data;
+    }
+
+    void free(void *p){
+      PageSize* ptr = static_cast<PageSize*>(p);
+      ptrdiff_t index = ptr - pool;
+      MemoryPage<PageSize> page = pages[index];
+
+      size_t length = calculateNeededPages(page.size);
+
+      std::cout<< "Free Page " << index << " End " << (index+length) << std::endl;
+      
+      for(size_t i = index, idx = length ; i < (index+length); i++, idx--){
+        pages[i].used = false;
+        pages[i].size = idx * sizeof(PageSize);
+      }
+    }
+  };
+
+  #define SETUP_MEMORY_POOL(s)  MemoryPool<int,s> pool;
+#+end_src
+
 *** Object
 
 #+name: runtime-native-object

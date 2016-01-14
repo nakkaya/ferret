@@ -1169,87 +1169,78 @@ Object Casting macros,
 
 #+name: runtime-native-memory-pool
 #+begin_src c++ :tangle no
-  #include <cmath>
-
-  template<typename PageSize>
-  class MemoryPage{
-  public:
-    PageSize* data;
-    size_t size;
-    bool used;
-  };
-
   template<typename PageSize, size_t poolSize>
   class MemoryPool{
   public:
     PageSize pool[poolSize];
-    MemoryPage<PageSize> pages[poolSize];
-
-    size_t calculatePageSize(size_t index){
-      size_t totalPoolSize = poolSize * sizeof(PageSize);
-      return (sizeof(PageSize) * (poolSize - index));
-    }
+    bool used[poolSize];
+    PageSize* pages[poolSize];
 
     size_t calculateNeededPages(size_t size){
       float f = (float) (((float)size) / ((float)sizeof(PageSize))) ;
       return ((size_t) ceil(f)) ;
     }
+    
+    MemoryPool(){
+      for(size_t i = 0; i < poolSize; i++)
+        pages[i] = &pool[i];
+    }
 
-    size_t findPage(size_t size){
-      for(int i=0; i < poolSize; i++){
-        if(pages[i].size >= size){
-          if(pages[i].used == false){
-            return i;
-          }
-        }
-      }
+    bool isPageRangeUsable(size_t begin,size_t end){
+      for(int i=begin; i < end; i++)
+        if (used[i] == true)
+          return false;
+      return true;
+    }
+
+    size_t nextAvaliblePage(size_t offset){
+      for(int i=offset; i < poolSize; i++)
+        if (used[i] == false)
+          return i;
       return -1;
     }
     
-    MemoryPool(){
-      MemoryPage<PageSize> root = MemoryPage<PageSize>();
-      root.size = calculatePageSize(0);
-      root.data = &pool[0];
-      pages[0] = root;
+    size_t findPage(size_t reqSize){
+      size_t pagesNeeded = calculateNeededPages(reqSize);
+      size_t offset = 0;
 
-      for(size_t i = 1; i < poolSize; i++){
-        MemoryPage<PageSize> curr = MemoryPage<PageSize>();
-        curr.size = calculatePageSize(i);
-        curr.data = &pool[i];
-        pages[i] = curr;
+      for(;;){
+        int page = nextAvaliblePage(offset);
+
+        if ((page + pagesNeeded) > poolSize)
+          break;
+        
+        if (isPageRangeUsable(page,(page + pagesNeeded)) == true)
+          return page;
       }
+      
+      return -1;
     }
-
-    void *allocate(size_t size){
-      size_t page = findPage(size);
+    
+    void *allocate(size_t reqSize){
+      reqSize += 1;
+      size_t page = findPage(reqSize);
 
       if ( page == -1)
         return NULL;
 
-      size_t length = calculateNeededPages(size);
+      size_t length = calculateNeededPages(reqSize);
 
-      for(size_t i = page; i < (page+length); i++){
-        pages[i].size = size;
-        pages[i].used = true;
-      }
+      pool[page] = reqSize;
+      for(size_t i = page; i < (page+length); i++)
+        used[i] = true;
 
-      std::cout<< "Alloc Page " << page << " End " << (page+length) << std::endl;
-      return pages[page].data;
+      return pages[page];
     }
 
     void free(void *p){
       PageSize* ptr = static_cast<PageSize*>(p);
       ptrdiff_t index = ptr - pool;
-      MemoryPage<PageSize> page = pages[index];
 
-      size_t length = calculateNeededPages(page.size);
-
-      std::cout<< "Free Page " << index << " End " << (index+length) << std::endl;
+      size_t length = calculateNeededPages(pool[index]);
       
-      for(size_t i = index, idx = length ; i < (index+length); i++, idx--){
-        pages[i].used = false;
-        pages[i].size = idx * sizeof(PageSize);
-      }
+      for(size_t i = index, idx = length ; i < (index+length); i++, idx--)
+        used[i] = false;
     }
   };
 
@@ -1740,6 +1731,8 @@ reaches zero it will automatically free the Object.
   #ifdef AVR_GCC
   #include "Arduino.h"
   #endif
+
+  #include <cmath>
 
   //
   // Compiler Specific
@@ -2725,6 +2718,7 @@ Runs the given lambda in a posix thread,
 
   namespace ferret{
     class var;
+    <<runtime-native-memory-pool>>
     <<runtime-native-object>>
     <<runtime-native-var>>
   }

@@ -1197,7 +1197,7 @@ Object Casting macros,
       for(int i=offset; i < poolSize; i++)
         if (used[i] == false)
           return i;
-      return -1;
+      return poolSize;
     }
     
     size_t findPage(size_t reqSize){
@@ -1244,7 +1244,7 @@ Object Casting macros,
     }
   };
 
-  #define SETUP_MEMORY_POOL(s)  MemoryPool<int,s> pool;
+  #define SETUP_MEMORY_POOL(s)  MemoryPool<char,s> pool;
 #+end_src
 
 *** Object

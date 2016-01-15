@@ -1248,7 +1248,7 @@ Object Casting macros,
   //#define MEMORY_POOL_SIZE 2048
 
   #ifdef MEMORY_POOL_SIZE
-  MemoryPool<char,MEMORY_POOL_SIZE> ProgramMemory;
+  MemoryPool<size_t,MEMORY_POOL_SIZE> ProgramMemory;
   #endif
 #+end_src
 

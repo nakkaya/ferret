@@ -1175,106 +1175,119 @@ Object Casting macros,
     PageSize pool[poolSize];
     bool used[poolSize];
     PageSize* pages[poolSize];
-
+    
     size_t calculateNeededPages(size_t size){
       float f = (float) (((float)size) / ((float)sizeof(PageSize))) ;
       return ((size_t) ceil(f)) ;
     }
-    
+      
     MemoryPool(){
       for(size_t i = 0; i < poolSize; i++)
         pages[i] = &pool[i];
     }
-
+    
     bool isPageRangeUsable(size_t begin,size_t end){
       for(int i=begin; i < end; i++)
         if (used[i] == true)
           return false;
       return true;
     }
-
+    
     size_t nextAvaliblePage(size_t offset){
       for(int i=offset; i < poolSize; i++)
         if (used[i] == false)
           return i;
       return poolSize;
     }
-    
+      
     size_t findPage(size_t reqSize){
       size_t pagesNeeded = calculateNeededPages(reqSize);
       size_t offset = 0;
-
+    
       for(;;){
         int page = nextAvaliblePage(offset);
-
+    
         if ((page + pagesNeeded) > poolSize)
           break;
-        
+          
         if (isPageRangeUsable(page,(page + pagesNeeded)) == true)
           return page;
+
+        offset++;
       }
-      
+        
       return -1;
     }
-    
+      
     void *allocate(size_t reqSize){
       reqSize += 1;
       size_t page = findPage(reqSize);
-
+    
       if ( page == -1)
         return NULL;
-
+    
       size_t length = calculateNeededPages(reqSize);
-
+    
       pool[page] = reqSize;
       for(size_t i = page; i < (page+length); i++)
         used[i] = true;
-
-      return pages[page];
+        
+      return pages[page+1];
     }
-
+    
     void free(void *p){
       PageSize* ptr = static_cast<PageSize*>(p);
-      ptrdiff_t index = ptr - pool;
-
+      ptrdiff_t index = (ptr - pool) -1;
       size_t length = calculateNeededPages(pool[index]);
-      
-      for(size_t i = index, idx = length ; i < (index+length); i++, idx--)
+        
+      for(size_t i = index ; i < (index+length); i++)
         used[i] = false;
     }
   };
 
-  #define SETUP_MEMORY_POOL(s)  MemoryPool<char,s> pool;
+  //#define MEMORY_POOL_SIZE 2048
+
+  #ifdef MEMORY_POOL_SIZE
+  MemoryPool<char,MEMORY_POOL_SIZE> ProgramMemory;
+  #endif
 #+end_src
 
 *** Object
 
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
-class Object{
-    public:
-      Object() : refCount(0) {}
-      virtual ~Object() {};
-  
-      virtual int getType() = 0;
-      virtual var toOutputStream() = 0;
-      virtual var equals(var o) = 0;
-  
-      void addRef() { refCount++; }
-      bool subRef() { return (--refCount <= 0); }
-  
-  
-      void* operator new(size_t size){ 
-        return malloc(size); 
-      } 
-  
-      void  operator delete(void * ptr){ 
-        free(ptr); 
-      }
-  
-    private:
-      int refCount;
-    };
+  class Object{
+  public:
+    Object() : refCount(0) {}
+    virtual ~Object() {};
+    
+    virtual int getType() = 0;
+    virtual var toOutputStream() = 0;
+    virtual var equals(var o) = 0;
+    
+    void addRef() { refCount++; }
+    bool subRef() { return (--refCount <= 0); }
+    
+    
+    void* operator new(size_t size){
+  #ifdef MEMORY_POOL_SIZE
+      return ProgramMemory.allocate(size);
+  #else
+      return malloc(size);
+  #endif
+    }
+    
+    void  operator delete(void * ptr){
+  #ifdef MEMORY_POOL_SIZE
+      ProgramMemory.free(ptr);
+  #else
+      free(ptr);
+  #endif
+    }
+    
+  private:
+    int refCount;
+  };
 #+end_src
 
 All our types are derived from the base Object type,(defining

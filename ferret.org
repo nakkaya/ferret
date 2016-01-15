@@ -1071,9 +1071,11 @@ List Destructuring,
          $endif$
 
          $if(toOutputStream)$
+  #if !defined(DISABLE_OUTPUT_STREAM)
           var toOutputStream(){
            $toOutputStream$
           }
+  #endif
          $endif$
 
          $fns:{it | $first(it)$($first(rest(it))$){
@@ -1269,7 +1271,11 @@ Object Casting macros,
     virtual ~Object() {};
     
     virtual int getType() = 0;
+    
+  #if !defined(DISABLE_OUTPUT_STREAM)
     virtual var toOutputStream() = 0;
+  #endif
+    
     virtual var equals(var o) = 0;
     
     void addRef() { refCount++; }
@@ -1691,6 +1697,8 @@ reaches zero it will automatically free the Object.
     }
       
     var& operator, (const var& m);
+
+  #if !defined(DISABLE_OUTPUT_STREAM)
     var toOutputStream() {
       if (m_ptr != NULL )
         m_ptr->toOutputStream();
@@ -1698,7 +1706,8 @@ reaches zero it will automatically free the Object.
         fprintf(OUTPUT_STREAM, "nil");
       return var();
     }
-      
+  #endif
+        
     Object* get() { return m_ptr; }
       
   private:
@@ -1764,11 +1773,19 @@ reaches zero it will automatically free the Object.
 
   #define OUTPUT_STREAM &uartout
 
-  #define INIT_ENV                                                        \
-    init();                                                               \
+  #if !defined(DISABLE_OUTPUT_STREAM)
+  #define INIT_OUTPUT_STREAM                                              \
     Serial.begin(9600);                                                   \
-    fdev_setup_stream (&uartout, uart_putchar, NULL, _FDEV_SETUP_WRITE);  \
+    fdev_setup_stream (&uartout, uart_putchar, NULL, _FDEV_SETUP_WRITE);
 
+  #else
+  #define INIT_OUTPUT_STREAM true;
+  #endif
+
+
+  #define INIT_ENV                                \
+    init();                                       \
+    INIT_OUTPUT_STREAM                                                           
   #endif
 
   #ifdef GNU_GCC

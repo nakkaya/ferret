@@ -1255,10 +1255,29 @@ Object Casting macros,
     }
   };
 
-  //#define MEMORY_POOL_SIZE 2048
-
   MemoryPool<size_t,MEMORY_POOL_SIZE> ProgramMemory;
   #endif
+#+end_src
+
+#+name: runtime-clojure-memory-pool-tests
+#+begin_src clojure :tangle no
+  (deftest memory-pool-test
+    (is (= "0 3 8 3 1 1 1 1 "
+           (capture-output
+            '((native-define "#define MEMORY_POOL_SIZE 2048")
+              (native-declare "ferret::MemoryPool<size_t,10> mem;")
+              (native-declare "void* ptr;")
+              ((fn [] "std::cout << mem.nextAvaliblePage(0) << \" \";"))
+              ((fn [] "mem.allocate(sizeof(size_t)*2);"))
+              ((fn [] "std::cout << mem.nextAvaliblePage(0) << \" \";"))
+              ((fn [] "ptr = mem.allocate(sizeof(size_t)*4);"))
+              ((fn [] "std::cout << mem.nextAvaliblePage(2) << \" \";"))
+              ((fn [] "mem.free(ptr);"))
+              ((fn [] "std::cout << mem.nextAvaliblePage(2) << \" \";"))
+              ((fn [] "std::cout << (NULL == mem.allocate(sizeof(size_t)*40)) << \" \";"))
+              ((fn [] "std::cout << (NULL != mem.allocate(sizeof(size_t)*6)) << \" \";"))
+              ((fn [] "std::cout << (NULL == mem.allocate(sizeof(size_t)*1)) << \" \";"))
+              ((fn [] "std::cout << (NULL == mem.allocate(sizeof(size_t)*10)) << \" \";")))))))
 #+end_src
 
 *** Object
@@ -2744,6 +2763,7 @@ Runs the given lambda in a posix thread,
     <<clojure-destructure-tests>>
     <<native-string-tests>>
     <<native-keyword-tests>>
+    <<runtime-clojure-memory-pool-tests>>
 #+end_src 
 
 ** resources/Object.cpp

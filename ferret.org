@@ -1912,13 +1912,13 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
   (defnative sleep [timeout]
     (on "defined GNU_GCC"
         ("unistd.h")
-        "::sleep(NUMBER(timeout)->intValue());")
+        "::sleep(TO_INT(timeout));")
     (on "defined AVR_GCC"
-        "::delay(NUMBER(timeout)->intValue());"))
+        "::delay(TO_INT(timeout));"))
 
   (defnative get-char []
     (on "defined GNU_GCC"
-        "__result = ferret::var(getchar());"))
+        "__result = NEW_CHARACTER(getchar());"))
 
   (defmacro defcallback [callback out in & pass-vars]
     (list 'do

@@ -1133,6 +1133,7 @@ List Destructuring,
         }
       }
 
+    #if !defined(DISABLE_MAIN_FUNCTION)
       int main(int argc, char* argv[]){
       
         INIT_ENV
@@ -1145,7 +1146,8 @@ List Destructuring,
 
         ferret::ProgramRun();      
         return 0;
-      }")]
+      }
+    #endif")]
       (fill-view! view "object_interface" (read-from-url "Object.cpp"))
       (fill-view! view "body" (filter #(not (empty? %)) body))
       (fill-view! view "lambdas" (declare-lambdas lambdas))

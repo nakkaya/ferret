@@ -1187,6 +1187,40 @@ Object Casting macros,
 
 *** Memory Pool
 
+    When,
+
+#+BEGIN_EXAMPLE
+  MEMORY_POOL_SIZE
+#+END_EXAMPLE
+
+    is defined ferret program will use a memory pool instead of
+    /mallac/,/free/, depending on the pool size ferret will allocate 
+    /N x size_t/ bytes of memory on stack and all object creation
+    happens in this memory pool useful when working with very limited
+    amount of memory, such as micro controllers where you want
+    complete control over the memory and you need deterministic timing
+    requirements. Memory pooling also prevents heap fragmentation.
+
+    (This should not be used in a multi threaded program.)
+
+    For every page of memory allocated there is overhead of one
+    /bool/ and one pointer to size_t.
+
+    When /allocate/ is called the pool will scan the memory pool using
+    the /used/ bool array to find a block of memory big enough to
+    satisfy the request. If found, it will the mark the region as used and
+    return a pointer from /pages/ array to the user which points to
+    the memory block. First page of the memory block is used for book
+    keeping information, it holds the amount of memory allocated.
+
+    When a free request is received, we resolve the pointer in to the
+    memory pool read the book keeping information on how much memory
+    is allocated to this pointer and set these pages to unused.
+
+    Memory pool has several advantages, it will avoid fragmentation,
+    function related to each other will always keep their data close
+    to each other in the array which improves data locality.
+
 #+name: runtime-native-memory-pool
 #+begin_src c++ :tangle no
   #ifdef MEMORY_POOL_SIZE

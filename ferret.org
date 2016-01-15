@@ -1132,11 +1132,11 @@ List Destructuring,
         INIT_ENV
 
       #ifdef GNU_GCC
-        _star_command_line_args_star_ = VAR(new ferret::Sequence());
+        _star_command_line_args_star_ = NEW_SEQUENCE();
         for (int i = argc - 1; i > -1 ; i--)
-          _star_command_line_args_star_ =
-             SEQUENCE(_star_command_line_args_star_)->cons(VAR(new ferret::String(argv[i])));
+          CONS(_star_command_line_args_star_,NEW_STRING(argv[i]));
       #endif
+
         $body:{$it$;} ;separator=\"\n\"$
         return 0;
       }")]

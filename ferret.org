@@ -1127,6 +1127,12 @@ List Destructuring,
         $lambdas:{$it$} ;separator=\"\n\"$
       }
 
+      namespace ferret{
+        void ProgramRun(){
+         $body:{$it$;} ;separator=\"\n\"$ 
+        }
+      }
+
       int main(int argc, char* argv[]){
       
         INIT_ENV
@@ -1137,7 +1143,7 @@ List Destructuring,
           CONS(_star_command_line_args_star_,NEW_STRING(argv[i]));
       #endif
 
-        $body:{$it$;} ;separator=\"\n\"$
+        ferret::ProgramRun();      
         return 0;
       }")]
       (fill-view! view "object_interface" (read-from-url "Object.cpp"))

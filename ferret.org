@@ -1192,8 +1192,11 @@ Object Casting macros,
     }
       
     MemoryPool(){
-      for(size_t i = 0; i < poolSize; i++)
+      for(size_t i = 0; i < poolSize; i++){
+        pool[i] = 0;
+        used[i] = false;
         pages[i] = &pool[i];
+      }
     }
     
     bool isPageRangeUsable(size_t begin,size_t end){

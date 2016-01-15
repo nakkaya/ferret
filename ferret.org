@@ -1160,8 +1160,6 @@ Object Casting macros,
 #+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
   #define NIL (VAR())
-  #define IS_NIL(o) (o.get() == NULL)
-  #define IS_NOT_NIL(o) (o.get() != NULL)
   #define OBJECT(v) static_cast<ferret::Object*>(v.get())
   #define POINTER(v) static_cast<ferret::Pointer*>(v.get())
   #define NUMBER(v) static_cast<ferret::Number*>(v.get())
@@ -1173,6 +1171,10 @@ Object Casting macros,
   #define SEQUENCE(v) static_cast<ferret::Sequence*>(v.get())
   #define STRING(v) static_cast<ferret::String*>(v.get())
   #define LAMBDA(v) static_cast<ferret::Lambda*>(v.get())
+
+  #define IS_NIL(o) (o.get() == NULL)
+  #define IS_NOT_NIL(o) (o.get() != NULL)
+  #define IS_TYPE(o,type) (OBJECT(o)->getType() == type)
 #+end_src
 
 *** Memory Pool
@@ -1438,7 +1440,7 @@ Math configuration,
              id = id + (int)str[i];
            }"))
     (equals
-     "if (OBJECT(o)->getType() != KEYWORD_TYPE)
+     "if (!IS_TYPE(o,KEYWORD_TYPE))
         return NEW_BOOLEAN(false);
       return NEW_BOOLEAN(id == KEYWORD(o)->id);")
     (toOutputStream
@@ -1471,7 +1473,7 @@ Math configuration,
     (data "char value")
     (new ("char c" "value = c;"))
     (equals
-     "if (OBJECT(o)->getType() != CHARACTER_TYPE)
+     "if (!IS_TYPE(o,CHARACTER_TYPE))
         return NEW_BOOLEAN(false);
       return NEW_BOOLEAN(value == CHARACTER(o)->value);")
     (toOutputStream
@@ -1514,7 +1516,7 @@ Math configuration,
           "var next")
     (new ("" "")
          ("var d, var n" "data = d; next = n;"))
-    (equals "if (OBJECT(o)->getType() != CELL_TYPE)
+    (equals "if (!IS_TYPE(o,CELL_TYPE))
               return NEW_BOOLEAN(false);
              return NEW_BOOLEAN(data.equals(o));")
     (toOutputStream
@@ -1529,7 +1531,7 @@ Math configuration,
     (new ("" "head = NULL;")
          ("var h" "head = h;"))
     (equals
-     "if (OBJECT(o)->getType() != SEQUENCE_TYPE)
+     "if (!IS_TYPE(o,SEQUENCE_TYPE))
        return NEW_BOOLEAN(false);
 
       if(IS_NIL(head) && IS_NIL(SEQUENCE(o)->head))
@@ -1598,7 +1600,7 @@ Math configuration,
              s = ISEEKABLE(s)->cons(VAR(new ferret::Character(str[i])));
            data = s;"))
     (equals
-     "if (OBJECT(o)->getType() != STRING_TYPE)
+     "if (!IS_TYPE(o,STRING_TYPE))
        return NEW_BOOLEAN(false);
       return NEW_BOOLEAN(data.equals(STRING(o)->data));")
     (toOutputStream
@@ -1645,7 +1647,7 @@ Math configuration,
   (defobject Boolean
     (data "bool value")
     (new ("bool b" "value = b;"))
-    (equals "if (OBJECT(o)->getType() != BOOLEAN_TYPE)
+    (equals "if (!IS_TYPE(o,BOOLEAN_TYPE))
                return NEW_BOOLEAN(false);
              return NEW_BOOLEAN(value == BOOLEAN(o)->asBool());")
     (toOutputStream
@@ -1851,7 +1853,7 @@ Once our object system is in place we can define rest of the runtime
 
   (defn nil? [x] "__result = NEW_BOOLEAN(IS_NIL(x))")
 
-  (defn char? [x] "__result = (OBJECT(x)->getType() == CHARACTER_TYPE);")
+  (defn char? [x] "__result = IS_TYPE(x,CHARACTER_TYPE);")
 #+end_src
 
 We can embed C++ code into our functions, which is how most of the
@@ -2057,7 +2059,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+begin_src clojure :tangle no
   (defn list [& xs] "__result = xs;")
 
-  (defn list? [x] "__result = NEW_BOOLEAN(OBJECT(x)->getType() == SEQUENCE_TYPE);")
+  (defn list? [x] "__result = NEW_BOOLEAN(IS_TYPE(x,SEQUENCE_TYPE);")
 
   (defn empty? [x] "__result = NEW_BOOLEAN(ISEEKABLE(x)->isEmpty())")
 
@@ -2199,7 +2201,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
      (list 'if x x `(or ~@next))))
 
   (defn not [x]
-    "if (OBJECT(x)->getType() != BOOLEAN_TYPE)
+    "if (!IS_TYPE(x,BOOLEAN_TYPE))
         return NEW_BOOLEAN(false);
         __result = NEW_BOOLEAN(!BOOLEAN(x)->asBool());")
 #+end_src
@@ -2244,11 +2246,11 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn integer? [x] "__result = NEW_BOOLEAN((OBJECT(x)->getType() == NUMBER_TYPE) &&
-                                             (NUMBER(x)->getDenominator() == 1));")
+  (defn integer? [x] "__result = NEW_BOOLEAN(IS_TYPE(x,NUMBER_TYPE) &&
+                                            (NUMBER(x)->getDenominator() == 1));")
 
-  (defn float? [x] "__result = NEW_BOOLEAN((OBJECT(x)->getType() == NUMBER_TYPE) &&
-                                           (NUMBER(x)->getDenominator() != 1));")
+  (defn float? [x] "__result = NEW_BOOLEAN(IS_TYPE(x,NUMBER_TYPE) &&
+                                          (NUMBER(x)->getDenominator() != 1));")
 
   (defn + [& xs]
     (reduce (fn[h v] "

@@ -870,16 +870,16 @@ C++ skeleton.
 #+begin_src clojure :tangle no
   (defmethod emit :to-str [form state] (str form))
 
-  (defmethod emit :char [form state] (str "VAR(new ferret::Character('" form "'))"))
+  (defmethod emit :char [form state] (str "NEW_CHARACTER('" form "')"))
 
-  (defmethod emit :string [form state] (str "VAR(new ferret::String(\"" form "\"))"))
+  (defmethod emit :string [form state] (str "NEW_STRING(\"" form "\")"))
 
   (defmethod emit :boolean [form state] (str "NEW_BOOLEAN(" form ")"))
 
   (defmethod emit :nil [form state] "VAR()")
 
   (defmethod emit :keyword [form state]
-    (str "VAR(new ferret::Keyword(" (reduce (fn[h v] (+ h (int v))) 0 (str form))"))"))
+    (str "NEW_KEYWORD(" (reduce (fn[h v] (+ h (int v))) 0 (str form)) ")"))
 
   (defmethod emit :number [form state]
     (str "NEW_NUMBER("form (if (float? form) "f") ")"))
@@ -1443,6 +1443,11 @@ Math configuration,
           "return (id == k.id);")))
 #+end_src
 
+#+name: runtime-native-iseekable-macros
+#+begin_src c++ :tangle no
+  #define NEW_KEYWORD(k) (VAR(new ferret::Keyword(k)))
+#+end_src
+
 #+name: native-keyword-tests
 #+begin_src clojure :tangle no
   (deftest native-keyword-test
@@ -1450,7 +1455,7 @@ Math configuration,
            (capture-output '((print (= :test :test)
                                     (= :test :other_test)
                                     ((fn [keyword]
-                                       "__result = NEW_BOOLEAN(keyword.equals(VAR(new ferret::Keyword(\":space\"))))")
+                                       "__result = NEW_BOOLEAN(keyword.equals(NEW_KEYWORD(\":space\")))")
                                      :space)))))))
 #+end_src
 
@@ -1467,6 +1472,11 @@ Math configuration,
       return NEW_BOOLEAN(value == CHARACTER(o)->value);")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"%c\",value); return var();"))
+#+end_src
+
+#+name: runtime-native-iseekable-macros
+#+begin_src c++ :tangle no
+  #define NEW_CHARACTER(c) (VAR(new ferret::Character(c)))
 #+end_src
 
 *** Seekable Interface
@@ -2436,13 +2446,13 @@ Runs the given lambda in a posix thread,
 #+name: runtime-clojure-arduino
 #+begin_src clojure :tangle no
   (defn pin-mode [pin mode]
-    "if (mode.equals(VAR(new ferret::Keyword(\":input\"))) == true)
+    "if (mode.equals(NEW_KEYWORD(\":input\")) == true)
         pinMode(NUMBER(pin)->intValue(), INPUT);
      else
         pinMode(NUMBER(pin)->intValue(), OUTPUT);")
 
   (defn digital-write [pin mode]
-    "if (mode.equals(VAR(new ferret::Keyword(\":high\")))  == true)
+    "if (mode.equals(NEW_KEYWORD(\":high\"))  == true)
         digitalWrite(NUMBER(pin)->intValue(), HIGH);
      else
         digitalWrite(NUMBER(pin)->intValue(), LOW);")

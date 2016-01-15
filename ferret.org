@@ -876,7 +876,7 @@ C++ skeleton.
 
   (defmethod emit :boolean [form state] (str "NEW_BOOLEAN(" form ")"))
 
-  (defmethod emit :nil [form state] "VAR()")
+  (defmethod emit :nil [form state] "NIL")
 
   (defmethod emit :keyword [form state]
     (str "NEW_KEYWORD(" (reduce (fn[h v] (+ h (int v))) 0 (str form)) ")"))
@@ -959,7 +959,7 @@ List Destructuring,
                                             (= (first %) 'native_declare)) body)
           body (filter #(not (and (seq? %)
                                   (= (first %) 'native_declare))) body)
-          body (cond  (empty? body) ["VAR()"]
+          body (cond  (empty? body) ["NIL"]
                       (and (= 1 (count body))
                            (string? (first body)))
                       ["VAR __result" body "__result"]
@@ -983,7 +983,7 @@ List Destructuring,
   (defmethod emit 'if [[_ cond t f] state]
     (let [cond (emit cond state)
           t (emit t state)
-          f (if (nil? f) "VAR()" (emit f state))]
+          f (if (nil? f) "NIL" (emit f state))]
       (if-statement cond t f)))
 
   (defmethod emit 'def [[_ name & form] state]
@@ -1159,6 +1159,7 @@ Object Casting macros,
 
 #+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
+  #define NIL (VAR())
   #define IS_NIL(o) (o.get() == NULL)
   #define IS_NOT_NIL(o) (o.get() != NULL)
   #define OBJECT(v) static_cast<ferret::Object*>(v.get())
@@ -1338,7 +1339,7 @@ new/delete is needed because in avr-gcc they are not defined.)
     (equals
      "return NEW_BOOLEAN(ptr == POINTER(o)->ptr);")
     (toOutputStream
-     "fprintf(OUTPUT_STREAM, \"Pointer\"); return var();"))
+     "fprintf(OUTPUT_STREAM, \"Pointer\"); return NIL;"))
 #+end_src
 
 #+name: runtime-native-iseekable-macros
@@ -1395,7 +1396,7 @@ Math configuration,
         fprintf(OUTPUT_STREAM, \"/\");
         fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT,denominator);
       }
-      return var();")
+      return NIL;")
     
     (fns
       ("NUMBER_DATA_TYPE getNumerator" "" "return numerator;")
@@ -1441,7 +1442,7 @@ Math configuration,
         return NEW_BOOLEAN(false);
       return NEW_BOOLEAN(id == KEYWORD(o)->id);")
     (toOutputStream
-     "fprintf(OUTPUT_STREAM, \"%d\", id); return var();")
+     "fprintf(OUTPUT_STREAM, \"%d\", id); return NIL;")
     (fns ("bool equals" "Keyword k"
           "return (id == k.id);")))
 #+end_src
@@ -1474,7 +1475,7 @@ Math configuration,
         return NEW_BOOLEAN(false);
       return NEW_BOOLEAN(value == CHARACTER(o)->value);")
     (toOutputStream
-     "fprintf(OUTPUT_STREAM, \"%c\",value); return var();"))
+     "fprintf(OUTPUT_STREAM, \"%c\",value); return NIL;"))
 #+end_src
 
 #+name: runtime-native-iseekable-macros
@@ -1517,7 +1518,7 @@ Math configuration,
               return NEW_BOOLEAN(false);
              return NEW_BOOLEAN(data.equals(o));")
     (toOutputStream
-     "OBJECT(data)->toOutputStream(); return var();"))
+     "OBJECT(data)->toOutputStream(); return NIL;"))
 #+end_src
 
 #+name: runtime-clojure-sequence-object
@@ -1531,7 +1532,7 @@ Math configuration,
      "if (OBJECT(o)->getType() != SEQUENCE_TYPE)
        return NEW_BOOLEAN(false);
 
-      if(head.get() == NULL && SEQUENCE(o)->head.get() == NULL)
+      if(IS_NIL(head) && IS_NIL(SEQUENCE(o)->head))
         return NEW_BOOLEAN(true);
 
       var itOther = o;
@@ -1553,23 +1554,23 @@ Math configuration,
         }
       }
       fprintf(OUTPUT_STREAM, \")\");
-      return var();")
+      return NIL;")
 
     (fns
      ("var cons" "var x"
       "return var(new Sequence(var(new Cell(x,head))));")
      ("var first" ""
-      "if (head.get() == NULL )
-         return var();
+      "if (IS_NIL(head))
+         return NIL;
         else
          return CELL(head)->data;")
      ("var rest" ""
-      "if ( head.get() == NULL || CELL(head)->next.get() == NULL )
+      "if (IS_NIL(head) || IS_NIL(CELL(head)->next))
          return NEW_SEQUENCE();
         else
          return var(new Sequence(CELL(head)->next));")
      ("bool isEmpty" ""
-      "return (head.get() == NULL );"))
+      "return (IS_NIL(head));"))
     (post-code
      "ferret::var& ferret::var::operator, (const var& m){
         ,*this = static_cast<ferret::Sequence*>(m_ptr)->cons(m);
@@ -1602,7 +1603,7 @@ Math configuration,
       return NEW_BOOLEAN(data.equals(STRING(o)->data));")
     (toOutputStream
      "ITERATE(data,it){ FIRST(it).toOutputStream(); }
-      return var();")
+      return NIL;")
     (fns
      ("var cons" "var x"
       "return ISEEKABLE(data)->cons(x);")
@@ -1652,7 +1653,7 @@ Math configuration,
         fprintf(OUTPUT_STREAM, \"true\"); 
       else
       fprintf(OUTPUT_STREAM, \"false\"); 
-      return var();")
+      return NIL;")
     
     (fns
      ("bool asBool" "" "return value;"))
@@ -1683,7 +1684,7 @@ to execute them in a uniform fashion.
     (interfaces "var invoke(var args)")
     (equals "return NEW_BOOLEAN(false);")
     (toOutputStream
-     "fprintf(OUTPUT_STREAM, \"lambda\"); return VAR();")
+     "fprintf(OUTPUT_STREAM, \"lambda\"); return NIL;")
     (force-type true))
 #+end_src
 
@@ -1843,12 +1844,12 @@ Once our object system is in place we can define rest of the runtime
 #+name: runtime-clojure-first
 #+begin_src clojure :tangle no
   (defn first [x]
-    "if(x.get() == NULL)
-      __result = VAR();
+    "if(IS_NIL(x))
+      __result = NIL;
     else
       __result = FIRST(x);")
 
-  (defn nil? [x] "__result = NEW_BOOLEAN(x.get() == NULL)")
+  (defn nil? [x] "__result = NEW_BOOLEAN(IS_NIL(x))")
 
   (defn char? [x] "__result = (OBJECT(x)->getType() == CHARACTER_TYPE);")
 #+end_src
@@ -1931,7 +1932,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
         ("memory")
         "std::shared_ptr<FILE> pipe(popen(TO_C_STR(cmd), \"r\"), pclose);
          if (!pipe) 
-            __result = VAR();
+            __result = NIL;
          char buffer[128];
          std::string result = \"\";
          while (!feof(pipe.get()))
@@ -2427,7 +2428,7 @@ Runs the given lambda in a posix thread,
         "pthread_t th;
          OBJECT(f)->addRef();
          if(::pthread_create(&th, 0, &PTHREAD_LAMBDA_INVOKER, static_cast<void*>(f.get())))
-           return VAR();
+           return NIL;
          __result = NEW_NUMBER(pthread_detach(th));"))
 #+end_src
 

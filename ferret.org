@@ -818,6 +818,7 @@ string based on the form.
                          (is-special-form? 'lambda_object form) 'lambda_object
                          (is-special-form? 'define_var form) 'define_var
                          (is-special-form? 'native_declare form) 'native_declare
+                         (is-special-form? 'native_define form) 'native_define
                          (is-special-form? 'if form) 'if
                          (is-special-form? 'def form) 'def
                          (to-str? form) :to-str
@@ -857,7 +858,7 @@ C++ skeleton.
 #+name: core-code-generation-emit-source
 #+begin_src clojure :tangle no
   (defn emit-source [form]
-    (let [state (ref {:lambdas [] :symbol-table #{} :native-declarations []})
+    (let [state (ref {:lambdas [] :symbol-table #{} :native-declarations [] :native-defines []})
           body (doall (map #(emit % state) (process form)))]
       (assoc @state :body body)))
 #+end_src
@@ -891,6 +892,9 @@ C++ skeleton.
 
   (defmethod emit 'native_declare [[_ declaration] state]
     (append-to! state [:native-declarations] declaration) "")
+
+  (defmethod emit 'native_define [[_ define] state]
+    (append-to! state [:native-defines] define) "")
 #+end_src
 
 **** Lambdas
@@ -1103,8 +1107,10 @@ List Destructuring,
       (render-view view)))
 
   (defn solution-template [source]
-    (let [{:keys [body lambdas symbol-table native-declarations]} source
+    (let [{:keys [body lambdas symbol-table native-declarations native-defines]} source
           view (create-view "
+      $native_defines:{$it$} ;separator=\"\n\"$
+
       $object_interface$
 
       #ifdef GNU_GCC
@@ -1137,6 +1143,7 @@ List Destructuring,
       (fill-view! view "lambdas" (declare-lambdas lambdas))
       (fill-view! view "symbols" symbol-table)
       (fill-view! view "native_declarations" native-declarations)
+      (fill-view! view "native_defines" native-defines)
       (render-view view)))
 #+end_src    
 
@@ -1169,6 +1176,7 @@ Object Casting macros,
 
 #+name: runtime-native-memory-pool
 #+begin_src c++ :tangle no
+  #ifdef MEMORY_POOL_SIZE
   template<typename PageSize, size_t poolSize>
   class MemoryPool{
   public:
@@ -1247,7 +1255,6 @@ Object Casting macros,
 
   //#define MEMORY_POOL_SIZE 2048
 
-  #ifdef MEMORY_POOL_SIZE
   MemoryPool<size_t,MEMORY_POOL_SIZE> ProgramMemory;
   #endif
 #+end_src
@@ -1737,7 +1744,9 @@ reaches zero it will automatically free the Object.
   #include "Arduino.h"
   #endif
 
+  #ifdef MEMORY_POOL_SIZE
   #include <cmath>
+  #endif
 
   //
   // Compiler Specific
@@ -1876,6 +1885,14 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
           if (fgets(buffer, 128, pipe.get()) != NULL)
            result += buffer;
          __result = NEW_STRING(result.c_str());"))
+
+  (defnative memory-pool-free-pages []
+    (on "defined MEMORY_POOL_SIZE"
+        "int count = 0;
+         for(int i = 0; i < MEMORY_POOL_SIZE; i++)
+           if(ProgramMemory.used[i] == false)
+             count++;
+         __result = NEW_NUMBER(count);"))
 #+end_src
 
 *** Console I/O

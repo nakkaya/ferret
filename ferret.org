@@ -573,7 +573,8 @@ into valid ones.
     (let [c (comp #(symbol (clojure.string/escape
                             (str %)
                             {\- \_ \* "_star_" \+ "_plus_" \/ "_slash_"
-                             \< "_lt_" \> "_gt_" \= "_eq_" \? "_QMARK_"}))
+                             \< "_lt_" \> "_gt_" \= "_eq_" \? "_QMARK_"
+                             \! "_BANG_"}))
                   #(cond (= 'not %) '_not_
                          :default %))]
       (morph-form form symbol? c)))

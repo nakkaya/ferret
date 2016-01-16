@@ -1985,6 +1985,8 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
 #+name: runtime-clojure-misc
 #+begin_src clojure :tangle no
+  (defn identity [x] x)
+
   (defnative sleep [timeout]
     (on "defined GNU_GCC"
         ("unistd.h")

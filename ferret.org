@@ -2111,6 +2111,13 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
            if(ProgramMemory.used[i] == false)
              count++;
          __result = NEW_NUMBER(count);"))
+
+  (defnative memory-pool-print-snapshot []
+    (on "defined MEMORY_POOL_SIZE"
+        "for(int i = 0; i < MEMORY_POOL_SIZE; i++)
+           fprintf(OUTPUT_STREAM, \"%d\",ProgramMemory.used[i]);
+        fprintf(OUTPUT_STREAM, \"\\n\");
+         __result = NIL;"))
 #+end_src
 
 *** Console I/O

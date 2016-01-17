@@ -1180,6 +1180,7 @@ Object Casting macros,
   #define SEQUENCE(v) static_cast<ferret::Sequence*>(v.get())
   #define STRING(v) static_cast<ferret::String*>(v.get())
   #define LAMBDA(v) static_cast<ferret::Lambda*>(v.get())
+  #define ATOM(v) static_cast<ferret::Atom*>(v.get())
 
   #define IS_NIL(o) (o.get() == NULL)
   #define IS_NOT_NIL(o) (o.get() != NULL)
@@ -1713,6 +1714,88 @@ Math configuration,
 #+name: runtime-native-iseekable-macros
 #+begin_src c++ :tangle no
   #define NEW_BOOLEAN(b) (VAR(new ferret::Boolean(b)))
+#+end_src
+
+*** Atom
+
+#+name: runtime-clojure-atom-object
+#+begin_src clojure :tangle no
+  (defobject Atom
+    (data "var data"
+          "#if defined(GNU_GCC)
+            pthread_mutex_t lock;
+           #endif \n")
+    (new ("var d"
+          "data = d;
+           #if defined(GNU_GCC)
+            pthread_mutex_init(&lock, NULL);
+           #endif"))
+    (equals "if (!IS_TYPE(o,ATOM_TYPE))
+                 return NEW_BOOLEAN(false);
+               return NEW_BOOLEAN(this == ATOM(o));")
+    (toOutputStream
+     "fprintf(OUTPUT_STREAM, \"atom <\"); 
+      data.toOutputStream();
+      fprintf(OUTPUT_STREAM, \">\"); 
+      return NIL;")
+    (fns
+     ("~Atom" ""
+      "#if defined(GNU_GCC)
+           pthread_mutex_destroy(&lock);
+       #endif")
+     ("var swap" "var f,var args"
+      "#if defined(GNU_GCC)
+         pthread_mutex_lock(&lock);
+       #endif
+
+       CONS(args,data);
+       data = LAMBDA(f)->invoke(args);
+
+      #if defined(GNU_GCC)
+         pthread_mutex_unlock(&lock);
+      #endif
+
+      return data;")))
+#+end_src
+
+#+name: runtime-clojure-atom-object
+#+begin_src clojure :tangle no
+  (defn atom [x]
+    "__result = NEW_ATOM(x)")
+
+  (defn swap! [a f & args]
+    "__result = ATOM(a)->swap(f,args);")
+
+  (defn reset! [a newval]
+    (swap! a (fn [_ v] v) newval))
+
+  (defn deref [a]
+    "__result = ATOM(a)->data;")
+#+end_src
+
+#+name: runtime-native-iseekable-macros
+#+begin_src c++ :tangle no
+  #define NEW_ATOM(a) (VAR(new ferret::Atom(a)))
+#+end_src
+
+#+name: runtime-native-atom-tests
+#+begin_src clojure :tangle no
+  (deftest atom-tests
+    (is (= "nil12(1 2 3)6truefalsefalse"
+           (capture-output '((let [a (atom nil)
+                                   b (atom nil)]
+                               (print (deref a))
+                               (reset! a 1)
+                               (print (deref a))
+                               (swap! a inc)
+                               (print (deref a))
+                               (reset! a (list 1 2 3))
+                               (print (deref a))
+                               (swap! a (fn [l] (reduce + l)))
+                               (print (deref a))
+                               (print (= a a))
+                               (print (= a b))
+                               (print (= a 1))))))))
 #+end_src
 
 *** Lambda
@@ -2859,6 +2942,7 @@ Runs the given lambda in a posix thread,
     <<native-string-tests>>
     <<native-keyword-tests>>
     <<runtime-clojure-memory-pool-tests>>
+    <<runtime-native-atom-tests>>
 #+end_src 
 
 ** resources/Object.cpp
@@ -2895,6 +2979,7 @@ Runs the given lambda in a posix thread,
   <<runtime-clojure-sequence-object>>
   <<runtime-clojure-character-object>>
   <<runtime-clojure-string-object>>
+  <<runtime-clojure-atom-object>>
   <<runtime-clojure-defn>>
   <<runtime-clojure-looping>>
   <<runtime-clojure-first>>

@@ -2699,6 +2699,48 @@ returns true returns the next state.
                                   (list 'reset! 'curr-state `(~@transitions))))))))
 #+end_src
 
+#+name: runtime-clojure-state-machine-tests
+#+begin_src clojure :tangle no
+  (deftest state-machine-test
+    (is (= "10 0 10"
+           (capture-output '((def state (atom 0))
+                             (defmachine two-state-machine
+                               (state off (swap! state inc))
+                               (state on (swap! state inc))
+                               (transitions
+                                (off
+                                 (fn [] true) on)
+                                (on
+                                 (fn [] true) off)))
+                             (dotimes [_ 10]
+                               (two-state-machine))
+                             (print (deref state))
+                             (print " ")
+                             (reset! state 0)
+                             (print (deref state))
+
+                             (defmachine three-state-machine
+                               (state a (swap! state inc))
+                               (state b (swap! state inc))
+                               (state c (swap! state inc))
+                               (state no-op (swap! state inc))
+                               (transitions
+                                (a
+                                 (fn [] false) no-op
+                                 (fn [] true) b)
+                                (b
+                                 (fn [] true) c)
+                                (c
+                                 (fn [] false) no-op
+                                 (fn [] false) no-op
+                                 (fn [] true) a
+                                 (fn [] false) no-op)))
+                             (dotimes [_ 10]
+                               (three-state-machine))
+                             (print " ")
+                             (print (deref state)))))))
+#+end_src
+
 *** Arduino
 
 #+name: runtime-clojure-arduino
@@ -3032,6 +3074,7 @@ returns true returns the next state.
     <<native-string-tests>>
     <<native-keyword-tests>>
     <<runtime-clojure-memory-pool-tests>>
+    <<runtime-clojure-state-machine-tests>>
     <<runtime-native-atom-tests>>
     <<native-lambda-test>>
 #+end_src 

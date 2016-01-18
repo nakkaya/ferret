@@ -4,14 +4,13 @@
 
 Ferret is an experimental Lisp to C++ compiler, the idea was to
 compile code that is written in a very small subset of Clojure to be
-automatically translated to C++ so that I can program stuff in
-Clojure where JVM or any other Lisp dialect is not available.
+automatically translated to C++ so that I can program stuff in Clojure
+where JVM or any other Lisp dialect is not available. 
 
 This is a literate program, the code in this document is the
-executable source, in order to extract it, open the org file
-with emacs and run /M-x org-babel-tangle/.
-It will build the necessary directory structure and export the files
-and tests contained.
+executable source, in order to extract it, open the org file with
+emacs and run /M-x org-babel-tangle/. It will build the necessary
+directory structure and export the files and tests contained.
 
 ## Building
 
@@ -119,8 +118,14 @@ function only contains a string such as,
 
     (defn inc-int [] "__result =  NEW_NUMBER(i++);")
 
-It is assumed to be a native function string is takes as C++ code. You
-can then use it like any other ferret function.
+It is assumed to be a native function string it is taken as C++
+code. You can then use it like any other ferret function.
 
     (while (< (inc-int) 10)
       (print 1))
+
+## Implementation Notes
+
+   Ferret is functional. The code it produces does not include any
+   black magic it is simple C++. There is only one GCC trick in the
+   code other than that it should support any compiler. 

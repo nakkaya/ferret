@@ -168,6 +168,98 @@ to what memory,
  - `memory-pool-print-snapshot` - Prints the current state of
     memory. Each block is  denoted as 0(free) or 1(used).
 
+## Wrapping Third Party C Libraries
+
+### SQLite
+
+Following shows an example of how to interface with SQLite and how to
+convert convert data structures back and forth with ferret and native
+code.
+
+    (native-header sqlite3.h)
+  
+    (defn open-db []
+      "sqlite3 *db;
+       int rc = sqlite3_open(\"./test.db\", &db);
+       if (rc == SQLITE_OK)
+         __result = NEW_POINTER(db);
+       else
+        fprintf(stderr, \"Cannot open database: %s\\n\", sqlite3_errmsg(db));")
+  
+    (defn close-db [db]
+      "sqlite3_close(TO_POINTER(db,sqlite3));")
+  
+    (defn exec-db [db sql]
+      "char *err_msg = 0;
+       int rc = sqlite3_exec(TO_POINTER(db,sqlite3), TO_C_STR(sql), 0, 0, &err_msg);
+       if (rc == SQLITE_OK)
+         __result = NEW_BOOLEAN(true);
+       else{
+         fprintf(stderr, \"SQL error: %s\\n\", err_msg);
+         sqlite3_free(err_msg);}")
+  
+    (defn prep-stmt-db [db-ptr sql]
+      "char *err_msg = 0;
+       sqlite3_stmt *stmt;
+       sqlite3* db = TO_POINTER(db_ptr,sqlite3);
+       int rc = sqlite3_prepare_v2(db, TO_C_STR(sql), -1, &stmt, NULL);
+       if (rc == SQLITE_OK)
+         __result = NEW_POINTER(stmt);
+       else{
+         fprintf(stderr, \"Cannot open database: %s\\n\", sqlite3_errmsg(db));
+         sqlite3_finalize(stmt);
+         sqlite3_free(err_msg);}")
+  
+    (defn select-db [stmt-ptr]
+      "sqlite3_stmt *stmt = TO_POINTER(stmt_ptr,sqlite3_stmt);
+       __result = NEW_SEQUENCE();
+       while(sqlite3_step(stmt) == SQLITE_ROW){
+         const char* col = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+         CONS(__result,NEW_STRING(col));
+       }
+       sqlite3_finalize(stmt);")
+
+Assuming above file is saved as `utils.db.clj`. It can be imported
+from other ferret programs using,
+
+    (require '[utils.db :as db])
+
+Functions in the file can be using using `:as` prefix. `select-db`
+becomes `db/select-db`
+
+    (require '[utils.db :as db])
+    (def setup-db (list "DROP TABLE IF EXISTS Cars;" 
+                        "CREATE TABLE Cars(Id INT, Name TEXT, Price INT);" 
+                        "INSERT INTO Cars VALUES(1, 'Audi', 52642);" 
+                        "INSERT INTO Cars VALUES(2, 'Mercedes', 57127);" 
+                        "INSERT INTO Cars VALUES(3, 'Skoda', 9000);" 
+                        "INSERT INTO Cars VALUES(4, 'Volvo', 29000);" 
+                        "INSERT INTO Cars VALUES(5, 'Bentley', 350000);" 
+                        "INSERT INTO Cars VALUES(6, 'Citroen', 21000);" 
+                        "INSERT INTO Cars VALUES(7, 'Hummer', 41400);" 
+                        "INSERT INTO Cars VALUES(8, 'Volkswagen', 21600);"))
+  
+    (def db (db/open-db))
+  
+    (doseq [sql setup-db]
+      (db/exec-db db sql))
+  
+    (def select-all (db/prep-stmt-db db "SELECT * FROM Cars"))
+  
+    (println (db/select-db select-all))
+
+When `-c` is used, inorder to pass compiler options to the compiler
+ferret supports simple build options files. A clojure map with
+settings to override/add.
+
+    {:include-path ["/usr/local/Cellar/sqlite/3.8.2/include/"]
+     :library-path ["/usr/local/Cellar/sqlite/3.8.2/lib/"]
+     :link ["sqlite3"]
+     :compiler-options ["-Wall"]}
+
+Assuming above is saved as `build.options` A program can be compiled
+using `-i program.clj -c -o build.options`.
+
 ## Implementation Notes
 
 Ferret is functional. The code it produces does not include any black

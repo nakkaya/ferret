@@ -2632,6 +2632,73 @@ Runs the given lambda in a posix thread,
                              (sleep 3))))))
 #+end_src
 
+*** State Machines
+
+This macro allows users to define state machines using the following
+DSL,
+
+#+begin_src clojure :tangle no
+  (defmachine two-state-machine
+    (state off (println "Off"))
+    (state on (println "On"))
+    (transitions
+     (off
+      (fn [] true) on)
+     (on
+      (fn [] true) off)))
+
+
+  (dotimes [i 10]
+    (two-state-machine))
+#+end_src
+
+Each transition takes a list of /fn/ /state/ pairs first function that
+returns true returns the next state.
+
+#+name: runtime-clojure-state-machine
+#+begin_src clojure :tangle no
+  (defmacro defmachine [name & form]
+    (let [transitions
+          (->> (last form)
+               rest
+               (map (fn*
+                     ([x]
+                      (let [[state & states] x
+                            states (->> (partition 2 states)
+                                        (map #(list (list (first %)) (second %))))
+                            states (->> (clojure.core.protocols/coll-reduce
+                                         states (fn*
+                                                 ([h v]
+                                                  (conj h (second v) (first v)))) (list))
+                                        (cons 'cond))]
+                        [(list '= 'state state) (concat states [true state])])))))
+          start-state (-> transitions first first last)
+          transitions (clojure.core.protocols/coll-reduce
+                       transitions (fn*
+                                    ([h v]
+                                     (conj h (first v) (second v)))) ['cond])
+          
+          states (->> (filter #(= (first %) 'state) form)
+                      (map rest)
+                      (map (fn*
+                            ([x]
+                             [(first x)
+                              (->> (rest x)
+                                   (cons [])
+                                   (cons 'fn))]))))
+          states (clojure.core.protocols/coll-reduce
+                  states (fn*
+                          ([h v]
+                           (conj h (first v) (second v)))) [])]
+      (list 'def name
+            `(let* [~@states
+                    ~'curr-state ~(list 'atom start-state)]
+                   ~(list 'fn []
+                          `~(list 'let ['state (list 'deref 'curr-state)]
+                                  (list 'state)
+                                  (list 'reset! 'curr-state `(~@transitions))))))))
+#+end_src
+
 *** Arduino
 
 #+name: runtime-clojure-arduino
@@ -3014,5 +3081,6 @@ Runs the given lambda in a posix thread,
   <<runtime-clojure-bit-operations>>
   <<runtime-clojure-console-io>>
   <<runtime-clojure-misc>>
+  <<runtime-clojure-state-machine>>
   <<runtime-clojure-arduino>>
 #+end_src

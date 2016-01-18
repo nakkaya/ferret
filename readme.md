@@ -17,7 +17,13 @@ and tests contained.
 
 Ferret compiler compiles from Clojure to C++, and then invokes the GNU
 C++ compiler to produce binaries. In order to compile a program either
-run `lein run -in prog.clj` or if you are using the jar version `java
--jar ferret-app.jar -in sample.clj`. Output will be placed in a a file
-called `solution.cpp` passing the `-c` flag will cause this file to be
-automatically compiled.
+run,
+
+    lein run -in prog.clj
+
+or if you are using the jar version
+
+    java -jar ferret-app.jar -in sample.clj
+
+Output will be placed in a a file called `solution.cpp` passing the
+`-c` flag will cause this file to be automatically compiled.

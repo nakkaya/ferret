@@ -124,6 +124,10 @@ code. You can then use it like any other ferret function.
 
 ## Implementation Notes
 
-   Ferret is functional. The code it produces does not include any
-   black magic it is simple C++. There is only one GCC trick in the
-   code other than that it should support any compiler. 
+Ferret is functional. The code it produces does not include any black
+magic it is simple C++. There is only one GCC trick in the code other
+than that it should support any compiler.
+
+## License
+
+GNU General Public License

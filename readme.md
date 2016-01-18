@@ -260,6 +260,55 @@ settings to override/add.
 Assuming above is saved as `build.options` A program can be compiled
 using `-i program.clj -c -o build.options`.
 
+### Mongoose
+
+This example uses Mongoose embedded web server. `defcallback` can be
+used to register C Style callbacks when interfacing with C libraries.
+
+Build options,
+
+    {:extra-source-files ["mongoose.c"]}
+
+Program,
+
+    (native-header mongoose.h)
+  
+    (native-declare "static struct mg_serve_http_opts s_http_server_opts;")
+  
+    (defn request-listener [nc ev p]
+      "if (TO_INT(ev) == MG_EV_HTTP_REQUEST) {
+           mg_serve_http(TO_POINTER(nc,struct mg_connection), 
+                         TO_POINTER(p,struct http_message), 
+                         s_http_server_opts);
+         }")
+  
+    (defcallback request-listener
+      "void" "struct mg_connection *nc, int ev, void *p"
+      "NEW_POINTER(nc)" "VAR(ev)" "NEW_POINTER(p)")
+  
+    (defn web-server-init [port]
+      "struct mg_mgr *mgr = (struct mg_mgr *)malloc(sizeof(mg_mgr));
+       struct mg_connection *nc;
+  
+       mg_mgr_init(mgr, NULL);
+       nc = mg_bind(mgr, TO_C_STR(port), request_listener_callback);
+  
+       // Set up HTTP server parameters
+       mg_set_protocol_http_websocket(nc);
+       s_http_server_opts.document_root = \".\";  // Serve current directory
+       s_http_server_opts.dav_document_root = \".\";  // Allow access via WebDav
+       s_http_server_opts.enable_directory_listing = \"yes\";
+       __result = NEW_POINTER(mgr);")
+  
+    (defn web-server-poll [mgr]
+      "mg_mgr_poll(TO_POINTER(mgr,struct mg_mgr), 1000);")
+  
+    (def server (web-server-init "8000"))
+  
+    (while true (web-server-poll server))
+
+
+
 ## Implementation Notes
 
 Ferret is functional. The code it produces does not include any black

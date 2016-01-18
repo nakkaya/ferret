@@ -54,7 +54,10 @@ pool to avoid heap fragmentation and calling `malloc` / `free`.
     (native-define "#define MEMORY_POOL_SIZE 256")
 
 This will create a pool object as a global variable that holds an
-array of 256 `size_t`.
+array of 256 `size_t`. Memory pooling is intended for embedded systems
+where calling `malloc`/`free` is not desired. It is not thread safe It
+should not be used in systems where better alternatives exists or you
+have enough memory.
 
 ## Examples
 

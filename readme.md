@@ -27,3 +27,82 @@ or if you are using the jar version
 
 Output will be placed in a a file called `solution.cpp` passing the
 `-c` flag will cause this file to be automatically compiled.
+
+## Features
+
+ - Very small foot print
+ - Macros
+ - Destructuring
+ - Memory Pooling
+
+## Object System
+
+All objects derive from `Object` class.
+
+ - `Pointer` - For Holding references to native objects.
+ - `Number` - All numbers are kept as ratios (two ints).
+ - `Keyword` 
+ - `Character`
+ - `Sequence`
+ - `String`
+ - `Boolean`
+ - `Atom` - Mimics Clojure atoms.
+ - `Lambda`
+
+Memory management is done using reference counting. On memory
+constraint systems such as micro controllers ferret can use a memory
+pool to avoid heap fragmentation and calling `malloc` / `free`.
+
+    (native-define "#define MEMORY_POOL_SIZE 256")
+
+This will create a pool object as a global variable that holds an
+array of 256 `size_t`.
+
+## Examples
+
+### Built In
+
+Some built in stuff,
+
+Arithmetic,
+
+    (+ 0.3 0.3)
+    (* 2.0 2 2)
+    (bit-not  4) ;; -5
+    (pos? 0.2)
+    (neg? -1)
+
+Comparison,
+
+    (< 2 3 4 5)
+    (>= 5 4 3 2 2 2)
+    (= 2 2.0 2)
+
+Conditionals,
+
+    (if (zero? 0)
+      "Zero" "No Zero")
+
+    (when (zero? 0) "Zero")
+
+Sequences,
+
+    (let [alist (list 1 2 3 4)]
+      (println (first alist))
+      (println (rest alist))
+      (println (count alist)))
+
+
+    (reduce + (list 1 2 3 4 5 6))
+    (apply + (list 1 2 3 4 5 6))
+    
+Sequence functions use the `ISeekable` interface to iterate there is
+also a `defobject` special form that allows user defineable
+classes. So you can plug your own objects into ferret ecosystem.
+
+
+Atoms,
+
+    (let [a (atom nil)]
+      (reset! a 1)
+      (swap! a inc))

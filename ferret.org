@@ -1944,7 +1944,9 @@ reaches zero it will automatically free the Object.
 
 #+name: runtime-native-program-header
 #+begin_src c++ :tangle no
-  #ifdef __AVR__
+  #if defined(__SAM3X8E__)
+  # define AVR_GCC TRUE
+  #elif defined(__AVR__)
   # define AVR_GCC TRUE
   #else
   # define GNU_GCC TRUE

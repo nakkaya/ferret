@@ -31,6 +31,7 @@ Output will be placed in a a file called `solution.cpp` passing the
 ## Features
 
  - Very small foot print
+ - Functional
  - Macros
  - Destructuring
  - Memory Pooling
@@ -106,3 +107,20 @@ Atoms,
     (let [a (atom nil)]
       (reset! a 1)
       (swap! a inc))
+
+### FFI
+
+You can declare global level things using,
+
+    (native-declare "int i = 0;")
+
+this will define an `int` called `i` as a global variable. If a
+function only contains a string such as,
+
+    (defn inc-int [] "__result =  NEW_NUMBER(i++);")
+
+It is assumed to be a native function string is takes as C++ code. You
+can then use it like any other ferret function.
+
+    (while (< (inc-int) 10)
+      (print 1))

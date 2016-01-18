@@ -12,9 +12,9 @@ directory structure and export the files and tests contained.
 
 ## Building
 
-Ferret compiler compiles from Clojure to C++, and then invokes the GNU
-C++ compiler to produce binaries. In order to compile a program either
-run,
+Ferret compiler compiles from a subset of Clojure to C++, and then
+invokes the GNU C++ compiler to produce binaries. In order to compile
+a program either run,
 
     lein run -in prog.clj
 

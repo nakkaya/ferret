@@ -122,6 +122,28 @@ code. You can then use it like any other ferret function.
     (while (< (inc-int) 10)
       (print 1))
 
+## Embedded Usage
+
+If you can use GNU C++ compiler. You can use ferret for your embedded
+platform. Following shows a blink example.
+
+    (pin-mode 13 :output)
+  
+    (forever
+     (digital-write 13 :high)
+     (sleep 500)
+     (digital-write 13 :low)
+     (sleep 500))
+
+Rename `solution.cpp` to `./program_name/program_name.pde`
+
+If you are using the memory pool, there are two functions you can use
+to what memory,
+
+ - `memory-pool-free-pages` - Returns the number of free memory pages.
+ - `memory-pool-print-snapshot` - Prints the current state of
+    memory. Each block is  denoted as 0(free) or 1(used).
+
 ## Implementation Notes
 
 Ferret is functional. The code it produces does not include any black

@@ -2694,9 +2694,10 @@ returns true returns the next state.
             `(let* [~@states
                     ~'curr-state ~(list 'atom start-state)]
                    ~(list 'fn []
-                          `~(list 'let ['state (list 'deref 'curr-state)]
-                                  (list 'state)
-                                  (list 'reset! 'curr-state `(~@transitions))))))))
+                          `~(list 'swap! 'curr-state
+                                  (list 'fn ['state]
+                                        (list 'state)
+                                        `(~@transitions))))))))
 #+end_src
 
 #+name: runtime-clojure-state-machine-tests

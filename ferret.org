@@ -1808,7 +1808,9 @@ to execute them in a uniform fashion.
 #+begin_src clojure :tangle no
   (defobject Lambda
     (interfaces "var invoke(var args)")
-    (equals "return NEW_BOOLEAN(false);")
+    (equals "if (!IS_TYPE(o,LAMBDA_TYPE))
+                 return NEW_BOOLEAN(false);
+               return NEW_BOOLEAN(this == LAMBDA(o));")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"lambda\"); return NIL;")
     (force-type true))
@@ -1821,6 +1823,18 @@ Function invocation macros,
   #define VA_ARGS(...) , ##__VA_ARGS__
   #define INVOKE(f,...) LAMBDA(f)->invoke((ferret::var(new ferret::Sequence()) VA_ARGS(__VA_ARGS__)))
   #define FN(f,...) ferret::var(new ferret::f(__VA_ARGS__))
+#+end_src
+
+#+name: native-lambda-test
+#+begin_src clojure :tangle no
+  (deftest native-lambda-test
+    (is (= "true false true false"
+           (capture-output '((let [f1 (fn [])
+                                   f2 (fn [])]
+                               (print (= f1 f1)
+                                      (= f1 f2)
+                                      (= f1 (do f1))
+                                      (= f2 (do f1)))))))))
 #+end_src
 
 *** var
@@ -2950,6 +2964,7 @@ Runs the given lambda in a posix thread,
     <<native-keyword-tests>>
     <<runtime-clojure-memory-pool-tests>>
     <<runtime-native-atom-tests>>
+    <<native-lambda-test>>
 #+end_src 
 
 ** resources/Object.cpp

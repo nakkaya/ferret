@@ -5,37 +5,9 @@
 #+EXPORT_EXCLUDE_TAGS: noexport
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://thomasf.github.io/solarized-css/solarized-dark.min.css" />
 #+OPTIONS: toc:nil
-
-#+BEGIN_ABSTRACT
-Ferret is an experimental Lisp to C++ compiler, the idea was to
-compile code that is written in a very small subset of Clojure to be
-automatically translated to C++ so that I can program stuff in
-Clojure where JVM or any other Lisp dialect is not available.
-
-This is a literate program, the code in this document is the
-executable source, in order to extract it, open this raw file
-with emacs and run /M-x org-babel-tangle/.
-It will build the necessary directory structure and export the files
-and tests contained.
-#+END_ABSTRACT
 #+TOC: headlines 3
 
 * Example Code
-
-In order to compile the samples,
-
-#+begin_example
-lein run -in sample.clj
-#+end_example
-
-or 
-
-#+begin_example
-java -jar ferret-app.jar -in sample.clj
-#+end_example
-
-output will be placed in a a file /solution.cpp/,
-
 ** SQLite
 
 Compiler supports the option of reading build configuration from a
@@ -1988,6 +1960,12 @@ reaches zero it will automatically free the Object.
 
   #define OUTPUT_STREAM &uartout
 
+  #if defined(__SAM3X8E__)
+  #define INIT_OUTPUT_STREAM Serial.begin(9600);
+  #endif
+
+
+  #if !defined(__SAM3X8E__)
   #if !defined(DISABLE_OUTPUT_STREAM)
   #define INIT_OUTPUT_STREAM                                              \
     Serial.begin(9600);                                                   \
@@ -1995,6 +1973,7 @@ reaches zero it will automatically free the Object.
 
   #else
   #define INIT_OUTPUT_STREAM true;
+  #endif
   #endif
 
 

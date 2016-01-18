@@ -125,6 +125,27 @@ code. You can then use it like any other ferret function.
     (while (< (inc-int) 10)
       (print 1))
 
+In addition to `defn` form there is also a `defnative` form which
+allows you to define different function bodies for different `#define`
+directives,
+
+    (defnative get-char []
+      (on "defined GNU_GCC"
+          "__result = NEW_CHARACTER(getchar());"))
+
+This function when compiled on a system that defines `GNU_GCC` will
+return the result of `getchar` as a `Character` on ANY other system it
+will return `nil`. You can have multiple `on` blocks per `defnative`,
+
+    (defnative sleep [timeout]
+      (on "defined GNU_GCC"
+          ("unistd.h")
+          "::sleep(TO_INT(timeout));")
+      (on "defined AVR_GCC"
+          "::delay(TO_INT(timeout));"))
+
+This way single function can be defined for multiple systems.
+
 ## Embedded Usage
 
 If you can use GNU C++ compiler. You can use ferret for your embedded
@@ -151,7 +172,7 @@ to what memory,
 
 Ferret is functional. The code it produces does not include any black
 magic it is simple C++. There is only one GCC trick in the code other
-than that it should support any compiler.
+than that it should support any compiler. 
 
 ## License
 

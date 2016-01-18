@@ -246,11 +246,18 @@ after transformation becomes,
     (morph-form form
                 (is-form? 'let*)
                 (fn [[_ bindings & body]]
-                  (let [bindings (partition 2 bindings)
-                        vars (flatten (map first bindings))
-                        defs (map #(cons 'define-var %) bindings)
-                        body-fn (cons (concat ['fn vars] body) vars)]
-                    (list (concat ['fn []] defs [body-fn]))))))
+                  (let [bindings (->> (partition 2 bindings)
+                                      (map-indexed (fn [idx [args val]]
+                                                     [idx args val])))
+                        vars (map first bindings)
+                        closure-fn (fn close [[idx args vals] & more]
+                                     (let [args (list args)
+                                           body (if (empty? more)
+                                                  (list (concat ['fn []] body))
+                                                  (apply close more))]
+                                       (list (list 'fn args body)
+                                             (last (nth bindings idx)))))]
+                    (apply closure-fn bindings)))))
 #+end_src
 
 *** do->fn
@@ -711,7 +718,7 @@ List Destructuring,
 #+name: clojure-destructure-tests
 #+begin_src clojure :tangle no
   (deftest destructure-test
-    (is (= "(1 2 3) 2 3 ((1 2 3))"
+    (is (= "(1 2 3) 2 3 ((1 2 3)) 1 2 (3 4) 1 2 4 (5) (3)"
            (capture-output '((defn destructure-test-1 [[a b c]]
                                (list a b c))
                              (defn destructure-test-2 [[a [b] c]]
@@ -723,13 +730,28 @@ List Destructuring,
                              (print (destructure-test-1 (list 1 2 3))
                                     (destructure-test-2 (list 1 (list 2) 3))
                                     (destructure-test-3 (list 1 (list 2 3) 3))
-                                    (destructure-test-4 (list 1 2 3))))))))
+                                    (destructure-test-4 (list 1 2 3)))
+                             (print " ")
+                             (let [a (list 1 2 3 4)
+                                   [b c & r] a]
+
+                               (print b c r))
+                             (let [a 1 b 2
+                                   [c & r] (list 4 5)]
+                               (print " ")
+                               (print a b c r))
+                             (let [[a & r] (list 1 2 3)
+                                   rr (rest r)]
+                               (print " ")
+                               (print rr)))))))
 #+end_src
 
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
   (defmethod emit 'lambda_object [[_ name & env] state]
-    (new-lambda name (filter #(not (= '& %)) env)))
+    (new-lambda name (->> env
+                          (flatten)
+                          (filter #(not (= '& %))))))
 
   (defmethod emit 'define_lambda [[_ name env args & body] state]
     (let [native-declarations (filter #(and (seq? %)
@@ -741,7 +763,9 @@ List Destructuring,
                            (string? (first body)))
                       ["VAR __result" body "__result"]
                       :default (doall (map #(emit % state) body)))
-          env (filter #(not (= '& %)) env)]
+          env (->> env
+                   (flatten)
+                   (filter #(not (= '& %))))]
       (doseq [dec native-declarations] 
         (emit dec state))
       (append-to! state [:lambdas] {:name name :env env

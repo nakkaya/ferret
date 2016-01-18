@@ -1,7 +1,5 @@
 # Ferret
 
-## Intro
-
 Ferret is an experimental Lisp to C++ compiler, the idea was to
 compile code that is written in a very small subset of Clojure to be
 automatically translated to C++ so that I can program stuff in Clojure

@@ -1032,7 +1032,6 @@ Object Casting macros,
   public:
     PageSize pool[poolSize];
     bool used[poolSize];
-    PageSize* pages[poolSize];
     
     size_t calculateNeededPages(size_t size){
       float f = (float) (((float)size) / ((float)sizeof(PageSize))) ;
@@ -1043,7 +1042,6 @@ Object Casting macros,
       for(size_t i = 0; i < poolSize; i++){
         pool[i] = 0;
         used[i] = false;
-        pages[i] = &pool[i];
       }
     }
     
@@ -1093,7 +1091,7 @@ Object Casting macros,
       for(size_t i = page; i < (page+length); i++)
         used[i] = true;
         
-      return pages[page+1];
+      return &pool[page+1];
     }
     
     void free(void *p){

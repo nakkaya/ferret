@@ -916,7 +916,7 @@ List Destructuring,
 
       $object_interface$
 
-      #ifdef GNU_GCC
+      #ifdef STD_LIB
         VAR _star_command_line_args_star_;
       #endif
 
@@ -939,7 +939,7 @@ List Destructuring,
       
         INIT_ENV
 
-      #ifdef GNU_GCC
+      #ifdef STD_LIB
         _star_command_line_args_star_ = NEW_SEQUENCE();
         for (int i = argc - 1; i > -1 ; i--)
           CONS(_star_command_line_args_star_,NEW_STRING(argv[i]));
@@ -1461,7 +1461,7 @@ Math configuration,
       "return REST(data);")
      ("bool isEmpty" ""
       "return ISEEKABLE(data)->isEmpty();")
-     ("ifdef GNU_GCC"
+     ("ifdef STD_LIB"
       "std::string toString" ""
       "std::stringstream ss;
        ITERATE(data,it){ss << CHARACTER(FIRST(it))->value;}
@@ -1526,12 +1526,12 @@ Math configuration,
 #+begin_src clojure :tangle no
   (defobject Atom
     (data "var data"
-          "#if defined(GNU_GCC)
+          "#if defined(STD_LIB)
             pthread_mutex_t lock;
            #endif \n")
     (new ("var d"
           "data = d;
-           #if defined(GNU_GCC)
+           #if defined(STD_LIB)
             pthread_mutex_init(&lock, NULL);
            #endif"))
     (equals "if (!IS_TYPE(o,ATOM_TYPE))
@@ -1544,18 +1544,18 @@ Math configuration,
       return NIL;")
     (fns
      ("~Atom" ""
-      "#if defined(GNU_GCC)
+      "#if defined(STD_LIB)
            pthread_mutex_destroy(&lock);
        #endif")
      ("var swap" "var f,var args"
-      "#if defined(GNU_GCC)
+      "#if defined(STD_LIB)
          pthread_mutex_lock(&lock);
        #endif
 
        CONS(args,data);
        data = LAMBDA(f)->invoke(args);
 
-      #if defined(GNU_GCC)
+      #if defined(STD_LIB)
          pthread_mutex_unlock(&lock);
       #endif
 
@@ -1710,86 +1710,100 @@ reaches zero it will automatically free the Object.
 
 *** Program Header
 
-    Some options can be configured using /#define/ directives, these
-    can be defined using /native-define/ from program code.
-
-    When,
+Some options can be configured using /#define/ directives, these can
+be defined using /native-define/ from program code. When,
 
 #+BEGIN_EXAMPLE
   #define MEMORY_POOL_SIZE 2048
 #+END_EXAMPLE
 
-    is defined program will will use a memory pool that's /2048 x size_t/.
+is defined program will will use a memory pool that's /2048 x size_t/.
 
-    You can also change memory pools page size so instead of /size_t/
-    pages you can use a pool of /char/ pages using,
+You can also change memory pools page size so instead of /size_t/
+pages you can use a pool of /char/ pages using,
 
 #+BEGIN_EXAMPLE
   #define MEMORY_POOL_PAGE_TYPE char
 #+END_EXAMPLE
     
-    By default Numbers use int to hold data use,
+By default Numbers use int to hold data use,
 
 #+BEGIN_EXAMPLE
   #define NUMBER_DATA_TYPE long
   #define NUMBER_DATA_TYPE_FORMAT "%ld"
 #+END_EXAMPLE
 
-    to switch to longs for number data.
+to switch to longs for number data.
 
-    To disable output stream (usefull on micro controllers to reduce
-    code size.) use,
+To disable output stream (usefull on micro controllers to reduce code
+size.) use,
 
 #+BEGIN_EXAMPLE
   #define DISABLE_OUTPUT_STREAM true
 #+END_EXAMPLE
 
-    To disable main use,
+To disable main use,
 
 #+BEGIN_EXAMPLE
   #define DISABLE_MAIN_FUNCTION true
 #+END_EXAMPLE
 
-    main won't be defined you need to call /ferret::ProgramRun()/
-    manually to start the program.
+main won't be defined you need to call /ferret::ProgramRun()/ manually
+to start the program. Detect host,
 
 #+name: runtime-native-program-header
 #+begin_src c++ :tangle no
   #if defined(__SAM3X8E__)
-  # define AVR_GCC TRUE
+    # define ARDUINO TRUE
+    # define ARDUINO_DUE TRUE
   #elif defined(__AVR__)
-  # define AVR_GCC TRUE
+    # define ARDUINO TRUE
+    # define ARDUINO_UNO TRUE
   #else
-  # define GNU_GCC TRUE
+    # define STD_LIB TRUE
   #endif
+#+end_src
 
+Import libraries,
+
+#+name: runtime-native-program-header
+#+begin_src c++ :tangle no
   #include <stdlib.h>
   #include <stdio.h>
 
-  #ifdef GNU_GCC
-  #include <iostream>
-  #include <sstream>
+  #ifdef STD_LIB
+   #include <iostream>
+   #include <sstream>
   #endif
 
-  #ifdef AVR_GCC
-  #include "Arduino.h"
+  #ifdef ARDUINO
+   #include "Arduino.h"
   #endif
 
   #ifdef MEMORY_POOL_SIZE
-  #ifdef GNU_GCC
-  #include <cmath>
-  #else
-  #include <math.h>
+   #ifdef ARDUINO
+    #include <math.h>
+   #else
+    #include <cmath>
+   #endif
   #endif
-  #endif
+#+end_src
 
-  //
-  // Compiler Specific
-  //
+Host specific initialization code, if running on the Arduino platform
+fix pure virtual functions,
 
-  #ifdef AVR_GCC
-  extern "C" void __cxa_pure_virtual(void); 
+#+name: runtime-native-program-header
+#+begin_src c++ :tangle no
+#ifdef ARDUINO
+  extern "C" void __cxa_pure_virtual(void);
+#endif
+#+end_src
 
+Setup printing on different boards,
+
+#+name: runtime-native-program-header
+#+begin_src c++ :tangle no
+#if defined(ARDUINO) && !defined(DISABLE_OUTPUT_STREAM)
   static FILE uartout = {0};
 
   static int uart_putchar (char c, FILE *stream){
@@ -1798,34 +1812,65 @@ reaches zero it will automatically free the Object.
   }
 
   #define OUTPUT_STREAM &uartout
+#endif
+#+end_src
 
-  #if defined(__SAM3X8E__)
+DUE,
+
+#+name: runtime-native-program-header
+#+begin_src c++ :tangle no
+#ifdef ARDUINO
+ #if defined(ARDUINO_DUE) && !defined(DISABLE_OUTPUT_STREAM)
   #define INIT_OUTPUT_STREAM Serial.begin(9600);
-  #endif
+ #endif
+#endif
+#+end_src
 
+UNO,
 
-  #if !defined(__SAM3X8E__)
-  #if !defined(DISABLE_OUTPUT_STREAM)
+#+name: runtime-native-program-header
+#+begin_src c++ :tangle no
+#ifdef ARDUINO
+ #if defined(ARDUINO_UNO) && !defined(DISABLE_OUTPUT_STREAM)
   #define INIT_OUTPUT_STREAM                                              \
     Serial.begin(9600);                                                   \
     fdev_setup_stream (&uartout, uart_putchar, NULL, _FDEV_SETUP_WRITE);
+ #endif
+#endif
+#+end_src
 
-  #else
-  #define INIT_OUTPUT_STREAM true;
-  #endif
-  #endif
+When C++ Standard Library is present
 
+#+name: runtime-native-program-header
+#+begin_src c++ :tangle no
+#ifdef STD_LIB
+ #define INIT_OUTPUT_STREAM true;
+ #define OUTPUT_STREAM stdout
+#endif
+#+end_src
 
+Initialize Ferret,
+
+#+name: runtime-native-program-header
+#+begin_src c++ :tangle no
+#ifdef ARDUINO
   #define INIT_ENV                                \
     init();                                       \
-    INIT_OUTPUT_STREAM                                                           
-  #endif
+    INIT_OUTPUT_STREAM
+#endif
+#+end_src
 
-  #ifdef GNU_GCC
-  #define OUTPUT_STREAM stdout
-  #define INIT_ENV 
+#+name: runtime-native-program-header
+#+begin_src c++ :tangle no
+  #ifdef STD_LIB
+    #define INIT_ENV true;
   #endif
+#+end_src
 
+Misc,
+
+#+name: runtime-native-program-header
+#+begin_src c++ :tangle no
   #define VAR ferret::var
 
   #define MIN(a,b) ((a)<(b)?(a):(b))
@@ -1906,14 +1951,14 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
   (defn identity [x] x)
 
   (defnative sleep [timeout]
-    (on "defined GNU_GCC"
+    (on "defined STD_LIB"
         ("unistd.h")
         "::sleep(TO_INT(timeout));")
-    (on "defined AVR_GCC"
+    (on "defined ARDUINO"
         "::delay(TO_INT(timeout));"))
 
   (defnative get-char []
-    (on "defined GNU_GCC"
+    (on "defined STD_LIB"
         "__result = NEW_CHARACTER(getchar());"))
 
   (defmacro defcallback [callback out in & pass-vars]
@@ -1926,7 +1971,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
           (list 'def `~(symbol (str callback "-callback-fn")) `~callback)))
 
   (defnative sh [cmd]
-    (on "defined GNU_GCC"
+    (on "defined STD_LIB"
         ("memory")
         "std::shared_ptr<FILE> pipe(popen(TO_C_STR(cmd), \"r\"), pclose);
          if (!pipe) 
@@ -2422,7 +2467,7 @@ Runs the given lambda in a posix thread,
 #+name: runtime-clojure-bit-operations
 #+begin_src clojure :tangle no
   (defnative pthread-create [f]
-    (on "defined GNU_GCC"
+    (on "defined STD_LIB"
         ("pthread.h")
         "void *PTHREAD_LAMBDA_INVOKER(void *data) {
             ferret::var fn = ferret::var(static_cast<ferret::Object*>(data));

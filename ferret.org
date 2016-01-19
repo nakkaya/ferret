@@ -916,7 +916,7 @@ List Destructuring,
 
       $object_interface$
 
-      #ifdef STD_LIB
+      #if defined(STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS) && !defined(DISABLE_MAIN_FUNCTION)
         VAR _star_command_line_args_star_;
       #endif
 
@@ -939,7 +939,7 @@ List Destructuring,
       
         INIT_ENV
 
-      #ifdef STD_LIB
+      #if defined(STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS)
         _star_command_line_args_star_ = NEW_SEQUENCE();
         for (int i = argc - 1; i > -1 ; i--)
           CONS(_star_command_line_args_star_,NEW_STRING(argv[i]));

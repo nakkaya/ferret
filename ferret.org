@@ -968,6 +968,7 @@ Object Casting macros,
 
 #+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
+  #define VAR ferret::var
   #define NIL (VAR())
   #define OBJECT(v) static_cast<ferret::Object*>(v.get())
   #define POINTER(v) static_cast<ferret::Pointer*>(v.get())
@@ -1875,8 +1876,6 @@ Misc,
 
 #+name: runtime-native-program-header
 #+begin_src c++ :tangle no
-  #define VAR ferret::var
-
   #define MIN(a,b) ((a)<(b)?(a):(b))
   #define ABS(a) ((a)<0 ? -(a) : (a))
 #+end_src

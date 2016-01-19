@@ -1962,6 +1962,12 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                (apply str)
                (list))))
 
+  (defmacro configure! [& body]
+    (cons 'native-define
+          (->> (partition 2 body)
+               (map #(str "#define " (first %) " " (second %) "\n"))
+               (list))))
+
   (defmacro defnative [name args & form]
     (let [includes (->> (filter #(seq? (nth % 2)) form)
                         (map #(cons (nth % 1) (apply list (nth % 2))))

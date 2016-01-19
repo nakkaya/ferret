@@ -51,7 +51,7 @@ Memory management is done using reference counting. On memory
 constraint systems such as micro controllers ferret can use a memory
 pool to avoid heap fragmentation and calling `malloc` / `free`.
 
-    (native-define "#define MEMORY_POOL_SIZE 256")
+    (configure! MEMORY_POOL_SIZE 256)
 
 This will create a pool object as a global variable that holds an
 array of `256 * size_t`. Memory pooling is intended for embedded systems

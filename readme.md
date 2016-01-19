@@ -159,10 +159,11 @@ platform. Following shows a blink example.
      (digital-write 13 :low)
      (sleep 500))
 
-Rename `solution.cpp` to `./program_name/program_name.pde`
+Rename `solution.cpp` to `./program_name/program_name.pde` and compile
+using Arduino IDE.
 
 If you are using the memory pool, there are two functions you can use
-to what memory,
+to check on memory,
 
  - `memory-pool-free-pages` - Returns the number of free memory pages.
  - `memory-pool-print-snapshot` - Prints the current state of
@@ -173,8 +174,7 @@ to what memory,
 ### SQLite
 
 Following shows an example of how to interface with SQLite and how to
-convert convert data structures back and forth with ferret and native
-code.
+convert data structures back and forth with ferret and native code.
 
     (native-header sqlite3.h)
   
@@ -248,8 +248,8 @@ becomes `db/select-db`
   
     (println (db/select-db select-all))
 
-When `-c` is used, inorder to pass compiler options to the compiler
-ferret supports simple build options files. A clojure map with
+When `-c` is used, in order to pass compiler options to the compiler
+ferret supports simple build options files. A Clojure map with
 settings to override/add.
 
     {:include-path ["/usr/local/Cellar/sqlite/3.8.2/include/"]

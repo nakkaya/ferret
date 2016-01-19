@@ -1768,16 +1768,17 @@ Import libraries,
 
 #+name: runtime-native-program-header
 #+begin_src c++ :tangle no
-  #include <stdlib.h>
-  #include <stdio.h>
-
   #ifdef STD_LIB
    #include <iostream>
    #include <sstream>
+   #include <cstdio>
+   #include <cstdlib>
   #endif
 
   #ifdef ARDUINO
-   #include "Arduino.h"
+   #include <Arduino.h>
+   #include <stdio.h>
+   #include <stdlib.h>
   #endif
 
   #ifdef MEMORY_POOL_SIZE

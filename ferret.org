@@ -1033,11 +1033,11 @@ Object Casting macros,
   private:
     uint8_t bits[poolSize / sizeof(uint8_t) + 1];
 
-    size_t index(size_t i){
+    inline size_t index(size_t i){
       return i / sizeof(uint8_t);
     }
 
-    size_t offset(size_t i){
+    inline size_t offset(size_t i){
       return i % sizeof(uint8_t);
     }
           
@@ -1056,7 +1056,7 @@ Object Casting macros,
       bits[index(b)] &= ~(1 << (offset(b)));
     }
 
-    size_t get(size_t b){
+    int get(size_t b){
       return (bits[index(b)] & (1 << (offset(b))));
     }
   };

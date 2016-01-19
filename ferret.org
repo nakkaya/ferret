@@ -1027,11 +1027,45 @@ Object Casting macros,
 #+name: runtime-native-memory-pool
 #+begin_src c++ :tangle no
   #ifdef MEMORY_POOL_SIZE
+
+  template<size_t poolSize>
+  class BitArray {
+  private:
+    uint8_t bits[poolSize / sizeof(uint8_t) + 1];
+
+    size_t index(size_t i){
+      return i / sizeof(uint8_t);
+    }
+
+    size_t offset(size_t i){
+      return i % sizeof(uint8_t);
+    }
+          
+  public:
+    BitArray(){
+      for(size_t i = 0; i < poolSize; i++){
+        bits[i] = false;
+      }
+    }
+
+    void set(size_t b){
+      bits[index(b)] |= 1 << (offset(b));
+    }
+
+    void clear(size_t b){
+      bits[index(b)] &= ~(1 << (offset(b)));
+    }
+
+    size_t get(size_t b){
+      return (bits[index(b)] & (1 << (offset(b))));
+    }
+  };
+
   template<typename PageSize, size_t poolSize>
   class MemoryPool{
   public:
     PageSize pool[poolSize];
-    std::bitset<poolSize> used;
+    BitArray<poolSize> used;
     
     size_t calculateNeededPages(size_t size){
       float f = (float) (((float)size) / ((float)sizeof(PageSize))) ;
@@ -1039,22 +1073,20 @@ Object Casting macros,
     }
       
     MemoryPool(){
-      for(size_t i = 0; i < poolSize; i++){
+      for(size_t i = 0; i < poolSize; i++)
         pool[i] = 0;
-        used[i] = false;
-      }
     }
     
     bool isPageRangeUsable(size_t begin,size_t end){
       for(int i=begin; i < end; i++)
-        if (used[i] == true)
+        if (used.get(i) == true)
           return false;
       return true;
     }
     
     size_t nextAvaliblePage(size_t offset){
       for(int i=offset; i < poolSize; i++)
-        if (used[i] == false)
+        if (used.get(i) == false)
           return i;
       return poolSize;
     }
@@ -1089,7 +1121,7 @@ Object Casting macros,
     
       pool[page] = reqSize;
       for(size_t i = page; i < (page+length); i++)
-        used[i] = true;
+        used.set(i);
         
       return &pool[page+1];
     }
@@ -1100,7 +1132,7 @@ Object Casting macros,
       size_t length = calculateNeededPages(pool[index]);
         
       for(size_t i = index ; i < (index+length); i++)
-        used[i] = false;
+        used.clear(i);
     }
   };
 
@@ -1995,14 +2027,14 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
     (on "defined MEMORY_POOL_SIZE"
         "int count = 0;
          for(int i = 0; i < MEMORY_POOL_SIZE; i++)
-           if(ProgramMemory.used[i] == false)
+           if(ProgramMemory.used.get(i) == false)
              count++;
          __result = NEW_NUMBER(count);"))
 
   (defnative memory-pool-print-snapshot []
     (on "defined MEMORY_POOL_SIZE"
         "for(int i = 0; i < MEMORY_POOL_SIZE; i++)
-           fprintf(OUTPUT_STREAM, \"%d\",ProgramMemory.used[i]);
+           fprintf(OUTPUT_STREAM, \"%d\",ProgramMemory.used.get(i));
         fprintf(OUTPUT_STREAM, \"\\n\");
          __result = NIL;"))
 #+end_src

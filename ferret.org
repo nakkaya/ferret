@@ -1007,7 +1007,7 @@ Object Casting macros,
     (This should not be used in a multi threaded program.)
 
     For every page of memory allocated there is overhead of one
-    /bit/ and one memory page is used for bookeeping.
+    /bit/ and one memory page is used for book keeping.
 
     When /allocate/ is called the pool will scan the memory pool using
     the /used/ bit set to find a block of memory big enough to

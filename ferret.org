@@ -1805,7 +1805,7 @@ Setup printing on different boards,
 
 #+name: runtime-native-program-header
 #+begin_src c++ :tangle no
-#if defined(ARDUINO) && !defined(DISABLE_OUTPUT_STREAM)
+#if defined(ARDUINO_UNO) && !defined(DISABLE_OUTPUT_STREAM)
   static FILE uartout = {0};
 
   static int uart_putchar (char c, FILE *stream){
@@ -1821,8 +1821,15 @@ DUE,
 
 #+name: runtime-native-program-header
 #+begin_src c++ :tangle no
-#ifdef ARDUINO
- #if defined(ARDUINO_DUE) && !defined(DISABLE_OUTPUT_STREAM)
+#if defined(ARDUINO_DUE) && !defined(DISABLE_OUTPUT_STREAM)
+ #define OUTPUT_STREAM stdout
+#endif
+#+end_src
+
+#+name: runtime-native-program-header
+#+begin_src c++ :tangle no
+#ifdef ARDUINO_DUE
+ #if !defined(DISABLE_OUTPUT_STREAM)
   #define INIT_OUTPUT_STREAM Serial.begin(9600);
  #else
   #define INIT_OUTPUT_STREAM ;
@@ -1834,8 +1841,8 @@ UNO,
 
 #+name: runtime-native-program-header
 #+begin_src c++ :tangle no
-#ifdef ARDUINO
- #if defined(ARDUINO_UNO) && !defined(DISABLE_OUTPUT_STREAM)
+#ifdef ARDUINO_UNO
+ #if !defined(DISABLE_OUTPUT_STREAM)
   #define INIT_OUTPUT_STREAM                                              \
     Serial.begin(9600);                                                   \
     fdev_setup_stream (&uartout, uart_putchar, NULL, _FDEV_SETUP_WRITE);

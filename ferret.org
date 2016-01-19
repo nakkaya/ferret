@@ -1007,12 +1007,12 @@ Object Casting macros,
     (This should not be used in a multi threaded program.)
 
     For every page of memory allocated there is overhead of one
-    /bool/ and one pointer to size_t.
+    /bit/ and one memory page is used for bookeeping.
 
     When /allocate/ is called the pool will scan the memory pool using
-    the /used/ bool array to find a block of memory big enough to
+    the /used/ bit set to find a block of memory big enough to
     satisfy the request. If found, it will the mark the region as used and
-    return a pointer from /pages/ array to the user which points to
+    return a pointer from /pool/ array to the user which points to
     the memory block. First page of the memory block is used for book
     keeping information, it holds the amount of memory allocated.
 
@@ -1031,7 +1031,7 @@ Object Casting macros,
   class MemoryPool{
   public:
     PageSize pool[poolSize];
-    bool used[poolSize];
+    std::bitset<poolSize> used;
     
     size_t calculateNeededPages(size_t size){
       float f = (float) (((float)size) / ((float)sizeof(PageSize))) ;

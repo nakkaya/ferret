@@ -2039,6 +2039,27 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
          __result = NIL;"))
 #+end_src
 
+Takes a function and returns the number of millis took.
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no
+  (defnative time [f]
+    (on "defined STD_LIB"
+        ("sys/time.h")
+        "struct timeval  te;
+         gettimeofday(&te, NULL);
+         unsigned long begin = (int)(te.tv_sec*1000LL + te.tv_usec/1000); 
+         INVOKE(f);
+         gettimeofday(&te, NULL);
+         unsigned long end = (int)(te.tv_sec*1000LL + te.tv_usec/1000); 
+         __result = NEW_NUMBER((NUMBER_DATA_TYPE)(end - begin));")
+    (on "defined ARDUINO"
+        "unsigned long begin = millis();
+         INVOKE(f);
+         unsigned long end = millis();
+         __result = NEW_NUMBER((NUMBER_DATA_TYPE)(end - begin));"))
+#+end_src
+
 *** Console I/O
 
 #+name: runtime-clojure-console-io

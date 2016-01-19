@@ -1990,12 +1990,11 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+begin_src clojure :tangle no
   (defn identity [x] x)
 
-  (defnative sleep [timeout]
+  (defnative sleep [millis]
     (on "defined STD_LIB"
-        ("unistd.h")
-        "::sleep(TO_INT(timeout));")
+        "usleep(TO_INT(millis) * 1000L);")
     (on "defined ARDUINO"
-        "::delay(TO_INT(timeout));"))
+        "::delay(TO_INT(millis));"))
 
   (defnative get-char []
     (on "defined STD_LIB"

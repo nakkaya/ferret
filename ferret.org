@@ -1667,8 +1667,8 @@ Function invocation macros,
 #+name: runtime-native-lambda-invoke-macros
 #+begin_src c++ :tangle no
   #define VA_ARGS(...) , ##__VA_ARGS__
-  #define INVOKE(f,...) LAMBDA(f)->invoke((ferret::var(new ferret::Sequence()) VA_ARGS(__VA_ARGS__)))
-  #define FN(f,...) ferret::var(new ferret::f(__VA_ARGS__))
+  #define INVOKE(f,...) LAMBDA(f)->invoke((NEW_SEQUENCE() VA_ARGS(__VA_ARGS__)))
+  #define FN(f,...) VAR(new ferret::f(__VA_ARGS__))
 #+end_src
 
 #+name: native-lambda-test

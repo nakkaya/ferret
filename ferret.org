@@ -1165,6 +1165,25 @@ Object Casting macros,
               ((fn [] "std::cout << (NULL == mem.allocate(sizeof(size_t)*10)) << \" \";")))))))
 #+end_src
 
+*** Memory Allocation/Deallocation
+
+Dispatch correct memory allocation/deallocation implementation,
+
+#+name: runtime-native-scheme
+#+begin_src c++ :tangle no
+  #ifdef MEMORY_POOL_SIZE
+    #define ALLOCATE(size) ProgramMemory.allocate(size)
+  #else
+    #define ALLOCATE(size) malloc(size)
+  #endif
+
+  #ifdef MEMORY_POOL_SIZE
+    #define FREE(pre) ProgramMemory.free(ptr)
+  #else
+    #define FREE(ptr) free(ptr)
+  #endif
+#+end_src
+
 *** Object
 
 #+name: runtime-native-object
@@ -1187,19 +1206,11 @@ Object Casting macros,
     
     
     void* operator new(size_t size){
-  #ifdef MEMORY_POOL_SIZE
-      return ProgramMemory.allocate(size);
-  #else
-      return malloc(size);
-  #endif
+      return ALLOCATE(size);
     }
     
     void  operator delete(void * ptr){
-  #ifdef MEMORY_POOL_SIZE
-      ProgramMemory.free(ptr);
-  #else
-      free(ptr);
-  #endif
+      FREE(ptr);
     }
     
   private:
@@ -3013,6 +3024,8 @@ returns true returns the next state.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle ferret/resources/Object.cpp
   <<runtime-native-program-header>>
+
+  <<runtime-native-scheme>>
 
   <<runtime-native-object-casting-macros>>
 

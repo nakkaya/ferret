@@ -862,7 +862,7 @@ List Destructuring,
          }} ;separator=\"\n\"$
 
          $if(object_type)$
-          int getType(){ return $type$_TYPE;}
+          size_t getType(){ return $type$_TYPE;}
          $endif$
 
          $if(equals)$
@@ -1174,7 +1174,7 @@ Object Casting macros,
     Object() : refCount(0) {}
     virtual ~Object() {};
     
-    virtual int getType() = 0;
+    virtual size_t getType() = 0;
     
   #if !defined(DISABLE_OUTPUT_STREAM)
     virtual var toOutputStream() = 0;
@@ -1255,8 +1255,8 @@ Math configuration,
            numerator = decimal + (integer * NUMBER_PRECISION);
            denominator = NUMBER_PRECISION;
            simplificate();"))
-    (equals "int self_type = getType();
-             int other_type = OBJECT(o)->getType();
+    (equals "size_t self_type = getType();
+             size_t other_type = OBJECT(o)->getType();
              if (self_type == NUMBER_TYPE && other_type == NUMBER_TYPE)
                if (getNumerator() == 0 && NUMBER(o)->getNumerator() == 0)
                  return NEW_BOOLEAN(true);

@@ -666,7 +666,12 @@ C++ skeleton.
     (str "NEW_KEYWORD(" (reduce (fn[h v] (+ h (int v))) 0 (str form)) ")"))
 
   (defmethod emit :number [form state]
-    (str "NEW_NUMBER("form (if (float? form) "f") ")"))
+    (let [number (rationalize form)]
+      (if (ratio? number)
+        (let [num (numerator number)
+              denom (denominator number)]
+          (str "NEW_RATIO(" num "," denom ")"))
+        (str "NEW_NUMBER(" number ")"))))
 
   (defmethod emit :sequence [[fn & args] state]
     (invoke-lambda (emit fn state) (doall (map #(emit % state) args))))

@@ -505,7 +505,7 @@ suggests and removes the node when predicate returns true.
       (is (= (first (first form)) 'def))))
 
   (deftest transformation-macro-test
-    (is (= "1 1 1 true false true true true (3 3)012343"
+    (is (= "1 1 1 true false true true true (3 3)012343 5"
            (capture-output '((defmacro my-when [test & body]
                                (list 'if test (cons 'do body)))
 
@@ -542,7 +542,14 @@ suggests and removes the node when predicate returns true.
                                (defn adder [x]
                                  (+ a x)))
                              (defn my-inc [x] (+ 1 (adder x)))
-                             (print (my-inc 1)))))))
+                             (print (my-inc 1))
+
+                             (print " ")
+                             (let [x 2
+                                   y (->> x
+                                          (+ 1)
+                                          (+ 2))]
+                               (print y)))))))
 
   (deftest transformation-special-forms-test
     (is (= "10 89 11 3 1 5 51111111111"
@@ -2081,6 +2088,24 @@ Takes a function and returns the number of millis took.
          __result = NEW_NUMBER((NUMBER_DATA_TYPE)(end - begin));"))
 #+end_src
 
+Threads the expr through the forms. Inserts x as the
+last item in the first form, making a list of it if it is not a
+list already. If there are more forms, inserts the first form as the
+last item in second form, etc.
+
+#+name: runtime-clojure-misc-thread-macro
+#+begin_src clojure :tangle no
+  (defmacro ->> [x & forms]
+    (loop [x x, forms forms]
+      (if forms
+        (let [form (first forms)
+              threaded (if (seq? form)
+                         `(~(first form) ~@(next form)  ~x)
+                         (list form x))]
+          (recur threaded (next forms)))
+        x)))
+#+end_src
+
 *** Console I/O
 
 #+name: runtime-clojure-console-io
@@ -3051,6 +3076,7 @@ returns true returns the next state.
 ** resources/runtime.clj
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
+  <<runtime-clojure-misc-thread-macro>>
   <<runtime-clojure-boolean-object>>
   <<runtime-clojure-pointer-object>>
   <<runtime-clojure-number-object>>

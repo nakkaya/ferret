@@ -253,9 +253,9 @@ after transformation becomes,
                         closure-fn (fn close [[idx args vals] & more]
                                      (let [args (list args)
                                            body (if (empty? more)
-                                                  (list (concat ['fn []] body))
+                                                  (list (concat ['fn* []] body))
                                                   (apply close more))]
-                                       (list (list 'fn args body)
+                                       (list (list 'fn* args body)
                                              (last (nth bindings idx)))))]
                     (apply closure-fn bindings)))))
 #+end_src
@@ -278,7 +278,7 @@ that takes no parameters and executed in place.
   (defn do->fn [form]
     (morph-form form
                 (is-form? 'do)
-                #(list (concat ['fn []] (rest %)))))
+                #(list (concat ['fn* []] (rest %)))))
 #+end_src
 
 *** Closure Conversion
@@ -336,7 +336,7 @@ the free variable problem.
          (vector->list (concat form @fns))))
     ([form fns & env]
        (morph-form form
-                   (is-form? 'fn)
+                   (is-form? 'fn*)
                    (fn [[_ args & body]]
                      (let [env (if (nil? env) '() (first env))
                            body (closure-conversion body fns (concat args env))]
@@ -498,7 +498,9 @@ suggests and removes the node when predicate returns true.
     (is (= (symbol-conversion '(make-adder 2)) '(make_adder 2)))
     (is (= (symbol-conversion '(make-adder* 2)) '(make_adder_star_ 2)))
 
-    (let [form (closure-conversion '((def make-adder (fn [n] (fn [x] (+ x n))))))]
+    (let [form (->> '((def make-adder (fn [n] (fn [x] (+ x n)))))
+                    expand-macros-all
+                    closure-conversion)]
       (is (= (first (second form)) 'define-lambda))
       (is (= (last (second form)) '(+ x n)))
       (is (= (second (first form)) 'make-adder))
@@ -1977,7 +1979,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-defn
 #+begin_src clojure :tangle no
   (defmacro defn [name args & body]
-    (list 'def name (cons 'fn `( ~args ~@body))))
+    (list 'def name (cons 'fn* `( ~args ~@body))))
 
   (defmacro native-header [& body]
     (cons 'native-declare
@@ -1994,11 +1996,11 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
   (defmacro defnative [name args & form]
     (let [includes (->> (filter #(seq? (nth % 2)) form)
                         (map #(cons (nth % 1) (apply list (nth % 2))))
-                        (map (fn* ([form]
-                                   (let [[guard & headers] form]
-                                     (str "\n#if " guard " \n"
-                                          (apply str (map #(str "#include \"" % "\"\n") headers))
-                                          "#endif\n")))))
+                        (map (fn [form]
+                               (let [[guard & headers] form]
+                                 (str "\n#if " guard " \n"
+                                      (apply str (map #(str "#include \"" % "\"\n") headers))
+                                      "#endif\n"))))
                         (map #(list 'native-declare %)))
           body (->> (map #(vector (second %) (last %)) form)
                     (map #(str "\n#if " (first %) " \n"
@@ -2007,10 +2009,10 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                     (apply str))
           pre-ample (->> (map #(vector (second %) (drop-last (drop 3 %))) form)
                          (map #(str "\n#if " (first %) " \n"
-                                    (apply str (map (fn* ([line] (str line "\n"))) (second %)))
+                                    (apply str (map (fn [line] (str line "\n")) (second %)))
                                     "\n#endif\n"))
                          (map #(list 'native-declare %)))]
-      (list 'def name (cons 'fn `( ~args ~@includes ~@pre-ample  ~body)))))
+      (list 'def name (cons 'fn* `( ~args ~@includes ~@pre-ample  ~body)))))
 #+end_src
 
 *** Misc
@@ -2106,6 +2108,14 @@ last item in second form, etc.
         x)))
 #+end_src
 
+Override fn so it works with both ferret and Clojure.
+
+#+name: runtime-clojure-misc-thread-macro
+#+begin_src clojure :tangle no
+  (defmacro fn [args & body]
+    (cons 'fn* `( ~args ~@body)))
+#+end_src
+
 *** Console I/O
 
 #+name: runtime-clojure-console-io
@@ -2130,12 +2140,12 @@ last item in second form, etc.
 #+name: runtime-clojure-looping
 #+begin_src clojure :tangle no
   (defmacro doseq [binding & body]
-    (list '_doseq_ (second binding) (cons 'fn `( [~(first binding)] ~@body))))
+    (list '_doseq_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
 
   (defn _doseq_ [seq f] "ITERATE(seq,it){INVOKE(f,FIRST(it));}")
 
   (defmacro dotimes [binding & body]
-    (list '_dotimes_ (second binding) (cons 'fn `( [~(first binding)] ~@body))))
+    (list '_dotimes_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
 
   (defn _dotimes_ [t f] "for(int i = 0; i < TO_INT(t); i++) INVOKE(f,NEW_NUMBER(i));")
 #+end_src
@@ -2158,7 +2168,7 @@ last item in second form, etc.
             (cons 'cond (next (next clauses))))))
 
   (defmacro while [test & body]
-    (list '_while_ (list 'fn [] test) (cons 'fn `( [] ~@body))))
+    (list '_while_ (list 'fn* [] test) (cons 'fn* `( [] ~@body))))
 
   (defn _while_ [pred fn]
     "while(BOOLEAN(INVOKE(pred))->asBool() == true)
@@ -2631,41 +2641,36 @@ returns true returns the next state.
     (let [transitions
           (->> (last form)
                rest
-               (map (fn*
-                     ([x]
+               (map (fn [x]
                       (let [[state & states] x
                             states (->> (partition 2 states)
                                         (map #(list (list (first %)) (second %))))
                             states (->> (clojure.core.protocols/coll-reduce
-                                         states (fn*
-                                                 ([h v]
-                                                  (conj h (second v) (first v)))) (list))
+                                         states (fn [h v]
+                                                 (conj h (second v) (first v))) (list))
                                         (cons 'cond))]
-                        [(list '= 'state state) (concat states [true state])])))))
+                        [(list '= 'state state) (concat states [true state])]))))
           start-state (-> transitions first first last)
           transitions (clojure.core.protocols/coll-reduce
-                       transitions (fn*
-                                    ([h v]
-                                     (conj h (first v) (second v)))) ['cond])
+                       transitions (fn [h v]
+                                     (conj h (first v) (second v))) ['cond])
           
           states (->> (filter #(= (first %) 'state) form)
                       (map rest)
-                      (map (fn*
-                            ([x]
+                      (map (fn [x]
                              [(first x)
                               (->> (rest x)
                                    (cons [])
-                                   (cons 'fn))]))))
+                                   (cons 'fn*))])))
           states (clojure.core.protocols/coll-reduce
-                  states (fn*
-                          ([h v]
-                           (conj h (first v) (second v)))) [])]
+                  states (fn [h v]
+                           (conj h (first v) (second v))) [])]
       (list 'def name
             `(let* [~@states
                     ~'curr-state ~(list 'atom start-state)]
-                   ~(list 'fn []
+                   ~(list 'fn* []
                           `~(list 'swap! 'curr-state
-                                  (list 'fn ['state]
+                                  (list 'fn* ['state]
                                         (list 'state)
                                         `(~@transitions))))))))
 #+end_src

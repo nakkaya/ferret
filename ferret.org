@@ -24,6 +24,7 @@ code generation phase.
 #+begin_src clojure :tangle no
   (defn process [form]
     (->> (import-modules-all form)
+         (process-reader-macros)
          (add-built-in)
          (expand-macros-all)
          (vector->list)
@@ -119,6 +120,25 @@ Run import tests,
                              (require '[examples.modules.module-b :as mod-b])
                              (mod-a/helper-a)
                              (mod-b/helper-b))))))
+#+end_src
+
+*** Process Reader Macros
+
+#+name: core-transformation-reader-macros
+#+begin_src clojure :tangle no
+  (defn process-reader-macros [form]
+    (morph-form form
+                (is-form? 'clojure.core/deref)
+                (fn [f] (cons 'deref (rest f)))))
+#+end_src
+
+#+name: compiler-reader-macro-test
+#+begin_src clojure :tangle no
+  (deftest compiler-reader-macro-test
+    (is (= "1 3"
+           (capture-output '((print @(atom 1))
+                             (print " ")
+                             (print (#(+ 1 2))))))))
 #+end_src
 
 *** Add Runtime
@@ -2884,6 +2904,8 @@ returns true returns the next state.
 
   <<core-transformation-form-fns>>
 
+  <<core-transformation-reader-macros>>
+
   <<core-transformation-vector-list>>
 
   <<core-transformation-vector-list>>
@@ -3041,6 +3063,7 @@ returns true returns the next state.
 
     <<compiler-transformation-tests>>
     <<compiler-import-module-test>>
+    <<compiler-reader-macro-test>>
     <<runtime-clojure-bit-operations-tests>>
     <<runtime-clojure-bit-arithmetic-tests>>
     <<runtime-clojure-logical-operators-tests>>

@@ -722,10 +722,8 @@ List Destructuring,
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
   (defn destructure-set-var [val arg accesor]
-    (if (not= val '_)
-      (str "VAR " val " = "
-           (reduce (fn[h v] (str v "(" h ")")) arg accesor))
-      ""))
+    (str "VAR " val " = "
+         (reduce (fn[h v] (str v "(" h ")")) arg accesor)))
 
   (defn destructure-arguments [args name]
     (let [[args va-args] (if (some #{'&} args)
@@ -734,6 +732,7 @@ List Destructuring,
           args (->> args
                     (map-indexed (fn [pos val]
                                    (vector pos val)))
+                    (filter #(not= (second %) '_))
                     (reduce (fn[h [pos val]]
                               (let [accesor (flatten [(repeat pos "REST") "FIRST"])]
                                 (if (coll? val)
@@ -831,16 +830,14 @@ List Destructuring,
 #+name: code-templates
 #+begin_src clojure :tangle no
   (defn new-lambda [n e]
-    (let [view (create-view "(FN($name$$env:{,$it$}$))")]
-      (fill-view! view "name" n)
-      (fill-view! view "env" e)
-      (render-view view)))
+    (if (empty? e)
+      (str "FN(" n ")")
+      (str "CLOSURE(" n "," (apply str (interpose \, e)) ")")))
 
   (defn invoke-lambda [n args]
-    (let [view (create-view "INVOKE($lambda$, $args:{$it$} ;separator=\",\"$)")]
-      (fill-view! view "lambda" n)
-      (fill-view! view "args" (reverse args))
-      (render-view view)))
+    (if (empty? args)
+      (str "INVOKE(" n ")")
+      (str "INVOKE_WITH(" n "," (apply str (interpose \, (reverse args))) ")")))
 
   (defn if-statement [cond t f]
     (apply str "(BOOLEAN(" cond ")->asBool() ? " t " : " f ")"))
@@ -859,12 +856,17 @@ List Destructuring,
              $lambda.env:{this->$it$ = $it$;} ;separator=\"\n\"$
           }
 
-          VAR invoke (VAR _args_){
-            $lambda.args:{args | $args$; } ;separator=\"\n\"$
+        $if(lambda.args)$
+            VAR invoke (VAR _args_)
+        $else$
+            VAR invoke (VAR)
+        $endif$
+            {
+              $lambda.args:{args | $args$; } ;separator=\"\n\"$
 
-            $trunc(lambda.body):{$it$;} ;separator=\"\n\"$
-            return $last(lambda.body):{ $it$;} ;separator=\"\n\"$
-          }
+              $trunc(lambda.body):{$it$;} ;separator=\"\n\"$
+              return $last(lambda.body):{ $it$;} ;separator=\"\n\"$
+            }
         };};separator=\"\n\n\"$")]
       (fill-view! view "lambdas" lambdas)
       (render-view view)))
@@ -881,7 +883,7 @@ List Destructuring,
       namespace ferret{
 
        $if(object_type)$
-         int $type$_TYPE = $type_val$;
+         size_t $type$_TYPE = $type_val$;
        $endif$
 
        class $name$ : public $interface$ {
@@ -982,7 +984,7 @@ List Destructuring,
         ferret::ProgramRun();      
         return 0;
       }
-    #endif")]
+    #endif\n")]
       (fill-view! view "object_interface" (read-from-url "Object.cpp"))
       (fill-view! view "body" (filter #(not (empty? %)) body))
       (fill-view! view "lambdas" (declare-lambdas lambdas))
@@ -1112,20 +1114,20 @@ Object Casting macros,
     }
     
     bool isPageRangeUsable(size_t begin,size_t end){
-      for(int i=begin; i < end; i++)
+      for(size_t i=begin; i < end; i++)
         if (used.get(i) == true)
           return false;
       return true;
     }
     
     size_t nextAvaliblePage(size_t offset){
-      for(int i=offset; i < poolSize; i++)
+      for(size_t i=offset; i < poolSize; i++)
         if (used.get(i) == false)
           return i;
       return poolSize;
     }
       
-    size_t findPage(size_t reqSize){
+    int findPage(size_t reqSize){
       size_t pagesNeeded = calculateNeededPages(reqSize);
       size_t offset = 0;
     
@@ -1146,7 +1148,7 @@ Object Casting macros,
       
     void *allocate(size_t reqSize){
       reqSize += 1;
-      size_t page = findPage(reqSize);
+      int page = findPage(reqSize);
     
       if ( page == -1)
         return NULL;
@@ -1700,9 +1702,10 @@ Function invocation macros,
 
 #+name: runtime-native-lambda-invoke-macros
 #+begin_src c++ :tangle no
-  #define VA_ARGS(...) , ##__VA_ARGS__
-  #define INVOKE(f,...) LAMBDA(f)->invoke((NEW_SEQUENCE() VA_ARGS(__VA_ARGS__)))
-  #define FN(f,...) VAR(new ferret::f(__VA_ARGS__))
+  #define INVOKE(f) LAMBDA(f)->invoke(NEW_SEQUENCE())
+  #define INVOKE_WITH(f,...) LAMBDA(f)->invoke((NEW_SEQUENCE(),__VA_ARGS__))
+  #define FN(f) VAR(new ferret::f())
+  #define CLOSURE(f,...) VAR(new ferret::f(__VA_ARGS__))
 #+end_src
 
 #+name: native-lambda-test
@@ -2162,12 +2165,12 @@ Override fn so it works with both ferret and Clojure.
   (defmacro doseq [binding & body]
     (list '_doseq_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
 
-  (defn _doseq_ [seq f] "ITERATE(seq,it){INVOKE(f,FIRST(it));}")
+  (defn _doseq_ [seq f] "ITERATE(seq,it){INVOKE_WITH(f,FIRST(it));}")
 
   (defmacro dotimes [binding & body]
     (list '_dotimes_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
 
-  (defn _dotimes_ [t f] "for(int i = 0; i < TO_INT(t); i++) INVOKE(f,NEW_NUMBER(i));")
+  (defn _dotimes_ [t f] "for(int i = 0; i < TO_INT(t); i++) INVOKE_WITH(f,NEW_NUMBER(i));")
 #+end_src
 
 *** Conditionals
@@ -2222,15 +2225,15 @@ Override fn so it works with both ferret and Clojure.
   (defn _reduce_2_arg_ [f coll]
     "var first = FIRST(coll);
      var rest = REST(coll);
-     var acc = INVOKE(f,first,FIRST(rest));
+     var acc = INVOKE_WITH(f, first, FIRST(rest));
      ITERATE(REST(rest),it){
-       acc = INVOKE(f, FIRST(it), acc);
+       acc = INVOKE_WITH(f, FIRST(it), acc);
      }
      return acc;")
 
   (defn _reduce_3_arg_ [f val coll]
     "ITERATE(coll,it){
-       val = INVOKE(f, FIRST(it), val);
+       val = INVOKE_WITH(f, FIRST(it), val);
      }
      return val;")
 
@@ -3054,7 +3057,14 @@ returns true returns the next state.
             [clojure.java.shell]))
 
   (defn capture-output [form]
-    (let [options (compile-options)]
+    (let [options (compile-options
+                   {:compiler-options
+                    ["-std=c++98" "-ansi" "-pedantic"
+                     "-Werror" "-Wall" "-Wextra"
+                     "-Woverloaded-virtual" "-Wuninitialized"
+                     "-Wmissing-declarations" "-Winit-self"
+                     "-Wno-variadic-macros"  ;; C99 Standart
+                     "-Wno-extra-semi"]})]
       (compile->cpp form options)
       (compile->binary options [])
       (with-sh-dir "./"

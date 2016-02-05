@@ -889,7 +889,7 @@ List Destructuring,
        class $name$ : public $interface$ {
        public:
 
-         $data:{$it$;} ;separator=\"\n\"$
+         $data:{$it$} ;separator=\"\n\"$
 
          $interfaces:{virtual $it$ = 0;} ;separator=\"\n\"$
 
@@ -1262,7 +1262,7 @@ new/delete is needed because in avr-gcc they are not defined.)
 #+name: runtime-clojure-pointer-object
 #+begin_src clojure :tangle no
   (defobject Pointer
-    (data "void* ptr")
+    (data "void* ptr;")
     (new ("void* p" "ptr = p;"))
     (equals
      "return NEW_BOOLEAN(ptr == POINTER(o)->ptr);")
@@ -1290,8 +1290,8 @@ Math configuration,
 #+name: runtime-clojure-number-object
 #+begin_src clojure :tangle no
   (defobject Number
-    (data "NUMBER_DATA_TYPE numerator"
-          "NUMBER_DATA_TYPE denominator")
+    (data "NUMBER_DATA_TYPE numerator;"
+          "NUMBER_DATA_TYPE denominator;")
     (new ("NUMBER_DATA_TYPE x"
           "numerator = x; denominator = 1;")
          ("NUMBER_DATA_TYPE n, NUMBER_DATA_TYPE dn"
@@ -1356,7 +1356,7 @@ Math configuration,
 #+name: runtime-clojure-keyword-object
 #+begin_src clojure :tangle no
   (defobject Keyword
-    (data "int id")
+    (data "int id;")
     (new ("int b" "id=b;")
          ("const char * str"
           "id = 0;
@@ -1394,7 +1394,7 @@ Math configuration,
 #+name: runtime-clojure-character-object
 #+begin_src clojure :tangle no
   (defobject Character
-    (data "char value")
+    (data "char value;")
     (new ("char c" "value = c;"))
     (equals
      "if (!IS_TYPE(o,CHARACTER_TYPE))
@@ -1436,8 +1436,8 @@ Math configuration,
 #+name: runtime-clojure-cell-object
 #+begin_src clojure :tangle no
   (defobject Cell
-    (data "var data"
-          "var next")
+    (data "var data;"
+          "var next;")
     (new ("" "")
          ("var d, var n" "data = d; next = n;"))
     (equals "if (!IS_TYPE(o,CELL_TYPE))
@@ -1451,7 +1451,7 @@ Math configuration,
 #+begin_src clojure :tangle no
   (defobject Sequence
     (interface :ISeekable)
-    (data "var head")
+    (data "var head;")
     (new ("" "head = NULL;")
          ("var h" "head = h;"))
     (equals
@@ -1510,7 +1510,7 @@ Math configuration,
 #+begin_src clojure :tangle no
   (defobject String
     (interface :ISeekable)
-    (data "var data")
+    (data "var data;")
     (new (""
           "data = NULL;")
          ("var s"
@@ -1569,7 +1569,7 @@ Math configuration,
 #+name: runtime-clojure-boolean-object
 #+begin_src clojure :tangle no
   (defobject Boolean
-    (data "bool value")
+    (data "bool value;")
     (new ("bool b" "value = b;"))
     (equals "if (!IS_TYPE(o,BOOLEAN_TYPE))
                return NEW_BOOLEAN(false);
@@ -1603,7 +1603,7 @@ Math configuration,
 #+name: runtime-clojure-atom-object
 #+begin_src clojure :tangle no
   (defobject Atom
-    (data "var data"
+    (data "var data;"
           "#if defined(STD_LIB)
             pthread_mutex_t lock;
            #endif \n")
@@ -3063,8 +3063,7 @@ returns true returns the next state.
                      "-Werror" "-Wall" "-Wextra"
                      "-Woverloaded-virtual" "-Wuninitialized"
                      "-Wmissing-declarations" "-Winit-self"
-                     "-Wno-variadic-macros"  ;; C99 Standart
-                     "-Wno-extra-semi"]})]
+                     "-Wno-variadic-macros"]})] ;; C99 Standart
       (compile->cpp form options)
       (compile->binary options [])
       (with-sh-dir "./"

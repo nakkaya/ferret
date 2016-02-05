@@ -356,8 +356,19 @@ Compile `-i webcam.clj -o build.options`.
 ## Implementation Notes
 
 Ferret is functional. The code it produces does not include any black
-magic it is simple C++. There is only one GCC trick in the code other
-than that it should support any compiler. 
+magic it is simple C++. All tests are compiled using,
+
+ - `-std=c++98`
+ - `-ansi`
+ - `-pedantic`
+ - `-Werror`
+ - `-Wall`
+ - `-Wextra`
+ - `-Woverloaded-virtual`
+ - `-Wuninitialized`
+ - `-Wmissing-declarations`
+ - `-Winit-self`
+ - `-Wno-variadic-macros`
 
 ## License
 

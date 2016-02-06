@@ -110,21 +110,21 @@ front of the current form with symbols renamed to /some-fn/ =>
 
 **** Tests
 
-Create some dummy libs under /examples/modules/,
+Create some dummy libs under /test/modules/,
 
-#+begin_src clojure :mkdirp yes :tangle ferret/examples/modules/module-a.clj
+#+begin_src clojure :mkdirp yes :tangle ferret/test/modules/module-a.clj
   (defn helper-a []
     (print "Module A"))
 #+end_src 
 
-#+begin_src clojure :mkdirp yes :tangle ferret/examples/modules/module-b.clj
+#+begin_src clojure :mkdirp yes :tangle ferret/test/modules/module-b.clj
   (require '[examples.modules.module-c :as mod-c])
 
   (defn helper-b []
     (mod-c/helper-c))
 #+end_src 
 
-#+begin_src clojure :mkdirp yes :tangle ferret/examples/modules/module-c.clj
+#+begin_src clojure :mkdirp yes :tangle ferret/test/modules/module-c.clj
   (defn helper-c []
     (print "Module C"))
 #+end_src 
@@ -142,6 +142,8 @@ Run import tests,
 #+end_src
 
 *** Process Reader Macros
+
+Process some supported reader macros, /@/ and /#(some-fn)/ forms.
 
 #+name: core-transformation-reader-macros
 #+begin_src clojure :tangle no
@@ -168,6 +170,9 @@ use /println/ anywhere in the code it won't be defined in the final
 C++ file, but if you use it, it and everything it uses will be
 defined, in the case of /println/ it will pull /apply/, /print/ and
 /newline/ with it.
+
+/resources/runtime.clj/ contains the ferret core runtime when
+tangled.
 
 #+name: core-transformation-add-built-in
 #+begin_src clojure :tangle no
@@ -196,11 +201,11 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 
 *** Expand Macros
 
-First we read all the macros present in /runtime.clj/ then add to that
-user defined macros, they are evaluated in a temporary namespace,
-using /morph-form/ we iterate all the macros used in the code that we
-are compiling and expand them in the temporary namespace then the node
-is replaced with its expanded form.
+First we read all the macros present in /resources/runtime.clj/ then
+add to that  user defined macros, they are evaluated in a temporary
+namespace, using /morph-form/ we iterate all the macros used in the
+code that we are compiling and expand them in the temporary namespace
+then the node is replaced with its expanded form.
 
 #+name: core-transformation-expand-macros
 #+begin_src clojure :tangle no
@@ -256,9 +261,10 @@ lists. Also zippers do not iterate over vectors.
 
 *** let->fn
 
-let forms are transformed into nested functions which are then called
-immediately, bindings are setup in the outer function, expressions are
-placed in the inner function which takes the bindings as arguments.
+/let/ forms are transformed into nested functions which are then
+called immediately, bindings are setup in the outer function,
+expressions are placed in the inner function which takes the bindings
+as arguments.
 
 So following form,
 
@@ -271,12 +277,10 @@ So following form,
 after transformation becomes,
 
 #+begin_src clojure :tangle no
-  ((fn []
-     (define-var a 1)
-     (define-var b 2)
-  
-     ((fn (a b)
-        (+ a b)) a b)))
+  (define_lambda G__2708 (b a) () (_plus_ a b))
+  (define_lambda G__2709 (a) (b) ((lambda_object G__2708 b a)))
+  (define_lambda G__2710 () (a) ((lambda_object G__2709 a) 2))
+  ((lambda_object G__2710) 1)
 #+end_src
 
 #+name: core-transformation-let-fn
@@ -342,13 +346,14 @@ inner functions (if any) it contains.
 Above form will be converted to,
 
 #+begin_src clojure :tangle no
-  (define-lambda G__265 (x) (n) (+ x n))
-  (define-lambda G__266 () (x) (lambda-object G__265 x))
+  (define_lambda G__3154 (x) (n) (_plus_ x n))
+  (define_lambda G__3155 () (x) (lambda_object G__3154 x))
+  (lambda_object G__3155)
 #+end_src
 
-What this means is, define a functor named /G__265/ that holds a
-reference to /x/, and another functor /G__266/ that has no state. When
-we create an instance of /G__265/ we pass /x/ to its
+What this means is, define a functor named /G__3154/ that holds a
+reference to /x/, and another functor /G__3155/ that has no state. When
+we create an instance of /G__3154/ we pass /x/ to its
 constructor. Since every thing is already converted to fns this
 mechanism allows variables to be referenced down the line and solves
 the free variable problem.
@@ -386,7 +391,8 @@ the free variable problem.
 
 *** Symbol Conversion
 
-Next step converts all symbols that are not legal C++ identifiers
+Some symbols valid in Clojure are not valid C++ identifiers. This
+transformation converts all symbols that are not legal C++ identifiers
 into valid ones.
 
 #+name: core-transformation-symbol-conversion
@@ -639,8 +645,8 @@ suggests and removes the node when predicate returns true.
 
 ** Code Generation
 
-At this point all we need is a multi method that will emit correct
-string based on the form.
+ Once transformation is complete the form is in a form that is where
+ close to C++. running /emit/ on the form converts the form into C++.
 
 #+name: core-code-generation-emit
 #+begin_src clojure :tangle no  
@@ -678,9 +684,9 @@ Without preprocessing following forms,
 would evaluate to,
 
 #+begin_example
-  "INVOKE(VAR(list), VAR(3),VAR(2),VAR(1))"
-  "INVOKE(VAR(+), VAR(2),VAR(1))"
-  "(BOOLEAN(INVOKE(VAR(<), VAR(b),VAR(a)))->asBool() ? (VAR)VAR(b) : (VAR)VAR(a))"  
+  "INVOKE_WITH(list,NEW_NUMBER(3),NEW_NUMBER(2),NEW_NUMBER(1))"
+  "INVOKE_WITH(+,NEW_NUMBER(2),NEW_NUMBER(1))"
+  "IF(INVOKE_WITH(<,b,a), b, a)"
 #+end_example
 
 So the actual compilation will just map emit to all forms passed and
@@ -736,7 +742,8 @@ C++ skeleton.
 
 **** Lambdas
 
-List Destructuring,
+List Destructuring. Clojure style list structuring is supported on
+lambda forms.
 
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
@@ -1214,6 +1221,8 @@ Dispatch correct memory allocation/deallocation implementation,
 
 *** Object
 
+All our types are derived from the base Object type,
+
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
   class Object{
@@ -1246,10 +1255,9 @@ Dispatch correct memory allocation/deallocation implementation,
   };
 #+end_src
 
-All our types are derived from the base Object type,(defining
-new/delete is needed because in avr-gcc they are not defined.)
-
 *** Pointer
+
+An object to hold a reference to a C++ pointer,
 
 #+name: runtime-clojure-pointer-object
 #+begin_src clojure :tangle no
@@ -1270,6 +1278,10 @@ new/delete is needed because in avr-gcc they are not defined.)
 
 *** Number
 
+There is only one number type in ferret. All numbers are kept as
+ratios. Default number size is /int/. A ratio is kept in memory as two
+/NUMBER_DATA_TYPE/ size members named /numerator/ and /denominator/.
+
 Math configuration,
 
 #+name: runtime-native-math-config
@@ -1278,6 +1290,8 @@ Math configuration,
   #define NUMBER_DATA_TYPE int
   #define NUMBER_TYPE_FORMAT "%d"
 #+end_src
+
+Number Object,
 
 #+name: runtime-clojure-number-object
 #+begin_src clojure :tangle no
@@ -1345,6 +1359,9 @@ Math configuration,
 
 *** Keyword
 
+Each keyword in the program is converted to an /Keyword/ object. A
+/Keyword/ holds a simple hash of the keyword as an integer.
+
 #+name: runtime-clojure-keyword-object
 #+begin_src clojure :tangle no
   (defobject Keyword
@@ -1383,6 +1400,8 @@ Math configuration,
 
 *** Character
 
+Holds a native /char/ type.
+
 #+name: runtime-clojure-character-object
 #+begin_src clojure :tangle no
   (defobject Character
@@ -1402,6 +1421,9 @@ Math configuration,
 #+end_src
 
 *** Seekable Interface
+
+All sequence functions use this interface to iterate seekable
+containers.
 
 #+name: runtime-clojure-seekable-interface
 #+begin_src clojure :tangle no
@@ -1424,6 +1446,8 @@ Math configuration,
 #+end_src
 
 *** Sequence
+
+A simple linked list container implementing the seekable interface.
 
 #+name: runtime-clojure-cell-object
 #+begin_src clojure :tangle no
@@ -1498,6 +1522,8 @@ Math configuration,
 
 *** String
 
+Strings are represented as a linked list of characters.
+
 #+name: runtime-clojure-string-object
 #+begin_src clojure :tangle no
   (defobject String
@@ -1556,7 +1582,10 @@ Math configuration,
                                      "String")
                                     ))))))
 #+end_src
+
 *** Boolean
+
+A boolean object,
 
 #+name: runtime-clojure-boolean-object
 #+begin_src clojure :tangle no
@@ -1591,6 +1620,9 @@ Math configuration,
 #+end_src
 
 *** Atom
+
+Mimics Clojure's /atom/. It is thread safe when used on system where
+/STD_LIB/ is defined.
 
 #+name: runtime-clojure-atom-object
 #+begin_src clojure :tangle no
@@ -1631,6 +1663,8 @@ Math configuration,
 
       return data;")))
 #+end_src
+
+Operations on /Atoms/
 
 #+name: runtime-clojure-atom-object
 #+begin_src clojure :tangle no
@@ -1674,8 +1708,9 @@ Math configuration,
 
 *** Lambda
 
-except functors, they derive from the class Lambda, which has a single
-invoke method that takes a sequence of vars as argument, this allows us
+Every lambda object implements the /Lambda/ interface. All lambdas are
+executed via /invoke/ method that takes a that takes a sequence of
+vars as argument or /NIL/ if there are non, this allows us
 to execute them in a uniform fashion.
 
 #+name: runtime-clojure-lambda-interface

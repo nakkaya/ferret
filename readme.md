@@ -12,9 +12,7 @@ directory structure and export the files and tests contained.
 
 ## Building
 
-Ferret compiler compiles from a subset of Clojure to C++, and then
-invokes the GNU C++ compiler to produce binaries. In order to compile
-a program either run,
+Ferret compiler compiles from a subset of Clojure to C++. 
 
     lein run -in prog.clj
 
@@ -23,15 +21,38 @@ or if you are using the jar version
     java -jar ferret-app.jar -in sample.clj
 
 Output will be placed in a a file called `solution.cpp` passing the
-`-c` flag will cause this file to be automatically compiled.
+`-c` flag will cause this file to be automatically compiled using GNU
+C++. (Other compilers are supprted see Implementation Notes).
 
 ## Features
 
- - Very small foot print
+ - Very small foot print. (Runs on the Atmega328 with 32kb Flash 2KB Ram)
  - Functional
  - Macros
  - Destructuring
+ - Easy FFI (Incline C,C++)
  - Memory Pooling
+
+## Implementation Notes
+
+Ferret is a functional language. All functions should mimic their
+Clojure counter parts. If they don't  it is considered a bug. (or not
+possible to implement with the current implementation.)
+
+The code it produces does not include any black magic it is simple
+C++. All tests are compiled using,
+
+ - `-std=c++98`
+ - `-ansi`
+ - `-pedantic`
+ - `-Werror`
+ - `-Wall`
+ - `-Wextra`
+ - `-Woverloaded-virtual`
+ - `-Wuninitialized`
+ - `-Wmissing-declarations`
+ - `-Winit-self`
+ - `-Wno-variadic-macros`
 
 ## Object System
 
@@ -148,8 +169,9 @@ This way single function can be defined for multiple systems.
 
 ## Embedded Usage
 
-If you can use GNU C++ compiler. You can use ferret for your embedded
-platform. Following shows a blink example.
+If you can use a C++ compiler for your embedded platform. You can use
+ferret for your embedded platform. Following shows a blink example for
+Arduino.
 
     (pin-mode 13 :output)
   
@@ -352,23 +374,6 @@ Program,
         (show-image "cam" f)))
 
 Compile `-i webcam.clj -o build.options`.
-
-## Implementation Notes
-
-Ferret is functional. The code it produces does not include any black
-magic it is simple C++. All tests are compiled using,
-
- - `-std=c++98`
- - `-ansi`
- - `-pedantic`
- - `-Werror`
- - `-Wall`
- - `-Wextra`
- - `-Woverloaded-virtual`
- - `-Wuninitialized`
- - `-Wmissing-declarations`
- - `-Winit-self`
- - `-Wno-variadic-macros`
 
 ## License
 

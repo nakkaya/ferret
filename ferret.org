@@ -1044,10 +1044,10 @@ Object Casting macros,
     (This should not be used in a multi threaded program.)
 
     For every page of memory allocated there is overhead of one
-    /bit/ and one memory page is used for book keeping.
+    /byte/ and one memory page is used for book keeping.
 
     When /allocate/ is called the pool will scan the memory pool using
-    the /used/ bit set to find a block of memory big enough to
+    the /used/ array to find a block of memory big enough to
     satisfy the request. If found, it will the mark the region as used and
     return a pointer from /pool/ array to the user which points to
     the memory block. First page of the memory block is used for book
@@ -1064,45 +1064,11 @@ Object Casting macros,
 #+name: runtime-native-memory-pool
 #+begin_src c++ :tangle no
   #ifdef MEMORY_POOL_SIZE
-
-  template<size_t poolSize>
-  class BitArray {
-  private:
-    uint8_t bits[poolSize / sizeof(uint8_t) + 1];
-
-    inline size_t index(size_t i){
-      return i / sizeof(uint8_t);
-    }
-
-    inline size_t offset(size_t i){
-      return i % sizeof(uint8_t);
-    }
-          
-  public:
-    BitArray(){
-      for(size_t i = 0; i < poolSize; i++){
-        bits[i] = false;
-      }
-    }
-
-    void set(size_t b){
-      bits[index(b)] |= 1 << (offset(b));
-    }
-
-    void clear(size_t b){
-      bits[index(b)] &= ~(1 << (offset(b)));
-    }
-
-    int get(size_t b){
-      return (bits[index(b)] & (1 << (offset(b))));
-    }
-  };
-
   template<typename PageSize, size_t poolSize>
   class MemoryPool{
   public:
+    bool used[poolSize];
     PageSize pool[poolSize];
-    BitArray<poolSize> used;
     
     size_t calculateNeededPages(size_t size){
       float f = (float) (((float)size) / ((float)sizeof(PageSize))) ;
@@ -1116,14 +1082,14 @@ Object Casting macros,
     
     bool isPageRangeUsable(size_t begin,size_t end){
       for(size_t i=begin; i < end; i++)
-        if (used.get(i) == true)
+        if (used[i] == true)
           return false;
       return true;
     }
     
     size_t nextAvaliblePage(size_t offset){
       for(size_t i=offset; i < poolSize; i++)
-        if (used.get(i) == false)
+        if (used[i] == false)
           return i;
       return poolSize;
     }
@@ -1158,7 +1124,7 @@ Object Casting macros,
     
       pool[page] = reqSize;
       for(size_t i = page; i < (page+length); i++)
-        used.set(i);
+        used[i] = true;
         
       return &pool[page+1];
     }
@@ -1169,7 +1135,7 @@ Object Casting macros,
       size_t length = calculateNeededPages(pool[index]);
         
       for(size_t i = index ; i < (index+length); i++)
-        used.clear(i);
+        used[i] = false;
     }
   };
 

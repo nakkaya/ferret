@@ -1070,9 +1070,14 @@ Object Casting macros,
     bool used[poolSize];
     PageSize pool[poolSize];
     
-    size_t calculateNeededPages(size_t size){
-      float f = (float) (((float)size) / ((float)sizeof(PageSize))) ;
-      return ((size_t) ceil(f)) ;
+    inline size_t calculateNeededPages(size_t size){
+      size_t d = (size / sizeof(PageSize));
+      size_t f = (size % sizeof(PageSize));
+
+      if (f == 0)
+        return d;
+      else
+        return (d + 1);
     }
       
     MemoryPool(){
@@ -1080,21 +1085,21 @@ Object Casting macros,
         pool[i] = 0;
     }
     
-    bool isPageRangeUsable(size_t begin,size_t end){
+    inline bool isPageRangeUsable(size_t begin,size_t end){
       for(size_t i=begin; i < end; i++)
         if (used[i] == true)
           return false;
       return true;
     }
     
-    size_t nextAvaliblePage(size_t offset){
+    inline size_t nextAvaliblePage(size_t offset){
       for(size_t i=offset; i < poolSize; i++)
         if (used[i] == false)
           return i;
       return poolSize;
     }
       
-    int findPage(size_t reqSize){
+    inline int findPage(size_t reqSize){
       size_t pagesNeeded = calculateNeededPages(reqSize);
       size_t offset = 0;
     
@@ -1825,14 +1830,6 @@ Import libraries,
    #include <Arduino.h>
    #include <stdio.h>
    #include <stdlib.h>
-  #endif
-
-  #ifdef MEMORY_POOL_SIZE
-   #ifdef ARDUINO
-    #include <math.h>
-   #else
-    #include <cmath>
-   #endif
   #endif
 #+end_src
 

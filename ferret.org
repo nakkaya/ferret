@@ -1702,7 +1702,7 @@ Function invocation macros,
 
 #+name: runtime-native-lambda-invoke-macros
 #+begin_src c++ :tangle no
-  #define INVOKE(f) LAMBDA(f)->invoke(NEW_SEQUENCE())
+  #define INVOKE(f) LAMBDA(f)->invoke(NIL)
   #define INVOKE_WITH(f,...) LAMBDA(f)->invoke((NEW_SEQUENCE(),__VA_ARGS__))
   #define FN(f) VAR(new ferret::f())
   #define CLOSURE(f,...) VAR(new ferret::f(__VA_ARGS__))
@@ -2271,7 +2271,10 @@ Override fn so it works with both ferret and Clojure.
 
 #+name: runtime-clojure-sequence-count
 #+begin_src clojure :tangle no
-  (defn count [s] (reduce inc 0 s))
+  (defn count [s]
+    (if (nil? s)
+      0
+      (reduce inc 0 s)))
 #+end_src
 
 #+name: runtime-clojure-sequences-tests
@@ -2441,7 +2444,9 @@ Override fn so it works with both ferret and Clojure.
                                           (NUMBER(x)->getDenominator() != 1));")
 
   (defn + [& xs]
-    (reduce (fn[h v] "
+    (if (nil? xs)
+      0
+      (reduce (fn[h v] "
         NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
         NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
 
@@ -2450,7 +2455,7 @@ Override fn so it works with both ferret and Clojure.
 
         NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
-        __result = NEW_RATIO(((hn * vdn) + (vn * hdn)),ndn);") 0 xs))
+        __result = NEW_RATIO(((hn * vdn) + (vn * hdn)),ndn);") 0 xs)))
 
   (defn inc [x]
     (+ x 1))
@@ -2458,7 +2463,9 @@ Override fn so it works with both ferret and Clojure.
   <<runtime-clojure-sequence-count>>
 
   (defn * [& xs]
-    (reduce (fn[h v] "
+    (if (nil? xs)
+      1
+      (reduce (fn[h v] "
         NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
         NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
 
@@ -2467,7 +2474,7 @@ Override fn so it works with both ferret and Clojure.
 
         NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
-        __result = NEW_RATIO(((hn * vdn) * (vn * hdn)),ndn);") 1 xs))
+        __result = NEW_RATIO(((hn * vdn) * (vn * hdn)),ndn);") 1 xs)))
 
   (defn - [& xs]
     (if (= (count xs) 1)

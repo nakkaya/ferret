@@ -844,7 +844,6 @@ List Destructuring,
 
   (defn declare-lambdas [lambdas]
     (let [view (create-view
-                
     "$lambdas: {lambda|
         class $lambda.name$ : public Lambda{
 
@@ -852,9 +851,11 @@ List Destructuring,
 
         public:
 
+        $if(lambda.env)$
           $lambda.name$ ($lambda.env:{VAR $it$} ;separator=\",\"$){ 
              $lambda.env:{this->$it$ = $it$;} ;separator=\"\n\"$
           }
+        $endif$
 
         $if(lambda.args)$
             VAR invoke (VAR _args_)

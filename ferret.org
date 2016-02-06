@@ -2733,16 +2733,18 @@ returns true returns the next state.
 
 *** Arduino
 
+Some wrappers for the Arduino platform.
+
 #+name: runtime-clojure-arduino
 #+begin_src clojure :tangle no
   (defn pin-mode [pin mode]
-    "if (mode.equals(NEW_KEYWORD(\":input\")) == true)
+    "if (mode.equals(NEW_KEYWORD(618)) == true) // :input
         pinMode(NUMBER(pin)->intValue(), INPUT);
      else
         pinMode(NUMBER(pin)->intValue(), OUTPUT);")
 
   (defn digital-write [pin mode]
-    "if (mode.equals(NEW_KEYWORD(\":high\"))  == true)
+    "if (mode.equals(NEW_KEYWORD(474))  == true) // :high
         digitalWrite(NUMBER(pin)->intValue(), HIGH);
      else
         digitalWrite(NUMBER(pin)->intValue(), LOW);")

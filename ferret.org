@@ -2032,8 +2032,8 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
 #+name: runtime-clojure-defn
 #+begin_src clojure :tangle no
-  (defmacro defn [name args & body]
-    (list 'def name (cons 'fn* `( ~args ~@body))))
+  (defmacro defn [name & body]
+    (list 'def name (cons 'fn `~body)))
 
   (defmacro native-header [& body]
     (cons 'native-declare
@@ -2285,25 +2285,28 @@ implementation.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn _reduce_2_arg_ [f coll]
-    "var first = FIRST(coll);
-     var rest = REST(coll);
-     var acc = INVOKE_WITH(f, first, FIRST(rest));
-     ITERATE(REST(rest),it){
-       acc = INVOKE_WITH(f, FIRST(it), acc);
-     }
-     return acc;")
-
-  (defn _reduce_3_arg_ [f val coll]
-    "ITERATE(coll,it){
+  (defn reduce [& args]
+    "NUMBER_DATA_TYPE acc = 0;
+     ITERATE(args,it){acc++;}
+     if(acc == 2){
+       var f = FIRST(args);
+       var coll = FIRST(REST(args));
+       var first = FIRST(coll);
+       var rest = REST(coll);
+       var acc = INVOKE_WITH(f, first, FIRST(rest));
+       ITERATE(REST(rest),it){
+         acc = INVOKE_WITH(f, FIRST(it), acc);
+       }
+       return acc;
+     }else{
+      var f = FIRST(args);
+      var val = FIRST(REST(args));
+      var coll = FIRST(REST(REST(args)));
+      ITERATE(coll,it){
        val = INVOKE_WITH(f, FIRST(it), val);
-     }
-     return val;")
-
-  (defmacro reduce [& args]
-    (if (= 2 (count args))
-      (cons '_reduce_2_arg_ `~args)
-      (cons '_reduce_3_arg_ `~args)))
+      }
+      return val;
+     }")
 #+end_src
 
 #+name: runtime-clojure-sequence

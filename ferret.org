@@ -118,7 +118,7 @@ Create some dummy libs under /test/modules/,
 #+end_src 
 
 #+begin_src clojure :mkdirp yes :tangle ferret/test/modules/module-b.clj
-  (require '[examples.modules.module-c :as mod-c])
+  (require '[test.modules.module-c :as mod-c])
 
   (defn helper-b []
     (mod-c/helper-c))
@@ -135,8 +135,8 @@ Run import tests,
 #+begin_src clojure :tangle no
   (deftest import-module-test
     (is (= "Module AModule C"
-           (capture-output '((require '[examples.modules.module-a :as mod-a])
-                             (require '[examples.modules.module-b :as mod-b])
+           (capture-output '((require '[test.modules.module-a :as mod-a])
+                             (require '[test.modules.module-b :as mod-b])
                              (mod-a/helper-a)
                              (mod-b/helper-b))))))
 #+end_src

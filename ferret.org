@@ -235,7 +235,9 @@ then the node is replaced with its expanded form.
             form (morph-form form
                              (is-form? 'let)
                              (fn [[_ bindings & body]]
-                               (let [form (cons 'let* (cons bindings (expand-macros-all body)))]
+                               (let [bindings (map #(if (list? %)
+                                                      (expand-macros-all %) %) bindings)
+                                     form (cons 'let* (cons bindings (expand-macros-all body)))]
                                  (->> form vector->list expand-macros-all))))]
         (remove-ns temp-ns)
         form)))
@@ -1738,13 +1740,23 @@ Function invocation macros,
 #+name: native-lambda-test
 #+begin_src clojure :tangle no
   (deftest native-lambda-test
-    (is (= "true false true false"
+    (is (= "true false true false 1 2 3 4"
            (capture-output '((let [f1 (fn [])
-                                   f2 (fn [])]
+                                   f2 (fn [])
+                                   m-func (fn
+                                            ([a] 1)
+                                            ([a b] 2)
+                                            ([a b & c] 3)
+                                            ([a b [c d] & e] 4))]
                                (print (= f1 f1)
                                       (= f1 f2)
                                       (= f1 (do f1))
-                                      (= f2 (do f1)))))))))
+                                      (= f2 (do f1)))
+                               (print " ")
+                               (print (m-func 1)
+                                      (m-func 1 2)
+                                      (m-func 1 2 3)
+                                      (m-func 1 2 (list 3 3) 4))))))))
 #+end_src
 
 *** var
@@ -2150,12 +2162,44 @@ last item in second form, etc.
         x)))
 #+end_src
 
-Override fn so it works with both ferret and Clojure.
+Multi arity functions are handled by the /fn/ macro. There are two
+ways to define a function. For single arity functions it accepts the
+following form,
+
+#+begin_src clojure :tangle no
+  (fn [a] a)
+#+end_src
+
+For multi arity functions it expects the following form,
+
+#+begin_src clojure :tangle no
+  (fn
+    ([a] 1)
+    ([a b] 2)
+    ([a b & c] 3)
+    ([a b [c d] & e] 4))
+#+end_src
+
+A multi arity function is a function that counts the number of its
+arguments and then dispatches on the number of arguments to each
+implementation.
 
 #+name: runtime-clojure-misc-thread-macro
 #+begin_src clojure :tangle no
-  (defmacro fn [args & body]
-    (cons 'fn* `( ~args ~@body)))
+  (defmacro fn [& body]
+    (if (vector? (first body))
+      (let [[args & body] body]
+        (cons 'fn* `(~args ~@body)))
+      (let [count-symbol (gensym)
+            fn-arg-symbol (gensym)
+            fns (->> (map #(cons 'fn* %) body)
+                     (map #(list 'apply % fn-arg-symbol)))
+            conds (->> (map first body)
+                       (map (fn* [args] (filter #(not (= % '&)) args)))
+                       (map #(list '= count-symbol (count %))))]
+        `(fn* [& ~fn-arg-symbol]
+              (let* [~count-symbol (~'count ~fn-arg-symbol)]
+                    (~'cond ~@(interleave conds fns)))))))
 #+end_src
 
 *** Console I/O

@@ -228,17 +228,17 @@ then the node is replaced with its expanded form.
           (eval m)))
 
       (let [form (morph-form form
-                             (apply is-form? (map second macros))
-                             (fn [f]
-                               (binding [*ns* (the-ns temp-ns)]
-                                 (macroexpand-all f))))
-            form (morph-form form
                              (is-form? 'let)
                              (fn [[_ bindings & body]]
                                (let [bindings (map #(if (list? %)
                                                       (expand-macros-all %) %) bindings)
                                      form (cons 'let* (cons bindings (expand-macros-all body)))]
-                                 (->> form vector->list expand-macros-all))))]
+                                 (->> form vector->list expand-macros-all))))
+            form (morph-form form
+                             (apply is-form? (map second macros))
+                             (fn [f]
+                               (binding [*ns* (the-ns temp-ns)]
+                                 (macroexpand-all f))))]
         (remove-ns temp-ns)
         form)))
 
@@ -779,7 +779,7 @@ lambda forms.
 #+name: clojure-destructure-tests
 #+begin_src clojure :tangle no
   (deftest destructure-test
-    (is (= "(1 2 3) 2 3 ((1 2 3)) 1 2 (3 4) 1 2 4 (5) (3)"
+    (is (= "(1 2 3) 2 3 ((1 2 3)) 1 2 (3 4) 1 2 4 (5) (3) 1 2 3"
            (capture-output '((defn destructure-test-1 [[a b c]]
                                (list a b c))
                              (defn destructure-test-2 [[a [b] c]]
@@ -788,6 +788,9 @@ lambda forms.
                                b)
                              (defn destructure-test-4 [& a]
                                a)
+                             (defn destructure-test-5 []
+                               (let [[a b c] (list 1 2 3)]
+                                 (print a b c)))
                              (print (destructure-test-1 (list 1 2 3))
                                     (destructure-test-2 (list 1 (list 2) 3))
                                     (destructure-test-3 (list 1 (list 2 3) 3))
@@ -804,7 +807,9 @@ lambda forms.
                              (let [[a & r] (list 1 2 3)
                                    rr (rest r)]
                                (print " ")
-                               (print rr)))))))
+                               (print rr))
+                             (print " ")
+                             (destructure-test-5))))))
 #+end_src
 
 #+name: core-code-generation-emit-source-methods

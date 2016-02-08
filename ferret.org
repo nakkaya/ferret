@@ -2579,12 +2579,16 @@ implementation.
 
   (defn zero? [x]
     (= x 0))
+
+  (defn floor [x] "__result = NEW_NUMBER(NUMBER(x)->intValue());")
+
+  (defn mod [num div] "__result = NEW_NUMBER((NUMBER(num)->intValue() % TO_INT(div)));")
 #+end_src
 
 #+name: runtime-clojure-bit-arithmetic-tests
 #+begin_src clojure :tangle no
   (deftest arithmetic-test
-    (is (= "3/5 0 1 10 10 -1 0 0 1 8 8 1 1/2 1 1"
+    (is (= "3/5 0 1 10 10 -1 0 0 1 8 8 1 1/2 1 1 1 1 1 0 0 1 1"
            (capture-output '((print (+ 0.3 0.3)
                                     (+ )
                                     (+ 1)
@@ -2602,7 +2606,16 @@ implementation.
                                     (/ 1)
                                     (/ 2)
                                     (/ 4 2 2)
-                                    (/ 4 2 2.0))))))
+                                    (/ 4 2 2.0)
+
+                                    (floor 1.1)
+                                    (floor 1.5)
+                                    (floor 1.9)
+
+                                    (mod 2 2)
+                                    (mod 4 2)
+                                    (mod 5 2)
+                                    (mod 8 7))))))
 
     (is (= "true true false false true true false true true true"
            (capture-output '((print (pos? 1)

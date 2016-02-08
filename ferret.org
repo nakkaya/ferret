@@ -295,12 +295,11 @@ after transformation becomes,
                                       (map-indexed (fn [idx [args val]]
                                                      [idx args val])))
                         vars (map first bindings)
-                        closure-fn (fn close [[idx args vals] & more]
-                                     (let [args (list args)
-                                           body (if (empty? more)
+                        closure-fn (fn close [[idx arg vals] & more]
+                                     (let [body (if (empty? more)
                                                   (list (concat ['fn* []] body))
                                                   (apply close more))]
-                                       (list (list 'fn* args body)
+                                       (list (list 'fn* (list arg) body)
                                              (last (nth bindings idx)))))]
                     (apply closure-fn bindings)))))
 #+end_src
@@ -779,7 +778,7 @@ lambda forms.
 #+name: clojure-destructure-tests
 #+begin_src clojure :tangle no
   (deftest destructure-test
-    (is (= "(1 2 3) 2 3 ((1 2 3)) 1 2 (3 4) 1 2 4 (5) (3) 1 2 3"
+    (is (= "(1 2 3) 2 3 ((1 2 3)) 1 2 (3 4) 1 2 4 (5) (3) 1 2 3 3 3 5"
            (capture-output '((defn destructure-test-1 [[a b c]]
                                (list a b c))
                              (defn destructure-test-2 [[a [b] c]]
@@ -791,6 +790,9 @@ lambda forms.
                              (defn destructure-test-5 []
                                (let [[a b c] (list 1 2 3)]
                                  (print a b c)))
+                             (defn destructure-test-6 []
+                               (let [[_ _ a] (list 1 2 3)]
+                                 (print a)))
                              (print (destructure-test-1 (list 1 2 3))
                                     (destructure-test-2 (list 1 (list 2) 3))
                                     (destructure-test-3 (list 1 (list 2 3) 3))
@@ -809,7 +811,13 @@ lambda forms.
                                (print " ")
                                (print rr))
                              (print " ")
-                             (destructure-test-5))))))
+                             (destructure-test-5)
+                             (print " ")
+                             (destructure-test-6)
+                             (print " ")
+                             (let [[_ _ a] (list 1 2 3)
+                                   [_ b] (list 4 5 6)]
+                               (print a b)))))))
 #+end_src
 
 #+name: core-code-generation-emit-source-methods
@@ -817,7 +825,8 @@ lambda forms.
   (defmethod emit 'lambda_object [[_ name & env] state]
     (new-lambda name (->> env
                           (flatten)
-                          (filter #(not (= '& %))))))
+                          (filter #(and (not (= '& %))
+                                        (not (= '_ %)))))))
 
   (defmethod emit 'define_lambda [[_ name env args & body] state]
     (let [native-declarations (filter #(and (seq? %)
@@ -831,7 +840,8 @@ lambda forms.
                       :default (doall (map #(emit % state) body)))
           env (->> env
                    (flatten)
-                   (filter #(not (= '& %))))]
+                   (filter #(and (not (= '& %))
+                                 (not (= '_ %)))))]
       (doseq [dec native-declarations] 
         (emit dec state))
       (append-to! state [:lambdas] {:name name :env env

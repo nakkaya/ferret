@@ -1,36 +1,25 @@
 # Ferret
 
-Ferret is an experimental Lisp to C++ compiler, the idea was to
-compile code that is written in a very small subset of Clojure to be
-automatically translated to C++ so that I can program stuff in Clojure
-where JVM or any other Lisp dialect is not available. 
+Ferret is a Clojure to C++ compiler, projects aim is to create a
+functional minimum viable lisp that runs on embedded systems with
+deterministic behaviour by compiling a subset of Clojure to C++.
 
-This is a literate program, the code in this document is the
-executable source, in order to extract it, open the org file with
-emacs and run /M-x org-babel-tangle/. It will build the necessary
-directory structure and export the files and tests contained.
+Generated code is self contained ANSI C++98 with no third part
+dependencies including `libstdc++`. Which allows it to run on embedded
+systems with as little as 2KB of RAM and no `libstdc++`. (Arduino Uno
+/ Atmega328 with 32kb Flash)
 
-## Building
-
-Ferret compiler compiles from a subset of Clojure to C++. 
-
-    lein run -in prog.clj
-
-or if you are using the jar version
-
-    java -jar ferret-app.jar -in sample.clj
-
-Output will be placed in a a file called `solution.cpp` passing the
-`-c` flag will cause this file to be automatically compiled using GNU
-C++. (Other compilers are supprted see Implementation Notes).
+Ferret is not trying to be a 1 to 1 Clojure to C++ compiler. Projects
+eventual aim is to create Clojure flavored lisp with ideas from Ada
+that makes it suitable for embedded programming.
 
 ## Features
 
- - Very small foot print. (Runs on the Atmega328 with 32kb Flash 2KB Ram)
+ - Very small foot print.
  - Functional
  - Macros
  - Destructuring
- - Easy FFI (Incline C,C++)
+ - Easy FFI (Inline C,C++)
  - Memory Pooling
 
 ## Implementation Notes
@@ -79,6 +68,21 @@ array of `256 * size_t`. Memory pooling is intended for embedded systems
 where calling `malloc`/`free` is not desired. It is not thread safe It
 should not be used in systems where better alternatives exists or you
 have enough memory.
+
+## Compiling With Ferret
+
+Compile `prog.clj`,
+
+    lein run -in prog.clj
+
+or if you are using the jar version,
+
+    java -jar ferret-app.jar -in prog.clj
+
+Output will be placed in a a file called `solution.cpp` passing the
+`-c` flag will cause this file to be automatically compiled using GNU
+C++. (Other compilers are supprted see Implementation Notes).
+
 
 ## Examples
 

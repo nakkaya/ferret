@@ -1276,6 +1276,7 @@ An object to hold a reference to a C++ pointer,
 #+begin_src c++ :tangle no
   #define NEW_POINTER(p) (VAR(new ferret::Pointer(p)))
   #define TO_POINTER(p,type) ((type *)POINTER(p)->ptr)
+  #define TO_REFERENCE(p,type) (*(TO_POINTER(p,type)))
 #+end_src
 
 *** Number

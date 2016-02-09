@@ -81,8 +81,8 @@ front of the current form with symbols renamed to /some-fn/ =>
                        (map (fn [[mod as]]
                               [(read-clojure-file mod) as]))
                        (map (fn [[mod as]]
-                              (let [symbols (->> (select-form
-                                                  (expand-macros-all mod) (is-form? 'def))
+                              (let [mod (expand-macros-all mod)
+                                    symbols (->> (select-form mod (is-form? 'def))
                                                  (map second)
                                                  (into #{}))
                                     mod (morph-form mod symbol?

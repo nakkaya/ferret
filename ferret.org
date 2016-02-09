@@ -1066,9 +1066,7 @@ Object Casting macros,
   #define IS_NIL(o) (o.get() == NULL)
   #define IS_NOT_NIL(o) (o.get() != NULL)
   #define IS_TYPE(o,type) (OBJECT(o)->getType() == type)
-
-  #define IF_AUX(c,t,f) (BOOLEAN(c)->asBool() ? t : f)
-  #define IF(c,t,f) (IS_NIL(c) ? f : IF_AUX(c,t,f))
+  #define IF(c,t,f) (c ? t : f)
 #+end_src
 
 *** Memory Pool
@@ -1614,7 +1612,7 @@ A boolean object,
     (new ("bool b" "value = b;"))
     (equals "if (!IS_TYPE(o,BOOLEAN_TYPE))
                return NEW_BOOLEAN(false);
-             return NEW_BOOLEAN(value == BOOLEAN(o)->asBool());")
+             return NEW_BOOLEAN(value == BOOLEAN(o)->value);")
     (toOutputStream
      "if (value)
         fprintf(OUTPUT_STREAM, \"true\"); 
@@ -1622,15 +1620,21 @@ A boolean object,
       fprintf(OUTPUT_STREAM, \"false\"); 
       return NIL;")
     
-    (fns
-     ("bool asBool" "" "return value;"))
-    
     (post-code "
+  var::operator bool() const {
+    if (m_ptr == NULL)
+      return false;
+    else if (m_ptr->getType() == BOOLEAN_TYPE)
+      return static_cast<ferret::Boolean*>(m_ptr)->value;
+      else
+        return true;
+    }
+
     bool var::equals (var rhs){
       if (get() == rhs.get())
         return true;
       else
-        return BOOLEAN(get()->equals(rhs))->asBool();
+        return BOOLEAN(get()->equals(rhs))->value;
     }"))
 #+end_src
 
@@ -1808,7 +1812,8 @@ reaches zero it will automatically free the Object.
       }
       return *this;
     }
-      
+
+    operator bool() const;
     var& operator, (const var& m);
 
   #if !defined(DISABLE_OUTPUT_STREAM)
@@ -2278,7 +2283,7 @@ implementation.
     (list '_while_ (list 'fn* [] test) (cons 'fn* `( [] ~@body))))
 
   (defn _while_ [pred fn]
-    "while(BOOLEAN(INVOKE(pred))->asBool() == true)
+    "while(BOOLEAN(INVOKE(pred))->value == true)
        INVOKE(fn);")
 
   (defmacro forever [& body]
@@ -2497,7 +2502,7 @@ implementation.
   (defn not [x]
     "if (!IS_TYPE(x,BOOLEAN_TYPE))
         return NEW_BOOLEAN(false);
-        __result = NEW_BOOLEAN(!BOOLEAN(x)->asBool());")
+        __result = NEW_BOOLEAN(!BOOLEAN(x)->value);")
 #+end_src
 
 #+name: runtime-clojure-logical-operators-tests

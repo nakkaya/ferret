@@ -2283,7 +2283,7 @@ implementation.
     (list '_while_ (list 'fn* [] test) (cons 'fn* `( [] ~@body))))
 
   (defn _while_ [pred fn]
-    "while(BOOLEAN(INVOKE(pred))->value == true)
+    "while(INVOKE(pred))
        INVOKE(fn);")
 
   (defmacro forever [& body]
@@ -2500,9 +2500,9 @@ implementation.
      (list 'if x x `(or ~@next))))
 
   (defn not [x]
-    "if (!IS_TYPE(x,BOOLEAN_TYPE))
-        return NEW_BOOLEAN(false);
-        __result = NEW_BOOLEAN(!BOOLEAN(x)->value);")
+    "if (x)
+       return NEW_BOOLEAN(false);
+     return NEW_BOOLEAN(true);")
 #+end_src
 
 #+name: runtime-clojure-logical-operators-tests

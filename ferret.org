@@ -2125,6 +2125,9 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
            result += buffer;
          __result = NEW_STRING(result.c_str());"))
 
+  (defn system-exit [code]
+    "std::exit(TO_INT(code));")
+
   (defnative memory-pool-free-pages []
     (on "defined MEMORY_POOL_SIZE"
         "int count = 0;

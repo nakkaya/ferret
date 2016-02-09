@@ -2283,12 +2283,23 @@ implementation.
 
   (defmacro forever [& body]
     (cons 'while `(true  ~@body)))
+
+  (defmacro if-let
+    ([bindings then]
+     `(if-let ~bindings ~then nil))
+    ([bindings then else & oldform]
+     (let [form (bindings 0) tst (bindings 1)]
+       `(let [temp# ~tst]
+          (if temp#
+            (let [~form temp#]
+              ~then)
+            ~else)))))
 #+end_src
 
 #+name: runtime-clojure-conditionals-tests
 #+begin_src clojure :tangle no
   (deftest conditionals-test
-    (is (= "2 1 -1 2 2 2 1"
+    (is (= "2 1 -1 2 2 2 1 2 nil 5"
            (capture-output '((print (if 1 2)
                                     (if (zero? 0) 1 -1)
                                     (if (zero? 1) 1 -1)
@@ -2299,7 +2310,12 @@ implementation.
                                           :default 1)
                                     (cond (float? 2) 2.1
                                           (integer? 2.1) 4
-                                          :default 1)))))))
+                                          :default 1)
+                                    (if nil 1 2)
+                                    (if-let [a nil]
+                                      a)
+                                    (if-let [a 5]
+                                      a)))))))
 #+end_src
 
 *** Sequence

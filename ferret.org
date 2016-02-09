@@ -1066,7 +1066,9 @@ Object Casting macros,
   #define IS_NIL(o) (o.get() == NULL)
   #define IS_NOT_NIL(o) (o.get() != NULL)
   #define IS_TYPE(o,type) (OBJECT(o)->getType() == type)
-  #define IF(c,t,f) (BOOLEAN(c)->asBool() ? t : f)
+
+  #define IF_AUX(c,t,f) (BOOLEAN(c)->asBool() ? t : f)
+  #define IF(c,t,f) (IS_NIL(c) ? f : IF_AUX(c,t,f))
 #+end_src
 
 *** Memory Pool

@@ -69,36 +69,74 @@ front of the current form with symbols renamed to /some-fn/ =>
 
 #+name: core-transformation-add-built-in
 #+begin_src clojure :tangle no
+  (defn import-modules-select-require [form]
+    (->> (select-form form (is-form? 'require))
+         (map #(->> % rest first rest first))
+         (map (fn [[mod _ as]] [mod as]))
+         (reduce (fn[h [mod as]]
+                   (if (h mod)
+                     (assoc h mod (conj (h mod) as))
+                     (assoc h mod [as]))) {})))
+#+end_src
+
+Extract the list of packages and aliases from the form. Returns a map
+of mod -> aliases pairs.
+
+#+name: core-transformation-add-built-in
+#+begin_src clojure :tangle no
+  (defn import-modules-load-modules [package-list]
+    (reduce (fn[h [m aliases]]
+              (let [mod (read-clojure-file
+                         (str (.replace (str m) "." "/") ".clj"))
+                    mod (expand-macros-all mod)
+                    mod-symbols (->> (select-form mod (is-form? 'def))
+                                     (map second)
+                                     (into #{}))
+                    mod (morph-form mod symbol?
+                                    (fn [f]
+                                      (if (mod-symbols f)
+                                        (symbol (str (.replace (str m) "." "_") "_" f))
+                                        f)))]
+                (reduce (fn [h v] (conj h v)) h mod)))
+            (list ) package-list))
+#+end_src
+
+Loads all modules listed in the package list. When a module is loaded
+all its symbols are replaces with its module name except /core/
+functions. Module name acts as namespaces. Returns a form that the is
+concatenation of all modules listed in form.
+
+#+name: core-transformation-add-built-in
+#+begin_src clojure :tangle no
+  (defn import-modules-convert-alias-to-module [package-list form]
+    (let [alias-to-mod (reduce (fn[h [mod aliases]]
+                                 (reduce (fn[h v] (assoc h v mod)) h aliases))
+                               {} package-list)
+          form (morph-form form symbol?
+                           (fn [f]
+                             (if-let [[_ alias fn] (re-find #"(.*?)/(.*)" (str f))]
+                               (if-let [mod-sym (alias-to-mod (symbol alias))]
+                                 (symbol (str (.replace (str mod-sym) "." "_") "_" fn))
+                                 f)
+                               f)))]
+      form))
+#+end_src
+
+Convert all aliased symbols in the form to their fully qualified
+modules names. So /helper-a/ defined in module /util.db/ becomes
+/util_db_helper-a/. 
+
+#+name: core-transformation-add-built-in
+#+begin_src clojure :tangle no
   (defn import-modules [form]
-    (let [package-list (select-form form (is-form? 'require))
-          imports (->> package-list
-                       (map rest)
-                       (map first)
-                       (map rest)
-                       (map first)
-                       (map (fn [[mod _ as]]
-                              [(str (.replace (str mod) "." "/") ".clj") as]))
-                       (map (fn [[mod as]]
-                              [(read-clojure-file mod) as]))
-                       (map (fn [[mod as]]
-                              (let [mod (expand-macros-all mod)
-                                    symbols (->> (select-form mod (is-form? 'def))
-                                                 (map second)
-                                                 (into #{}))
-                                    mod (morph-form mod symbol?
-                                                    (fn [f]
-                                                      (if (symbols f)
-                                                        (symbol (str as "/" f))
-                                                        f)))]
-                                mod)))
-                       (reduce (fn[mod form]
-                                 (reduce (fn[h v] (cons v h)) form mod)) [])
-                       vec)
-          form-no-require (if (and (= (count form) 1)
-                                   (= (first (first form)) 'require))
-                            (list )
-                            (remove-form form (is-form? 'require)))]
-      (apply list (reduce (fn[h v] (conj h v)) imports form-no-require))))
+    (let [package-list (import-modules-select-require form)
+          form (if (and (= (count form) 1)
+                        (= (first (first form)) 'require))
+                 (list )
+                 (remove-form form (is-form? 'require)))
+          modules (import-modules-load-modules package-list)
+          form (import-modules-convert-alias-to-module package-list form)]
+      (concat modules form)))
 
   (defn import-modules-all [form]
     (loop [f form]
@@ -107,6 +145,8 @@ front of the current form with symbols renamed to /some-fn/ =>
           expanded
           (recur expanded)))))
 #+end_src
+
+Import all modules in the given form.
 
 **** Tests
 

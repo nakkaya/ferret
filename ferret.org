@@ -2937,7 +2937,7 @@ Some wrappers for the Arduino platform.
       (try
         (read-string (str \( (FileUtils/readFileToString (file f)) \)))
         (catch Exception e
-          (println "Error Reading," f e)
+          (println "Error Reading," f)
           (System/exit 1))))
 
     (defn copy-to-solution [fin fout]

@@ -3010,36 +3010,42 @@ Some wrappers for the Arduino platform.
                   (sh "mv" "a.out" (str "./" (:name options)))))
               true))))
 
+    (def program-options [["-i" "--input FILE" "Input File"]
+                          ["-c" "--compile" "Compile Solution"]
+                          ["-o" "--compile-options FILE" "Compile Options File"
+                           :parse-fn #(read-string (FileUtils/readFileToString (file %)))]
+                          ["-f" "--source-files FILE" "Extra Source Files to Pass to GCC"]
+                          ["-w" "--watch-input" "Automatically recompile input file on change."]
+                          ["-h" "--help" "Print Help"]])
+
     (defn -main [& args]
-      (let [opts [["-i" "--input FILE" "Input File"]
-                  ["-c" "--compile" "Compile Solution"]
-                  ["-o" "--compile-options FILE" "Compile Options File"
-                   :parse-fn #(read-string (FileUtils/readFileToString (file %)))]
-                  ["-f" "--source-files FILE" "Extra Source Files to Pass to GCC"]
-                  ["-w" "--watch-input" "Automatically recompile input file on change."]
-                  ["-h" "--help"]]
-            args (parse-opts args opts)
-            input (if (and (->> args :options :input)
-                           (.exists (file (->> args :options :input))))
-                    (->> args :options :input)
-                    (do (println "No Input File.")
-                        (System/exit 1)))
-            options (compile-options (->> args :options :compile-options))
-            extra-source-files (cond (not (empty? (:arguments args))) (:arguments args)
-                                     (not (empty? (:extra-source-files options))) (:extra-source-files options)
-                                     :default [])
-            build-fn (fn []
-                       (let [input (read-clojure-file input)]
-                         (compile->cpp input options)
-                         (when (->> args :options :compile)
-                           (compile->binary options extra-source-files))))]
-        (if (nil? (->> args :options :watch-input))
-          (build-fn)
-          (do (watcher/watcher [input]
-                               (watcher/rate 1000)
-                               (watcher/on-change (fn [_] (build-fn))))
-              @(promise)))
-        (shutdown-agents)))
+      (let [args (parse-opts args program-options)]
+        (when (->> args :options :help)
+          (println "Ferret Compiler")
+          (println (:summary args))
+          (System/exit 0))
+
+        (let [input (if (and (->> args :options :input)
+                             (.exists (file (->> args :options :input))))
+                      (->> args :options :input)
+                      (do (println "No Input File.")
+                          (System/exit 1)))
+              options (compile-options (->> args :options :compile-options))
+              extra-source-files (cond (not (empty? (:arguments args))) (:arguments args)
+                                       (not (empty? (:extra-source-files options))) (:extra-source-files options)
+                                       :default [])
+              build-fn (fn []
+                         (let [input (read-clojure-file input)]
+                           (compile->cpp input options)
+                           (when (->> args :options :compile)
+                             (compile->binary options extra-source-files))))]
+          (if (nil? (->> args :options :watch-input))
+            (build-fn)
+            (do (watcher/watcher [input]
+                                 (watcher/rate 1000)
+                                 (watcher/on-change (fn [_] (build-fn))))
+                @(promise)))
+          (shutdown-agents))))
   #+end_src
 
 * Files                                                            :noexport:

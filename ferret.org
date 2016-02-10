@@ -1284,7 +1284,7 @@ An object to hold a reference to a C++ pointer,
     (equals
      "return NEW_BOOLEAN(ptr == POINTER(o)->ptr);")
     (toOutputStream
-     "fprintf(OUTPUT_STREAM, \"Pointer\"); return NIL;"))
+     "fprintf(OUTPUT_STREAM, \"Pointer<%p>\",ptr); return NIL;"))
 #+end_src
 
 #+name: runtime-native-iseekable-macros

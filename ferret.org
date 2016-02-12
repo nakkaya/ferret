@@ -1101,7 +1101,6 @@ Object Casting macros,
   #define BOOLEAN(v) static_cast<ferret::Boolean*>(v.get())
   #define KEYWORD(v) static_cast<ferret::Keyword*>(v.get())
   #define ISEEKABLE(v) static_cast<ferret::ISeekable*>(v.get())
-  #define CELL(v) static_cast<ferret::Cell*>(v.get())
   #define SEQUENCE(v) static_cast<ferret::Sequence*>(v.get())
   #define STRING(v) static_cast<ferret::String*>(v.get())
   #define LAMBDA(v) static_cast<ferret::Lambda*>(v.get())
@@ -1511,33 +1510,18 @@ containers.
 
 A simple linked list container implementing the seekable interface.
 
-#+name: runtime-clojure-cell-object
-#+begin_src clojure :tangle no
-  (defobject Cell
-    (data "var data;"
-          "var next;")
-    (new ("" "")
-         ("var d, var n" "data = d; next = n;"))
-    (equals "if (!IS_TYPE(o,CELL_TYPE))
-              return NEW_BOOLEAN(false);
-             return NEW_BOOLEAN(data.equals(o));")
-    (toOutputStream
-     "OBJECT(data)->toOutputStream(); return NIL;"))
-#+end_src
-
 #+name: runtime-clojure-sequence-object
 #+begin_src clojure :tangle no
   (defobject Sequence
     (interface :ISeekable)
-    (data "var head;")
-    (new ("" "head = NULL;")
-         ("var h" "head = h;"))
+    (data "var next;"
+          "var data;")
+    (new ("var d = NULL, var n = NULL"
+          "next = n; data = d;"))
+
     (equals
      "if (!IS_TYPE(o,SEQUENCE_TYPE))
        return NEW_BOOLEAN(false);
-
-      if(IS_NIL(head) && IS_NIL(SEQUENCE(o)->head))
-        return NEW_BOOLEAN(true);
 
       var itOther = o;
       ITERATE(this,it){
@@ -1546,35 +1530,27 @@ A simple linked list container implementing the seekable interface.
         itOther = REST(itOther);
       }
       return NEW_BOOLEAN(true);")
+    
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"(\");
-      if (IS_NOT_NIL(head)){ 
-        var f = this->first();
-        f.toOutputStream();
-        var r = this->rest();
-        ITERATE(r,it){
+      if (IS_NOT_NIL(next)){ 
+        data.toOutputStream();
+        ITERATE(next,it){
           fprintf(OUTPUT_STREAM, \" \");
           FIRST(it).toOutputStream();
         }
       }
       fprintf(OUTPUT_STREAM, \")\");
       return NIL;")
-
     (fns
      ("var cons" "var x"
-      "return var(new Sequence(var(new Cell(x,head))));")
+      "return VAR(new Sequence(x,this));")
      ("var first" ""
-      "if (IS_NIL(head))
-         return NIL;
-        else
-         return CELL(head)->data;")
+      "return data;")
      ("var rest" ""
-      "if (IS_NIL(head) || IS_NIL(CELL(head)->next))
-         return NEW_SEQUENCE();
-        else
-         return var(new Sequence(CELL(head)->next));")
+      "return next;")
      ("bool isEmpty" ""
-      "return (IS_NIL(head));"))
+      "return (IS_NIL(next));"))
     (post-code
      "ferret::var& ferret::var::operator, (const var& m){
         ,*this = static_cast<ferret::Sequence*>(m_ptr)->cons(m);
@@ -2397,16 +2373,22 @@ implementation.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn list [& xs] "__result = xs;")
+  (defn list [& xs] "if (IS_NIL(xs))
+                       __result = NEW_SEQUENCE();
+                     else
+                       __result = xs;")
 
   (defn list? [x] "__result = NEW_BOOLEAN(IS_TYPE(x,SEQUENCE_TYPE);")
 
   (defn empty? [x] "__result = NEW_BOOLEAN(ISEEKABLE(x)->isEmpty())")
 
-  (defn rest [x] "if (IS_NIL(x) || ISEEKABLE(x)->isEmpty())
-                    __result = NEW_SEQUENCE();
-                  else 
-                    __result = REST(x);")
+  (defn rest [x] "if (IS_NIL(x))
+                      return NEW_SEQUENCE();
+                    var r = REST(x);
+                    if (IS_NIL(r))
+                      return NEW_SEQUENCE();
+                    else 
+                      __result = r;")
 
   (defn cons [x seq] "if IS_NIL(seq)
                        seq = NEW_SEQUENCE();
@@ -3300,7 +3282,6 @@ Some wrappers for the Arduino platform.
   <<runtime-clojure-seekable-interface>>
   <<runtime-clojure-lambda-interface>>
   <<runtime-clojure-keyword-object>>
-  <<runtime-clojure-cell-object>>
   <<runtime-clojure-sequence-object>>
   <<runtime-clojure-character-object>>
   <<runtime-clojure-string-object>>

@@ -334,14 +334,16 @@ after transformation becomes,
                   (let [bindings (->> (partition 2 bindings)
                                       (map-indexed (fn [idx [args val]]
                                                      [idx args val])))
-                        vars (map first bindings)
-                        closure-fn (fn close [[idx arg vals] & more]
-                                     (let [body (if (empty? more)
-                                                  (list (concat ['fn* []] body))
-                                                  (apply close more))]
-                                       (list (list 'fn* (list arg) body)
-                                             (last (nth bindings idx)))))]
-                    (apply closure-fn bindings)))))
+                        vars (map first bindings)]
+                    (if (empty? vars)
+                      (list (concat (list 'fn* []) body))
+                      (let [closure-fn (fn close [[idx arg vals] & more]
+                                         (let [body (if (empty? more)
+                                                      (list (concat ['fn* []] body))
+                                                      (apply close more))]
+                                           (list (list 'fn* (list arg) body)
+                                                 (last (nth bindings idx)))))]
+                        (apply closure-fn bindings)))))))
 #+end_src
 
 *** do->fn

@@ -970,6 +970,9 @@ lambda forms.
          size_t $type$_TYPE = $type_val$;
        $endif$
 
+       $if(template)$
+         template<$template:{$it$} ;separator=\",\"$>
+       $endif$
        class $name$ : public $interface$ {
        public:
 
@@ -1012,6 +1015,7 @@ lambda forms.
        $post_code$
       }")]
       (fill-view! view "name" name)
+      (fill-view! view "template" (specs 'template))
       (fill-view! view "interface" interface)
       (fill-view! view "interface_only" interface-only)
       (fill-view! view "object_type" (cond (specs 'force_type) true

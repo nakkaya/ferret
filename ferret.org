@@ -922,10 +922,14 @@ lambda forms.
   (defn invoke-lambda [n args]
     (if (empty? args)
       (str "INVOKE(" n ")")
-      (str "INVOKE_WITH(" n ","
-           (reduce (fn[h v]
-                     (str "VAR(new ferret::Sequence("v "," h "))"))
-                   "VAR(new ferret::Sequence(NULL,NULL))" (reverse args)) ")")))
+      (let [positions (reverse (map inc (range 0 (count args))))
+            args (->> (interleave positions args)
+                      (partition 2)
+                      reverse)]
+        (str "INVOKE_WITH(" n ","
+             (reduce (fn[h [idx v]]
+                       (str "VAR(new ferret::Sequence("v "," h "," idx"))"))
+                     "VAR(new ferret::Sequence(NULL,NULL))" args) ")"))))
 
   (defn if-statement [cond t f]
     (apply str "IF(" cond ", " t ", " f ")"))
@@ -1497,7 +1501,8 @@ containers.
     (interfaces "var cons(var x)"
                 "var first()"
                 "var rest()"
-                "bool isEmpty()")
+                "bool isEmpty()"
+                "size_t count()")
     (fns ("virtual ~ISeekable" "" "")))
 #+end_src
 
@@ -1520,9 +1525,10 @@ A simple linked list container implementing the seekable interface.
   (defobject Sequence
     (interface :ISeekable)
     (data "var next;"
-          "var data;")
-    (new ("var d = NULL, var n = NULL"
-          "next = n; data = d;"))
+          "var data;"
+          "size_t size;")
+    (new ("var d = NULL, var n = NULL, size_t s = 0"
+          "next = n; data = d; size = s;"))
 
     (equals
      "if (!IS_TYPE(o,SEQUENCE_TYPE))
@@ -1549,13 +1555,15 @@ A simple linked list container implementing the seekable interface.
       return NIL;")
     (fns
      ("var cons" "var x"
-      "return VAR(new Sequence(x,this));")
+      "return VAR(new Sequence(x, this, (size + 1)));")
      ("var first" ""
       "return data;")
      ("var rest" ""
       "return next;")
      ("bool isEmpty" ""
-      "return (IS_NIL(next));")))
+      "return (IS_NIL(next));")
+     ("size_t count" ""
+      "return size;")))
 #+end_src
 
 *** String
@@ -1595,6 +1603,8 @@ Strings are represented as a linked list of characters.
       "return REST(data);")
      ("bool isEmpty" ""
       "return ISEEKABLE(data)->isEmpty();")
+     ("size_t count" ""
+      "return ISEEKABLE(data)->count();")
      ("ifdef STD_LIB"
       "std::string toString" ""
       "std::stringstream ss;
@@ -1776,8 +1786,8 @@ Function invocation macros,
   #define INVOKE(f) LAMBDA(f)->invoke(NIL)
   #define INVOKE_WITH(f,args) LAMBDA(f)->invoke(args)
 
-  #define INVOKE_WITH_1_ARG(f,a) LAMBDA(f)->invoke(VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(NULL,NULL)))))
-  #define INVOKE_WITH_2_ARG(f,a,b) LAMBDA(f)->invoke(VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(NULL,NULL)))))))
+  #define INVOKE_WITH_1_ARG(f,a) LAMBDA(f)->invoke(VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(NULL,NULL)),1)))
+  #define INVOKE_WITH_2_ARG(f,a,b) LAMBDA(f)->invoke(VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(NULL,NULL)),1)),2)))
 
   #define FN(f) VAR(new ferret::f())
   #define CLOSURE(f,...) VAR(new ferret::f(__VA_ARGS__))
@@ -2409,9 +2419,9 @@ implementation.
 #+name: runtime-clojure-sequence-count
 #+begin_src clojure :tangle no
   (defn count [s]
-    (if (nil? s)
-      0
-      (reduce inc 0 s)))
+    "if (IS_NIL(s))
+       return NEW_NUMBER(0);
+     __result = NEW_NUMBER((NUMBER_DATA_TYPE)ISEEKABLE(s)->count());")
 #+end_src
 
 #+name: runtime-clojure-sequences-tests

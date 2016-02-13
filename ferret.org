@@ -1501,7 +1501,6 @@ containers.
     (interfaces "var cons(var x)"
                 "var first()"
                 "var rest()"
-                "bool isEmpty()"
                 "size_t count()")
     (fns ("virtual ~ISeekable" "" "")))
 #+end_src
@@ -1510,7 +1509,7 @@ containers.
 #+begin_src c++ :tangle no
   #define FIRST(coll) (ISEEKABLE(coll)->first())
   #define REST(coll) (ISEEKABLE(coll)->rest())
-  #define ITERATE(c,i) for(var i = c; !ISEEKABLE(i)->isEmpty(); i = REST(i))
+  #define ITERATE(c,i) for(var i = c; ISEEKABLE(i)->count() > 0; i = REST(i))
 
   #define NEW_SEQUENCE() (VAR(new ferret::Sequence()))
   #define CONS(s,v) (s = ISEEKABLE(s)->cons(v))
@@ -1560,8 +1559,6 @@ A simple linked list container implementing the seekable interface.
       "return data;")
      ("var rest" ""
       "return next;")
-     ("bool isEmpty" ""
-      "return (IS_NIL(next));")
      ("size_t count" ""
       "return size;")))
 #+end_src
@@ -1601,8 +1598,6 @@ Strings are represented as a linked list of characters.
       "return FIRST(data);")
      ("var rest" ""
       "return REST(data);")
-     ("bool isEmpty" ""
-      "return ISEEKABLE(data)->isEmpty();")
      ("size_t count" ""
       "return ISEEKABLE(data)->count();")
      ("ifdef STD_LIB"
@@ -2361,9 +2356,8 @@ implementation.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn reduce [& args]
-    "NUMBER_DATA_TYPE acc = 0;
-     ITERATE(args,it){acc++;}
-     if(acc == 2){
+    "size_t count = ISEEKABLE(args)->count();
+     if(count == 2){
        var f = FIRST(args);
        var coll = FIRST(REST(args));
        var first = FIRST(coll);
@@ -2393,7 +2387,7 @@ implementation.
 
   (defn list? [x] "__result = NEW_BOOLEAN(IS_TYPE(x,SEQUENCE_TYPE);")
 
-  (defn empty? [x] "__result = NEW_BOOLEAN(ISEEKABLE(x)->isEmpty())")
+  (defn empty? [x] "__result = NEW_BOOLEAN(ISEEKABLE(x)->count() == 0)")
 
   (defn rest [x] "if (IS_NIL(x))
                       return NEW_SEQUENCE();

@@ -2175,6 +2175,19 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
            fprintf(OUTPUT_STREAM, \"%d\",ProgramMemory.used.get(i));
         fprintf(OUTPUT_STREAM, \"\\n\");
          __result = NIL;"))
+
+  (defn memory-sizeof-ferret-objects []
+    (println "var:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::var));")))
+    (println "Object:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Object));")))
+    (println "Pointer:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Pointer));")))
+    (println "Number:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Number));")))
+    (println "Keyword:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Keyword));")))
+    (println "Sequence:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Sequence));")))
+    (println "Char:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Character));")))
+    (println "String:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::String));")))
+    (println "Boolean:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Boolean));")))
+    (println "Lambda:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Lambda));")))
+    (println "Atom:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Atom));"))))
 #+end_src
 
 Takes a function and returns the number of millis took.

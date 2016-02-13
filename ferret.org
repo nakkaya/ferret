@@ -2098,6 +2098,11 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                (map #(str "#define " (first %) " " (second %) "\n"))
                (list))))
 
+  (defmacro build-options [& body]
+    (list 'native-define (str "// Ferret Build Configuration Begin\n"
+                              "//" (str (apply hash-map body)) "\n"
+                              "// Ferret Build Configuration End\n")))
+
   (defmacro defnative [name args & form]
     (let [includes (->> (filter #(seq? (nth % 2)) form)
                         (map #(cons (nth % 1) (apply list (nth % 2))))
@@ -2984,12 +2989,40 @@ Some wrappers for the Arduino platform.
               :library-path []
               :link []
               :compiler-options ["-Werror" "-Wall"]
-              :source-extension "cpp"}
+              :source-extension "cpp"
+              :base-name "solution"}
              options))
+
+    (defn compile-options-parse-source [file]
+      (try
+        (let [program (slurp file)
+              options (->> program
+                           (re-seq #"(?s)Ferret Build Configuration Begin.*?//(.*?)// Ferret Build Configuration")
+                           (map second)
+                           (map read-string))
+              keys (->> options
+                        (map #(keys %) )
+                        flatten
+                        (into #{})
+                        (into []))
+              combine (fn [key]
+                        (->> options
+                             (reduce (fn[h v]
+                                       (if (nil? (key v))
+                                         h
+                                         (apply merge (flatten [h (key v)])))) #{})
+                             (into [])))]
+          (compile-options
+           (reduce (fn[h v]
+                     (assoc h v (combine v))) {} keys)))
+        (catch Exception e
+          (compile-options {}))))
 
     (defn compile->cpp [form options]
       (let [source (emit-source form)]
-        (write-to-solution (solution-template source) (str "solution." (:source-extension options)))))
+        (write-to-solution (solution-template source)
+                           (str (:base-name options) "."
+                                (:source-extension options)))))
 
     (defn compile->binary [options extra-source-files]
       (let [command (flatten [(:compiler options)
@@ -3004,7 +3037,7 @@ Some wrappers for the Arduino platform.
                                        %])
                                    extra-source-files)
                               ["-x" "c++"]
-                              (str "solution." (:source-extension options))])
+                              (str (:base-name options) "." (:source-extension options))])
             ret (with-sh-dir "./"
                   (apply sh command))]
         (println "Running=>" command)
@@ -3018,8 +3051,6 @@ Some wrappers for the Arduino platform.
 
     (def program-options [["-i" "--input FILE" "Input File" :default "./core.clj"]
                           ["-c" "--compile" "Compile Solution"]
-                          ["-o" "--compile-options FILE" "Compile Options File"
-                           :parse-fn #(read-string (FileUtils/readFileToString (file %)))]
                           ["-f" "--source-files FILE" "Extra Source Files to Pass to GCC"]
                           ["-w" "--watch-input" "Automatically recompile input file on change."]
                           ["-h" "--help" "Print Help"]])
@@ -3036,7 +3067,10 @@ Some wrappers for the Arduino platform.
                       (->> args :options :input)
                       (do (println "No Input File.")
                           (System/exit 1)))
-              options (compile-options (->> args :options :compile-options))
+              input-base-name (org.apache.commons.io.FilenameUtils/getBaseName input)
+              options (-> (file (str input-base-name ".cpp"))
+                          compile-options-parse-source
+                          (assoc :base-name input-base-name))
               extra-source-files (cond (not (empty? (:arguments args))) (:arguments args)
                                        (not (empty? (:extra-source-files options))) (:extra-source-files options)
                                        :default [])
@@ -3044,7 +3078,11 @@ Some wrappers for the Arduino platform.
                          (let [input (read-clojure-file input)]
                            (compile->cpp input options)
                            (when (->> args :options :compile)
-                             (compile->binary options extra-source-files))))]
+                             (let [options (-> (file (str input-base-name ".cpp"))
+                                               compile-options-parse-source
+                                               (assoc :base-name input-base-name))
+                                   options (assoc options :base-name input-base-name)]
+                               (compile->binary options extra-source-files)))))]
           (if (nil? (->> args :options :watch-input))
             (build-fn)
             (do (watcher/watcher [input]

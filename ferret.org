@@ -922,7 +922,10 @@ lambda forms.
   (defn invoke-lambda [n args]
     (if (empty? args)
       (str "INVOKE(" n ")")
-      (str "INVOKE_WITH(" n "," (apply str (interpose \, (reverse args))) ")")))
+      (str "INVOKE_WITH(" n ","
+           (reduce (fn[h v]
+                     (str "VAR(new ferret::Sequence("v "," h "))"))
+                   "VAR(new ferret::Sequence(NULL,NULL))" (reverse args)) ")")))
 
   (defn if-statement [cond t f]
     (apply str "IF(" cond ", " t ", " f ")"))
@@ -1552,12 +1555,7 @@ A simple linked list container implementing the seekable interface.
      ("var rest" ""
       "return next;")
      ("bool isEmpty" ""
-      "return (IS_NIL(next));"))
-    (post-code
-     "ferret::var& ferret::var::operator, (const var& m){
-        ,*this = static_cast<ferret::Sequence*>(m_ptr)->cons(m);
-        return *this;
-      }"))
+      "return (IS_NIL(next));")))
 #+end_src
 
 *** String
@@ -1776,7 +1774,11 @@ Function invocation macros,
 #+name: runtime-native-lambda-invoke-macros
 #+begin_src c++ :tangle no
   #define INVOKE(f) LAMBDA(f)->invoke(NIL)
-  #define INVOKE_WITH(f,...) LAMBDA(f)->invoke((NEW_SEQUENCE(),__VA_ARGS__))
+  #define INVOKE_WITH(f,args) LAMBDA(f)->invoke(args)
+
+  #define INVOKE_WITH_1_ARG(f,a) LAMBDA(f)->invoke(VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(NULL,NULL)))))
+  #define INVOKE_WITH_2_ARG(f,a,b) LAMBDA(f)->invoke(VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(NULL,NULL)))))))
+
   #define FN(f) VAR(new ferret::f())
   #define CLOSURE(f,...) VAR(new ferret::f(__VA_ARGS__))
 #+end_src
@@ -1836,7 +1838,6 @@ reaches zero it will automatically free the Object.
     }
 
     operator bool() const;
-    var& operator, (const var& m);
 
   #if !defined(DISABLE_OUTPUT_STREAM)
     var toOutputStream() {
@@ -2276,12 +2277,12 @@ implementation.
   (defmacro doseq [binding & body]
     (list '_doseq_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
 
-  (defn _doseq_ [seq f] "ITERATE(seq,it){INVOKE_WITH(f,FIRST(it));}")
+  (defn _doseq_ [seq f] "ITERATE(seq,it){INVOKE_WITH_1_ARG(f,FIRST(it));}")
 
   (defmacro dotimes [binding & body]
     (list '_dotimes_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
 
-  (defn _dotimes_ [t f] "for(int i = 0; i < TO_INT(t); i++) INVOKE_WITH(f,NEW_NUMBER(i));")
+  (defn _dotimes_ [t f] "for(int i = 0; i < TO_INT(t); i++) INVOKE_WITH_1_ARG(f,NEW_NUMBER(i));")
 #+end_src
 
 *** Conditionals
@@ -2357,9 +2358,9 @@ implementation.
        var coll = FIRST(REST(args));
        var first = FIRST(coll);
        var rest = REST(coll);
-       var acc = INVOKE_WITH(f, first, FIRST(rest));
+       var acc = INVOKE_WITH_2_ARG(f, FIRST(rest), first);
        ITERATE(REST(rest),it){
-         acc = INVOKE_WITH(f, FIRST(it), acc);
+         acc = INVOKE_WITH_2_ARG(f, acc, FIRST(it));
        }
        return acc;
      }else{
@@ -2367,7 +2368,7 @@ implementation.
       var val = FIRST(REST(args));
       var coll = FIRST(REST(REST(args)));
       ITERATE(coll,it){
-       val = INVOKE_WITH(f, FIRST(it), val);
+       val = INVOKE_WITH_2_ARG(f, val, FIRST(it));
       }
       return val;
      }")

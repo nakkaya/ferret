@@ -80,7 +80,7 @@ or if you are using the jar version,
 
     java -jar ferret-app.jar -in prog.clj
 
-Output will be placed in a a file called `solution.cpp` passing the
+Output will be placed in a a file called `prog.cpp` passing the
 `-c` flag will cause this file to be automatically compiled using GNU
 C++. (Other compilers are supprted see Implementation Notes).
 

@@ -52,6 +52,7 @@ All objects derive from `Object` class.
  - `Keyword` 
  - `Character`
  - `Sequence`
+ - `LazySequence`
  - `String`
  - `Boolean`
  - `Atom` - Mimics Clojure atoms.
@@ -173,9 +174,8 @@ This way single function can be defined for multiple systems.
 
 ## Embedded Usage
 
-If you can use a C++ compiler for your embedded platform. You can use
-ferret for your embedded platform. Following shows a blink example for
-Arduino.
+If you can use a C++ compiler for your embedded platform, you can use
+ferret. Following shows a blink example for Arduino.
 
     (pin-mode 13 :output)
   
@@ -197,11 +197,11 @@ to check on memory,
 
 ## Wrapping Third Party C,C++ Libraries
 
-### ferret-serial
+### [ferret-serial](https://git.nakkaya.com/nakkaya/ferret-serial)
 
 Boost Asio Serial Port Wrapper For Ferret.
 
-### ferret-formata
+### [ferret-firmata](https://git.nakkaya.com/nakkaya/ferret-firmata)
 
 Firmata protocol implementation that uses `ferret-serial` and `stl`.
 

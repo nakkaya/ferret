@@ -1563,6 +1563,103 @@ A simple linked list container implementing the seekable interface.
       "return size;")))
 #+end_src
 
+*** Lazy Sequence
+
+A lazy list container implementing the seekable interface.
+
+#+name: runtime-clojure-sequence-object
+#+begin_src clojure :tangle no
+  (defobject LazySequence
+    (interface :ISeekable)
+    (data "var seq;")
+    (new ("var t"
+          "seq = NEW_SEQUENCE();
+           SEQUENCE(seq)->next = t;")
+         ("var d, var t"
+          "seq = NEW_SEQUENCE();
+           SEQUENCE(seq)->data = d; SEQUENCE(seq)->next = t;"))
+    (equals
+     "if (OBJECT(o)->getType() != LAZYSEQUENCE_TYPE)
+       return NEW_BOOLEAN(false);
+      var itOther = o;
+      ITERATE(this,it){
+        if (IS_NIL(itOther) || FIRST(it).equals(FIRST(itOther))  == false)
+          return NEW_BOOLEAN(false);
+        itOther = REST(itOther);
+      }
+      return NEW_BOOLEAN(true);")
+    (toOutputStream
+     "fprintf(OUTPUT_STREAM, \"(\");
+        if (IS_NOT_NIL(seq)){ 
+          SEQUENCE(seq)->data.toOutputStream();
+          ITERATE(REST(VAR(this)),it){
+            fprintf(OUTPUT_STREAM, \" \");
+            FIRST(it).toOutputStream();
+          }
+        }
+        fprintf(OUTPUT_STREAM, \")\");
+        return NIL;")
+    
+    (fns
+     ("var cons" "var x"
+      "return NEW_LAZY_SEQUENCE(x,SEQUENCE(seq)->next);")
+     
+     ("var first" ""
+      "return SEQUENCE(seq)->data;")
+     ("var iterate" ""
+      "var s = INVOKE(SEQUENCE(seq)->next);
+       if (IS_NIL(s))
+         return NEW_SEQUENCE();
+
+       var data = SEQUENCE(LAZY_SEQUENCE(s)->seq)->data;
+       var next = SEQUENCE(LAZY_SEQUENCE(s)->seq)->next;
+
+       return NEW_LAZY_SEQUENCE(data,next);")
+     ("var rest" ""
+      "return iterate();")
+     ("size_t count" ""
+      "size_t acc = 0;
+       var s = iterate();
+       while(!s.equals(NEW_SEQUENCE())){ 
+        s = REST(s);
+        acc++;
+       }
+       return acc;")))
+#+end_src
+
+#+name: runtime-clojure-sequence-object
+#+begin_src clojure :tangle no
+  (defn new-lazy-seq [f]
+    "__result = VAR(new LazySequence(f));")
+
+  (defmacro lazy-seq [& body]
+    (list 'new-lazy-seq (cons 'fn `( [] ~@body))))
+#+end_src
+
+#+name: runtime-native-iseekable-macros
+#+begin_src c++ :tangle no
+  #define LAZY_SEQUENCE(v) static_cast<ferret::LazySequence*>(v.get())
+  #define NEW_LAZY_SEQUENCE(d,t) var(new LazySequence(d,t))
+#+end_src
+
+#+name: runtime-clojure-sequences-tests
+#+begin_src clojure :tangle no
+  (deftest lazy-sequence-test
+    (is (= "10 11 12 (10 9 8 7 6 5 4 3 2 1)"
+           (capture-output '((let [a 1]
+                               (defn lazy-countdown [n]
+                                 (if (>= n 0)
+                                   (cons n (lazy-seq (lazy-countdown (- n 1))))))
+                               
+                               (defn ints-from [n]
+                                 (cons n (lazy-seq (ints-from (inc n))))))
+                             
+                             (print (first (ints-from 10))
+                                    (first (rest (ints-from 10)))
+                                    (first (rest (rest (ints-from 10))))
+                                    (lazy-countdown 10)))))))
+#+end_src
+
 *** String
 
 Strings are represented as a linked list of characters.

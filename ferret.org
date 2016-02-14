@@ -912,58 +912,10 @@ lambda forms.
 
 *** Code Templates
 
+**** Objects
+
 #+name: code-templates
 #+begin_src clojure :tangle no
-  (defn new-lambda [n e]
-    (if (empty? e)
-      (str "FN(" n ")")
-      (str "CLOSURE(" n "," (apply str (interpose \, e)) ")")))
-
-  (defn invoke-lambda [n args]
-    (if (empty? args)
-      (str "INVOKE(" n ")")
-      (let [positions (reverse (map inc (range 0 (count args))))
-            args (->> (interleave positions args)
-                      (partition 2)
-                      reverse)]
-        (str "INVOKE_WITH(" n ","
-             (reduce (fn[h [idx v]]
-                       (str "VAR(new ferret::Sequence("v "," h "," idx"))"))
-                     "VAR(new ferret::Sequence(NULL,NULL))" args) ")"))))
-
-  (defn if-statement [cond t f]
-    (apply str "IF(" cond ", " t ", " f ")"))
-
-  (defn declare-lambdas [lambdas]
-    (let [view (create-view
-    "$lambdas: {lambda|
-        class $lambda.name$ : public Lambda{
-
-        $lambda.env:{VAR $it$;} ;separator=\"\n\"$
-
-        public:
-
-        $if(lambda.env)$
-          $lambda.name$ ($lambda.env:{VAR $it$} ;separator=\",\"$){ 
-             $lambda.env:{this->$it$ = $it$;} ;separator=\"\n\"$
-          }
-        $endif$
-
-        $if(lambda.args)$
-            VAR invoke (VAR _args_)
-        $else$
-            VAR invoke (VAR)
-        $endif$
-            {
-              $lambda.args:{args | $args$; } ;separator=\"\n\"$
-
-              $trunc(lambda.body):{$it$;} ;separator=\"\n\"$
-              return $last(lambda.body):{ $it$;} ;separator=\"\n\"$
-            }
-        };};separator=\"\n\n\"$")]
-      (fill-view! view "lambdas" lambdas)
-      (render-view view)))
-
   (defn declare-object [name body]
     (let [specs (into {} (map #(vector (first %) (rest %)) body))
           interface (if (nil? (specs 'interface))
@@ -1041,55 +993,129 @@ lambda forms.
       (fill-view! view "ifdef_fns" (filter #(= 4 (count %)) (specs 'fns)))
       (fill-view! view "post_code" (first (specs 'post_code)))
       (render-view view)))
+#+end_src    
 
+**** Lambdas
+
+#+name: code-templates
+#+begin_src clojure :tangle no
+  (defn if-statement [cond t f]
+    (apply str "IF(" cond ", " t ", " f ")"))
+
+  (defn new-lambda [n e]
+    (if (empty? e)
+      (str "FN(" n ")")
+      (str "CLOSURE(" n "," (apply str (interpose \, e)) ")")))
+
+  (defn invoke-lambda [n args]
+    (if (empty? args)
+      (str "INVOKE(" n ")")
+      (let [positions (reverse (map inc (range 0 (count args))))
+            args (->> (interleave positions args)
+                      (partition 2)
+                      reverse)]
+        (str "INVOKE_WITH(" n ","
+             (reduce (fn[h [idx v]]
+                       (str "VAR(new ferret::Sequence("v "," h "," idx"))"))
+                     "VAR(new ferret::Sequence(NULL,NULL))" args) ")"))))
+
+  (defn declare-lambda-classes [lambdas]
+    (let [view (create-view
+                "$lambdas: {lambda|
+        class $lambda.name$ : public Lambda{
+
+        $lambda.env:{VAR $it$;} ;separator=\"\n\"$
+
+        public:
+
+        $if(lambda.env)$
+          $lambda.name$ ($lambda.env:{VAR $it$} ;separator=\",\"$){ 
+             $lambda.env:{this->$it$ = $it$;} ;separator=\"\n\"$
+          }
+        $endif$
+
+        $if(lambda.args)$
+            VAR invoke (VAR _args_);
+        $else$
+            VAR invoke (VAR);
+        $endif$
+        };};separator=\"\n\n\"$")]
+      (fill-view! view "lambdas" lambdas)
+      (render-view view)))
+
+  (defn declare-lambda-bodies [lambdas]
+    (let [view (create-view
+                "$lambdas: {lambda|
+        $if(lambda.args)$
+            VAR $lambda.name$::invoke (VAR _args_)
+        $else$
+            VAR $lambda.name$::invoke (VAR)
+        $endif$
+            {
+              $lambda.args:{args | $args$; } ;separator=\"\n\"$
+
+              $trunc(lambda.body):{$it$;} ;separator=\"\n\"$
+              return $last(lambda.body):{ $it$;} ;separator=\"\n\"$
+            }
+        };separator=\"\n\n\"$")]
+      (fill-view! view "lambdas" lambdas)
+      (render-view view)))
+#+end_src    
+
+**** Program
+
+#+name: code-templates
+#+begin_src clojure :tangle no
   (defn solution-template [source]
     (let [{:keys [body lambdas symbol-table native-declarations native-defines]} source
           view (create-view "
-      $native_defines:{$it$} ;separator=\"\n\"$
+        $native_defines:{$it$} ;separator=\"\n\"$
 
-      $object_interface$
+        $object_interface$
 
-      #if defined(STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS) && !defined(DISABLE_MAIN_FUNCTION)
-        VAR _star_command_line_args_star_;
-      #endif
+        #if defined(STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS) && !defined(DISABLE_MAIN_FUNCTION)
+          VAR _star_command_line_args_star_;
+        #endif
 
-      $symbols:{VAR $it$;} ;separator=\"\n\"$
+        $symbols:{VAR $it$;} ;separator=\"\n\"$
 
-      $native_declarations:{$it$} ;separator=\"\n\"$      
+        $native_declarations:{$it$} ;separator=\"\n\"$      
 
-      namespace ferret{
-        $lambdas:{$it$} ;separator=\"\n\"$
-      }
-
-      namespace ferret{
-        void ProgramRun(){
-         $body:{$it$;} ;separator=\"\n\"$ 
+        namespace ferret{
+          $lambda_classes:{$it$} ;separator=\"\n\"$
+          $lambda_bodies:{$it$} ;separator=\"\n\"$
         }
-      }
 
-    #if !defined(DISABLE_MAIN_FUNCTION)
-      int main(int argc, char* argv[]){
-      
-        INIT_ENV
+        namespace ferret{
+          void ProgramRun(){
+           $body:{$it$;} ;separator=\"\n\"$ 
+          }
+        }
 
-      #if defined(STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS)
-        _star_command_line_args_star_ = NEW_SEQUENCE();
-        for (int i = argc - 1; i > -1 ; i--)
-          CONS(_star_command_line_args_star_,NEW_STRING(argv[i]));
-      #endif
+      #if !defined(DISABLE_MAIN_FUNCTION)
+        int main(int argc, char* argv[]){
+        
+          INIT_ENV
 
-        ferret::ProgramRun();      
-        return 0;
-      }
-    #endif\n")]
+        #if defined(STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS)
+          _star_command_line_args_star_ = NEW_SEQUENCE();
+          for (int i = argc - 1; i > -1 ; i--)
+            CONS(_star_command_line_args_star_,NEW_STRING(argv[i]));
+        #endif
+
+          ferret::ProgramRun();      
+          return 0;
+        }
+      #endif\n")]
       (fill-view! view "object_interface" (read-from-url "Object.cpp"))
       (fill-view! view "body" (filter #(not (empty? %)) body))
-      (fill-view! view "lambdas" (declare-lambdas lambdas))
+      (fill-view! view "lambda_classes" (declare-lambda-classes lambdas))
+      (fill-view! view "lambda_bodies" (declare-lambda-bodies lambdas))
       (fill-view! view "symbols" symbol-table)
       (fill-view! view "native_declarations" native-declarations)
       (fill-view! view "native_defines" native-defines)
       (render-view view)))
-#+end_src    
+#+end_src
 
 * Runtime
 ** Native

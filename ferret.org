@@ -1509,7 +1509,7 @@ containers.
 #+begin_src c++ :tangle no
   #define FIRST(coll) (ISEEKABLE(coll)->first())
   #define REST(coll) (ISEEKABLE(coll)->rest())
-  #define ITERATE(c,i) for(var i = c; ISEEKABLE(i)->count() > 0; i = REST(i))
+  #define ITERATE(c,i) for(var i = c; IS_NOT_NIL(REST(i)); i = REST(i))
 
   #define NEW_SEQUENCE() (VAR(new ferret::Sequence()))
   #define CONS(s,v) (s = ISEEKABLE(s)->cons(v))
@@ -1645,7 +1645,7 @@ A lazy list container implementing the seekable interface.
 #+name: runtime-clojure-sequences-tests
 #+begin_src clojure :tangle no
   (deftest lazy-sequence-test
-    (is (= "10 11 12 (10 9 8 7 6 5 4 3 2 1)"
+    (is (= "10 11 12 (10 9 8 7 6 5 4 3 2 1 0)"
            (capture-output '((let [a 1]
                                (defn lazy-countdown [n]
                                  (if (>= n 0)

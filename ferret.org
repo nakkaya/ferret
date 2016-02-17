@@ -88,7 +88,7 @@ of mod -> aliases pairs.
     (reduce (fn[h [m aliases]]
               (let [mod (read-clojure-file
                          (str (.replace (str m) "." "/") ".clj"))
-                    mod (expand-macros-all mod)
+                    mod (->> mod expand-macros-all vector->list)
                     mod-symbols (->> (select-form mod (is-form? 'def))
                                      (map second)
                                      (into #{}))

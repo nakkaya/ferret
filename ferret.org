@@ -3142,10 +3142,17 @@ Some wrappers for the Arduino platform.
           (compile-options {}))))
 
     (defn compile->cpp [form options]
-      (let [source (emit-source form)]
-        (write-to-solution (solution-template source)
-                           (str (:base-name options) "."
-                                (:source-extension options)))))
+      (let [file-name (str (:base-name options) "." (:source-extension options))
+            source (emit-source form)]
+        (println "[+] Compiling")
+        (write-to-solution (solution-template source) file-name)
+        (let [formatted-source (try (with-sh-dir "./"
+                                      (sh "clang-format" file-name))
+                                    (catch Exception e nil))]
+          (if formatted-source
+            (do (println "[+] Formatting Code") 
+                (spit file-name (:out formatted-source)))
+            (println "[+] Install clang-format for Formatted Output (Optional)")))))
 
     (defn compile->binary [options extra-source-files]
       (let [command (flatten [(:compiler options)
@@ -3160,17 +3167,32 @@ Some wrappers for the Arduino platform.
                                        %])
                                    extra-source-files)
                               ["-x" "c++"]
-                              (str (:base-name options) "." (:source-extension options))])
-            ret (with-sh-dir "./"
-                  (apply sh command))]
-        (println "Running=>" command)
-        (println "Return=>" ret)
-        (if (not= 0 (:exit ret))
-          (System/exit 1)
-          (do (when (:name options)
-                (with-sh-dir "./"
-                  (sh "mv" "a.out" (str "./" (:name options)))))
-              true))))
+                              (str (:base-name options) "." (:source-extension options))])]
+        (println "[+] Building Binary")
+        (println "[+] Compiler:" (:compiler options))
+        (println "[+] Options:")
+        (doseq [option (:compiler-options options)]
+          (println "           " option))
+        (println "[+] Include Path:")
+        (doseq [path (:include-path options)]
+          (println "           " path))
+        (println "[+] Library Path:")
+        (doseq [path (:library-path options)]
+          (println "           " path))
+        (println "[+] Link:")
+        (doseq [link (:link options)]
+          (println "           " link))
+        (let [ret (with-sh-dir "./"
+                    (apply sh command))]
+          (if (not= 0 (:exit ret))
+            (do (println "[+] Build Error")
+                (println (:err ret))
+                (System/exit 1) )
+            (do (when (:name options)
+                  (with-sh-dir "./"
+                    (sh "mv" "a.out" (str "./" (:name options)))))
+                (println "[+] Done")
+                true)))))
 
     (def program-options [["-i" "--input FILE" "Input File" :default "./core.clj"]
                           ["-c" "--compile" "Compile Solution"]

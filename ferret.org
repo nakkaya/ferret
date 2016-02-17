@@ -3145,9 +3145,10 @@ Some wrappers for the Arduino platform.
               options (->> program
                            (re-seq #"(?s)Ferret Build Configuration Begin.*?//(.*?)// Ferret Build Configuration")
                            (map second)
+                           (map #(.replaceAll % "//" ""))
                            (map read-string))
               keys (->> options
-                        (map #(keys %) )
+                        (map #(keys %))
                         flatten
                         (into #{})
                         (into []))

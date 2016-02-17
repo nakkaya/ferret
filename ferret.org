@@ -3134,7 +3134,7 @@ Some wrappers for the Arduino platform.
               :include-path []
               :library-path []
               :link []
-              :compiler-options ["-Werror" "-Wall"]
+              :compiler-options []
               :source-extension "cpp"
               :base-name "solution"}
              options))

@@ -3171,7 +3171,7 @@ Some wrappers for the Arduino platform.
         (println "[+] Compiling")
         (write-to-solution (solution-template source) file-name)
         (let [formatted-source (try (with-sh-dir "./"
-                                      (sh "clang-format" file-name))
+                                      (sh "clang-format" "-style" "{Standard: Cpp03}" file-name))
                                     (catch Exception e nil))]
           (if formatted-source
             (do (println "[+] Formatting Code") 

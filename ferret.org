@@ -1670,7 +1670,7 @@ A lazy list container implementing the seekable interface.
      ("var rest" ""
       "return iterate();")
      ("size_t count" ""
-      "size_t acc = 0;
+      "size_t acc = 1;
        var s = iterate();
        while(!s.equals(NEW_SEQUENCE())){ 
         s = REST(s);
@@ -2519,6 +2519,34 @@ implementation.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
+  (defn map [f col]
+    (if (not (empty? col))
+      (cons (f (first col))
+            (lazy-seq (map f (rest col))))))
+#+end_src
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
+  (defn range
+    ([high]
+     (range 0 high))
+    ([low high]
+     (if (< low high)
+       (cons low (lazy-seq
+                  (range (inc low) high))))))
+#+end_src
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
+  (defn take [n coll]
+    (if (not (empty? coll))
+      (if (> n 0)
+        (cons (first coll)
+              (lazy-seq (take (- n 1) (rest coll)))))))
+#+end_src
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
   (defn reduce [& args]
     "size_t count = ISEEKABLE(args)->count();
      if(count == 2){
@@ -2616,7 +2644,17 @@ implementation.
            (capture-output '((let [l1 (list 1 2 3 4 5 6)
                                    l2 (reduce (fn[h v] (conj h (inc v))) (list) l1)
                                    l3 (cons 1 l2)]
-                               (print l1 l2 l3 (empty? (rest nil)))))))))
+                               (print l1 l2 l3 (empty? (rest nil))))))))
+    (is (= "(2 3 4) (0 1 2) (4 5 6) 3 (0 1 2 3 4) 5 (0 1 2 3 4 5 6 7 8 9) (2 3) (2 3 4)"
+           (capture-output '((print (map inc (list 1 2 3))
+                                    (map dec (list 1 2 3))
+                                    (map (fn [x] (+ 3 x)) (list 1 2 3))
+                                    (count (map inc (list 1 2 3)))
+                                    (range 5)
+                                    (count (range 5))
+                                    (range 0 10)
+                                    (take 2 (map inc (list 1 2 3)))
+                                    (take 20 (map inc (list 1 2 3)))))))))
 #+end_src
 
 *** Logical Operators

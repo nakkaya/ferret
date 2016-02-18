@@ -928,7 +928,7 @@ lambda forms.
       namespace ferret{
 
        $if(object_type)$
-         size_t $type$_TYPE = $type_val$;
+         const size_t $type$_TYPE = $type_val$;
        $endif$
 
        $if(template)$

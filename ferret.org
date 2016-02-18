@@ -2218,7 +2218,8 @@ once primitives are in place rest can be defined in pure Clojure,
 #+name: runtime-clojure-println
 #+begin_src clojure :tangle no
   (defn println [& more]
-    (apply print more)
+    (when more
+      (apply print more))
     (newline))
 #+end_src
 
@@ -2425,7 +2426,9 @@ implementation.
 #+name: runtime-clojure-console-io
 #+begin_src clojure :tangle no
   (defn print [& more]
-    "var f = ISEEKABLE(more)->first();
+    "if (IS_NIL(more))
+       return NIL;
+     var f = ISEEKABLE(more)->first();
      f.toOutputStream();
      var r = ISEEKABLE(more)->rest();
      ITERATE(r,it){

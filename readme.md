@@ -70,6 +70,15 @@ where calling `malloc`/`free` is not desired. It is not thread safe It
 should not be used in systems where better alternatives exists or you
 have enough memory.
 
+Steps for using `tcmalloc` on Mac OS X, install dependencies, 
+
+    brew install google-perftools
+
+Then from your program you can link to it using,
+
+    (build-options :library-path ["/usr/local/Cellar/gperftools/2.4/lib/"]
+                   :link ["tcmalloc"])
+
 ## Compiling With Ferret
 
 Compile `prog.clj`,
@@ -84,6 +93,13 @@ Output will be placed in a a file called `prog.cpp` passing the
 `-c` flag will cause this file to be automatically compiled using GNU
 C++. (Other compilers are supprted see Implementation Notes).
 
+For profiling you can use Valgrind with the following options
+
+    valgrind --tool=callgrind ./(Your binary)
+
+View results using,
+
+    qcachegrind callgrind.out.XXX
 
 ## Examples
 

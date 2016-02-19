@@ -3186,6 +3186,8 @@ Some wrappers for the Arduino platform.
 
 ** Main
 
+   Default compile options, 
+
   #+name: core-code-compile-code
   #+begin_src clojure
     (defn compile-options [& [options]]
@@ -3197,7 +3199,12 @@ Some wrappers for the Arduino platform.
               :source-extension "cpp"
               :base-name "solution"}
              options))
+  #+end_src
 
+   Read the /cpp/ file parse build options embedded in it.
+
+  #+name: core-code-compile-code
+  #+begin_src clojure
     (defn compile-options-parse-source [file]
       (try
         (let [program (slurp file)
@@ -3223,7 +3230,12 @@ Some wrappers for the Arduino platform.
                      (assoc h v (combine v))) {} keys)))
         (catch Exception e
           (compile-options {}))))
+  #+end_src
 
+   Compile the form to C++,
+
+  #+name: core-code-compile-code
+  #+begin_src clojure
     (defn compile->cpp [form options]
       (let [file-name (str (:base-name options) "." (:source-extension options))
             source (emit-source form)]
@@ -3236,7 +3248,12 @@ Some wrappers for the Arduino platform.
             (do (println "[+] Formatting Code") 
                 (spit file-name (:out formatted-source)))
             (println "[+] Install clang-format for Formatted Output (Optional)")))))
+  #+end_src
 
+   Compile C++ code to binary,
+
+  #+name: core-code-compile-code
+  #+begin_src clojure
     (defn compile->binary [options extra-source-files]
       (let [command (flatten [(:compiler options)
                               (map #(str %) (:compiler-options options))
@@ -3276,7 +3293,12 @@ Some wrappers for the Arduino platform.
                     (sh "mv" "a.out" (str "./" (:name options)))))
                 (println "[+] Done")
                 true)))))
+  #+end_src
 
+   Compiler /main/,
+
+  #+name: core-code-compile-code
+  #+begin_src clojure
     (def program-options [["-i" "--input FILE" "Input File" :default "./core.clj"]
                           ["-c" "--compile" "Compile Solution"]
                           ["-f" "--source-files FILE" "Extra Source Files to Pass to GCC"]

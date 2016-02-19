@@ -1260,7 +1260,7 @@ Object Casting macros,
         if (isPageRangeUsable(page,(page + pagesNeeded)) == true)
           return page;
 
-        offset++;
+        offset = (page + pagesNeeded);
       }
         
       return -1;

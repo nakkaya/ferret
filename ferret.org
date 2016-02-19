@@ -1217,6 +1217,7 @@ Object Casting macros,
   public:
     bool used[poolSize];
     PageSize pool[poolSize];
+    size_t lastAllocationIndex;
     
     inline size_t calculateNeededPages(size_t size){
       size_t d = (size / sizeof(PageSize));
@@ -1229,6 +1230,7 @@ Object Casting macros,
     }
       
     MemoryPool(){
+      lastAllocationIndex = 0;
       for(size_t i = 0; i < poolSize; i++)
         pool[i] = 0;
     }
@@ -1247,9 +1249,8 @@ Object Casting macros,
       return poolSize;
     }
       
-    inline int findPage(size_t reqSize){
-      size_t pagesNeeded = calculateNeededPages(reqSize);
-      size_t offset = 0;
+    inline int findPage(size_t pagesNeeded, size_t os = 0){
+      size_t offset = os;
     
       for(;;){
         int page = nextAvaliblePage(offset);
@@ -1268,17 +1269,20 @@ Object Casting macros,
       
     void *allocate(size_t reqSize){
       reqSize += 1;
-      int page = findPage(reqSize);
-    
-      if ( page == -1)
-        return NULL;
-    
       size_t length = calculateNeededPages(reqSize);
-    
+      int page = findPage(length,lastAllocationIndex);
+      
+      if ( page == -1){
+        page = findPage(length,0);
+        if (page == -1 )
+          return NULL;
+      }
+      
       pool[page] = reqSize;
       for(size_t i = page; i < (page+length); i++)
         used[i] = true;
         
+      lastAllocationIndex = page + length;
       return &pool[page+1];
     }
     

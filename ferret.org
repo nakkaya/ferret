@@ -41,7 +41,7 @@ code generation phase.
 
 #+name: core-transformation-process
 #+begin_src clojure :tangle no
-  (defn process [form]
+  (defn process [form options]
     (->> (import-modules-all form)
          (process-reader-macros)
          (add-built-in)
@@ -51,7 +51,7 @@ code generation phase.
          (do->fn)
          (closure-conversion)
          (symbol-conversion)
-         (replace-fn-call-sites)))
+         (replace-fn-call-sites options)))
 #+end_src
 
 *** Import Modules
@@ -512,21 +512,23 @@ with the global name for readability.
                                  embeded-fn-calls fn-table)]
       embed-fn-names))
 
-  (defn replace-fn-call-sites [form]
-    (let [pure-fn-defs (->> (select-def-fn form)
-                            (filter #(= 2 (-> % last count))))
-          pure-fn-table (map (fn [[_ name [_ gensym]]] [name gensym]) pure-fn-defs)
-          form (replace-fn-call-sites-pure form pure-fn-defs pure-fn-table)
-          closure-fn-defs (->> (select-def-fn form)
-                               (filter #(not= 2 (-> % last count))))
-          closure-fn-table (map (fn [[_ name [_ gensym]]] [name gensym]) closure-fn-defs)]
-      (reduce (fn[h [name gensym]]
-                (morph-form h symbol?
-                            (fn [f]
-                              (if (= f gensym)
-                                (symbol (str name "_" gensym))
-                                f))))
-              form closure-fn-table)))
+  (defn replace-fn-call-sites [options form]
+    (if (:global-functions options)
+      form
+      (let [pure-fn-defs (->> (select-def-fn form)
+                              (filter #(= 2 (-> % last count))))
+            pure-fn-table (map (fn [[_ name [_ gensym]]] [name gensym]) pure-fn-defs)
+            form (replace-fn-call-sites-pure form pure-fn-defs pure-fn-table)
+            closure-fn-defs (->> (select-def-fn form)
+                                 (filter #(not= 2 (-> % last count))))
+            closure-fn-table (map (fn [[_ name [_ gensym]]] [name gensym]) closure-fn-defs)]
+        (reduce (fn[h [name gensym]]
+                  (morph-form h symbol?
+                              (fn [f]
+                                (if (= f gensym)
+                                  (symbol (str name "_" gensym))
+                                  f))))
+                form closure-fn-table))))
 #+end_src
 
 *** Helpers
@@ -738,9 +740,9 @@ C++ skeleton.
 
 #+name: core-code-generation-emit-source
 #+begin_src clojure :tangle no
-  (defn emit-source [form]
+  (defn emit-source [form options]
     (let [state (ref {:lambdas [] :symbol-table #{} :native-declarations [] :native-defines []})
-          body (doall (map #(emit % state) (process form)))]
+          body (doall (map #(emit % state) (process form options)))]
       (assoc @state :body body)))
 #+end_src
 
@@ -3238,7 +3240,7 @@ Some wrappers for the Arduino platform.
   #+begin_src clojure
     (defn compile->cpp [form options]
       (let [file-name (str (:base-name options) "." (:source-extension options))
-            source (emit-source form)]
+            source (emit-source form options)]
         (println "[+] Compiling")
         (write-to-solution (solution-template source) file-name)
         (let [formatted-source (try (with-sh-dir "./"
@@ -3305,6 +3307,7 @@ Some wrappers for the Arduino platform.
                           ["-f" "--source-files FILE" "Extra Source Files to Pass to GCC"]
                           ["-w" "--watch-input" "Automatically recompile input file on change."]
                           [nil "--disable-formatting" "Disables solution formatting using clang-format."]
+                          [nil "--global-functions" "Disables replace-fn-call-sites optimization."]
                           ["-h" "--help" "Print Help"]])
 
     (defn -main [& args]
@@ -3323,7 +3326,8 @@ Some wrappers for the Arduino platform.
               options (-> (file (str input-base-name ".cpp"))
                           compile-options-parse-source
                           (assoc :base-name input-base-name)
-                          (assoc :fomat-code (not (->> args :options :disable-formatting))))
+                          (assoc :fomat-code (not (->> args :options :disable-formatting)))
+                          (assoc :global-functions (->> args :options :global-functions)))
               extra-source-files (cond (not (empty? (:arguments args))) (:arguments args)
                                        (not (empty? (:extra-source-files options))) (:extra-source-files options)
                                        :default [])

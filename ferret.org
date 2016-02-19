@@ -2317,7 +2317,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
     (on "defined MEMORY_POOL_SIZE"
         "int count = 0;
          for(int i = 0; i < MEMORY_POOL_SIZE; i++)
-           if(ProgramMemory.used.get(i) == false)
+           if(ProgramMemory.used[i] == false)
              count++;
          __result = NEW_NUMBER(count);"))
 
@@ -2520,7 +2520,7 @@ implementation.
 
 *** Sequence
 
-#+name: runtime-clojure-sequence
+#+name: runtime-clojure-sequence-lazy
 #+begin_src clojure :tangle no
   (defn map [f col]
     (if (not (empty? col))
@@ -2528,7 +2528,7 @@ implementation.
             (lazy-seq (map f (rest col))))))
 #+end_src
 
-#+name: runtime-clojure-sequence
+#+name: runtime-clojure-sequence-lazy
 #+begin_src clojure :tangle no
   (defn range
     ([high]
@@ -2539,7 +2539,7 @@ implementation.
                   (range (inc low) high))))))
 #+end_src
 
-#+name: runtime-clojure-sequence
+#+name: runtime-clojure-sequence-lazy
 #+begin_src clojure :tangle no
   (defn take [n coll]
     (if (not (empty? coll))
@@ -2548,7 +2548,7 @@ implementation.
               (lazy-seq (take (- n 1) (rest coll)))))))
 #+end_src
 
-#+name: runtime-clojure-sequence
+#+name: runtime-clojure-sequence-lazy
 #+begin_src clojure :tangle no
   (defn concat
     ([x]
@@ -3608,6 +3608,7 @@ Some wrappers for the Arduino platform.
   <<runtime-clojure-logical-operators>>
   <<runtime-clojure-conditionals>>
   <<runtime-clojure-math>>
+  <<runtime-clojure-sequence-lazy>>
   <<runtime-clojure-bit-operations>>
   <<runtime-clojure-console-io>>
   <<runtime-clojure-misc>>

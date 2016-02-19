@@ -3244,10 +3244,11 @@ Some wrappers for the Arduino platform.
         (let [formatted-source (try (with-sh-dir "./"
                                       (sh "clang-format" "-style" "{Standard: Cpp03}" file-name))
                                     (catch Exception e nil))]
-          (if formatted-source
-            (do (println "[+] Formatting Code") 
-                (spit file-name (:out formatted-source)))
-            (println "[+] Install clang-format for Formatted Output (Optional)")))))
+          (when (:fomat-code options)
+            (if formatted-source
+              (do (println "[+] Formatting Code") 
+                  (spit file-name (:out formatted-source)))
+              (println "[+] Install clang-format for Formatted Output (Optional)"))))))
   #+end_src
 
    Compile C++ code to binary,
@@ -3303,6 +3304,7 @@ Some wrappers for the Arduino platform.
                           ["-c" "--compile" "Compile Solution"]
                           ["-f" "--source-files FILE" "Extra Source Files to Pass to GCC"]
                           ["-w" "--watch-input" "Automatically recompile input file on change."]
+                          [nil "--disable-formatting" "Disables solution formatting using clang-format."]
                           ["-h" "--help" "Print Help"]])
 
     (defn -main [& args]
@@ -3320,7 +3322,8 @@ Some wrappers for the Arduino platform.
               input-base-name (org.apache.commons.io.FilenameUtils/getBaseName input)
               options (-> (file (str input-base-name ".cpp"))
                           compile-options-parse-source
-                          (assoc :base-name input-base-name))
+                          (assoc :base-name input-base-name)
+                          (assoc :fomat-code (not (->> args :options :disable-formatting))))
               extra-source-files (cond (not (empty? (:arguments args))) (:arguments args)
                                        (not (empty? (:extra-source-files options))) (:extra-source-files options)
                                        :default [])

@@ -2422,8 +2422,8 @@ implementation.
             conds (->> (map first body)
                        (map (fn* [args] (filter #(not (= % '&)) args)))
                        (map #(list '= count-symbol (count %))))]
-        `(fn* [& ~fn-arg-symbol]
-              (let* [~count-symbol (~'count ~fn-arg-symbol)]
+        `(fn* (& ~fn-arg-symbol)
+              (let* (~count-symbol (~'count ~fn-arg-symbol))
                     (~'cond ~@(interleave conds fns)))))))
 #+end_src
 

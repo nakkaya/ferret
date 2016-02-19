@@ -56,7 +56,13 @@ All objects derive from `Object` class.
  - `String`
  - `Boolean`
  - `Atom` - Mimics Clojure atoms.
- - `Lambda`
+
+Interfaces,
+
+ - `Lambda` - Provides `invoke` for callable objects.
+ - `ISeekable` - Provides `first`, `rest`, `cons` for seekable containers.
+
+## Memory management
 
 Memory management is done using reference counting. On memory
 constraint systems such as micro controllers ferret can use a memory

@@ -1205,7 +1205,7 @@ Locking macros, See Program Header for more information.
 
     is defined ferret program will use a memory pool instead of
     /mallac/,/free/, depending on the pool size ferret will allocate 
-    /N x size_t/ bytes of memory on stack and all object creation
+    /N/ bytes of memory on stack and all object creation
     happens in this memory pool useful when working with very limited
     amount of memory, such as micro controllers where you want
     complete control over the memory and you need deterministic timing
@@ -1319,7 +1319,7 @@ Locking macros, See Program Header for more information.
   };
 
    #if !defined(MEMORY_POOL_PAGE_TYPE)
-    MemoryPool<size_t,MEMORY_POOL_SIZE> ProgramMemory;
+    MemoryPool<size_t,(MEMORY_POOL_SIZE/sizeof(size_t))> ProgramMemory;
    #else
     MemoryPool<MEMORY_POOL_PAGE_TYPE,MEMORY_POOL_SIZE> ProgramMemory;
    #endif
@@ -2059,7 +2059,8 @@ be defined using /native-define/ from program code. When,
   #define MEMORY_POOL_SIZE 2048
 #+END_EXAMPLE
 
-is defined program will will use a memory pool that's /2048 x size_t/.
+is defined program will will use a memory pool that's
+/(2048/sizeof(size_t))/. (Allocates 2048 /bytes/)
 
 You can also change memory pools page size so instead of /size_t/
 pages you can use a pool of /char/ pages using,

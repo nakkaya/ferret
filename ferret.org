@@ -1175,6 +1175,26 @@ Object Casting macros,
   #define IF(c,t,f) (c ? t : f)
 #+end_src
 
+Locking macros, See Program Header for more information.
+
+#+name: runtime-native-object-casting-macros
+#+begin_src c++ :tangle no
+  #if defined(STD_LIB) && !defined(SINGLE_THREADED)
+   #define NEW_LOCK(symbol) pthread_mutex_t symbol;
+   #define INIT_LOCK(symbol) pthread_mutex_init(&symbol, NULL);
+   #define DELETE_LOCK(symbol) pthread_mutex_destroy(&symbol);
+   #define WITH_LOCK(lock,code) \
+     pthread_mutex_lock(&lock); \
+     code;                      \
+     pthread_mutex_unlock(&lock);
+  #else
+   #define NEW_LOCK(symbol)
+   #define INIT_LOCK(symbol)
+   #define DELETE_LOCK(symbol)
+   #define WITH_LOCK(lock,code) code;
+  #endif
+#+end_src
+
 *** Memory Pool
 
     When,
@@ -1354,8 +1374,13 @@ All our types are derived from the base Object type,
 #+begin_src c++ :tangle no
   class Object{
   public:
-    Object() : refCount(0) {}
-    virtual ~Object() {};
+    Object() : refCount(0) {
+      INIT_LOCK(lock);
+    }
+    
+    virtual ~Object() {
+      DELETE_LOCK(lock);
+    };
     
     virtual size_t getType() = 0;
     
@@ -1365,9 +1390,17 @@ All our types are derived from the base Object type,
     
     virtual var equals(var o) = 0;
     
-    void addRef() { refCount++; }
-    bool subRef() { return (--refCount <= 0); }
+    void addRef() {
+      WITH_LOCK(lock,{refCount++;});
+    }
     
+    bool subRef() {
+      bool ret;
+      WITH_LOCK(lock,{
+          ret = (--refCount <= 0);
+      });
+      return ret;
+    }
     
     void* operator new(size_t size){
       return ALLOCATE(size);
@@ -1379,6 +1412,7 @@ All our types are derived from the base Object type,
     
   private:
     int refCount;
+    NEW_LOCK(lock)
   };
 #+end_src
 
@@ -1832,39 +1866,26 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
 #+begin_src clojure :tangle no
   (defobject Atom
     (data "var data;"
-          "#if defined(STD_LIB)
-            pthread_mutex_t lock;
-           #endif \n")
+          "NEW_LOCK(lock)")
     (new ("var d"
           "data = d;
-           #if defined(STD_LIB)
-            pthread_mutex_init(&lock, NULL);
-           #endif"))
+           INIT_LOCK(lock);"))
     (equals "if (!IS_TYPE(o,ATOM_TYPE))
                  return NEW_BOOLEAN(false);
                return NEW_BOOLEAN(this == ATOM(o));")
     (toOutputStream
-     "fprintf(OUTPUT_STREAM, \"atom <\"); 
+     "fprintf(OUTPUT_STREAM, \"atom <\");
       data.toOutputStream();
-      fprintf(OUTPUT_STREAM, \">\"); 
+      fprintf(OUTPUT_STREAM, \">\");
       return NIL;")
     (fns
      ("~Atom" ""
-      "#if defined(STD_LIB)
-           pthread_mutex_destroy(&lock);
-       #endif")
+      "DELETE_LOCK(lock);")
      ("var swap" "var f,var args"
-      "#if defined(STD_LIB)
-         pthread_mutex_lock(&lock);
-       #endif
-
-       CONS(args,data);
-       data = LAMBDA(f)->invoke(args);
-
-      #if defined(STD_LIB)
-         pthread_mutex_unlock(&lock);
-      #endif
-
+      "WITH_LOCK(lock,{
+         CONS(args,data);
+         data = LAMBDA(f)->invoke(args);
+       });
       return data;")))
 #+end_src
 
@@ -2071,6 +2092,16 @@ To disable main use,
 
 main won't be defined you need to call /ferret::ProgramRun()/ manually
 to start the program. Detect host,
+
+When 
+
+#+BEGIN_EXAMPLE
+  #define SINGLE_THREADED true
+#+END_EXAMPLE
+
+is used it will disable locking for built in data structures. By
+default when compiling with non embedded compiler. It will use /POSIX/
+/mutexes/ for locking /Objects/.
 
 #+name: runtime-native-program-header
 #+begin_src c++ :tangle no

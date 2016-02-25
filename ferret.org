@@ -46,7 +46,6 @@ code generation phase.
          (process-reader-macros)
          (add-built-in)
          (expand-macros-all)
-         (vector->list)
          (let->fn)
          (do->fn)
          (closure-conversion)
@@ -298,17 +297,6 @@ then the node is replaced with its expanded form.
         (if (= f expanded)
           expanded
           (recur expanded)))))
-#+end_src
-
-*** vector->list
-
-Since there is no support for vectors, they are converted to
-lists. Also zippers do not iterate over vectors.
-
-#+name: core-transformation-vector-list
-#+begin_src clojure :tangle no
-  (defn vector->list [form]
-    (morph-form form vector? #(reverse (into '() %))))
 #+end_src
 
 *** let->fn
@@ -593,7 +581,6 @@ suggests and removes the node when predicate returns true.
 #+name: compiler-transformation-tests
 #+begin_src clojure :tangle no
   (deftest transformation-test
-    (is (seq? (vector->list [1 2 [2 [5 4] 3]])))
     (is (= (symbol-conversion '(make-adder 2)) '(make_adder 2)))
     (is (= (symbol-conversion '(make-adder* 2)) '(make_adder_star_ 2)))
 
@@ -3426,10 +3413,6 @@ Some wrappers for the Arduino platform.
   <<core-transformation-form-fns>>
 
   <<core-transformation-reader-macros>>
-
-  <<core-transformation-vector-list>>
-
-  <<core-transformation-vector-list>>
 
   <<core-transformation-expand-macros>>
 

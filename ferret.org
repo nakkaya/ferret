@@ -89,6 +89,7 @@ of mod -> aliases pairs.
                          (str (.replace (str m) "." "/") ".clj"))
                     replace? (->> (select-form mod (fn [s] (or ((is-form? 'def) s)
                                                               ((is-form? 'defn) s)
+                                                              ((is-form? 'defnative) s)
                                                               ((is-form? 'defmacro) s))))
                                   (map second)
                                   (into #{}))

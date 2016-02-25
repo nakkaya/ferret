@@ -235,7 +235,7 @@ tangled.
            built-in (->> built-in-defn
                          (reduce (fn[h v] (assoc h (second v) v)) {}))
            fns (atom {})
-           _ (add-built-in (->> form expand-macros-all vector->list) built-in fns)
+           _ (add-built-in (expand-macros-all form) built-in fns)
            sorted-fns (->> @fns
                            (sort-by #(.indexOf built-in-order (key %)))
                            (map #(second %)))
@@ -283,7 +283,7 @@ then the node is replaced with its expanded form.
                                (let [bindings (map #(if (list? %)
                                                       (expand-macros-all %) %) bindings)
                                      form (cons 'let* (cons bindings (expand-macros-all body)))]
-                                 (->> form vector->list expand-macros-all))))
+                                 (expand-macros-all form))))
             form (morph-form form
                              (apply is-form? (map second macros))
                              (fn [f]
@@ -420,26 +420,26 @@ the free variable problem.
                            (if (= r f) n))) nil @fns)]
       (when name
         (apply list 'lambda-object name env))))
-  
+
   (defn define-lambda [fns env args body]
     (let [n (gensym)]
       (dosync (alter fns conj (concat ['define-lambda n env args] body)))
       (apply list 'lambda-object n env)))
-  
+
   (defn closure-conversion
     ([form]
-       (let [fns (ref [])
-             form (closure-conversion form fns)]
-         (vector->list (concat form @fns))))
+     (let [fns (ref [])
+           form (closure-conversion form fns)]
+       (concat form @fns)))
     ([form fns & env]
-       (morph-form form
-                   (is-form? 'fn*)
-                   (fn [[_ args & body]]
-                     (let [env (if (nil? env) '() (first env))
-                           body (closure-conversion body fns (concat args env))]
-                       (if-let [n (lambda-defined? fns env args body)]
-                         n
-                         (define-lambda fns env args body)))))))
+     (morph-form form
+                 (is-form? 'fn*)
+                 (fn [[_ args & body]]
+                   (let [env (if (nil? env) '() (first env))
+                         body (closure-conversion body fns (concat args env))]
+                     (if-let [n (lambda-defined? fns env args body)]
+                       n
+                       (define-lambda fns env args body)))))))
 #+end_src
 
 *** Symbol Conversion

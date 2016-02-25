@@ -131,10 +131,7 @@ modules names. So /helper-a/ defined in module /util.db/ becomes
 #+begin_src clojure :tangle no
   (defn import-modules [form]
     (let [package-list (import-modules-select-require form)
-          form (if (and (= (count form) 1)
-                        (= (first (first form)) 'require))
-                 (list )
-                 (remove-form form (is-form? 'require)))
+          form (remove-form form (is-form? 'require))
           modules (import-modules-load-modules package-list)
           form (import-modules-convert-alias-to-module package-list form)]
       (concat modules form)))
@@ -562,14 +559,17 @@ suggests and removes the node when predicate returns true.
                       x)) tree))
 
   (defn remove-form [tree pred]
-    (loop [loc (zip/seq-zip tree)]
-      (if (zip/end? loc)
-        (zip/root loc)
-        (recur
-         (zip/next
-          (if (pred (zip/node loc))
-            (zip/remove loc)
-            loc))))))
+    (if (and (= (count tree) 1)
+             (pred (first tree)))
+      (list )
+      (loop [loc (zip/seq-zip tree)]
+        (if (zip/end? loc)
+          (zip/root loc)
+          (recur
+           (zip/next
+            (if (pred (zip/node loc))
+              (zip/remove loc)
+              loc)))))))
 
   (defn select-form [tree pred]
     (loop [loc (zip/seq-zip tree)

@@ -88,13 +88,14 @@ of mod -> aliases pairs.
     (reduce (fn[h [m aliases]]
               (let [mod (read-clojure-file
                          (str (.replace (str m) "." "/") ".clj"))
-                    mod (->> mod expand-macros-all vector->list)
-                    mod-symbols (->> (select-form mod (is-form? 'def))
-                                     (map second)
-                                     (into #{}))
+                    replace? (->> (select-form mod (fn [s] (or ((is-form? 'def) s)
+                                                              ((is-form? 'defn) s)
+                                                              ((is-form? 'defmacro) s))))
+                                  (map second)
+                                  (into #{}))
                     mod (morph-form mod symbol?
                                     (fn [f]
-                                      (if (mod-symbols f)
+                                      (if (replace? f)
                                         (symbol (str (.replace (str m) "." "_") "_" f))
                                         f)))]
                 (reduce (fn [h v] (conj h v)) h mod)))
@@ -155,6 +156,9 @@ Create some dummy libs under /test/modules/,
 #+begin_src clojure :mkdirp yes :tangle ferret/test/modules/module-a.clj
   (defn helper-a []
     (print "Module A"))
+
+  (defmacro ten-fn []
+    (list 'fn [] 10))
 #+end_src 
 
 #+begin_src clojure :mkdirp yes :tangle ferret/test/modules/module-b.clj
@@ -162,11 +166,17 @@ Create some dummy libs under /test/modules/,
 
   (defn helper-b []
     (mod-c/helper-c))
+
+  (defn eleven-fn []
+    (mod-c/eleven-fn))
 #+end_src 
 
 #+begin_src clojure :mkdirp yes :tangle ferret/test/modules/module-c.clj
   (defn helper-c []
     (print "Module C"))
+
+  (defmacro eleven-fn []
+    (list 'fn [] 11))
 #+end_src 
 
 Run import tests,
@@ -174,11 +184,14 @@ Run import tests,
 #+name: compiler-import-module-test
 #+begin_src clojure :tangle no
   (deftest import-module-test
-    (is (= "Module AModule C"
+    (is (= "Module AModule C 10 11"
            (capture-output '((require '[test.modules.module-a :as mod-a])
                              (require '[test.modules.module-b :as mod-b])
                              (mod-a/helper-a)
-                             (mod-b/helper-b))))))
+                             (mod-b/helper-b)
+                             (print " ")
+                             (print ((mod-a/ten-fn))
+                                    ((mod-b/eleven-fn))))))))
 #+end_src
 
 *** Process Reader Macros
@@ -278,7 +291,7 @@ then the node is replaced with its expanded form.
                              (apply is-form? (map second macros))
                              (fn [f]
                                (binding [*ns* (the-ns temp-ns)]
-                                 (macroexpand-all f))))]
+                                 (walk/macroexpand-all f))))]
         (remove-ns temp-ns)
         form)))
 
@@ -543,14 +556,10 @@ suggests and removes the node when predicate returns true.
 #+name: core-transformation-form-fns
 #+begin_src clojure :tangle no
   (defn morph-form [tree pred f]
-    (loop [loc (zip/seq-zip tree)]
-      (if (zip/end? loc)
-        (zip/root loc)
-        (recur
-         (zip/next
-          (if (pred (zip/node loc))
-            (zip/replace loc (f (zip/node loc)))
-            loc))))))
+    (walk/prewalk (fn [x]
+                    (if (pred x)
+                      (f x)
+                      x)) tree))
 
   (defn remove-form [tree pred]
     (loop [loc (zip/seq-zip tree)]
@@ -3402,9 +3411,9 @@ Some wrappers for the Arduino platform.
 #+begin_src clojure :noweb yes :mkdirp yes :tangle ferret/src/ferret/core.clj
   (ns ferret.core
     (:gen-class)
-    (:use [clojure.java.io]
-          [clojure.walk :only [macroexpand-all]])
+    (:use [clojure.java.io])
     (:require [clojure.zip :as zip]
+              [clojure.walk :as walk]
               [clojure.tools.cli :refer [parse-opts]]
               [watchtower.core :as watcher])
     (:use [ferret.string-template]

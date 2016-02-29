@@ -739,7 +739,10 @@ C++ skeleton.
 #+begin_src clojure :tangle no
   (defn emit-source [form options]
     (let [state (ref {:lambdas [] :symbol-table #{} :native-declarations [] :native-defines []})
-          body (doall (map #(emit % state) (process form options)))]
+          ast (process form options)
+          body (doall (map #(emit % state) ast))]
+      (when (:ast options)
+        (pprint/pprint ast))
       (assoc @state :body body)))
 #+end_src
 
@@ -3337,6 +3340,7 @@ Some wrappers for the Arduino platform.
                           ["-w" "--watch-input" "Automatically recompile input file on change."]
                           [nil "--disable-formatting" "Disables solution formatting using clang-format."]
                           [nil "--global-functions" "Disables replace-fn-call-sites optimization."]
+                          [nil "--ast" "Print Intermediate AST."]
                           ["-h" "--help" "Print Help"]])
 
     (defn -main [& args]
@@ -3355,6 +3359,7 @@ Some wrappers for the Arduino platform.
               options (-> (file (str input-base-name ".cpp"))
                           compile-options-parse-source
                           (assoc :base-name input-base-name)
+                          (assoc :ast (->> args :options :ast))
                           (assoc :fomat-code (not (->> args :options :disable-formatting)))
                           (assoc :global-functions (->> args :options :global-functions)))
               extra-source-files (cond (not (empty? (:arguments args))) (:arguments args)
@@ -3402,6 +3407,7 @@ Some wrappers for the Arduino platform.
     (:use [clojure.java.io])
     (:require [clojure.zip :as zip]
               [clojure.walk :as walk]
+              [clojure.pprint :as pprint]
               [clojure.tools.cli :refer [parse-opts]]
               [watchtower.core :as watcher])
     (:use [ferret.string-template]

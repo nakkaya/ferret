@@ -28,8 +28,7 @@ Ferret is a functional, lazy language. All functions should mimic their
 Clojure counter parts. If they don't  it is considered a bug. (or not
 possible to implement with the current implementation.)
 
-The code it produces does not include any black magic it is simple,
-somewhat readable C++. All tests are compiled using,
+All tests are compiled using,
 
  - `-std=c++98`
  - `-ansi`

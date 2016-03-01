@@ -3303,31 +3303,41 @@ Some wrappers for the Arduino platform.
                                    extra-source-files)
                               ["-x" "c++"]
                               (str (:base-name options) "." (:source-extension options))])]
+
         (println "[+] Building Binary")
-        (println "[+] Compiler:" (:compiler options))
-        (println "[+] Options:")
-        (doseq [option (:compiler-options options)]
-          (println "           " option))
-        (println "[+] Include Path:")
-        (doseq [path (:include-path options)]
-          (println "           " path))
-        (println "[+] Library Path:")
-        (doseq [path (:library-path options)]
-          (println "           " path))
-        (println "[+] Link:")
-        (doseq [link (:link options)]
-          (println "           " link))
-        (let [ret (with-sh-dir "./"
-                    (apply sh command))]
-          (if (not= 0 (:exit ret))
-            (do (println "[+] Build Error")
-                (println (:err ret))
-                (System/exit 1) )
-            (do (when (:name options)
-                  (with-sh-dir "./"
-                    (sh "mv" "a.out" (str "./" (:name options)))))
-                (println "[+] Done")
-                true)))))
+        (if (:build-command options)
+          (do (println "[+] Build Command" (:build-command options))
+              (let [ret (with-sh-dir "./"
+                          (apply sh (flatten ["bash" "-c" (:build-command options)])))]
+                (if (not= 0 (:exit ret))
+                  (do (println "[+] Build Error")
+                      (println (:err ret))
+                      (System/exit 1))
+                  (println (:out ret)))))
+          (do (println "[+] Compiler:" (:compiler options))
+              (println "[+] Options:")
+              (doseq [option (:compiler-options options)]
+                (println "           " option))
+              (println "[+] Include Path:")
+              (doseq [path (:include-path options)]
+                (println "           " path))
+              (println "[+] Library Path:")
+              (doseq [path (:library-path options)]
+                (println "           " path))
+              (println "[+] Link:")
+              (doseq [link (:link options)]
+                (println "           " link))
+              (let [ret (with-sh-dir "./"
+                          (apply sh command))]
+                (if (not= 0 (:exit ret))
+                  (do (println "[+] Build Error")
+                      (println (:err ret))
+                      (System/exit 1))
+                  (do (when (:name options)
+                        (with-sh-dir "./"
+                          (sh "mv" "a.out" (str "./" (:name options)))))
+                      (println "[+] Done")
+                      true)))))))
   #+end_src
 
    Compiler /main/,

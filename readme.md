@@ -227,6 +227,10 @@ Boost Asio Serial Port Wrapper For Ferret.
 
 Firmata protocol implementation that uses `ferret-serial` and `stl`.
 
+### [ferret-qt](https://git.nakkaya.com/nakkaya/ferret-qt)
+
+QT Embedded Webkit Wrapper For Ferret.
+
 ## License
 
 Copyright 2015 Nurullah Akkaya

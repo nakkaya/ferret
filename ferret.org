@@ -1,4 +1,4 @@
-#+title: Ferret: An Experimental Clojure Compiler
+#+title: Ferret: Clojure to C++ Compiler
 #+tags: clojure c++ arduino avr-gcc gcc
 #+STARTUP: hidestars
 #+TAGS: noexport(e)

@@ -52,7 +52,7 @@ All objects derive from `Object` class.
  - `Character`
  - `Sequence`
  - `LazySequence`
- - `String`
+ - `String` - As `Sequence` of `Character`s
  - `Boolean`
  - `Atom` - Mimics Clojure atoms.
 

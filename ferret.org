@@ -156,6 +156,13 @@ Create some dummy libs under /test/modules/,
 
   (defmacro ten-fn []
     (list 'fn [] 10))
+
+  (defmacro helper-b []
+    (reduce (fn [a b] (+ a b)) (list 1 2 3))
+    1)
+
+  (defn helper-c []
+    (helper-b))
 #+end_src 
 
 #+begin_src clojure :mkdirp yes :tangle ferret/test/modules/module-b.clj
@@ -181,14 +188,15 @@ Run import tests,
 #+name: compiler-import-module-test
 #+begin_src clojure :tangle no
   (deftest import-module-test
-    (is (= "Module AModule C 10 11"
+    (is (= "Module AModule C 10 11 1"
            (capture-output '((require '[test.modules.module-a :as mod-a])
                              (require '[test.modules.module-b :as mod-b])
                              (mod-a/helper-a)
                              (mod-b/helper-b)
                              (print " ")
                              (print ((mod-a/ten-fn))
-                                    ((mod-b/eleven-fn))))))))
+                                    ((mod-b/eleven-fn))
+                                    (mod-a/helper-c)))))))
 #+end_src
 
 *** Process Reader Macros
@@ -262,21 +270,26 @@ then the node is replaced with its expanded form.
   (declare expand-macros-all)
 
   (defn expand-macros [form]
-    (let [macros (->> (read-string (str \( (read-from-url "runtime.clj") \)))
-                      ;;get built in macros
-                      (filter (is-form? 'defmacro))
-                      ;;merge user defined macros
-                      (concat (filter (is-form? 'defmacro) form)))
+    (let [build-in-macros (->> (read-string (str \( (read-from-url "runtime.clj") \)))
+                               (filter (is-form? 'defmacro)))
+          build-in-macro-symbols (into #{} (map second build-in-macros))
+          form-macros (->> (filter (is-form? 'defmacro) form)
+                           (filter (fn [[_ name]]
+                                     (not (build-in-macro-symbols name)))))
+          form-macro-symbols (map second form-macros)
           form (remove-form form (is-form? 'defmacro))
           temp-ns (gensym)]
-      
       (create-ns temp-ns)
       (binding [*ns* (the-ns temp-ns)]
-        (refer 'clojure.core :exclude (concat (map second macros) ['fn 'def]))
+        (refer 'clojure.core :exclude (concat build-in-macro-symbols form-macro-symbols ['fn 'def]))
         (use '[ferret.core :only [symbol-conversion]])
-        (doseq [m macros]
+        
+        (doseq [m build-in-macros]
+          (eval m))
+        
+        (doseq [m form-macros]
           (eval m)))
-
+      
       (let [form (morph-form form
                              (is-form? 'let)
                              (fn [[_ bindings & body]]
@@ -285,7 +298,7 @@ then the node is replaced with its expanded form.
                                      form (cons 'let* (cons bindings (expand-macros-all body)))]
                                  (expand-macros-all form))))
             form (morph-form form
-                             (apply is-form? (map second macros))
+                             (apply is-form? (concat build-in-macro-symbols form-macro-symbols))
                              (fn [f]
                                (binding [*ns* (the-ns temp-ns)]
                                  (walk/macroexpand-all f))))]

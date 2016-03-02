@@ -135,7 +135,7 @@ modules names. So /helper-a/ defined in module /util.db/ becomes
           form (remove-form form (is-form? 'require))
           modules (import-modules-load-modules package-list)
           form (import-modules-convert-alias-to-module package-list form)]
-      (concat modules form)))
+      (shake-concat modules form)))
 
   (defn import-modules-all [form]
     (loop [f form]
@@ -223,13 +223,6 @@ Process some supported reader macros, /@/ and /#(some-fn)/ forms.
 
 *** Add Runtime
 
-In order to keep the generated C++ code compact only the functions used
-will be present in the generated source file. Which means if you don't
-use /println/ anywhere in the code it won't be defined in the final
-C++ file, but if you use it, it and everything it uses will be
-defined, in the case of /println/ it will pull /apply/, /print/ and
-/newline/ with it.
-
 /resources/runtime.clj/ contains the ferret core runtime when
 tangled.
 
@@ -237,25 +230,8 @@ tangled.
 #+begin_src clojure :tangle no
   (defn add-built-in
     ([form]
-     (let [runtime-form (read-string (str \( (read-from-url "runtime.clj") \)))
-           built-in-defn (expand-macros-all runtime-form)
-           built-in-order (->> (filter #(not= 'defobject (first %)) built-in-defn)
-                               (map second))
-           built-in (->> built-in-defn
-                         (reduce (fn[h v] (assoc h (second v) v)) {}))
-           fns (atom {})
-           _ (add-built-in (expand-macros-all form) built-in fns)
-           sorted-fns (->> @fns
-                           (sort-by #(.indexOf built-in-order (key %)))
-                           (map #(second %)))
-           def-objects (filter #(= 'defobject (first %)) built-in-defn)]
-       (concat def-objects sorted-fns form)))
-    ([form built-in fns]
-     (morph-form form symbol?
-                 #(do (if-let [f (built-in %)]
-                        (when (not (@fns %))
-                          (swap! fns assoc % f)
-                          (add-built-in f built-in fns))) %))))
+     (let [runtime (read-string (str \( (read-from-url "runtime.clj") \)))]
+       (shake-concat runtime form))))
 #+end_src
 
 *** Expand Macros
@@ -312,6 +288,43 @@ then the node is replaced with its expanded form.
         (if (= f expanded)
           expanded
           (recur expanded)))))
+#+end_src
+
+*** Shake Concat
+
+In order to keep the generated C++ code compact only the functions used
+will be present in the generated source file. Which means if you don't
+use /println/ anywhere in the code it won't be defined in the final
+C++ file, but if you use it, it and everything it uses will be
+defined, in the case of /println/ it will pull /apply/, /print/ and
+/newline/ with it.
+
+Concats two forms. Shakes the first form by removing any symbols not
+present in second form.
+
+#+name: core-transformation-shake-concat
+#+begin_src clojure
+  (defn shake-concat
+    ([header form]
+     (let [header-no-macro (expand-macros-all header)
+           header-symbols (->> (select-form header-no-macro (is-form? 'def))
+                               (map second))
+           header-fns (reduce (fn[h v] (assoc h (second v) v)) {} header-no-macro)
+           fns (atom {})
+           _ (shake-concat (expand-macros-all form) header-fns fns)
+           include-fns (->> @fns
+                            (sort-by #(.indexOf header-symbols (key %)))
+                            (map #(second %)))
+           objects (select-form header (is-form? 'defobject))
+           macros (select-form header (is-form? 'defmacro))
+           requires (select-form header (is-form? 'require))]
+       (concat requires objects include-fns macros form)))
+    ([form built-in fns]
+     (morph-form form symbol?
+                 #(do (if-let [f (built-in %)]
+                        (when (not (@fns %))
+                          (swap! fns assoc % f)
+                          (shake-concat f built-in fns))) %))))
 #+end_src
 
 *** let->fn
@@ -3449,6 +3462,8 @@ Some wrappers for the Arduino platform.
   <<core-transformation-reader-macros>>
 
   <<core-transformation-expand-macros>>
+
+  <<core-transformation-shake-concat>>
 
   <<core-transformation-add-built-in>>
 

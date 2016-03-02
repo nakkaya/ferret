@@ -1119,7 +1119,9 @@ lambda forms.
           VAR _star_command_line_args_star_;
         #endif
 
-        $symbols:{VAR $it$;} ;separator=\"\n\"$
+        namespace ferret{
+         $symbols:{VAR $it$;} ;separator=\"\n\"$
+        }
 
         $native_declarations:{$it$} ;separator=\"\n\"$      
 

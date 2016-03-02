@@ -150,7 +150,7 @@ Import all modules in the given form.
 
 Create some dummy libs under /test/modules/,
 
-#+begin_src clojure :mkdirp yes :tangle ferret/test/modules/module-a.clj
+#+begin_src clojure :mkdirp yes :tangle src/test/modules/module-a.clj
   (defn helper-a []
     (print "Module A"))
 
@@ -165,7 +165,7 @@ Create some dummy libs under /test/modules/,
     (helper-b))
 #+end_src 
 
-#+begin_src clojure :mkdirp yes :tangle ferret/test/modules/module-b.clj
+#+begin_src clojure :mkdirp yes :tangle src/test/modules/module-b.clj
   (require '[test.modules.module-c :as mod-c])
 
   (defn helper-b []
@@ -175,7 +175,7 @@ Create some dummy libs under /test/modules/,
     (mod-c/eleven-fn))
 #+end_src 
 
-#+begin_src clojure :mkdirp yes :tangle ferret/test/modules/module-c.clj
+#+begin_src clojure :mkdirp yes :tangle src/test/modules/module-c.clj
   (defn helper-c []
     (print "Module C"))
 
@@ -3408,7 +3408,7 @@ Some wrappers for the Arduino platform.
 
 * Files                                                            :noexport:
 ** project.clj
-#+begin_src clojure :mkdirp yes :tangle ferret/project.clj
+#+begin_src clojure :mkdirp yes :tangle src/project.clj
   (defproject ferret "1.0.0-SNAPSHOT"
     :dependencies [[org.clojure/clojure "1.7.0"]
                    [org.clojure/tools.cli "0.3.3"]
@@ -3424,7 +3424,7 @@ Some wrappers for the Arduino platform.
     :uberjar-name "ferret-app.jar")
 #+end_src 
 ** src/core.clj
-#+begin_src clojure :noweb yes :mkdirp yes :tangle ferret/src/ferret/core.clj
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/src/ferret/core.clj
   (ns ferret.core
     (:gen-class)
     (:use [clojure.java.io])
@@ -3467,7 +3467,7 @@ Some wrappers for the Arduino platform.
   <<core-code-compile-code>>
 #+end_src 
 ** src/template.clj
-#+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/src/ferret/template.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/src/ferret/template.clj
   (ns ferret.template
     (:use [ferret.string-template])
     (:import (java.io BufferedReader InputStreamReader)))
@@ -3488,7 +3488,7 @@ Some wrappers for the Arduino platform.
   <<code-templates>>
 #+end_src 
 ** src/string_template.clj
-#+begin_src clojure :noweb yes :mkdirp yes :tangle ferret/src/ferret/string_template.clj
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/src/ferret/string_template.clj
   (ns ferret.string-template
     (:import org.antlr.stringtemplate.StringTemplateGroup)
     (:import org.antlr.stringtemplate.StringTemplate)
@@ -3538,7 +3538,7 @@ Some wrappers for the Arduino platform.
     (.toString template))
 #+end_src
 
-#+begin_src clojure :noweb yes :mkdirp yes :tangle ferret/src/ferret/string_template_internal.clj
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/src/ferret/string_template_internal.clj
   (ns ferret.string-template-internal)
 
 
@@ -3581,7 +3581,7 @@ Some wrappers for the Arduino platform.
 #+end_src
 
 ** test/core.clj
-#+begin_src clojure :noweb yes :mkdirp yes :tangle ferret/test/ferret/test/core.clj
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/test/ferret/test/core.clj
     (ns ferret.test.core
       (:use [ferret.core] :reload)
       (:use [clojure.test]
@@ -3599,6 +3599,8 @@ Some wrappers for the Arduino platform.
       (compile->binary options [])
       (with-sh-dir "./"
         (let [r (sh "./a.out")]
+          (sh "rm" "-f" "a.out")
+          (sh "rm" "-f" "solution.cpp")
           (:out r)))))
 
     <<compiler-transformation-tests>>
@@ -3620,7 +3622,7 @@ Some wrappers for the Arduino platform.
 
 ** resources/Object.cpp
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle ferret/resources/Object.cpp
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/resources/Object.cpp
   <<runtime-native-program-header>>
 
   <<runtime-native-scheme>>
@@ -3676,7 +3678,7 @@ Some wrappers for the Arduino platform.
 
 ** resources/runtime.clj
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle ferret/resources/runtime.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/resources/runtime.clj
   <<runtime-clojure-misc-thread-macro>>
   <<runtime-clojure-boolean-object>>
   <<runtime-clojure-pointer-object>>

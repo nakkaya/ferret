@@ -87,12 +87,13 @@ of mod -> aliases pairs.
     (reduce (fn[h [m aliases]]
               (let [mod (read-clojure-file
                          (str (.replace (str m) "." "/") ".clj"))
-                    replace? (->> (select-form mod (fn [s] (or ((is-form? 'def) s)
-                                                              ((is-form? 'defn) s)
-                                                              ((is-form? 'defnative) s)
-                                                              ((is-form? 'defmacro) s))))
-                                  (map second)
-                                  (into #{}))
+                    macro-symbols (->> (select-form mod (is-form? 'defmacro))
+                                       (map second)
+                                       (into #{}))
+                    def-symbols (->> (select-form (expand-macros-all mod) (is-form? 'def))
+                                     (map second)
+                                     (into #{}))
+                    replace? (set/union macro-symbols def-symbols)
                     mod (morph-form mod symbol?
                                     (fn [f]
                                       (if (replace? f)
@@ -3428,7 +3429,8 @@ Some wrappers for the Arduino platform.
   (ns ferret.core
     (:gen-class)
     (:use [clojure.java.io])
-    (:require [clojure.zip :as zip]
+    (:require [clojure.set :as set]
+              [clojure.zip :as zip]
               [clojure.walk :as walk]
               [clojure.pprint :as pprint]
               [clojure.tools.cli :refer [parse-opts]]

@@ -2493,19 +2493,21 @@ implementation.
 
 #+name: runtime-clojure-console-io
 #+begin_src clojure :tangle no
-  (defn print [& more]
-    "if (IS_NIL(more))
-       return NIL;
-     var f = ISEEKABLE(more)->first();
-     f.toOutputStream();
-     var r = ISEEKABLE(more)->rest();
-     ITERATE(r,it){
-      fprintf(OUTPUT_STREAM, \" \");
-      FIRST(it).toOutputStream();
-     }")
+  (defnative print [& more]
+    (on "!defined(DISABLE_OUTPUT_STREAM)"
+        "if (IS_NIL(more))
+           return NIL;
+         var f = ISEEKABLE(more)->first();
+         f.toOutputStream();
+         var r = ISEEKABLE(more)->rest();
+         ITERATE(r,it){
+          fprintf(OUTPUT_STREAM, \" \");
+          FIRST(it).toOutputStream();
+         }"))
 
-  (defn newline []
-    "fprintf(OUTPUT_STREAM, \"\\n\");")
+  (defnative newline [& more]
+    (on "!defined(DISABLE_OUTPUT_STREAM)"
+        "fprintf(OUTPUT_STREAM, \"\\n\");"))
 
   <<runtime-clojure-println>>
 #+end_src

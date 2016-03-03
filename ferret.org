@@ -2947,6 +2947,18 @@ implementation.
   (defn mod [num div] "__result = NEW_NUMBER((NUMBER(num)->intValue() % TO_INT(div)));")
 #+end_src
 
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn scale [x in-min in-max out-min out-max]
+    (+ (/ (* (- x in-min) (- out-max out-min)) (- in-max in-min)) out-min))
+
+  (defn clamp [x min max]
+    (cond
+      (> x max) max
+      (< x min) min
+      :default x))
+#+end_src
+
 #+name: runtime-clojure-bit-arithmetic-tests
 #+begin_src clojure :tangle no
   (deftest arithmetic-test
@@ -3006,6 +3018,19 @@ implementation.
                                (- 2 a)
                                (- b a)
                                (print a b)))))))
+#+end_src
+
+#+name: runtime-clojure-bit-arithmetic-tests
+#+begin_src clojure :tangle no
+  (deftest math-test
+    (is (= "100 50 0 5 10 0 -10"
+           (capture-output '((print (scale 10 0 10 0 100)
+                                    (scale 5 0 10 0 100)
+                                    (scale 0 0 10 0 100)
+                                    (clamp 10 0 5)
+                                    (clamp 10 0 20)
+                                    (clamp 10 -10 0)
+                                    (clamp -100 -10 0)))))))
 #+end_src
 
 *** Bit Operations

@@ -230,7 +230,8 @@ tangled.
 #+begin_src clojure :tangle no
   (defn add-built-in
     ([form]
-     (let [runtime (read-string (str \( (read-from-url "runtime.clj") \)))]
+     (let [runtime (-> (read-string (str \( (read-from-url "runtime.clj") \)))
+                       (remove-form (is-form? 'defmacro)))]
        (shake-concat runtime form))))
 #+end_src
 

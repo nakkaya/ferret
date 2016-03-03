@@ -3196,15 +3196,15 @@ Some wrappers for the Arduino platform.
 #+begin_src clojure :tangle no
   (defn pin-mode [pin mode]
     "if (mode.equals(NEW_KEYWORD(618)) == true) // :input
-        pinMode(NUMBER(pin)->intValue(), INPUT);
+        pinMode(TO_INT(pin), INPUT);
      else
-        pinMode(NUMBER(pin)->intValue(), OUTPUT);")
+        pinMode(TO_INT(pin), OUTPUT);")
 
   (defn digital-write [pin mode]
     "if (mode.equals(NEW_KEYWORD(474))  == true) // :high
-        digitalWrite(NUMBER(pin)->intValue(), HIGH);
+        digitalWrite(TO_INT(pin), HIGH);
      else
-        digitalWrite(NUMBER(pin)->intValue(), LOW);")
+        digitalWrite(TO_INT(pin), LOW);")
 #+end_src
 
 * Misc

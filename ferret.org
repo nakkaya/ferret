@@ -1121,13 +1121,15 @@ lambda forms.
 **** Program
 
 #+name: code-templates
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb yes
   (defn solution-template [source]
     (let [{:keys [body lambdas symbol-table native-declarations native-defines]} source
           view (create-view "
         $native_defines:{$it$} ;separator=\"\n\"$
 
         $object_interface$
+
+        <<runtime-native-iseekable-headers>>
 
         #if defined(STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS) && !defined(DISABLE_MAIN_FUNCTION)
           VAR _star_command_line_args_star_;
@@ -1143,6 +1145,8 @@ lambda forms.
           $lambda_classes:{$it$} ;separator=\"\n\"$
           $lambda_bodies:{$it$} ;separator=\"\n\"$
         }
+
+        <<runtime-native-iseekable-functions>>
 
         namespace ferret{
           void ProgramRun(){
@@ -1627,14 +1631,44 @@ containers.
     (fns ("virtual ~ISeekable" "" "")))
 #+end_src
 
+#+name: runtime-native-iseekable-headers
+#+begin_src c++ :tangle no
+  namespace ferret{
+    var FIRST(var coll);
+    var REST(var coll);
+    var CONS(var seq, var x);
+  }
+#+end_src
+
+#+name: runtime-native-iseekable-functions
+#+begin_src c++ :tangle no
+  namespace ferret{
+    var FIRST(var coll){
+      if (IS_NIL(coll))
+        return NIL;
+      else
+        return ISEEKABLE(coll)->first();
+    }
+
+    var REST(var coll){
+      if (IS_NIL(coll))
+        return NEW_SEQUENCE();
+      else
+        return ISEEKABLE(coll)->rest();
+    }
+
+    var CONS(var seq, var x){
+      if (IS_NIL(seq))
+        seq = NEW_SEQUENCE();
+      return ISEEKABLE(seq)->cons(x);
+    }
+  }
+#+end_src
+
 #+name: runtime-native-iseekable-macros
 #+begin_src c++ :tangle no
-  #define FIRST(coll) (ISEEKABLE(coll)->first())
-  #define REST(coll) (ISEEKABLE(coll)->rest())
   #define ITERATE(c,i) for(var i = c; IS_NOT_NIL(REST(i)); i = REST(i))
-
   #define NEW_SEQUENCE() (VAR(new ferret::Sequence()))
-  #define CONS(s,v) (s = ISEEKABLE(s)->cons(v))
 #+end_src
 
 *** Sequence
@@ -1913,7 +1947,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
       "DELETE_LOCK(lock);")
      ("var swap" "var f,var args"
       "WITH_LOCK(lock,{
-         CONS(args,data);
+         args = CONS(args,data);
          data = LAMBDA(f)->invoke(args);
        });
       return data;")))
@@ -2269,10 +2303,7 @@ Once our object system is in place we can define rest of the runtime
 #+name: runtime-clojure-first
 #+begin_src clojure :tangle no
   (defn first [x]
-    "if(IS_NIL(x))
-      __result = NIL;
-    else
-      __result = FIRST(x);")
+    "__result = FIRST(x);")
 
   (defn nil? [x] "__result = NEW_BOOLEAN(IS_NIL(x))")
 
@@ -2666,17 +2697,13 @@ implementation.
 
   (defn empty? [x] "__result = NEW_BOOLEAN(ISEEKABLE(x)->count() == 0)")
 
-  (defn rest [x] "if (IS_NIL(x))
-                      return NEW_SEQUENCE();
-                    var r = REST(x);
-                    if (IS_NIL(r))
-                      return NEW_SEQUENCE();
-                    else 
-                      __result = r;")
+  (defn rest [x] "var r = REST(x);
+                  if (IS_NIL(r))
+                    return NEW_SEQUENCE();
+                  else 
+                    __result = r;")
 
-  (defn cons [x seq] "if IS_NIL(seq)
-                       seq = NEW_SEQUENCE();
-                      __result = CONS(seq,x);")
+  (defn cons [x seq] "__result = CONS(seq,x);")
 
   (defn apply [f args] "__result = LAMBDA(f)->invoke(args);")
 

@@ -3359,7 +3359,7 @@ Some wrappers for the Arduino platform.
   #+name: core-code-compile-code
   #+begin_src clojure
     (defn compile->cpp [form options]
-      (let [file-name (str (:base-name options) "." (:source-extension options))
+      (let [file-name (str (:output-path options) (:base-name options) "." (:source-extension options))
             source (emit-source form options)]
         (println "[+] Compiling")
         (write-to-solution (solution-template source) file-name)
@@ -3454,9 +3454,11 @@ Some wrappers for the Arduino platform.
                       (do (println "No Input File.")
                           (System/exit 1)))
               input-base-name (org.apache.commons.io.FilenameUtils/getBaseName input)
+              input-path (org.apache.commons.io.FilenameUtils/getPath input)
               options (-> (file (str input-base-name ".cpp"))
                           compile-options-parse-source
                           (assoc :base-name input-base-name)
+                          (assoc :output-path input-path)
                           (assoc :ast (->> args :options :ast))
                           (assoc :fomat-code (not (->> args :options :disable-formatting)))
                           (assoc :global-functions (->> args :options :global-functions)))

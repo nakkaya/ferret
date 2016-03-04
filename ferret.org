@@ -850,7 +850,7 @@ lambda forms.
 #+name: clojure-destructure-tests
 #+begin_src clojure :tangle no
   (deftest destructure-test
-    (is (= "(1 2 3) 2 3 ((1 2 3)) 1 2 (3 4) 1 2 4 (5) (3) 1 2 3 3 3 5"
+    (is (= "(1 2 3) 2 3 ((1 2 3)) 1 2 (3 4) 1 2 4 (5) (3) 1 2 3 3 3 5 1 2 3 nil nil nil"
            (capture-output '((defn destructure-test-1 [[a b c]]
                                (list a b c))
                              (defn destructure-test-2 [[a [b] c]]
@@ -889,7 +889,11 @@ lambda forms.
                              (print " ")
                              (let [[_ _ a] (list 1 2 3)
                                    [_ b] (list 4 5 6)]
-                               (print a b)))))))
+                               (print a b))
+                             (print " ")
+                             (let [a (list 1 2 3)
+                                   [b c d e f g] a]
+                               (print b c d e f g)))))))
 #+end_src
 
 #+name: core-code-generation-emit-source-methods

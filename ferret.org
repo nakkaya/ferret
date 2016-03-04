@@ -909,7 +909,7 @@ lambda forms.
                                             (= (first %) 'native_declare)) body)
           body (filter #(not (and (seq? %)
                                   (= (first %) 'native_declare))) body)
-          body (cond  (empty? body) ["NIL"]
+          body (cond  (empty? body) ["NIL;"]
                       (and (= 1 (count body))
                            (string? (first body)))
                       (let [inline (first body) 
@@ -917,7 +917,7 @@ lambda forms.
                                    inline
                                    (str inline \;))]
                         ["VAR __result;" body "__result;"])
-                      :default (doall (map #(emit % state) body)))
+                      :default (doall (map #(str (emit % state) \;) body)))
           env (->> env
                    (flatten)
                    (filter #(and (not (= '& %))

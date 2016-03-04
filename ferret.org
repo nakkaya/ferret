@@ -912,7 +912,11 @@ lambda forms.
           body (cond  (empty? body) ["NIL"]
                       (and (= 1 (count body))
                            (string? (first body)))
-                      ["VAR __result" body "__result"]
+                      (let [inline (first body) 
+                            body (if (= (last inline) \;)
+                                   inline
+                                   (str inline \;))]
+                        ["VAR __result;" body "__result;"])
                       :default (doall (map #(emit % state) body)))
           env (->> env
                    (flatten)
@@ -1114,8 +1118,8 @@ lambda forms.
             {
               $lambda.args:{args | $args$; } ;separator=\"\n\"$
 
-              $trunc(lambda.body):{$it$;} ;separator=\"\n\"$
-              return $last(lambda.body):{ $it$;} ;separator=\"\n\"$
+              $trunc(lambda.body):{$it$} ;separator=\"\n\"$
+              return $last(lambda.body):{$it$} ;separator=\"\n\"$
             }
         };separator=\"\n\n\"$")]
       (fill-view! view "lambdas" lambdas)

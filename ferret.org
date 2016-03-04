@@ -2522,10 +2522,16 @@ implementation.
                      (map #(list 'apply % fn-arg-symbol)))
             conds (->> (map first body)
                        (map (fn* [args] (filter #(not (= % '&)) args)))
-                       (map #(list '= count-symbol (count %))))]
+                       (map #(list '= count-symbol (count %))))
+            form (if (pos? (.indexOf (last (map first body)) '&))
+                   (let [conds (interleave conds fns)
+                         arg-dispatch (drop-last 2 conds)
+                         last (take-last 2 conds)]
+                     (concat arg-dispatch [true (second last)]))
+                   (interleave conds fns))]
         `(fn* (& ~fn-arg-symbol)
               (let* (~count-symbol (~'count ~fn-arg-symbol))
-                    (~'cond ~@(interleave conds fns)))))))
+                    (~'cond ~@form))))))
 #+end_src
 
 *** Console I/O
@@ -2792,57 +2798,69 @@ implementation.
   (defmacro not= [& test]
     (list 'not (cons '= `( ~@test))))
 
-  (defn < [a & more]
-    (if (empty? more)
-      true
-      (and ((fn [a b] "
-      NUMBER_DATA_TYPE an = NUMBER(a)->getNumerator();
+  (defn <
+    ([] true)
+    ([x] true)
+    ([a b]
+     "NUMBER_DATA_TYPE an = NUMBER(a)->getNumerator();
       NUMBER_DATA_TYPE adn = NUMBER(a)->getDenominator();
 
       NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
       NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
-      __result = NEW_BOOLEAN((an * bdn) < (bn * adn));") a (first more))
-           (apply < more))))
+      __result = NEW_BOOLEAN((an * bdn) < (bn * adn));")
+    ([a b & more]
+     (if (< a b)
+       (apply < (cons b more))
+       false)))
 
-  (defn > [a & more]
-    (if (empty? more)
-      true
-      (and ((fn [a b] "
-      NUMBER_DATA_TYPE an = NUMBER(a)->getNumerator();
+  (defn >
+    ([] true)
+    ([x] true)
+    ([a b]
+     "NUMBER_DATA_TYPE an = NUMBER(a)->getNumerator();
       NUMBER_DATA_TYPE adn = NUMBER(a)->getDenominator();
 
       NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
       NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
-      __result =  NEW_BOOLEAN((an * bdn) > (bn * adn));") a (first more))
-           (apply > more))))
+      __result = NEW_BOOLEAN((an * bdn) > (bn * adn));")
+    ([a b & more]
+     (if (> a b)
+       (apply > (cons b more))
+       false)))
 
-  (defn >= [a & more]
-    (if (empty? more)
-      true
-      (and ((fn [a b] "
-      NUMBER_DATA_TYPE an = NUMBER(a)->getNumerator();
+  (defn >=
+    ([] true)
+    ([x] true)
+    ([a b]
+     "NUMBER_DATA_TYPE an = NUMBER(a)->getNumerator();
       NUMBER_DATA_TYPE adn = NUMBER(a)->getDenominator();
 
       NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
       NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
-      return NEW_BOOLEAN((an * bdn) >= (bn * adn));") a (first more))
-           (apply >= more))))
+      __result = NEW_BOOLEAN((an * bdn) >= (bn * adn));")
+    ([a b & more]
+     (if (>= a b)
+       (apply >= (cons b more))
+       false)))
 
-  (defn <= [a & more]
-    (if (empty? more)
-      true
-      (and ((fn [a b] "
-      NUMBER_DATA_TYPE an = NUMBER(a)->getNumerator();
+  (defn <=
+    ([] true)
+    ([x] true)
+    ([a b]
+     "NUMBER_DATA_TYPE an = NUMBER(a)->getNumerator();
       NUMBER_DATA_TYPE adn = NUMBER(a)->getDenominator();
 
       NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
       NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
-      __result = NEW_BOOLEAN((an * bdn) <= (bn * adn));") a (first more))
-           (apply <= more))))
+      __result = NEW_BOOLEAN((an * bdn) <= (bn * adn));")
+    ([a b & more]
+     (if (<= a b)
+       (apply <= (cons b more))
+       false)))
 
   (defmacro and
     ([] true)
@@ -2908,64 +2926,72 @@ implementation.
   (defn float? [x] "__result = NEW_BOOLEAN(IS_TYPE(x,NUMBER_TYPE) &&
                                           (NUMBER(x)->getDenominator() != 1));")
 
-  (defn + [& xs]
-    (if (nil? xs)
-      0
-      (reduce (fn[h v] "
-        NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
-        NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
+  (defn +
+    ([] 0)
+    ([x] x)
+    ([h v]
+     "NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
+      NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
 
-        NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
-        NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
+      NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
+      NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
 
-        NUMBER_DATA_TYPE ndn = (hdn * vdn);
+      NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
-        __result = NEW_RATIO(((hn * vdn) + (vn * hdn)),ndn);") 0 xs)))
+      __result = NEW_RATIO(((hn * vdn) + (vn * hdn)),ndn);")
+    ([x y & more]
+     (reduce + (+ x y) more)))
 
   (defn inc [x]
     (+ x 1))
 
   <<runtime-clojure-sequence-count>>
 
-  (defn * [& xs]
-    (if (nil? xs)
-      1
-      (reduce (fn[h v] "
-        NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
-        NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
+  (defn *
+    ([] 1)
+    ([x] x)
+    ([h v]
+     "NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
+      NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
 
-        NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
-        NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
+      NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
+      NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
 
-        NUMBER_DATA_TYPE ndn = (hdn * vdn);
+      NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
-        __result = NEW_RATIO(((hn * vdn) * (vn * hdn)),ndn);") 1 xs)))
+      __result = NEW_RATIO(((hn * vdn) * (vn * hdn)),ndn);")
+    ([x y & more]
+     (reduce * (* x y) more)))
 
-  (defn - [& xs]
-    (if (= (count xs) 1)
-      (* -1 (first xs))
-      (reduce (fn[h v] "
-        NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
-        NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
+  (defn -
+    ([x]
+     (* -1 x))
+    ([h v]
+     "NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
+      NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
 
-        NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
-        NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
+      NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
+      NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
 
-        NUMBER_DATA_TYPE ndn = (hdn * vdn);
+      NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
-        __result = NEW_RATIO(((hn * vdn) - (vn * hdn)),ndn);") (first xs) (rest xs))))
+      __result = NEW_RATIO(((hn * vdn) - (vn * hdn)),ndn);")
+    ([x y & more]
+     (reduce - (- x y) more)))
 
-  (defn / [& xs]
-    (if (= (count xs) 1)
-      (apply / (cons 1 xs))
-      (reduce (fn[h v] "
-        NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
-        NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
+  (defn /
+    ([x]
+     (apply / (list 1 x)))
+    ([h v]
+     "NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
+      NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
 
-        NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
-        NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
+      NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
+      NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
 
-        __result = NEW_RATIO((hn * vdn),(vn * hdn));") (first xs) (rest xs))))
+      __result = NEW_RATIO((hn * vdn),(vn * hdn));")
+    ([x y & more]
+     (reduce / (/ x y) more)))
 
   (defn dec [x]
     (- x 1))

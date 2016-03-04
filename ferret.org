@@ -3294,9 +3294,6 @@ Some wrappers for the Arduino platform.
         (when (.exists file)
           (func func file))))
 
-    (defn write-to-solution [s f]
-      (FileUtils/writeStringToFile (file (str "./" f)) s))
-
     (defn append-to! [r ks v]
       (dosync 
        (let [cv (reduce (fn[h v] (v h)) @r ks)]
@@ -3366,7 +3363,7 @@ Some wrappers for the Arduino platform.
       (let [file-name (str (:output-path options) (:base-name options) "." (:source-extension options))
             source (emit-source form options)]
         (println "[+] Compiling")
-        (write-to-solution (solution-template source) file-name)
+        (FileUtils/writeStringToFile (file file-name) (solution-template source))
         (let [formatted-source (try (with-sh-dir "./"
                                       (sh "clang-format" "-style" "{Standard: Cpp03}" file-name))
                                     (catch Exception e nil))]
@@ -3459,6 +3456,9 @@ Some wrappers for the Arduino platform.
                           (System/exit 1)))
               input-base-name (org.apache.commons.io.FilenameUtils/getBaseName input)
               input-path (org.apache.commons.io.FilenameUtils/getPath input)
+              input-path (if (empty? input-path)
+                           (str "./")
+                           (str "/" input-path))
               options (-> (file (str input-base-name ".cpp"))
                           compile-options-parse-source
                           (assoc :base-name input-base-name)

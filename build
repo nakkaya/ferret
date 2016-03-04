@@ -1,0 +1,7 @@
+#!/bin/sh
+
+emacs -nw -Q --batch --eval "(progn (require 'org) (require 'ob) (require 'ob-tangle) (org-babel-tangle-file \"ferret.org\"))"
+cd src/
+lein uberjar
+cd ../
+cat src/resources/bash_executable_stub.sh src/target/ferret-app.jar > ferret && chmod +x ferret

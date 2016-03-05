@@ -3348,6 +3348,9 @@ Some wrappers for the Arduino platform.
               :source-extension "cpp"
               :base-name "solution"}
              options))
+
+    (defn cpp-file-name [options]
+      (str (:output-path options) (:base-name options) "." (:source-extension options)))
   #+end_src
 
    Read the /cpp/ file parse build options embedded in it.
@@ -3386,7 +3389,7 @@ Some wrappers for the Arduino platform.
   #+name: core-code-compile-code
   #+begin_src clojure
     (defn compile->cpp [form options]
-      (let [file-name (str (:output-path options) (:base-name options) "." (:source-extension options))
+      (let [file-name (cpp-file-name options)
             source (emit-source form options)]
         (println "[+] Compiling")
         (FileUtils/writeStringToFile (file file-name) (solution-template source))
@@ -3422,7 +3425,7 @@ Some wrappers for the Arduino platform.
         (println "[+] Building Binary")
         (if (:build-command options)
           (do (println "[+] Build Command" (:build-command options))
-              (let [ret (with-sh-dir "./"
+              (let [ret (with-sh-dir (:output-path options)
                           (apply sh (flatten ["bash" "-c" (:build-command options)])))]
                 (if (not= 0 (:exit ret))
                   (do (println "[+] Build Error")
@@ -3442,14 +3445,14 @@ Some wrappers for the Arduino platform.
               (println "[+] Link:")
               (doseq [link (:link options)]
                 (println "           " link))
-              (let [ret (with-sh-dir "./"
+              (let [ret (with-sh-dir (:output-path options)
                           (apply sh command))]
                 (if (not= 0 (:exit ret))
                   (do (println "[+] Build Error")
                       (println (:err ret))
                       (System/exit 1))
                   (do (when (:name options)
-                        (with-sh-dir "./"
+                        (with-sh-dir (:output-path options)
                           (sh "mv" "a.out" (str "./" (:name options)))))
                       (println "[+] Done")
                       true)))))))
@@ -3481,10 +3484,8 @@ Some wrappers for the Arduino platform.
                       (do (println "No Input File.")
                           (System/exit 1)))
               input-base-name (org.apache.commons.io.FilenameUtils/getBaseName input)
-              input-path (org.apache.commons.io.FilenameUtils/getPath input)
-              input-path (if (empty? input-path)
-                           (str "./")
-                           (str "/" input-path))
+              input-path (str (org.apache.commons.io.FilenameUtils/getPrefix input)
+                              (org.apache.commons.io.FilenameUtils/getPath input))
               options (-> (file (str input-base-name ".cpp"))
                           compile-options-parse-source
                           (assoc :base-name input-base-name)
@@ -3499,8 +3500,9 @@ Some wrappers for the Arduino platform.
                          (let [input (read-clojure-file input)]
                            (compile->cpp input options)
                            (when (->> args :options :compile)
-                             (let [options (-> (file (str input-base-name ".cpp"))
+                             (let [options (-> (file (cpp-file-name options))
                                                compile-options-parse-source
+                                               (assoc :output-path input-path)
                                                (assoc :base-name input-base-name))
                                    options (assoc options :base-name input-base-name)]
                                (compile->binary options extra-source-files)))))]

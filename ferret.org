@@ -3364,6 +3364,7 @@ Some wrappers for the Arduino platform.
                            (re-seq #"(?s)Ferret Build Configuration Begin.*?//(.*?)// Ferret Build Configuration")
                            (map second)
                            (map #(.replaceAll % "//" ""))
+                           (map #(.replaceAll % "\n" " "))
                            (map read-string))
               keys (->> options
                         (map #(keys %))

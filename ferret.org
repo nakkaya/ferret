@@ -1647,6 +1647,7 @@ containers.
     var FIRST(var coll);
     var REST(var coll);
     var CONS(var seq, var x);
+    var NTH(var seq, var index);
   }
 #+end_src
 
@@ -1671,6 +1672,18 @@ containers.
       if (IS_NIL(seq))
         seq = NEW_SEQUENCE();
       return ISEEKABLE(seq)->cons(x);
+    }
+    
+    var NTH(var seq, var idx){
+      int index = TO_INT(idx);
+
+      if ( index < 0 || ISEEKABLE(seq)->count() < idx)
+        return NIL;
+      
+      var head = seq;
+      for(int i=0; i < index; i++)
+        head = REST(head);
+      return FIRST(head);
     }
   }
 #+end_src
@@ -2722,6 +2735,8 @@ implementation.
                   else 
                     __result = r;")
 
+  (defn nth [coll index] "__result = NTH(coll,index);")
+
   (defn cons [x seq] "__result = CONS(seq,x);")
 
   (defn apply [f args] "__result = LAMBDA(f)->invoke(args);")
@@ -2787,7 +2802,13 @@ implementation.
                                     (take 2 (map inc (list 1 2 3)))
                                     (take 20 (map inc (list 1 2 3)))
                                     (concat (list 1 2 3) (list 4 5 6 7))
-                                    (reduce + (concat (list 1 2 3) (list 4 5 6)))))))))
+                                    (reduce + (concat (list 1 2 3) (list 4 5 6))))))))
+    (is (= "1 2 3 nil nil"
+           (capture-output '((print (nth (list 1 2 3) 0)
+                                    (nth (list 1 2 3) 1)
+                                    (nth (list 1 2 3) 2)
+                                    (nth (list 1 2 3) 10)
+                                    (nth (list 1 2 3) -10)))))))
 #+end_src
 
 *** Logical Operators

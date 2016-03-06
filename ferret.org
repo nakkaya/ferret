@@ -3180,8 +3180,9 @@ DSL,
 
 #+begin_src clojure :tangle no
   (defmachine two-state-machine
-    (state off (println "Off"))
-    (state on (println "On"))
+    (states
+     (off (println "Off"))
+     (on (println "On")))
     (transitions
      (off
       (fn [] true) on)
@@ -3198,9 +3199,9 @@ returns true returns the next state.
 
 #+name: runtime-clojure-state-machine
 #+begin_src clojure :tangle no
-  (defmacro defmachine [name & form]
+  (defmacro defmachine [name states transitions]
     (let [transitions
-          (->> (last form)
+          (->> transitions
                rest
                (map (fn [x]
                       (let [[state & states] x
@@ -3208,16 +3209,13 @@ returns true returns the next state.
                                         (map #(list (list (first %)) (second %))))
                             states (->> (clojure.core.protocols/coll-reduce
                                          states (fn [h v]
-                                                 (conj h (second v) (first v))) (list))
+                                                  (conj h (second v) (first v))) (list))
                                         (cons 'cond))]
                         [(list '= 'state state) (concat states [true state])]))))
           start-state (-> transitions first first last)
           transitions (clojure.core.protocols/coll-reduce
-                       transitions (fn [h v]
-                                     (conj h (first v) (second v))) ['cond])
-          
-          states (->> (filter #(= (first %) 'state) form)
-                      (map rest)
+                       transitions (fn [h v] (conj h (first v) (second v))) ['cond])
+          states (->> (rest states)
                       (map (fn [x]
                              [(first x)
                               (->> (rest x)
@@ -3225,15 +3223,25 @@ returns true returns the next state.
                                    (cons 'fn*))])))
           states (clojure.core.protocols/coll-reduce
                   states (fn [h v]
-                           (conj h (first v) (second v))) [])]
-      (list 'def name
-            `(let* [~@states
-                    ~'curr-state ~(list 'atom start-state)]
-                   ~(list 'fn* []
-                          `~(list 'swap! 'curr-state
-                                  (list 'fn* ['state]
-                                        (list 'state)
-                                        `(~@transitions))))))))
+                           (conj h (first v) (second v))) [])
+          state-names (->> states
+                           (partition 2)
+                           (map first))
+          state-symbols (->> states
+                             (partition 2)
+                             (map second))
+          func (list 'fn (into [] state-names)
+                     (list
+                      (list 'fn ['curr-state]
+                            `~(list 'fn* []
+                                    (list
+                                     (list 'fn* []
+                                           `~(list 'swap! 'curr-state
+                                                   (list 'fn* ['state]
+                                                         (list 'state)
+                                                         `(~@transitions)))))))
+                      (list 'atom start-state)))]
+      (list 'def name (cons func state-symbols))))
 #+end_src
 
 #+name: runtime-clojure-state-machine-tests
@@ -3242,8 +3250,9 @@ returns true returns the next state.
     (is (= "10 0 10"
            (capture-output '((def state (atom 0))
                              (defmachine two-state-machine
-                               (state off (swap! state inc))
-                               (state on (swap! state inc))
+                               (states
+                                (off (swap! state inc))
+                                (on (swap! state inc)))
                                (transitions
                                 (off
                                  (fn [] true) on)
@@ -3257,10 +3266,11 @@ returns true returns the next state.
                              (print (deref state))
 
                              (defmachine three-state-machine
-                               (state a (swap! state inc))
-                               (state b (swap! state inc))
-                               (state c (swap! state inc))
-                               (state no-op (swap! state inc))
+                               (states
+                                (a (swap! state inc))
+                                (b (swap! state inc))
+                                (c (swap! state inc))
+                                (no-op (swap! state inc)))
                                (transitions
                                 (a
                                  (fn [] false) no-op
@@ -3277,6 +3287,15 @@ returns true returns the next state.
                              (print " ")
                              (print (deref state)))))))
 #+end_src
+
+*** PID
+
+#+name: runtime-clojure-arduino
+#+begin_src clojure :tangle no
+
+#+end_src
+
+
 
 *** Arduino
 

@@ -2344,17 +2344,20 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
   (defmacro native-header [& body]
     (cons 'native-declare
-          (->> (map #(str "#include \"" (str %) "\"\n") body)
+          (->> (map #(if (symbol? %)
+                       (str "#include \"" (str %) ".h\"\n")
+                       (str "#include \"" (str %) "\"\n"))
+                    body)
                (apply str)
                (list))))
 
-  (defmacro configure! [& body]
+  (defmacro configure-runtime! [& body]
     (cons 'native-define
           (->> (partition 2 body)
                (map #(str "#define " (first %) " " (second %) "\n"))
                (list))))
 
-  (defmacro build-options [& body]
+  (defmacro configure-ferret! [& body]
     (list 'native-define (str "// Ferret Build Configuration Begin\n"
                               "//" (str (apply hash-map body)) "\n"
                               "// Ferret Build Configuration End\n")))

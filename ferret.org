@@ -916,7 +916,9 @@ lambda forms.
                             body (if (= (last inline) \;)
                                    inline
                                    (str inline \;))]
-                        ["VAR __result;" body "__result;"])
+                        (if (neg? (.indexOf body "__result"))
+                          [body "NIL;"]
+                          ["VAR __result;" body "__result;"]))
                       :default (doall (map #(str (emit % state) \;) body)))
           env (->> env
                    (flatten)

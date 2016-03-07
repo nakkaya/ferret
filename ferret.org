@@ -3256,11 +3256,11 @@ returns true returns the next state.
                              (map second))
           func (list 'fn (into [] state-names)
                      (list
-                      (list 'fn ['curr-state]
+                      (list 'fn [(symbol (str name "-state"))]
                             `~(list 'fn* []
                                     (list
                                      (list 'fn* []
-                                           `~(list 'swap! 'curr-state
+                                           `~(list 'swap! (symbol (str name "-state"))
                                                    (list 'fn* ['state]
                                                          (list 'state)
                                                          `(~@transitions)))))))

@@ -1166,8 +1166,6 @@ lambda forms.
 
       #if !defined(DISABLE_MAIN_FUNCTION)
         int main(int argc, char* argv[]){
-        
-          INIT_ENV
 
         #if defined(STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS)
           _star_command_line_args_star_ = NEW_SEQUENCE();
@@ -1175,8 +1173,32 @@ lambda forms.
             CONS(_star_command_line_args_star_,NEW_STRING(argv[i]));
         #endif
 
-          ferret::ProgramRun();      
+          ferret::ProgramRun();
+
+          #if defined(PROGRAM_MAIN)
+            INVOKE(ferret::PROGRAM_MAIN);
+          #endif
+
           return 0;
+        }
+      #endif
+
+      #if defined(ARDUINO)
+        void setup(){
+          INIT_OUTPUT_STREAM
+
+          #if defined(PROGRAM_MAIN)
+            ferret::ProgramRun();
+          #endif
+        }
+        void loop(){
+          #if !defined(PROGRAM_MAIN)
+            ferret::ProgramRun();
+          #endif          
+
+          #if defined(PROGRAM_MAIN)
+            INVOKE(ferret::PROGRAM_MAIN);
+          #endif
         }
       #endif\n")]
       (fill-view! view "object_interface" (read-from-url "Object.cpp"))
@@ -2181,6 +2203,15 @@ To disable main use,
 main won't be defined you need to call /ferret::ProgramRun()/ manually
 to start the program. Detect host,
 
+When
+
+#+BEGIN_EXAMPLE
+  #define PROGRAM_MAIN some_func
+#+END_EXAMPLE
+
+is defined defined lambda will be invoked after
+/ferret::ProgramRun()/, acts as the programs main\//-main/ function.
+
 When 
 
 #+BEGIN_EXAMPLE
@@ -2196,9 +2227,11 @@ default when compiling with non embedded compiler. It will use /POSIX/
   #if defined(__SAM3X8E__)
     # define ARDUINO TRUE
     # define ARDUINO_DUE TRUE
+    # define DISABLE_MAIN_FUNCTION true
   #elif defined(__AVR__)
     # define ARDUINO TRUE
     # define ARDUINO_UNO TRUE
+    # define DISABLE_MAIN_FUNCTION true
   #else
     # define STD_LIB TRUE
   #endif
@@ -2290,24 +2323,6 @@ When C++ Standard Library is present
 #ifdef STD_LIB
  #define OUTPUT_STREAM stdout
 #endif
-#+end_src
-
-Initialize Ferret,
-
-#+name: runtime-native-program-header
-#+begin_src c++ :tangle no
-#ifdef ARDUINO
-  #define INIT_ENV                                \
-    init();                                       \
-    INIT_OUTPUT_STREAM
-#endif
-#+end_src
-
-#+name: runtime-native-program-header
-#+begin_src c++ :tangle no
-  #ifdef STD_LIB
-    #define INIT_ENV ;
-  #endif
 #+end_src
 
 Misc,

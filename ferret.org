@@ -28,20 +28,19 @@ along with Foobar. If not, see http://www.gnu.org/licenses/.
 
 * Compiler
 
-Compiler has two major parts, transformation and code
-generation. During transformation we make passes over the code, with
-each pass code becomes more and more like C++ basically after the final
-pass it is C++ written with s-expressions. Then during code generation
-we iterate over the code and spit valid C++.
+Compilation happens by taking the /form/ and running it through several
+transformations. Each transformation turns the form into more and more
+C++ written with s-expressions. This intermediate language is then run
+through code generation to produce the C++ file.
 
-** Transformation
+** Compilation
 
 Forms go through nine transformations before they are passed to the
 code generation phase.
 
-#+name: core-transformation-process
+#+name: core-compilation-process
 #+begin_src clojure :tangle no
-  (defn process [form options]
+  (defn compile [form options]
     (->> (import-modules-all form)
          (process-reader-macros)
          (add-built-in)
@@ -66,7 +65,7 @@ Compiler will look for a file under current working directory called,
 front of the current form with symbols renamed to /some-fn/ =>
 /io/some-function/.
 
-#+name: core-transformation-add-built-in
+#+name: core-compilation-add-built-in
 #+begin_src clojure :tangle no
   (defn import-modules-select-require [form]
     (->> (select-form form (is-form? 'require))
@@ -81,7 +80,7 @@ front of the current form with symbols renamed to /some-fn/ =>
 Extract the list of packages and aliases from the form. Returns a map
 of mod -> aliases pairs.
 
-#+name: core-transformation-add-built-in
+#+name: core-compilation-add-built-in
 #+begin_src clojure :tangle no
   (defn import-modules-load-modules [package-list]
     (reduce (fn[h [m aliases]]
@@ -108,7 +107,7 @@ all its symbols are replaces with its module name except /core/
 functions. Module name acts as namespaces. Returns a form that the is
 concatenation of all modules listed in form.
 
-#+name: core-transformation-add-built-in
+#+name: core-compilation-add-built-in
 #+begin_src clojure :tangle no
   (defn import-modules-convert-alias-to-module [package-list form]
     (let [alias-to-mod (reduce (fn[h [mod aliases]]
@@ -128,7 +127,7 @@ Convert all aliased symbols in the form to their fully qualified
 modules names. So /helper-a/ defined in module /util.db/ becomes
 /util_db_helper-a/. 
 
-#+name: core-transformation-add-built-in
+#+name: core-compilation-add-built-in
 #+begin_src clojure :tangle no
   (defn import-modules [form]
     (let [package-list (import-modules-select-require form)
@@ -204,7 +203,7 @@ Run import tests,
 
 Process some supported reader macros, /@/ and /#(some-fn)/ forms.
 
-#+name: core-transformation-reader-macros
+#+name: core-compilation-reader-macros
 #+begin_src clojure :tangle no
   (defn process-reader-macros [form]
     (morph-form form
@@ -226,7 +225,7 @@ Process some supported reader macros, /@/ and /#(some-fn)/ forms.
 /resources/runtime.clj/ contains the ferret core runtime when
 tangled.
 
-#+name: core-transformation-add-built-in
+#+name: core-compilation-add-built-in
 #+begin_src clojure :tangle no
   (defn add-built-in
     ([form]
@@ -243,7 +242,7 @@ namespace, using /morph-form/ we iterate all the macros used in the
 code that we are compiling and expand them in the temporary namespace
 then the node is replaced with its expanded form.
 
-#+name: core-transformation-expand-macros
+#+name: core-compilation-expand-macros
 #+begin_src clojure :tangle no
   (declare expand-macros-all)
 
@@ -303,7 +302,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 Concats two forms. Shakes the first form by removing any symbols not
 present in second form.
 
-#+name: core-transformation-shake-concat
+#+name: core-compilation-shake-concat
 #+begin_src clojure
   (defn shake-concat
     ([header form]
@@ -352,7 +351,7 @@ after transformation becomes,
   ((lambda_object G__2710) 1)
 #+end_src
 
-#+name: core-transformation-let-fn
+#+name: core-compilation-let-fn
 #+begin_src clojure :tangle no
   (defn let->fn [form]
     (morph-form form
@@ -386,7 +385,7 @@ that takes no parameters and executed in place.
   ((fn [] (+ 1 1)))
 #+end_src
 
-#+name: core-transformation-do-fn
+#+name: core-compilation-do-fn
 #+begin_src clojure :tangle no
   (defn do->fn [form]
     (morph-form form
@@ -428,7 +427,7 @@ constructor. Since every thing is already converted to fns this
 mechanism allows variables to be referenced down the line and solves
 the free variable problem.
 
-#+name: core-transformation-closure-conversion 
+#+name: core-compilation-closure-conversion 
 #+begin_src clojure :tangle no
   (defn lambda-defined? [fns env args body]
     (let [f (concat [env args] body)
@@ -465,7 +464,7 @@ Some symbols valid in Clojure are not valid C++ identifiers. This
 transformation converts all symbols that are not legal C++ identifiers
 into valid ones.
 
-#+name: core-transformation-symbol-conversion
+#+name: core-compilation-symbol-conversion
 #+begin_src clojure :tangle no
   (defn symbol-conversion [form]
     (let [c (comp #(symbol (clojure.string/escape
@@ -488,7 +487,7 @@ left as a global variable and the class implementation is prepended
 with the global name for readability.
 
 #+BEGIN_EXAMPLE
-  (process '((let [a 1]
+  (compile '((let [a 1]
                (defn adder [x]
                  (+ a x)))
              (defn my-inc [x] (+ 1 x))))
@@ -508,7 +507,7 @@ with the global name for readability.
    ((lambda_object G__3887)))
 #+END_EXAMPLE
 
-#+name: core-transformation-symbol-conversion
+#+name: core-compilation-symbol-conversion
 #+begin_src clojure :tangle no
   (defn select-def-fn [form]
     (->> (select-form form (is-form? 'def))
@@ -567,7 +566,7 @@ passing the current node as an argument and replace that node with
 /f/'s return value, remove-form on the other hand does what its name
 suggests and removes the node when predicate returns true.
 
-#+name: core-transformation-form-fns
+#+name: core-compilation-form-fns
 #+begin_src clojure :tangle no
   (defn morph-form [tree pred f]
     (walk/prewalk (fn [x]
@@ -715,7 +714,7 @@ suggests and removes the node when predicate returns true.
 
 ** Code Generation
 
- Once transformation is complete the form is in a form that is where
+ Once compilation is complete the form is in a form that is very
  close to C++. running /emit/ on the form converts the form into C++.
 
 #+name: core-code-generation-emit
@@ -767,7 +766,7 @@ C++ skeleton.
 #+begin_src clojure :tangle no
   (defn emit-source [form options]
     (let [state (ref {:lambdas [] :symbol-table #{} :native-declarations [] :native-defines []})
-          ast (process form options)
+          ast (compile form options)
           body (doall (map #(emit % state) ast))]
       (when (:ast options)
         (pprint/pprint ast))
@@ -3596,6 +3595,7 @@ Some wrappers for the Arduino platform.
 ** src/ferret/core.clj
 #+begin_src clojure :noweb yes :mkdirp yes :tangle src/src/ferret/core.clj
   (ns ferret.core
+    (:refer-clojure :exclude [compile])
     (:gen-class)
     (:use [clojure.java.io])
     (:require [clojure.set :as set]
@@ -3610,33 +3610,19 @@ Some wrappers for the Arduino platform.
     (:import (org.apache.commons.io FileUtils)))
 
   <<core-code-generation-misc>>
-
-  <<core-transformation-form-fns>>
-
-  <<core-transformation-reader-macros>>
-
-  <<core-transformation-expand-macros>>
-
-  <<core-transformation-shake-concat>>
-
-  <<core-transformation-add-built-in>>
-
-  <<core-transformation-closure-conversion>>
-
-  <<core-transformation-symbol-conversion>>
-
-  <<core-transformation-do-fn>>
-
-  <<core-transformation-let-fn>>
-
-  <<core-transformation-process>>
-
+  <<core-compilation-form-fns>>
+  <<core-compilation-reader-macros>>
+  <<core-compilation-expand-macros>>
+  <<core-compilation-shake-concat>>
+  <<core-compilation-add-built-in>>
+  <<core-compilation-closure-conversion>>
+  <<core-compilation-symbol-conversion>>
+  <<core-compilation-do-fn>>
+  <<core-compilation-let-fn>>
+  <<core-compilation-process>>
   <<core-code-generation-emit>>
-
   <<core-code-generation-emit-source-methods>>
-
   <<core-code-generation-emit-source>>
-
   <<core-code-compile-code>>
 #+end_src 
 ** src/ferret/template.clj
@@ -3756,6 +3742,7 @@ Some wrappers for the Arduino platform.
 ** test/ferret/test/core.clj
 #+begin_src clojure :noweb yes :mkdirp yes :tangle src/test/ferret/test/core.clj
     (ns ferret.test.core
+      (:refer-clojure :exclude [compile])
       (:use [ferret.core] :reload)
       (:use [clojure.test]
             [clojure.java.shell]))

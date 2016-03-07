@@ -1,6 +1,10 @@
 #!/bin/sh
 
-emacs -nw -Q --batch --eval "(progn (require 'org) (require 'ob) (require 'ob-tangle) (org-babel-tangle-file \"ferret.org\"))"
+emacs -nw -Q --batch --eval "(progn 
+                               (require 'org) 
+                               (require 'ob) 
+                               (require 'ob-tangle) 
+                               (org-babel-tangle-file \"ferret.org\"))"
 cd src/
 lein uberjar
 cd ../

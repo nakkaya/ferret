@@ -3593,7 +3593,7 @@ Some wrappers for the Arduino platform.
     :jar-name "interim.jar"
     :uberjar-name "ferret-app.jar")
 #+end_src 
-** src/core.clj
+** src/ferret/core.clj
 #+begin_src clojure :noweb yes :mkdirp yes :tangle src/src/ferret/core.clj
   (ns ferret.core
     (:gen-class)
@@ -3639,7 +3639,7 @@ Some wrappers for the Arduino platform.
 
   <<core-code-compile-code>>
 #+end_src 
-** src/template.clj
+** src/ferret/template.clj
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/src/ferret/template.clj
   (ns ferret.template
     (:use [ferret.string-template])
@@ -3660,7 +3660,7 @@ Some wrappers for the Arduino platform.
 
   <<code-templates>>
 #+end_src 
-** src/string_template.clj
+** src/ferret/string_template.clj
 #+begin_src clojure :noweb yes :mkdirp yes :tangle src/src/ferret/string_template.clj
   (ns ferret.string-template
     (:import org.antlr.stringtemplate.StringTemplateGroup)
@@ -3753,7 +3753,7 @@ Some wrappers for the Arduino platform.
 
 #+end_src
 
-** test/core.clj
+** test/ferret/test/core.clj
 #+begin_src clojure :noweb yes :mkdirp yes :tangle src/test/ferret/test/core.clj
     (ns ferret.test.core
       (:use [ferret.core] :reload)

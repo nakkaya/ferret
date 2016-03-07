@@ -1417,7 +1417,7 @@ Locking macros, See Program Header for more information.
 
 Dispatch correct memory allocation/deallocation implementation,
 
-#+name: runtime-native-scheme
+#+name: runtime-native-memory-management-macros
 #+begin_src c++ :tangle no
   #ifdef MEMORY_POOL_SIZE
     #define ALLOCATE(size) ProgramMemory.allocate(size)
@@ -1497,7 +1497,7 @@ An object to hold a reference to a C++ pointer,
      "fprintf(OUTPUT_STREAM, \"Pointer<%p>\",ptr); return NIL;"))
 #+end_src
 
-#+name: runtime-native-iseekable-macros
+#+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
   #define NEW_POINTER(p) (VAR(new ferret::Pointer(p)))
   #define TO_POINTER(p,type) ((type *)POINTER(p)->ptr)
@@ -1512,7 +1512,7 @@ ratios. Default number size is /int/. A ratio is kept in memory as two
 
 Math configuration,
 
-#+name: runtime-native-math-config
+#+name: runtime-native-math-config-macros
 #+begin_src c++ :tangle no
   #define NUMBER_PRECISION 1000 //used when reading floats.
   #define NUMBER_DATA_TYPE int
@@ -1577,7 +1577,7 @@ Number Object,
       ("~Number" "" "")))
 #+end_src
 
-#+name: runtime-native-math-config
+#+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
   #define TO_INT(i) (NUMBER(i)->intValue())
 
@@ -1610,7 +1610,7 @@ Each keyword in the program is converted to an /Keyword/ object. A
           "return (id == k.id);")))
 #+end_src
 
-#+name: runtime-native-iseekable-macros
+#+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
   #define NEW_KEYWORD(k) (VAR(new ferret::Keyword(k)))
 #+end_src
@@ -1643,7 +1643,7 @@ Holds a native /char/ type.
      "fprintf(OUTPUT_STREAM, \"%c\",value); return NIL;"))
 #+end_src
 
-#+name: runtime-native-iseekable-macros
+#+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
   #define NEW_CHARACTER(c) (VAR(new ferret::Character(c)))
 #+end_src
@@ -1710,10 +1710,10 @@ containers.
   }
 #+end_src
 
-#+name: runtime-native-iseekable-macros
+#+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
-  #define ITERATE(c,i) for(var i = c; IS_NOT_NIL(REST(i)); i = REST(i))
   #define NEW_SEQUENCE() (VAR(new ferret::Sequence()))
+  #define ITERATE(c,i) for(var i = c; IS_NOT_NIL(REST(i)); i = REST(i))
 #+end_src
 
 *** Sequence
@@ -1837,7 +1837,7 @@ A lazy list container implementing the seekable interface.
     (list 'new-lazy-seq (cons 'fn `( [] ~@body))))
 #+end_src
 
-#+name: runtime-native-iseekable-macros
+#+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
   #define LAZY_SEQUENCE(v) static_cast<ferret::LazySequence*>(v.get())
   #define NEW_LAZY_SEQUENCE(d,t) var(new LazySequence(d,t))
@@ -1905,7 +1905,7 @@ Strings are represented as a linked list of characters.
        return ss.str();")))
 #+end_src
 
-#+name: runtime-native-iseekable-macros
+#+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
   #define NEW_STRING(s) (VAR(new ferret::String(s)))
   #define TO_C_STR(s) (STRING(s)->toString().c_str())
@@ -1961,7 +1961,7 @@ A boolean object,
     }"))
 #+end_src
 
-#+name: runtime-native-iseekable-macros
+#+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
   #define NEW_BOOLEAN(b) (VAR(new ferret::Boolean(b)))
 #+end_src
@@ -2015,7 +2015,7 @@ Operations on /Atoms/
     "__result = ATOM(a)->data;")
 #+end_src
 
-#+name: runtime-native-iseekable-macros
+#+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
   #define NEW_ATOM(a) (VAR(new ferret::Atom(a)))
 #+end_src
@@ -2061,7 +2061,7 @@ to execute them in a uniform fashion.
 
 Function invocation macros,
 
-#+name: runtime-native-lambda-invoke-macros
+#+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
   #define INVOKE(f) LAMBDA(f)->invoke(NIL)
   #define INVOKE_WITH_SEQ(f,args) LAMBDA(f)->invoke(args)
@@ -3797,12 +3797,9 @@ Some wrappers for the Arduino platform.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/resources/Object.cpp
   <<runtime-native-program-header>>
-
-  <<runtime-native-scheme>>
-
+  <<runtime-native-memory-management-macros>>
   <<runtime-native-object-casting-macros>>
-
-  <<runtime-native-lambda-invoke-macros>>
+  <<runtime-native-math-config-macros>>
 
   //Lambda Invocation
 
@@ -3836,10 +3833,6 @@ Some wrappers for the Arduino platform.
   #define INVOKE_WITH_18(fn,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(g,VAR(new ferret::Sequence(h,VAR(new ferret::Sequence(i,VAR(new ferret::Sequence(j,VAR(new ferret::Sequence(k,VAR(new ferret::Sequence(l,VAR(new ferret::Sequence(m,VAR(new ferret::Sequence(n,VAR(new ferret::Sequence(o,VAR(new ferret::Sequence(p,VAR(new ferret::Sequence(q,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)),7)),8)),9)),10)),11)),12)),13)),14)),15)),16)),17)) )
   #define INVOKE_WITH_19(fn,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(g,VAR(new ferret::Sequence(h,VAR(new ferret::Sequence(i,VAR(new ferret::Sequence(j,VAR(new ferret::Sequence(k,VAR(new ferret::Sequence(l,VAR(new ferret::Sequence(m,VAR(new ferret::Sequence(n,VAR(new ferret::Sequence(o,VAR(new ferret::Sequence(p,VAR(new ferret::Sequence(q,VAR(new ferret::Sequence(r,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)),7)),8)),9)),10)),11)),12)),13)),14)),15)),16)),17)),18)) )
   #define INVOKE_WITH_20(fn,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(g,VAR(new ferret::Sequence(h,VAR(new ferret::Sequence(i,VAR(new ferret::Sequence(j,VAR(new ferret::Sequence(k,VAR(new ferret::Sequence(l,VAR(new ferret::Sequence(m,VAR(new ferret::Sequence(n,VAR(new ferret::Sequence(o,VAR(new ferret::Sequence(p,VAR(new ferret::Sequence(q,VAR(new ferret::Sequence(r,VAR(new ferret::Sequence(s,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)),7)),8)),9)),10)),11)),12)),13)),14)),15)),16)),17)),18)),19)) )
-
-  <<runtime-native-iseekable-macros>>
-
-  <<runtime-native-math-config>>
 
   namespace ferret{
     class var;

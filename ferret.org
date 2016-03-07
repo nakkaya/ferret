@@ -290,43 +290,6 @@ then the node is replaced with its expanded form.
           (recur expanded)))))
 #+end_src
 
-*** Shake Concat
-
-In order to keep the generated C++ code compact only the functions used
-will be present in the generated source file. Which means if you don't
-use /println/ anywhere in the code it won't be defined in the final
-C++ file, but if you use it, it and everything it uses will be
-defined, in the case of /println/ it will pull /apply/, /print/ and
-/newline/ with it.
-
-Concats two forms. Shakes the first form by removing any symbols not
-present in second form.
-
-#+name: core-compilation-shake-concat
-#+begin_src clojure
-  (defn shake-concat
-    ([header form]
-     (let [header-no-macro (expand-macros-all header)
-           header-symbols (->> (select-form header-no-macro (is-form? 'def))
-                               (map second))
-           header-fns (reduce (fn[h v] (assoc h (second v) v)) {} header-no-macro)
-           fns (atom {})
-           _ (shake-concat (expand-macros-all form) header-fns fns)
-           include-fns (->> @fns
-                            (sort-by #(.indexOf header-symbols (key %)))
-                            (map #(second %)))
-           objects (select-form header (is-form? 'defobject))
-           macros (select-form header (is-form? 'defmacro))
-           requires (select-form header (is-form? 'require))]
-       (concat requires objects include-fns macros form)))
-    ([form built-in fns]
-     (morph-form form symbol?
-                 #(do (if-let [f (built-in %)]
-                        (when (not (@fns %))
-                          (swap! fns assoc % f)
-                          (shake-concat f built-in fns))) %))))
-#+end_src
-
 *** let->fn
 
 /let/ forms are transformed into nested functions which are then
@@ -478,7 +441,8 @@ into valid ones.
 
 #+end_src
 
-*** Replace Fn Call Sites
+*** Optimizations
+**** Replace Fn Call Sites
 
 Final step replaces all functions calls with new function
 objects /define_lambda/ are renamed to /fn/. This removes all globals
@@ -555,6 +519,43 @@ with the global name for readability.
                                   (symbol (str name "_" gensym))
                                   f))))
                 form closure-fn-table))))
+#+end_src
+
+**** Tree Shaking
+
+Concats two forms. Shakes the first form by removing any symbols not
+present in second form.
+
+In order to keep the generated C++ code compact only the functions used
+will be present in the generated source file. Which means if you don't
+use /println/ anywhere in the code it won't be defined in the final
+C++ file, but if you use it, it and everything it uses will be
+defined, in the case of /println/ it will pull /apply/, /print/ and
+/newline/ with it.
+
+#+name: core-compilation-shake-concat
+#+begin_src clojure
+  (defn shake-concat
+    ([header form]
+     (let [header-no-macro (expand-macros-all header)
+           header-symbols (->> (select-form header-no-macro (is-form? 'def))
+                               (map second))
+           header-fns (reduce (fn[h v] (assoc h (second v) v)) {} header-no-macro)
+           fns (atom {})
+           _ (shake-concat (expand-macros-all form) header-fns fns)
+           include-fns (->> @fns
+                            (sort-by #(.indexOf header-symbols (key %)))
+                            (map #(second %)))
+           objects (select-form header (is-form? 'defobject))
+           macros (select-form header (is-form? 'defmacro))
+           requires (select-form header (is-form? 'require))]
+       (concat requires objects include-fns macros form)))
+    ([form built-in fns]
+     (morph-form form symbol?
+                 #(do (if-let [f (built-in %)]
+                        (when (not (@fns %))
+                          (swap! fns assoc % f)
+                          (shake-concat f built-in fns))) %))))
 #+end_src
 
 *** Helpers

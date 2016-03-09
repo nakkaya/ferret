@@ -1300,10 +1300,10 @@ Locking macros, See Program Header for more information.
 #+name: runtime-native-memory-pool
 #+begin_src c++ :tangle no
   #ifdef MEMORY_POOL_SIZE
-  template<typename PageSize, size_t poolSize>
+  template<typename PageSize, size_t poolSize, typename UsedArrayType>
   class MemoryPool{
   public:
-    bool used[poolSize];
+    UsedArrayType used[poolSize];
     PageSize pool[poolSize];
     size_t lastAllocationIndex;
     
@@ -1319,20 +1319,22 @@ Locking macros, See Program Header for more information.
       
     MemoryPool(){
       lastAllocationIndex = 0;
-      for(size_t i = 0; i < poolSize; i++)
+      for(size_t i = 0; i < poolSize; i++){
         pool[i] = 0;
+        used[i] = 0;
+      }
     }
     
     inline bool isPageRangeUsable(size_t begin,size_t end){
       for(size_t i=begin; i < end; i++)
-        if (used[i] == true)
+        if (used[i] != 0)
           return false;
       return true;
     }
     
     inline size_t nextAvaliblePage(size_t offset){
       for(size_t i=offset; i < poolSize; i++)
-        if (used[i] == false)
+        if (used[i] == 0)
           return i;
       return poolSize;
     }
@@ -1356,7 +1358,6 @@ Locking macros, See Program Header for more information.
     }
       
     void *allocate(size_t reqSize){
-      reqSize += 1;
       size_t length = calculateNeededPages(reqSize);
       int page = findPage(length,lastAllocationIndex);
       
@@ -1366,28 +1367,28 @@ Locking macros, See Program Header for more information.
           return NULL;
       }
       
-      pool[page] = reqSize;
-      for(size_t i = page; i < (page+length); i++)
-        used[i] = true;
+      used[page] = reqSize;
+      for(size_t i = page + 1; i < (page+length); i++)
+        used[i] = 1;
         
       lastAllocationIndex = page + length;
-      return &pool[page+1];
+      return &pool[page];
     }
     
     void free(void *p){
       PageSize* ptr = static_cast<PageSize*>(p);
-      ptrdiff_t index = (ptr - pool) -1;
-      size_t length = calculateNeededPages(pool[index]);
+      ptrdiff_t index = (ptr - pool);
+      size_t length = calculateNeededPages(used[index]);
         
       for(size_t i = index ; i < (index+length); i++)
-        used[i] = false;
+        used[i] = 0;
     }
   };
 
    #if !defined(MEMORY_POOL_PAGE_TYPE)
-    MemoryPool<size_t,(MEMORY_POOL_SIZE/sizeof(size_t))> ProgramMemory;
+    MemoryPool<long,(MEMORY_POOL_SIZE/sizeof(long)),unsigned char> ProgramMemory;
    #else
-    MemoryPool<MEMORY_POOL_PAGE_TYPE,MEMORY_POOL_SIZE> ProgramMemory;
+    MemoryPool<MEMORY_POOL_PAGE_TYPE,MEMORY_POOL_SIZE,MEMORY_POOL_USED_ARRAY_TYPE> ProgramMemory;
    #endif
   #endif
 #+end_src
@@ -1395,10 +1396,10 @@ Locking macros, See Program Header for more information.
 #+name: runtime-clojure-memory-pool-tests
 #+begin_src clojure :tangle no
   (deftest memory-pool-test
-    (is (= "0 3 8 3 1 1 1 1 "
+    (is (= "0 2 6 2 1 1 1 1 1 "
            (capture-output
             '((native-define "#define MEMORY_POOL_SIZE 2048")
-              (native-declare "ferret::MemoryPool<size_t,10> mem;")
+              (native-declare "ferret::MemoryPool<size_t,10,size_t> mem;")
               (native-declare "void* ptr;")
               ((fn [] "std::cout << mem.nextAvaliblePage(0) << \" \";"))
               ((fn [] "mem.allocate(sizeof(size_t)*2);"))
@@ -1409,7 +1410,8 @@ Locking macros, See Program Header for more information.
               ((fn [] "std::cout << mem.nextAvaliblePage(2) << \" \";"))
               ((fn [] "std::cout << (NULL == mem.allocate(sizeof(size_t)*40)) << \" \";"))
               ((fn [] "std::cout << (NULL != mem.allocate(sizeof(size_t)*6)) << \" \";"))
-              ((fn [] "std::cout << (NULL == mem.allocate(sizeof(size_t)*1)) << \" \";"))
+              ((fn [] "std::cout << (NULL != mem.allocate(sizeof(size_t)*1)) << \" \";"))
+              ((fn [] "std::cout << (NULL != mem.allocate(sizeof(size_t)*1)) << \" \";"))
               ((fn [] "std::cout << (NULL == mem.allocate(sizeof(size_t)*10)) << \" \";")))))))
 #+end_src
 
@@ -1421,15 +1423,19 @@ Dispatch correct memory allocation/deallocation implementation,
 #+begin_src c++ :tangle no
   #ifdef MEMORY_POOL_SIZE
     #define ALLOCATE(size) ProgramMemory.allocate(size)
-  #else
-    #define ALLOCATE(size) malloc(size)
-  #endif
-
-  #ifdef MEMORY_POOL_SIZE
     #define FREE(pre) ProgramMemory.free(ptr)
   #else
+    #define ALLOCATE(size) malloc(size)
     #define FREE(ptr) free(ptr)
   #endif
+#+end_src
+
+#+name: runtime-native-memory-management-macros
+#+begin_src c++ :tangle no
+  #define NEW_REF() size_t refCount;
+  #define INIT_REF() refCount = 0;
+  #define INC_REF(this) refCount++;
+  #define DEC_REF(this) (--refCount <= 0);
 #+end_src
 
 *** Object
@@ -1440,7 +1446,8 @@ All our types are derived from the base Object type,
 #+begin_src c++ :tangle no
   class Object{
   public:
-    Object() : refCount(0) {
+    Object(){
+      INIT_REF();
       INIT_LOCK(lock);
     }
     
@@ -1457,13 +1464,13 @@ All our types are derived from the base Object type,
     virtual var equals(var o) = 0;
     
     void addRef() {
-      WITH_LOCK(lock,{refCount++;});
+      WITH_LOCK(lock,{INC_REF(this)});
     }
     
     bool subRef() {
       bool ret;
       WITH_LOCK(lock,{
-          ret = (--refCount <= 0);
+          ret = DEC_REF(this);
       });
       return ret;
     }
@@ -1477,7 +1484,7 @@ All our types are derived from the base Object type,
     }
     
   private:
-    int refCount;
+    NEW_REF()
     NEW_LOCK(lock)
   };
 #+end_src

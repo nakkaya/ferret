@@ -723,6 +723,7 @@ suggests and removes the node when predicate returns true.
   (defmulti emit (fn [form _]
                    (cond (is-special-form? 'defobject form) 'defobject
                          (is-special-form? 'define_lambda form) 'define_lambda
+                         (is-special-form? 'dispatch_lambda form) 'dispatch_lambda
                          (is-special-form? 'lambda_object form) 'lambda_object
                          (is-special-form? 'define_var form) 'define_var
                          (is-special-form? 'native_declare form) 'native_declare
@@ -909,7 +910,12 @@ lambda forms.
                                             (= (first %) 'native_declare)) body)
           body (filter #(not (and (seq? %)
                                   (= (first %) 'native_declare))) body)
-          body (cond  (empty? body) ["NIL;"]
+          body (cond  (empty? body)
+                      ["NIL;"]
+                      (and (= 1 (count body))
+                           (seq? (first body))
+                           (= 'dispatch_lambda (first (first body))))
+                      ["VAR __result;" (emit (first body) state) "__result;"]
                       (and (= 1 (count body))
                            (string? (first body)))
                       (let [inline (first body) 
@@ -929,6 +935,30 @@ lambda forms.
       (append-to! state [:lambdas] {:name name :env env
                                     :args (destructure-lambda args)
                                     :body body}) ""))
+#+end_src
+
+#+name: core-code-generation-emit-source-methods
+#+begin_src clojure :tangle no
+  (defmethod emit 'dispatch_lambda [[_ args-symbol & fns] state]
+    (let [fns (->> fns
+                   (partition 2))
+          nil-dispatch (filter #(= (first %) 0) fns)]
+      (str
+       (if (not (nil? nil-dispatch))
+         (str "if (IS_NIL(" args-symbol "))
+                return LAMBDA(" (emit (second (first nil-dispatch)) state) ")->invoke(NIL);")
+         "")
+       "switch(ISEEKABLE(" args-symbol ")->count()) {"
+       (->> fns
+            (map (fn [[count fn]]
+                   (if (= count 'true)
+                     (str "default: "
+                          " __result = LAMBDA(" (emit fn state) ")->invoke(" args-symbol ");"
+                          "break;")
+                     (str "case " count " : "
+                          " __result = LAMBDA(" (emit fn state) ")->invoke(" args-symbol ");"
+                          "break;"))))
+            (apply str)) "}")))
 #+end_src
 
 **** Misc
@@ -2558,20 +2588,21 @@ implementation.
         (cons 'fn* `(~args ~@body)))
       (let [count-symbol (gensym)
             fn-arg-symbol (gensym)
-            fns (->> (map #(cons 'fn* %) body)
-                     (map #(list 'apply % fn-arg-symbol)))
+            fns (map #(cons 'fn* %) body)
             conds (->> (map first body)
                        (map (fn* [args] (filter #(not (= % '&)) args)))
-                       (map #(list '= count-symbol (count %))))
+                       (map #(count %)))
             form (if (pos? (.indexOf (last (map first body)) '&))
                    (let [conds (interleave conds fns)
                          arg-dispatch (drop-last 2 conds)
                          last (take-last 2 conds)]
                      (concat arg-dispatch [true (second last)]))
                    (interleave conds fns))]
+        
         `(fn* (& ~fn-arg-symbol)
-              (let* (~count-symbol (~'count ~fn-arg-symbol))
-                    (~'cond ~@form))))))
+              ~(->> form
+                    (cons fn-arg-symbol)
+                    (cons 'dispatch-lambda))))))
 #+end_src
 
 *** Console I/O
@@ -2717,27 +2748,18 @@ implementation.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn reduce [& args]
-    "size_t count = ISEEKABLE(args)->count();
-     if(count == 2){
-       var f = FIRST(args);
-       var coll = FIRST(REST(args));
-       var first = FIRST(coll);
-       var rest = REST(coll);
-       var acc = INVOKE_WITH(f, FIRST(rest), first);
-       ITERATE(REST(rest),it){
-         acc = INVOKE_WITH(f, acc, FIRST(it));
-       }
-       return acc;
-     }else{
-      var f = FIRST(args);
-      var val = FIRST(REST(args));
-      var coll = FIRST(REST(REST(args)));
-      ITERATE(coll,it){
-       val = INVOKE_WITH(f, val, FIRST(it));
+  (defn reduce
+    ([f [sf & sr]]
+     "var acc = INVOKE_WITH(f, FIRST(sr), sf);
+      ITERATE(REST(sr),it){
+        acc = INVOKE_WITH(f, acc, FIRST(it));
       }
-      return val;
-     }")
+      return acc;")
+    ([f acc coll]
+     "ITERATE(coll,it){
+       acc = INVOKE_WITH(f, acc, FIRST(it));
+      }
+      return acc;"))
 #+end_src
 
 #+name: runtime-clojure-sequence

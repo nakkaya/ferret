@@ -2662,10 +2662,10 @@ implementation.
                                     (when (integer? 2) 2)
                                     (cond (float? 2.1) 2
                                           (integer? 2) 4
-                                          :default 1)
+                                          true 1)
                                     (cond (float? 2) 2.1
                                           (integer? 2.1) 4
-                                          :default 1)
+                                          true 1)
                                     (if nil 1 2)
                                     (if-let [a nil]
                                       a)
@@ -3071,7 +3071,7 @@ implementation.
     (cond
       (> x max) max
       (< x min) min
-      :default x))
+      true x))
 #+end_src
 
 #+name: runtime-clojure-bit-arithmetic-tests

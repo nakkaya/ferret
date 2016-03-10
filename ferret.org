@@ -2837,11 +2837,15 @@ implementation.
 
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
-  (defn = [a & more]
-    (if (empty? more)
-      true
-      (and ((fn [a b] "__result = NEW_BOOLEAN(a.equals(b));") a (first more))
-           (apply = more))))
+  (defn = [& args]
+    "var curr = FIRST(args);
+     ITERATE(REST(args),it){
+      var first = FIRST(it);
+      if (curr.equals(first) == false)
+        return NEW_BOOLEAN(false);
+      curr = first;
+     }
+     return NEW_BOOLEAN(true);")
 
   (defmacro not= [& test]
     (list 'not (cons '= `( ~@test))))

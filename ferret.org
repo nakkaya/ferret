@@ -48,8 +48,8 @@ code generation phase.
          (let->fn)
          (do->fn)
          (closure-conversion)
-         (symbol-conversion)
-         (replace-fn-call-sites options)))
+         (replace-fn-call-sites options)
+         (symbol-conversion)))
 #+end_src
 
 *** Import Modules
@@ -485,7 +485,7 @@ with the global name for readability.
     (->> (select-form form (is-form? 'def))
          (filter (fn [[_ name val]]
                    (and (seq? val)
-                        (= 'lambda_object (first val)))))))
+                        (= 'lambda-object (first val)))))))
 
   (defn replace-fn-call-sites-pure [form fn-defs fn-table]
     (let [no-global-fn (reduce (fn[h v]
@@ -498,7 +498,7 @@ with the global name for readability.
                                      (morph-form h symbol?
                                                  (fn [f]
                                                    (if (= f name)
-                                                     (list 'lambda_object gensym)
+                                                     (list 'lambda-object gensym)
                                                      f))))
                                    no-global-fn fn-table)
           embed-fn-names (reduce (fn[h [name gensym]]

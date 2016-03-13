@@ -907,11 +907,8 @@ lambda forms.
 
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
-  (defmethod emit 'lambda_object [[_ name & env] state]
-    (new-lambda name (->> env
-                          (flatten)
-                          (filter #(and (not (= '& %))
-                                        (not (= '_ %)))))))
+  (defmethod emit 'lambda_object [l state]
+    (new-lambda l))
 
   (defmethod emit 'define_lambda [[_ name env args & body] state]
     (let [native-declarations (filter #(and (seq? %)
@@ -923,7 +920,7 @@ lambda forms.
                       (and (= 1 (count body))
                            (seq? (first body))
                            (= 'dispatch_lambda (first (first body))))
-                      ["VAR __result;" (emit (first body) state) "__result;"]
+                      [(emit (first body) state) "NIL;"]
                       (and (= 1 (count body))
                            (string? (first body)))
                       (let [inline (first body) 
@@ -952,20 +949,19 @@ lambda forms.
                    (partition 2))
           nil-dispatch (filter #(= (first %) 0) fns)]
       (str
-       (if (not (nil? nil-dispatch))
+       (if (not (empty? nil-dispatch))
          (str "if (IS_NIL(" args-symbol "))
-                return LAMBDA(" (emit (second (first nil-dispatch)) state) ")->invoke(NIL);")
+                return " (new-lambda-stack
+                          (->> nil-dispatch first second)) ".invoke(NIL);")
          "")
        "switch(ISEEKABLE(" args-symbol ")->count()) {"
        (->> fns
             (map (fn [[count fn]]
                    (if (= count 'true)
                      (str "default: "
-                          " __result = LAMBDA(" (emit fn state) ")->invoke(" args-symbol ");"
-                          "break;")
+                          " return " (new-lambda-stack fn) ".invoke(" args-symbol ");")
                      (str "case " count " : "
-                          " __result = LAMBDA(" (emit fn state) ")->invoke(" args-symbol ");"
-                          "break;"))))
+                          " return " (new-lambda-stack fn) ".invoke(" args-symbol ");"))))
             (apply str)) "}")))
 #+end_src
 
@@ -1080,10 +1076,24 @@ lambda forms.
   (defn if-statement [cond t f]
     (apply str "IF(" cond ", " t ", " f ")"))
 
-  (defn new-lambda [n e]
-    (if (empty? e)
-      (str "FN(" n ")")
-      (str "CLOSURE(" n "," (apply str (interpose \, e)) ")")))
+  (let [env (fn [[_ _ & env]]
+              (->> env
+                   (flatten)
+                   (filter #(and (not (= '& %))
+                                 (not (= '_ %))))))]
+    (defn new-lambda [l]
+      (let [n (second l)
+            e (env l)]
+        (if (empty? e)
+          (str "FN(" n ")")
+          (str "CLOSURE(" n "," (apply str (interpose \, e)) ")"))))
+
+    (defn new-lambda-stack [l]
+      (let [n (second l)
+            e (env l)]
+        (if (empty? e)
+          (str n "()")
+          (str n "(" (apply str (interpose \, e)) ")")))))
 
   (defn invoke-lambda [n args]
     (cond (empty? args)

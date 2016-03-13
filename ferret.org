@@ -600,6 +600,11 @@ suggests and removes the node when predicate returns true.
                       (f x)
                       x)) tree))
 
+  (defn collect-form [tree pred f]
+    (let [acc (atom [])]
+      (doall (morph-form tree pred (fn [x] (swap! acc conj (f x)))))
+      @acc))
+
   (defn remove-form [tree pred]
     (if (and (= (count tree) 1)
              (pred (first tree)))

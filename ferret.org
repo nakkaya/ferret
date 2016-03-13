@@ -576,11 +576,33 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 #+name: core-compilation-shake-concat
 #+begin_src clojure
   (defn escape-analysis [form]
-    (morph-form form (fn [f]
-                       (and (seq? f)
-                            (is-special-form? 'lambda-object (first f))))
-                (fn [f]
-                  (cons 'invoke-lambda-stack f))))
+    (let [stack-lambda-pred (fn [f]
+                              (and (seq? f)
+                                   (is-special-form? 'lambda-object (first f))))
+          ;;espace lambda classes
+          escapeable-lambdas (->> (collect-form
+                                   form
+                                   (fn [f]
+                                     (and (stack-lambda-pred f)
+                                          (let [fn-symbol (-> f first second)
+                                                non-stack-allocations (-> (morph-form form stack-lambda-pred #(rest %))
+                                                                          (select-form symbol?))]
+                                            (->> non-stack-allocations
+                                                 (filter #(= % fn-symbol))
+                                                 rest ;; skip class definition
+                                                 count ;; when pos it is used somewhere else as a symbol
+                                                 zero?))))
+                                   #(-> % first second))
+                                  (into #{}))
+          form (morph-form form
+                           (fn [f]
+                             (and (seq? f)
+                                  (= (first f) 'define-lambda)
+                                  (escapeable-lambdas (second f))))
+                           #(cons 'define-lambda-stack (rest %)))
+          ;;espace lambda objects
+          form (morph-form form stack-lambda-pred (fn [f] (cons 'invoke-lambda-stack f)))]
+      form))
 #+end_src
 
 *** Helpers
@@ -753,6 +775,7 @@ suggests and removes the node when predicate returns true.
   (defmulti emit (fn [form _]
                    (cond (is-special-form? 'defobject form) 'defobject
                          (is-special-form? 'define_lambda form) 'define_lambda
+                         (is-special-form? 'define_lambda_stack form) 'define_lambda_stack
                          (is-special-form? 'dispatch_lambda form) 'dispatch_lambda
                          (is-special-form? 'lambda_object form) 'lambda_object
                          (is-special-form? 'define_var form) 'define_var
@@ -937,7 +960,7 @@ lambda forms.
   (defmethod emit 'lambda_object [l state]
     (new-lambda l))
 
-  (defmethod emit 'define_lambda [[_ name env args & body] state]
+  (defn emit-define-lambda-aux [name env args body state]
     (let [native-declarations (filter #(and (seq? %)
                                             (= (first %) 'native_declare)) body)
           body (filter #(not (and (seq? %)
@@ -964,9 +987,17 @@ lambda forms.
                                  (not (= '_ %)))))]
       (doseq [dec native-declarations] 
         (emit dec state))
-      (append-to! state [:lambdas] {:name name :env env
-                                    :args (destructure-lambda args)
-                                    :body body}) ""))
+      [name env (destructure-lambda args) body]))
+
+  (defmethod emit 'define_lambda [[_ name env args & body] state]
+    (let [[name env args body] (emit-define-lambda-aux name env args body state)]
+      (append-to! state [:lambdas]
+                  {:name name :env env :args args :body body}) ""))
+
+  (defmethod emit 'define_lambda_stack [[_ name env args & body] state]
+    (let [[name env args body] (emit-define-lambda-aux name env args body state)]
+      (append-to! state [:lambdas]
+                  {:name name :env env :args args :body body :stack true}) ""))
 #+end_src
 
 #+name: core-code-generation-emit-source-methods
@@ -1176,7 +1207,11 @@ lambda forms.
   (defn declare-lambda-classes [lambdas]
     (let [view (create-view
                 "$lambdas: {lambda|
-        class $lambda.name$ : public Lambda{
+        $if(!lambda.stack)$
+         class $lambda.name$  : public Lambda{
+        $else$
+         class $lambda.name$  \\{
+        $endif$
 
         $lambda.env:{VAR $it$;} ;separator=\"\n\"$
 

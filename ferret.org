@@ -49,6 +49,7 @@ code generation phase.
          (do->fn)
          (closure-conversion)
          (replace-fn-call-sites options)
+         (escape-analysis)
          (symbol-conversion)))
 #+end_src
 
@@ -566,6 +567,22 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
                           (shake-concat f built-in fns))) %))))
 #+end_src
 
+****  Escape Analysis
+
+      Determines that a certain allocation never escapes the local
+      function. This means that allocation can
+      be done on the stack.
+
+#+name: core-compilation-shake-concat
+#+begin_src clojure
+  (defn escape-analysis [form]
+    (morph-form form (fn [f]
+                       (and (seq? f)
+                            (is-special-form? 'lambda-object (first f))))
+                (fn [f]
+                  (cons 'invoke-lambda-stack f))))
+#+end_src
+
 *** Helpers
 
 During each pass we iterate over the nodes in the form using
@@ -738,6 +755,7 @@ suggests and removes the node when predicate returns true.
                          (is-special-form? 'native_define form) 'native_define
                          (is-special-form? 'if form) 'if
                          (is-special-form? 'def form) 'def
+                         (is-special-form? 'invoke_lambda_stack form) 'invoke_lambda_stack
                          (to-str? form) :to-str
                          (keyword? form) :keyword
                          (number? form) :number
@@ -811,6 +829,10 @@ C++ skeleton.
 
   (defmethod emit :sequence [[fn & args] state]
     (invoke-lambda (emit fn state) (doall (map #(emit % state) args))))
+
+  (defmethod emit 'invoke_lambda_stack [[_ lambda & args] state]
+    (invoke-lambda-stack (new-lambda-stack lambda)
+                         (doall (map #(emit % state) args))))
 
   (defmethod emit 'define_var [[_ name form] state]
     (str "VAR " name " = " (emit form state)))
@@ -1111,6 +1133,19 @@ lambda forms.
                      "VAR(new ferret::Sequence(NULL,NULL))" args) ")"))
 
           :default (str "INVOKE_WITH(" n "," (apply str (interpose \, args)) ")")))
+
+  (defn invoke-lambda-stack [n args]
+    (let [positions (reverse (map inc (range 0 (count args))))
+          args (->> (interleave positions args)
+                    (partition 2)
+                    reverse)]
+      (cond (empty? args)
+            (str n ".invoke(NIL)")
+            :default (str
+                      n ".invoke(" 
+                      (reduce (fn[h [idx v]]
+                                (str "VAR(new ferret::Sequence("v "," h "," idx"))"))
+                              "VAR(new ferret::Sequence(NULL,NULL))" args) ")"))))
 
   (comment
     ;;generate macros for fn invocation

@@ -1307,7 +1307,6 @@ Object Casting macros,
 #+begin_src c++ :tangle no
   #define VAR ferret::var
   #define NIL (VAR())
-  #define LAMBDA(v) static_cast<ferret::Lambda*>(v.get())
 #+end_src
 
 Locking macros, See Program Header for more information.
@@ -2064,7 +2063,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
      ("var swap" "var f,var args"
       "WITH_LOCK(lock,{
          args = CONS(args,data);
-         data = LAMBDA(f)->invoke(args);
+         data = f.cast<Lambda>()->invoke(args);
        });
       return data;"))
     (post-code "var NewAtom(var v) {
@@ -2122,7 +2121,7 @@ to execute them in a uniform fashion.
     (interfaces "var invoke(var args)")
     (equals "if (!o.isType(LAMBDA_TYPE))
                  return NewBoolean(false);
-               return NewBoolean(this == LAMBDA(o));")
+               return NewBoolean(this == o.cast<Lambda>());")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"lambda\"); return NIL;")
     (force-type true))
@@ -2176,12 +2175,12 @@ Function invocation,
 
     template<>
     var _i(var fn) {
-      return LAMBDA(fn)->invoke(NIL);
+      return fn.cast<Lambda>()->invoke(NIL);
     }
 
     template<typename... Args>
     var _i(var fn, Args... args) {
-      return LAMBDA(fn)->invoke(__list(args...,VAR(new ferret::Sequence(NULL,NULL))));
+      return fn.cast<Lambda>()->invoke(__list(args...,VAR(new ferret::Sequence(NULL,NULL))));
     }
   }
 #+end_src
@@ -2878,7 +2877,7 @@ implementation.
 
   (defn cons [x seq] "__result = CONS(seq,x);")
 
-  (defn apply [f args] "__result = LAMBDA(f)->invoke(args);")
+  (defn apply [f args] "__result = f.cast<Lambda>()->invoke(args);")
 
   (defn conj [coll & xs]
     (reduce (fn[h v] (cons v h)) (if (nil? coll) (list) coll) xs))

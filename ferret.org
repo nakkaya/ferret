@@ -1067,7 +1067,9 @@ lambda forms.
       namespace ferret{
 
        $if(object_type)$
-         const size_t $type$_TYPE = $type_val$;
+         namespace runtime {
+          namespace type {
+           const size_t $type$ = $type_val$;}}
        $endif$
 
        $if(template)$
@@ -1085,7 +1087,7 @@ lambda forms.
          }} ;separator=\"\n\"$
 
          $if(object_type)$
-          size_t getType(){ return $type$_TYPE;}
+          size_t getType(){ return runtime::type::$type$;}
          $endif$
 
          $if(equals)$
@@ -1121,7 +1123,7 @@ lambda forms.
       (fill-view! view "object_type" (cond (specs 'force_type) true
                                            interface-only false
                                            :default true))
-      (fill-view! view "type" (.toUpperCase (str name)))
+      (fill-view! view "type" (str name))
       (fill-view! view "type_val" (gensym ""))
       (fill-view! view "data" (specs 'data))
       (fill-view! view "new" (specs 'new))
@@ -1610,14 +1612,12 @@ Number Object,
            numerator = decimal + (integer * NUMBER_PRECISION);
            denominator = NUMBER_PRECISION;
            simplificate();"))
-    (equals "size_t self_type = getType();
-             size_t other_type = o.cast<Object>()->getType();
-             if (self_type == NUMBER_TYPE && other_type == NUMBER_TYPE)
+    (equals "if (o.cast<Object>()->getType() == runtime::type::Number)
                if (getNumerator() == 0 && o.cast<Number>()->getNumerator() == 0)
                  return NewBoolean(true);
                else
                  return NewBoolean((getNumerator() == o.cast<Number>()->getNumerator()) &&
-                                    (getDenominator() == o.cast<Number>()->getDenominator()));
+                                   (getDenominator() == o.cast<Number>()->getDenominator()));
              else
                return NewBoolean(false);")
     (toOutputStream
@@ -1676,7 +1676,7 @@ Each keyword in the program is converted to an /Keyword/ object. A
              id = id + (int)str[i];
            }"))
     (equals
-     "if (!o.isType(KEYWORD_TYPE))
+     "if (!o.isType(runtime::type::Keyword))
         return NewBoolean(false);
       return NewBoolean(id == o.cast<Keyword>()->id);")
     (toOutputStream
@@ -1710,7 +1710,7 @@ Holds a native /char/ type.
     (data "char value;")
     (new ("char c" "value = c;"))
     (equals
-     "if (!o.isType(CHARACTER_TYPE))
+     "if (!o.isType(runtime::type::Character))
         return NewBoolean(false);
       return NewBoolean(value == o.cast<Character>()->value);")
     (toOutputStream
@@ -1806,7 +1806,7 @@ A simple linked list container implementing the seekable interface.
           "next = n; data = d; size = s;"))
 
     (equals
-     "if (!o.isType(SEQUENCE_TYPE))
+     "if (!o.isType(runtime::type::Sequence))
        return NewBoolean(false);
 
       var itOther = o;
@@ -1856,7 +1856,7 @@ A lazy list container implementing the seekable interface.
           "seq = NewSequence();
            seq.cast<Sequence>()->data = d; seq.cast<Sequence>()->next = t;"))
     (equals
-     "if (o.cast<Object>()->getType() != LAZYSEQUENCE_TYPE)
+     "if (o.cast<Object>()->getType() != runtime::type::LazySequence)
        return NewBoolean(false);
       var itOther = o;
       ITERATE(this,it){
@@ -1956,7 +1956,7 @@ Strings are represented as a linked list of characters.
              s = s.cast<ISeekable>()->cons(var(new Character(str[i])));
            data = s;"))
     (equals
-     "if (!o.isType(STRING_TYPE))
+     "if (!o.isType(runtime::type::String))
        return NewBoolean(false);
       return NewBoolean(data.equals(o.cast<String>()->data));")
     (toOutputStream
@@ -2009,7 +2009,7 @@ A boolean object,
   (defobject Boolean
     (data "bool value;")
     (new ("bool b" "value = b;"))
-    (equals "if (!o.isType(BOOLEAN_TYPE))
+    (equals "if (!o.isType(runtime::type::Boolean))
                return var(new Boolean(false));
              return var(new Boolean((value == o.cast<Boolean>()->value)));")
     (toOutputStream
@@ -2025,7 +2025,7 @@ A boolean object,
                 var::operator bool() const {
                   if (m_ptr == NULL)
                     return false;
-                  else if (m_ptr->getType() == BOOLEAN_TYPE)
+                  else if (m_ptr->getType() == runtime::type::Boolean)
                     return static_cast<Boolean*>(m_ptr)->value;
                     else
                       return true;
@@ -2052,7 +2052,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
     (new ("var d"
           "data = d;
            INIT_LOCK(lock);"))
-    (equals "if (!o.isType(ATOM_TYPE))
+    (equals "if (!o.isType(runtime::type::Atom))
                  return NewBoolean(false);
                return NewBoolean(this == o.cast<Atom>());")
     (toOutputStream
@@ -2122,7 +2122,7 @@ to execute them in a uniform fashion.
 #+begin_src clojure :tangle no
   (defobject Lambda
     (interfaces "var invoke(var args)")
-    (equals "if (!o.isType(LAMBDA_TYPE))
+    (equals "if (!o.isType(runtime::type::Lambda))
                  return NewBoolean(false);
                return NewBoolean(this == o.cast<Lambda>());")
     (toOutputStream
@@ -2500,7 +2500,7 @@ Once our object system is in place we can define rest of the runtime
 
   (defn nil? [x] "__result = NewBoolean(x.isNil())")
 
-  (defn char? [x] "__result = x.isType(CHARACTER_TYPE);")
+  (defn char? [x] "__result = x.isType(runtime::type::Character);")
 #+end_src
 
 We can embed C++ code into our functions, which is how most of the
@@ -2887,7 +2887,7 @@ implementation.
                      else
                        __result = xs;")
 
-  (defn list? [x] "__result = NewBoolean(x.isType(SEQUENCE_TYPE));")
+  (defn list? [x] "__result = NewBoolean(x.isType(runtime::type::Sequence));")
 
   (defn empty? [x] "__result = NewBoolean(x.cast<ISeekable>()->count() == 0)")
 
@@ -3112,11 +3112,11 @@ implementation.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn integer? [x] "__result = NewBoolean(x.isType(NUMBER_TYPE) &&
-                                           (x.cast<Number>()->getDenominator() == 1));")
+  (defn integer? [x] "__result = NewBoolean(x.isType(runtime::type::Number) &&
+                                            (x.cast<Number>()->getDenominator() == 1));")
 
-  (defn float? [x] "__result = NewBoolean(x.isType(NUMBER_TYPE) &&
-                                         (x.cast<Number>()->getDenominator() != 1));")
+  (defn float? [x] "__result = NewBoolean(x.isType(runtime::type::Number) &&
+                                          (x.cast<Number>()->getDenominator() != 1));")
 
   (defn +
     ([] 0)

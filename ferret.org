@@ -1008,7 +1008,7 @@ lambda forms.
           nil-dispatch (filter #(= (first %) 0) fns)]
       (str
        (if (not (empty? nil-dispatch))
-         (str "if (IS_NIL(" args-symbol "))
+         (str "if (" args-symbol ".isNil())
                 return " (new-lambda-stack
                           (->> nil-dispatch first second)) ".invoke(NIL);")
          "")
@@ -1312,8 +1312,6 @@ Object Casting macros,
   #define LAMBDA(v) static_cast<ferret::Lambda*>(v.get())
   #define ATOM(v) static_cast<ferret::Atom*>(v.get())
 
-  #define IS_NIL(o) (o.get() == NULL)
-  #define IS_NOT_NIL(o) (o.get() != NULL)
   #define IF(c,t,f) (c ? t : f)
 #+end_src
 
@@ -1758,21 +1756,21 @@ containers.
 #+begin_src c++ :tangle no
   namespace ferret{
     var FIRST(var coll){
-      if (IS_NIL(coll))
+      if (coll.isNil())
         return NIL;
       else
         return ISEEKABLE(coll)->first();
     }
 
     var REST(var coll){
-      if (IS_NIL(coll))
+      if (coll.isNil())
         return NewSequence();
       else
         return ISEEKABLE(coll)->rest();
     }
 
     var CONS(var seq, var x){
-      if (IS_NIL(seq))
+      if (seq.isNil())
         seq = NewSequence();
       return ISEEKABLE(seq)->cons(x);
     }
@@ -1793,7 +1791,7 @@ containers.
 
 #+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
-  #define ITERATE(c,i) for(var i = c; IS_NOT_NIL(REST(i)); i = REST(i))
+  #define ITERATE(c,i) for(var i = c; !REST(i).isNil(); i = REST(i))
 #+end_src
 
 *** Sequence
@@ -1816,7 +1814,7 @@ A simple linked list container implementing the seekable interface.
 
       var itOther = o;
       ITERATE(this,it){
-        if (IS_NIL(itOther) || FIRST(it).equals(FIRST(itOther))  == false)
+        if (itOther.isNil() || FIRST(it).equals(FIRST(itOther))  == false)
           return NewBoolean(false);
         itOther = REST(itOther);
       }
@@ -1824,7 +1822,7 @@ A simple linked list container implementing the seekable interface.
     
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"(\");
-      if (IS_NOT_NIL(next)){ 
+      if (!next.isNil()){ 
         data.toOutputStream();
         ITERATE(next,it){
           fprintf(OUTPUT_STREAM, \" \");
@@ -1865,14 +1863,14 @@ A lazy list container implementing the seekable interface.
        return NewBoolean(false);
       var itOther = o;
       ITERATE(this,it){
-        if (IS_NIL(itOther) || FIRST(it).equals(FIRST(itOther))  == false)
+        if (itOther.isNil() || FIRST(it).equals(FIRST(itOther))  == false)
           return NewBoolean(false);
         itOther = REST(itOther);
       }
       return NewBoolean(true);")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"(\");
-        if (IS_NOT_NIL(seq)){ 
+        if (!seq.isNil()){ 
           SEQUENCE(seq)->data.toOutputStream();
           ITERATE(REST(VAR(this)),it){
             fprintf(OUTPUT_STREAM, \" \");
@@ -1890,7 +1888,7 @@ A lazy list container implementing the seekable interface.
       "return SEQUENCE(seq)->data;")
      ("var iterate" ""
       "var s = _i(SEQUENCE(seq)->next);
-       if (IS_NIL(s))
+       if (s.isNil())
          return NewSequence();
 
        var data = SEQUENCE(LAZY_SEQUENCE(s)->seq)->data;
@@ -2278,6 +2276,10 @@ reaches zero it will automatically free the Object.
       return (static_cast<Object*>(m_ptr)->getType() == type);
     }
 
+    bool isNil() { 
+      return (m_ptr == NULL);
+    }
+
   private:
     void addRef(){
       // Only change if non-null
@@ -2483,7 +2485,7 @@ Once our object system is in place we can define rest of the runtime
   (defn first [x]
     "__result = FIRST(x);")
 
-  (defn nil? [x] "__result = NewBoolean(IS_NIL(x))")
+  (defn nil? [x] "__result = NewBoolean(x.isNil())")
 
   (defn char? [x] "__result = x.isType(CHARACTER_TYPE);")
 #+end_src
@@ -2714,7 +2716,7 @@ implementation.
 #+begin_src clojure :tangle no
   (defnative print [& more]
     (on "!defined(DISABLE_OUTPUT_STREAM)"
-        "if (IS_NIL(more))
+        "if (more.isNil())
            return NIL;
          var f = ISEEKABLE(more)->first();
          f.toOutputStream();
@@ -2867,7 +2869,7 @@ implementation.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn list [& xs] "if (IS_NIL(xs))
+  (defn list [& xs] "if (xs.isNil())
                        __result = NewSequence();
                      else
                        __result = xs;")
@@ -2877,7 +2879,7 @@ implementation.
   (defn empty? [x] "__result = NewBoolean(ISEEKABLE(x)->count() == 0)")
 
   (defn rest [x] "var r = REST(x);
-                  if (IS_NIL(r))
+                  if (r.isNil())
                     return NewSequence();
                   else 
                     __result = r;")
@@ -2898,7 +2900,7 @@ implementation.
 #+name: runtime-clojure-sequence-count
 #+begin_src clojure :tangle no
   (defn count [s]
-    "if (IS_NIL(s))
+    "if (s.isNil())
        return NewNumber(0);
      __result = NewNumber((NUMBER_DATA_TYPE)ISEEKABLE(s)->count());")
 #+end_src

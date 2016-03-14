@@ -842,7 +842,7 @@ C++ skeleton.
 
   (defmethod emit :boolean [form state] (str "NewBoolean(" form ")"))
 
-  (defmethod emit :nil [form state] "NIL")
+  (defmethod emit :nil [form state] "nil()")
 
   (defmethod emit :keyword [form state]
     (str "NewKeyword(" (reduce (fn[h v] (+ h (int v))) 0 (str form)) ")"))
@@ -966,11 +966,11 @@ lambda forms.
           body (filter #(not (and (seq? %)
                                   (= (first %) 'native_declare))) body)
           body (cond  (empty? body)
-                      ["NIL;"]
+                      ["nil();"]
                       (and (= 1 (count body))
                            (seq? (first body))
                            (= 'dispatch_lambda (first (first body))))
-                      [(emit (first body) state) "NIL;"]
+                      [(emit (first body) state) "nil();"]
                       (and (= 1 (count body))
                            (string? (first body)))
                       (let [inline (first body) 
@@ -978,7 +978,7 @@ lambda forms.
                                    inline
                                    (str inline \;))]
                         (if (neg? (.indexOf body "__result"))
-                          [body "NIL;"]
+                          [body "nil();"]
                           ["VAR __result;" body "__result;"]))
                       :default (doall (map #(str (emit % state) \;) body)))
           env (->> env
@@ -1010,7 +1010,7 @@ lambda forms.
        (if (not (empty? nil-dispatch))
          (str "if (" args-symbol ".isNil())
                 return " (new-lambda-stack
-                          (->> nil-dispatch first second)) ".invoke(NIL);")
+                          (->> nil-dispatch first second)) ".invoke(nil());")
          "")
        "switch(" args-symbol ".cast<ISeekable>()->count()) {"
        (->> fns
@@ -1034,7 +1034,7 @@ lambda forms.
   (defmethod emit 'if [[_ cond t f] state]
     (let [cond (emit cond state)
           t (emit t state)
-          f (if (nil? f) "NIL" (emit f state))]
+          f (if (nil? f) "nil()" (emit f state))]
       (if-statement cond t f)))
 
   (defmethod emit 'def [[_ name & form] state]
@@ -1306,7 +1306,6 @@ Object Casting macros,
 #+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
   #define VAR ferret::var
-  #define NIL (VAR())
 #+end_src
 
 Locking macros, See Program Header for more information.
@@ -1569,7 +1568,7 @@ An object to hold a reference to a C++ pointer,
     (equals
      "return NewBoolean(ptr == o.cast<Pointer>()->ptr);")
     (toOutputStream
-     "fprintf(OUTPUT_STREAM, \"Pointer<%p>\",ptr); return NIL;")
+     "fprintf(OUTPUT_STREAM, \"Pointer<%p>\",ptr); return nil();")
     (post-code "var NewPointer(void * p) {
                   return var(new ferret::Pointer(p));
                 }
@@ -1631,7 +1630,7 @@ Number Object,
         fprintf(OUTPUT_STREAM, \"/\");
         fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT,denominator);
       }
-      return NIL;")
+      return nil();")
     
     (fns
      ("NUMBER_DATA_TYPE getNumerator" "" "return numerator;")
@@ -1681,7 +1680,7 @@ Each keyword in the program is converted to an /Keyword/ object. A
         return NewBoolean(false);
       return NewBoolean(id == o.cast<Keyword>()->id);")
     (toOutputStream
-     "fprintf(OUTPUT_STREAM, \"%d\", id); return NIL;")
+     "fprintf(OUTPUT_STREAM, \"%d\", id); return nil();")
     (fns ("bool equals" "Keyword k"
           "return (id == k.id);"))
     (post-code "template<typename T>
@@ -1715,7 +1714,7 @@ Holds a native /char/ type.
         return NewBoolean(false);
       return NewBoolean(value == o.cast<Character>()->value);")
     (toOutputStream
-     "fprintf(OUTPUT_STREAM, \"%c\",value); return NIL;")
+     "fprintf(OUTPUT_STREAM, \"%c\",value); return nil();")
     (post-code "var NewCharacter(char c) {
                   return var(new Character(c));
                 }"))
@@ -1751,7 +1750,7 @@ containers.
   namespace ferret{
     var FIRST(var coll){
       if (coll.isNil())
-        return NIL;
+        return nil();
       else
         return coll.cast<ISeekable>()->first();
     }
@@ -1773,7 +1772,7 @@ containers.
       int index = ToInt(idx);
 
       if ( index < 0 || seq.cast<ISeekable>()->count() < idx)
-        return NIL;
+        return nil();
       
       var head = seq;
       for(int i=0; i < index; i++)
@@ -1824,7 +1823,7 @@ A simple linked list container implementing the seekable interface.
         }
       }
       fprintf(OUTPUT_STREAM, \")\");
-      return NIL;")
+      return nil();")
     (fns
      ("var cons" "var x"
       "return VAR(new Sequence(x, this, (size + 1)));")
@@ -1872,7 +1871,7 @@ A lazy list container implementing the seekable interface.
           }
         }
         fprintf(OUTPUT_STREAM, \")\");
-        return NIL;")
+        return nil();")
     
     (fns
      ("var cons" "var x"
@@ -1958,7 +1957,7 @@ Strings are represented as a linked list of characters.
       return NewBoolean(data.equals(o.cast<String>()->data));")
     (toOutputStream
      "ITERATE(data,it){ FIRST(it).toOutputStream(); }
-      return NIL;")
+      return nil();")
     (fns
      ("var cons" "var x"
       "return data.cast<ISeekable>()->cons(x);")
@@ -2014,7 +2013,7 @@ A boolean object,
         fprintf(OUTPUT_STREAM, \"true\"); 
       else
       fprintf(OUTPUT_STREAM, \"false\"); 
-      return NIL;")
+      return nil();")
     
     (post-code "var NewBoolean(bool b){
                  return var(new ferret::Boolean(b));
@@ -2056,7 +2055,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
      "fprintf(OUTPUT_STREAM, \"atom <\");
       data.toOutputStream();
       fprintf(OUTPUT_STREAM, \">\");
-      return NIL;")
+      return nil();")
     (fns
      ("~Atom" ""
       "DELETE_LOCK(lock);")
@@ -2112,7 +2111,7 @@ Operations on /Atoms/
 
 Every lambda object implements the /Lambda/ interface. All lambdas are
 executed via /invoke/ method that takes a that takes a sequence of
-vars as argument or /NIL/ if there are non, this allows us
+vars as argument or /nil()/ if there are non, this allows us
 to execute them in a uniform fashion.
 
 #+name: runtime-clojure-lambda-interface
@@ -2123,7 +2122,7 @@ to execute them in a uniform fashion.
                  return NewBoolean(false);
                return NewBoolean(this == o.cast<Lambda>());")
     (toOutputStream
-     "fprintf(OUTPUT_STREAM, \"lambda\"); return NIL;")
+     "fprintf(OUTPUT_STREAM, \"lambda\"); return nil();")
     (force-type true))
 #+end_src
 
@@ -2180,12 +2179,12 @@ Function invocation,
 
     template<typename T>
     var _i(T fn) {
-      return fn.invoke(NIL);
+      return fn.invoke(nil());
     }
 
     template<>
     var _i(var fn) {
-      return fn.cast<Lambda>()->invoke(NIL);
+      return fn.cast<Lambda>()->invoke(nil());
     }
 
     template<typename... Args>
@@ -2292,6 +2291,10 @@ reaches zero it will automatically free the Object.
       
     Object* m_ptr;
   };
+
+  var nil(){
+    return var();
+  }
 #+end_src
 
 *** Program Header
@@ -2577,7 +2580,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
         ("memory")
         "std::shared_ptr<FILE> pipe(popen(ToCStr(cmd), \"r\"), pclose);
          if (!pipe) 
-            __result = NIL;
+            __result = nil();
          char buffer[128];
          std::string result = \"\";
          while (!feof(pipe.get()))
@@ -2601,7 +2604,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
         "for(int i = 0; i < MEMORY_POOL_SIZE; i++)
            fprintf(OUTPUT_STREAM, \"%d\",ProgramMemory.used.get(i));
         fprintf(OUTPUT_STREAM, \"\\n\");
-         __result = NIL;"))
+         __result = nil();"))
 
   (defn memory-sizeof-ferret-objects []
     (println "var:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::var));")))
@@ -2710,7 +2713,7 @@ implementation.
   (defnative print [& more]
     (on "!defined(DISABLE_OUTPUT_STREAM)"
         "if (more.isNil())
-           return NIL;
+           return nil();
          var f = more.cast<ISeekable>()->first();
          f.toOutputStream();
          var r = more.cast<ISeekable>()->rest();
@@ -3326,7 +3329,7 @@ Runs the given lambda in a posix thread,
         "pthread_t th;
          f.cast<Object>()->addRef();
          if(::pthread_create(&th, 0, &PTHREAD_LAMBDA_INVOKER, static_cast<void*>(f.get())))
-           return NIL;
+           return nil();
          __result = NewNumber(pthread_detach(th));"))
 #+end_src
 

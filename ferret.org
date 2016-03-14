@@ -1976,12 +1976,12 @@ Strings are represented as a linked list of characters.
     (post-code "template<typename T>
                 var NewString(T s) {
                     return var(new String(s));
-                }"))
-#+end_src
-
-#+name: runtime-native-object-casting-macros
-#+begin_src c++ :tangle no
-  #define TO_C_STR(s) (s.cast<String>()->toString().c_str())
+                }
+                #if defined(STD_LIB)
+                const char* ToCStr(var s) {
+                  return (s.cast<String>()->toString().c_str());
+                }
+                #endif"))
 #+end_src
 
 #+name: native-string-tests
@@ -2575,7 +2575,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
   (defnative sh [cmd]
     (on "defined STD_LIB"
         ("memory")
-        "std::shared_ptr<FILE> pipe(popen(TO_C_STR(cmd), \"r\"), pclose);
+        "std::shared_ptr<FILE> pipe(popen(ToCStr(cmd), \"r\"), pclose);
          if (!pipe) 
             __result = NIL;
          char buffer[128];

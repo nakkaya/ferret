@@ -1143,8 +1143,8 @@ lambda forms.
       (let [n (second l)
             e (env l)]
         (if (empty? e)
-          (str "FN(" n ")")
-          (str "CLOSURE(" n "," (apply str (interpose \, e)) ")"))))
+          (str "fn<" n ">()")
+          (str "closure<" n ">(" (apply str (interpose \, e)) ")"))))
 
     (defn new-lambda-stack [l]
       (let [n (second l)
@@ -2146,6 +2146,16 @@ Function invocation,
 
     template<>
     var _i(var);
+
+    template<typename T>
+    var fn(){
+      return var(new T());
+    }
+
+    template<typename T, typename... Args>
+    var closure(Args... args) {
+      return var(new T(args...));
+    }
   }
 #+end_src
 
@@ -2183,12 +2193,6 @@ Function invocation,
       return fn.cast<Lambda>()->invoke(__list(args...,VAR(new ferret::Sequence(NULL,NULL))));
     }
   }
-#+end_src
-
-#+name: runtime-native-object-casting-macros
-#+begin_src c++ :tangle no
-  #define FN(f) VAR(new ferret::f())
-  #define CLOSURE(f,...) VAR(new ferret::f(__VA_ARGS__))
 #+end_src
 
 #+name: native-lambda-test

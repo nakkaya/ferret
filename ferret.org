@@ -809,9 +809,9 @@ Without preprocessing following forms,
 would evaluate to,
 
 #+begin_example
-  "_i(list,NewNumber(3),NewNumber(2),NewNumber(1))"
-  "_i(+,NewNumber(2),NewNumber(1))"
-  "IF(_i(<,b,a), b, a)"
+  "_i(list,NewNumber(1),NewNumber(2),NewNumber(3))"
+  "_i(+,NewNumber(1),NewNumber(2))"
+  "((<,b,a) ? a : b)"
 #+end_example
 
 So the actual compilation will just map emit to all forms passed and
@@ -1012,7 +1012,7 @@ lambda forms.
                 return " (new-lambda-stack
                           (->> nil-dispatch first second)) ".invoke(NIL);")
          "")
-       "switch(ISEEKABLE(" args-symbol ")->count()) {"
+       "switch(" args-symbol ".cast<ISeekable>()->count()) {"
        (->> fns
             (map (fn [[count fn]]
                    (if (= count 'true)
@@ -1132,7 +1132,7 @@ lambda forms.
 #+name: code-templates
 #+begin_src clojure :tangle no
   (defn if-statement [cond t f]
-    (apply str "IF(" cond ", " t ", " f ")"))
+    (apply str "(" cond " ? " t " : " f ")"))
 
   (let [env (fn [[_ _ & env]]
               (->> env
@@ -1307,12 +1307,9 @@ Object Casting macros,
 #+begin_src c++ :tangle no
   #define VAR ferret::var
   #define NIL (VAR())
-  #define ISEEKABLE(v) static_cast<ferret::ISeekable*>(v.get())
   #define SEQUENCE(v) static_cast<ferret::Sequence*>(v.get())
   #define LAMBDA(v) static_cast<ferret::Lambda*>(v.get())
   #define ATOM(v) static_cast<ferret::Atom*>(v.get())
-
-  #define IF(c,t,f) (c ? t : f)
 #+end_src
 
 Locking macros, See Program Header for more information.
@@ -1759,26 +1756,26 @@ containers.
       if (coll.isNil())
         return NIL;
       else
-        return ISEEKABLE(coll)->first();
+        return coll.cast<ISeekable>()->first();
     }
 
     var REST(var coll){
       if (coll.isNil())
         return NewSequence();
       else
-        return ISEEKABLE(coll)->rest();
+        return coll.cast<ISeekable>()->rest();
     }
 
     var CONS(var seq, var x){
       if (seq.isNil())
         seq = NewSequence();
-      return ISEEKABLE(seq)->cons(x);
+      return seq.cast<ISeekable>()->cons(x);
     }
     
     var NTH(var seq, var idx){
       int index = ToInt(idx);
 
-      if ( index < 0 || ISEEKABLE(seq)->count() < idx)
+      if ( index < 0 || seq.cast<ISeekable>()->count() < idx)
         return NIL;
       
       var head = seq;
@@ -1961,7 +1958,7 @@ Strings are represented as a linked list of characters.
            length--;
            var s = var(new Sequence());
            for (int i = length; i >= 0; i--)
-             s = ISEEKABLE(s)->cons(VAR(new ferret::Character(str[i])));
+             s = s.cast<ISeekable>()->cons(VAR(new ferret::Character(str[i])));
            data = s;"))
     (equals
      "if (!o.isType(STRING_TYPE))
@@ -1972,13 +1969,13 @@ Strings are represented as a linked list of characters.
       return NIL;")
     (fns
      ("var cons" "var x"
-      "return ISEEKABLE(data)->cons(x);")
+      "return data.cast<ISeekable>()->cons(x);")
      ("var first" ""
       "return FIRST(data);")
      ("var rest" ""
       "return REST(data);")
      ("size_t count" ""
-      "return ISEEKABLE(data)->count();")
+      "return data.cast<ISeekable>()->count();")
      ("ifdef STD_LIB"
       "std::string toString" ""
       "std::stringstream ss;
@@ -2718,9 +2715,9 @@ implementation.
     (on "!defined(DISABLE_OUTPUT_STREAM)"
         "if (more.isNil())
            return NIL;
-         var f = ISEEKABLE(more)->first();
+         var f = more.cast<ISeekable>()->first();
          f.toOutputStream();
-         var r = ISEEKABLE(more)->rest();
+         var r = more.cast<ISeekable>()->rest();
          ITERATE(r,it){
           fprintf(OUTPUT_STREAM, \" \");
           FIRST(it).toOutputStream();
@@ -2876,7 +2873,7 @@ implementation.
 
   (defn list? [x] "__result = NewBoolean(x.isType(SEQUENCE_TYPE));")
 
-  (defn empty? [x] "__result = NewBoolean(ISEEKABLE(x)->count() == 0)")
+  (defn empty? [x] "__result = NewBoolean(x.cast<ISeekable>()->count() == 0)")
 
   (defn rest [x] "var r = REST(x);
                   if (r.isNil())
@@ -2902,7 +2899,7 @@ implementation.
   (defn count [s]
     "if (s.isNil())
        return NewNumber(0);
-     __result = NewNumber((NUMBER_DATA_TYPE)ISEEKABLE(s)->count());")
+     __result = NewNumber((NUMBER_DATA_TYPE)s.cast<ISeekable>()->count());")
 #+end_src
 
 #+name: runtime-clojure-sequences-tests

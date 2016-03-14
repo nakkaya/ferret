@@ -1592,10 +1592,6 @@ An object to hold a reference to a C++ pointer,
                 template<typename T>
                 T* ToPointer(var p) {
                   return ((T *)POINTER(p)->ptr);
-                }
-                template<typename T>
-                T& ToReference(var p) {
-                  return (*(ToPointer<T>(p)));
                 }"))
 #+end_src
 

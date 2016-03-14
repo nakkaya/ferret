@@ -1584,15 +1584,21 @@ An object to hold a reference to a C++ pointer,
 
 There is only one number type in ferret. All numbers are kept as
 ratios. Default number size is /int/. A ratio is kept in memory as two
-/NUMBER_DATA_TYPE/ size members named /numerator/ and /denominator/.
+/math::container/ size members named /numerator/ and /denominator/.
 
 Math configuration,
 
 #+name: runtime-native-math-config-macros
 #+begin_src c++ :tangle no
-  #define NUMBER_PRECISION 1000 //used when reading floats.
-  #define NUMBER_DATA_TYPE int
-  #define NUMBER_TYPE_FORMAT "%d"
+  namespace ferret{
+    namespace math{
+      const int precision = 1000; //used when reading floats.
+      typedef int container;
+  #if !defined(DISABLE_OUTPUT_STREAM)
+      const char* format = "%d";
+  #endif
+    }
+  }
 #+end_src
 
 Number Object,
@@ -1600,17 +1606,17 @@ Number Object,
 #+name: runtime-clojure-number-object
 #+begin_src clojure :tangle no
   (defobject Number
-    (data "NUMBER_DATA_TYPE numerator;"
-          "NUMBER_DATA_TYPE denominator;")
-    (new ("NUMBER_DATA_TYPE x"
+    (data "math::container numerator;"
+          "math::container denominator;")
+    (new ("math::container x"
           "numerator = x; denominator = 1;")
-         ("NUMBER_DATA_TYPE n, NUMBER_DATA_TYPE dn"
+         ("math::container n, math::container dn"
           "numerator = n; denominator = dn; simplificate();")
          ("float x"
-          "float decimal = (x - (NUMBER_DATA_TYPE)x) * (float)NUMBER_PRECISION;
-           NUMBER_DATA_TYPE integer = (NUMBER_DATA_TYPE)x;
-           numerator = decimal + (integer * NUMBER_PRECISION);
-           denominator = NUMBER_PRECISION;
+          "float decimal = (x - (math::container)x) * (float)math::precision;
+           math::container integer = (math::container)x;
+           numerator = decimal + (integer * math::precision);
+           denominator = math::precision;
            simplificate();"))
     (equals "if (o.cast<Object>()->getType() == runtime::type::Number)
                if (getNumerator() == 0 && o.cast<Number>()->getNumerator() == 0)
@@ -1622,19 +1628,19 @@ Number Object,
                return NewBoolean(false);")
     (toOutputStream
      "if (denominator == 1)
-        fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT, numerator);
+        fprintf(OUTPUT_STREAM, math::format, numerator);
       else if (numerator == 0)
         fprintf(OUTPUT_STREAM, \"0\");
       else{
-        fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT,numerator);
+        fprintf(OUTPUT_STREAM, math::format,numerator);
         fprintf(OUTPUT_STREAM, \"/\");
-        fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT,denominator);
+        fprintf(OUTPUT_STREAM, math::format,denominator);
       }
       return nil();")
     
     (fns
-     ("NUMBER_DATA_TYPE getNumerator" "" "return numerator;")
-     ("NUMBER_DATA_TYPE getDenominator" "" "return denominator;")
+     ("math::container getNumerator" "" "return numerator;")
+     ("math::container getDenominator" "" "return denominator;")
      ("float floatValue" "" "return (float)numerator/(float)denominator;")
      ("int intValue" ""
       "if (denominator == 1)
@@ -1643,16 +1649,16 @@ Number Object,
           return (int)floatValue();")
      ("void simplificate" ""
       "int commondivisor = 1;
-        for(NUMBER_DATA_TYPE i=2;i<=runtime::min(runtime::abs(numerator), runtime::abs(denominator));i++)
+        for(math::container i=2;i<=runtime::min(runtime::abs(numerator), runtime::abs(denominator));i++)
           if( numerator%i == 0 && denominator%i == 0 )
             commondivisor = i;
         numerator /= commondivisor;
         denominator /= commondivisor;")
      ("~Number" "" ""))
-    (post-code "var NewNumber(NUMBER_DATA_TYPE i) {
+    (post-code "var NewNumber(math::container i) {
                   return var(new Number(i));
                 }
-                var NewRatio(NUMBER_DATA_TYPE n,NUMBER_DATA_TYPE dn) {
+                var NewRatio(math::container n,math::container dn) {
                   return var(new Number(n,dn));
                 }
                 int ToInt(var i) {
@@ -2323,8 +2329,8 @@ pages you can use a pool of /char/ pages using,
 By default Numbers use int to hold data use,
 
 #+BEGIN_EXAMPLE
-  #define NUMBER_DATA_TYPE long
-  #define NUMBER_DATA_TYPE_FORMAT "%ld"
+  ferret::math::container long
+  ferret::math::format "%ld"
 #+END_EXAMPLE
 
 to switch to longs for number data.
@@ -2624,17 +2630,17 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
          __result = nil();"))
 
   (defn memory-sizeof-ferret-objects []
-    (println "var:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(var));")))
-    (println "Object:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Object));")))
-    (println "Pointer:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Pointer));")))
-    (println "Number:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Number));")))
-    (println "Keyword:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Keyword));")))
-    (println "Sequence:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Sequence));")))
-    (println "Char:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Character));")))
-    (println "String:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(String));")))
-    (println "Boolean:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Boolean));")))
-    (println "Lambda:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Lambda));")))
-    (println "Atom:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Atom));"))))
+    (println "var:" ((fn [] "__result = NewNumber((math::container)sizeof(var));")))
+    (println "Object:" ((fn [] "__result = NewNumber((math::container)sizeof(Object));")))
+    (println "Pointer:" ((fn [] "__result = NewNumber((math::container)sizeof(Pointer));")))
+    (println "Number:" ((fn [] "__result = NewNumber((math::container)sizeof(Number));")))
+    (println "Keyword:" ((fn [] "__result = NewNumber((math::container)sizeof(Keyword));")))
+    (println "Sequence:" ((fn [] "__result = NewNumber((math::container)sizeof(Sequence));")))
+    (println "Char:" ((fn [] "__result = NewNumber((math::container)sizeof(Character));")))
+    (println "String:" ((fn [] "__result = NewNumber((math::container)sizeof(String));")))
+    (println "Boolean:" ((fn [] "__result = NewNumber((math::container)sizeof(Boolean));")))
+    (println "Lambda:" ((fn [] "__result = NewNumber((math::container)sizeof(Lambda));")))
+    (println "Atom:" ((fn [] "__result = NewNumber((math::container)sizeof(Atom));"))))
 #+end_src
 
 Takes a function and returns the number of millis took.
@@ -2650,12 +2656,12 @@ Takes a function and returns the number of millis took.
          _i(f);
          gettimeofday(&te, NULL);
          unsigned long end = (int)(te.tv_sec*1000LL + te.tv_usec/1000); 
-         __result = NewNumber((NUMBER_DATA_TYPE)(end - begin));")
+         __result = NewNumber((math::container)(end - begin));")
     (on "defined ARDUINO"
         "unsigned long begin = millis();
          _i(f);
          unsigned long end = millis();
-         __result = NewNumber((NUMBER_DATA_TYPE)(end - begin));"))
+         __result = NewNumber((math::container)(end - begin));"))
 #+end_src
 
 Threads the expr through the forms. Inserts x as the
@@ -2915,7 +2921,7 @@ implementation.
   (defn count [s]
     "if (s.isNil())
        return NewNumber(0);
-     __result = NewNumber((NUMBER_DATA_TYPE)s.cast<ISeekable>()->count());")
+     __result = NewNumber((math::container)s.cast<ISeekable>()->count());")
 #+end_src
 
 #+name: runtime-clojure-sequences-tests
@@ -2994,11 +3000,11 @@ implementation.
     ([] true)
     ([x] true)
     ([a b]
-     "NUMBER_DATA_TYPE an = a.cast<Number>()->getNumerator();
-      NUMBER_DATA_TYPE adn = a.cast<Number>()->getDenominator();
+     "math::container an = a.cast<Number>()->getNumerator();
+      math::container adn = a.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE bn = b.cast<Number>()->getNumerator();
-      NUMBER_DATA_TYPE bdn = b.cast<Number>()->getDenominator();
+      math::container bn = b.cast<Number>()->getNumerator();
+      math::container bdn = b.cast<Number>()->getDenominator();
 
       __result = NewBoolean((an * bdn) < (bn * adn));")
     ([a b & more]
@@ -3010,11 +3016,11 @@ implementation.
     ([] true)
     ([x] true)
     ([a b]
-     "NUMBER_DATA_TYPE an = a.cast<Number>()->getNumerator();
-      NUMBER_DATA_TYPE adn = a.cast<Number>()->getDenominator();
+     "math::container an = a.cast<Number>()->getNumerator();
+      math::container adn = a.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE bn = b.cast<Number>()->getNumerator();
-      NUMBER_DATA_TYPE bdn = b.cast<Number>()->getDenominator();
+      math::container bn = b.cast<Number>()->getNumerator();
+      math::container bdn = b.cast<Number>()->getDenominator();
 
       __result = NewBoolean((an * bdn) > (bn * adn));")
     ([a b & more]
@@ -3026,11 +3032,11 @@ implementation.
     ([] true)
     ([x] true)
     ([a b]
-     "NUMBER_DATA_TYPE an = a.cast<Number>()->getNumerator();
-      NUMBER_DATA_TYPE adn = a.cast<Number>()->getDenominator();
+     "math::container an = a.cast<Number>()->getNumerator();
+      math::container adn = a.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE bn = b.cast<Number>()->getNumerator();
-      NUMBER_DATA_TYPE bdn = b.cast<Number>()->getDenominator();
+      math::container bn = b.cast<Number>()->getNumerator();
+      math::container bdn = b.cast<Number>()->getDenominator();
 
       __result = NewBoolean((an * bdn) >= (bn * adn));")
     ([a b & more]
@@ -3042,11 +3048,11 @@ implementation.
     ([] true)
     ([x] true)
     ([a b]
-     "NUMBER_DATA_TYPE an = a.cast<Number>()->getNumerator();
-      NUMBER_DATA_TYPE adn = a.cast<Number>()->getDenominator();
+     "math::container an = a.cast<Number>()->getNumerator();
+      math::container adn = a.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE bn = b.cast<Number>()->getNumerator();
-      NUMBER_DATA_TYPE bdn = b.cast<Number>()->getDenominator();
+      math::container bn = b.cast<Number>()->getNumerator();
+      math::container bdn = b.cast<Number>()->getDenominator();
 
       __result = NewBoolean((an * bdn) <= (bn * adn));")
     ([a b & more]
@@ -3122,13 +3128,13 @@ implementation.
     ([] 0)
     ([x] x)
     ([h v]
-     "NUMBER_DATA_TYPE hn = h.cast<Number>()->getNumerator();
-      NUMBER_DATA_TYPE hdn = h.cast<Number>()->getDenominator();
+     "math::container hn = h.cast<Number>()->getNumerator();
+      math::container hdn = h.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE vn = v.cast<Number>()->getNumerator();
-      NUMBER_DATA_TYPE vdn = v.cast<Number>()->getDenominator();
+      math::container vn = v.cast<Number>()->getNumerator();
+      math::container vdn = v.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE ndn = (hdn * vdn);
+      math::container ndn = (hdn * vdn);
 
       __result = NewRatio(((hn * vdn) + (vn * hdn)),ndn);")
     ([x y & more]
@@ -3143,13 +3149,13 @@ implementation.
     ([] 1)
     ([x] x)
     ([h v]
-     "NUMBER_DATA_TYPE hn = h.cast<Number>()->getNumerator();
-      NUMBER_DATA_TYPE hdn = h.cast<Number>()->getDenominator();
+     "math::container hn = h.cast<Number>()->getNumerator();
+      math::container hdn = h.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE vn = v.cast<Number>()->getNumerator();
-      NUMBER_DATA_TYPE vdn = v.cast<Number>()->getDenominator();
+      math::container vn = v.cast<Number>()->getNumerator();
+      math::container vdn = v.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE ndn = (hdn * vdn);
+      math::container ndn = (hdn * vdn);
 
       __result = NewRatio(((hn * vdn) * (vn * hdn)),ndn);")
     ([x y & more]
@@ -3159,13 +3165,13 @@ implementation.
     ([x]
      (* -1 x))
     ([h v]
-     "NUMBER_DATA_TYPE hn = h.cast<Number>()->getNumerator();
-      NUMBER_DATA_TYPE hdn = h.cast<Number>()->getDenominator();
+     "math::container hn = h.cast<Number>()->getNumerator();
+      math::container hdn = h.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE vn = v.cast<Number>()->getNumerator();
-      NUMBER_DATA_TYPE vdn = v.cast<Number>()->getDenominator();
+      math::container vn = v.cast<Number>()->getNumerator();
+      math::container vdn = v.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE ndn = (hdn * vdn);
+      math::container ndn = (hdn * vdn);
 
       __result = NewRatio(((hn * vdn) - (vn * hdn)),ndn);")
     ([x y & more]
@@ -3175,11 +3181,11 @@ implementation.
     ([x]
      (apply / (list 1 x)))
     ([h v]
-     "NUMBER_DATA_TYPE hn = h.cast<Number>()->getNumerator();
-      NUMBER_DATA_TYPE hdn = h.cast<Number>()->getDenominator();
+     "math::container hn = h.cast<Number>()->getNumerator();
+      math::container hdn = h.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE vn = v.cast<Number>()->getNumerator();
-      NUMBER_DATA_TYPE vdn = v.cast<Number>()->getDenominator();
+      math::container vn = v.cast<Number>()->getNumerator();
+      math::container vdn = v.cast<Number>()->getDenominator();
 
       __result = NewRatio((hn * vdn),(vn * hdn));")
     ([x y & more]

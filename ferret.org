@@ -863,7 +863,7 @@ C++ skeleton.
                    (doall (map #(emit % state) args))))
 
   (defmethod emit 'define_var [[_ name form] state]
-    (str "VAR " name " = " (emit form state)))
+    (str "var " name " = " (emit form state)))
 
   (defmethod emit 'native_declare [[_ declaration] state]
     (append-to! state [:native-declarations] declaration) "")
@@ -880,7 +880,7 @@ lambda forms.
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
   (defn destructure-set-var [val arg accesor]
-    (str "VAR " val " = "
+    (str "var " val " = "
          (reduce (fn[h v] (str v "(" h ")")) arg accesor)))
 
   (defn destructure-arguments [args name]
@@ -979,7 +979,7 @@ lambda forms.
                                    (str inline \;))]
                         (if (neg? (.indexOf body "__result"))
                           [body "nil();"]
-                          ["VAR __result;" body "__result;"]))
+                          ["var __result;" body "__result;"]))
                       :default (doall (map #(str (emit % state) \;) body)))
           env (->> env
                    (flatten)
@@ -1171,20 +1171,20 @@ lambda forms.
          class $lambda.name$  \\{
         $endif$
 
-        $lambda.env:{VAR $it$;} ;separator=\"\n\"$
+        $lambda.env:{var $it$;} ;separator=\"\n\"$
 
         public:
 
         $if(lambda.env)$
-          $lambda.name$ ($lambda.env:{VAR $it$} ;separator=\",\"$){ 
+          $lambda.name$ ($lambda.env:{var $it$} ;separator=\",\"$){ 
              $lambda.env:{this->$it$ = $it$;} ;separator=\"\n\"$
           }
         $endif$
 
         $if(lambda.args)$
-            VAR invoke (VAR _args_);
+            var invoke (var _args_);
         $else$
-            VAR invoke (VAR);
+            var invoke (var);
         $endif$
         };};separator=\"\n\n\"$")]
       (fill-view! view "lambdas" lambdas)
@@ -1194,9 +1194,9 @@ lambda forms.
     (let [view (create-view
                 "$lambdas: {lambda|
         $if(lambda.args)$
-            VAR $lambda.name$::invoke (VAR _args_)
+            var $lambda.name$::invoke (var _args_)
         $else$
-            VAR $lambda.name$::invoke (VAR)
+            var $lambda.name$::invoke (var)
         $endif$
             {
               $lambda.args:{args | $args$; } ;separator=\"\n\"$
@@ -1220,15 +1220,16 @@ lambda forms.
 
         $object_interface$
 
+        <<runtime-native-program-misc>>
         <<runtime-native-iseekable-headers>>
         <<function-invocation-api-headers>>
 
         #if defined(STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS) && !defined(DISABLE_MAIN_FUNCTION)
-          VAR _star_command_line_args_star_;
+          ferret::var _star_command_line_args_star_;
         #endif
 
         namespace ferret{
-         $symbols:{VAR $it$;} ;separator=\"\n\"$
+         $symbols:{var $it$;} ;separator=\"\n\"$
         }
 
         $native_declarations:{$it$} ;separator=\"\n\"$      
@@ -1298,15 +1299,7 @@ lambda forms.
 * Runtime
 ** Native
 
-On the C++ side we define our own object system, which includes the
-following types,
-
-Object Casting macros,
-
-#+name: runtime-native-object-casting-macros
-#+begin_src c++ :tangle no
-  #define VAR ferret::var
-#+end_src
+On the C++ side we define our own object system.
 
 Locking macros, See Program Header for more information.
 
@@ -1826,7 +1819,7 @@ A simple linked list container implementing the seekable interface.
       return nil();")
     (fns
      ("var cons" "var x"
-      "return VAR(new Sequence(x, this, (size + 1)));")
+      "return var(new Sequence(x, this, (size + 1)));")
      ("var first" ""
       "return data;")
      ("var rest" ""
@@ -1865,7 +1858,7 @@ A lazy list container implementing the seekable interface.
      "fprintf(OUTPUT_STREAM, \"(\");
         if (!seq.isNil()){ 
           seq.cast<Sequence>()->data.toOutputStream();
-          ITERATE(REST(VAR(this)),it){
+          ITERATE(REST(var(this)),it){
             fprintf(OUTPUT_STREAM, \" \");
             FIRST(it).toOutputStream();
           }
@@ -1906,7 +1899,7 @@ A lazy list container implementing the seekable interface.
 #+name: runtime-clojure-sequence-object
 #+begin_src clojure :tangle no
   (defn new-lazy-seq [f]
-    "__result = VAR(new LazySequence(f));")
+    "__result = var(new LazySequence(f));")
 
   (defmacro lazy-seq [& body]
     (list 'new-lazy-seq (cons 'fn `( [] ~@body))))
@@ -1949,7 +1942,7 @@ Strings are represented as a linked list of characters.
            length--;
            var s = var(new Sequence());
            for (int i = length; i >= 0; i--)
-             s = s.cast<ISeekable>()->cons(VAR(new ferret::Character(str[i])));
+             s = s.cast<ISeekable>()->cons(var(new ferret::Character(str[i])));
            data = s;"))
     (equals
      "if (!o.isType(STRING_TYPE))
@@ -2169,12 +2162,12 @@ Function invocation,
     template<typename T, typename... Args>
     T __list(T first, Args... args) {
 
-      return VAR(new ferret::Sequence(first, __list(args...), (sizeof...(args))));
+      return var(new ferret::Sequence(first, __list(args...), (sizeof...(args))));
     }
 
     template<typename T, typename... Args>
     var _i(T fn, Args... args) {
-      return fn.invoke(__list(args...,VAR(new ferret::Sequence(NULL,NULL))));
+      return fn.invoke(__list(args...,var(new ferret::Sequence(NULL,NULL))));
     }
 
     template<typename T>
@@ -2189,7 +2182,7 @@ Function invocation,
 
     template<typename... Args>
     var _i(var fn, Args... args) {
-      return fn.cast<Lambda>()->invoke(__list(args...,VAR(new ferret::Sequence(NULL,NULL))));
+      return fn.cast<Lambda>()->invoke(__list(args...,var(new ferret::Sequence(NULL,NULL))));
     }
   }
 #+end_src
@@ -2465,7 +2458,7 @@ When C++ Standard Library is present
 
 Misc,
 
-#+name: runtime-native-program-header
+#+name: runtime-native-program-misc
 #+begin_src c++ :tangle no
   namespace ferret{
     namespace runtime{

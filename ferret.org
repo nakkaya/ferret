@@ -1588,13 +1588,15 @@ An object to hold a reference to a C++ pointer,
      "fprintf(OUTPUT_STREAM, \"Pointer<%p>\",ptr); return NIL;")
     (post-code "var NewPointer(void * p) {
                   return var(new ferret::Pointer(p));
+                }
+                template<typename T>
+                T* ToPointer(var p) {
+                  return ((T *)POINTER(p)->ptr);
+                }
+                template<typename T>
+                T& ToReference(var p) {
+                  return (*(ToPointer<T>(p)));
                 }"))
-#+end_src
-
-#+name: runtime-native-object-casting-macros
-#+begin_src c++ :tangle no
-  #define TO_POINTER(p,type) ((type *)POINTER(p)->ptr)
-  #define TO_REFERENCE(p,type) (*(TO_POINTER(p,type)))
 #+end_src
 
 *** Number

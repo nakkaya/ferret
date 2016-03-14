@@ -1563,7 +1563,7 @@ An object to hold a reference to a C++ pointer,
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"Pointer<%p>\",ptr); return nil();")
     (post-code "var NewPointer(void * p) {
-                  return var(new ferret::Pointer(p));
+                  return var(new Pointer(p));
                 }
                 template<typename T>
                 T* ToPointer(var p) {
@@ -1643,10 +1643,10 @@ Number Object,
         denominator /= commondivisor;")
      ("~Number" "" ""))
     (post-code "var NewNumber(NUMBER_DATA_TYPE i) {
-                  return var(new ferret::Number(i));
+                  return var(new Number(i));
                 }
                 var NewRatio(NUMBER_DATA_TYPE n,NUMBER_DATA_TYPE dn) {
-                  return var(new ferret::Number(n,dn));
+                  return var(new Number(n,dn));
                 }
                 int ToInt(var i) {
                   return (i.cast<Number>()->intValue());
@@ -1678,7 +1678,7 @@ Each keyword in the program is converted to an /Keyword/ object. A
           "return (id == k.id);"))
     (post-code "template<typename T>
                 var NewKeyword(T k) {
-                  return var(new ferret::Keyword(k));
+                  return var(new Keyword(k));
                 }"))
 #+end_src
 
@@ -1826,7 +1826,7 @@ A simple linked list container implementing the seekable interface.
       "return next;")
      ("size_t count" ""
       "return size;"))
-    (post-code "var NewSequence() {return var(new ferret::Sequence());}"))
+    (post-code "var NewSequence() {return var(new Sequence());}"))
 #+end_src
 
 *** Lazy Sequence
@@ -1942,7 +1942,7 @@ Strings are represented as a linked list of characters.
            length--;
            var s = var(new Sequence());
            for (int i = length; i >= 0; i--)
-             s = s.cast<ISeekable>()->cons(var(new ferret::Character(str[i])));
+             s = s.cast<ISeekable>()->cons(var(new Character(str[i])));
            data = s;"))
     (equals
      "if (!o.isType(STRING_TYPE))
@@ -2009,13 +2009,13 @@ A boolean object,
       return nil();")
     
     (post-code "var NewBoolean(bool b){
-                 return var(new ferret::Boolean(b));
+                 return var(new Boolean(b));
                 };
                 var::operator bool() const {
                   if (m_ptr == NULL)
                     return false;
                   else if (m_ptr->getType() == BOOLEAN_TYPE)
-                    return static_cast<ferret::Boolean*>(m_ptr)->value;
+                    return static_cast<Boolean*>(m_ptr)->value;
                     else
                       return true;
                   }
@@ -2162,12 +2162,12 @@ Function invocation,
     template<typename T, typename... Args>
     T __list(T first, Args... args) {
 
-      return var(new ferret::Sequence(first, __list(args...), (sizeof...(args))));
+      return var(new Sequence(first, __list(args...), (sizeof...(args))));
     }
 
     template<typename T, typename... Args>
     var _i(T fn, Args... args) {
-      return fn.invoke(__list(args...,var(new ferret::Sequence(NULL,NULL))));
+      return fn.invoke(__list(args...,var(new Sequence(NULL,NULL))));
     }
 
     template<typename T>
@@ -2182,7 +2182,7 @@ Function invocation,
 
     template<typename... Args>
     var _i(var fn, Args... args) {
-      return fn.cast<Lambda>()->invoke(__list(args...,var(new ferret::Sequence(NULL,NULL))));
+      return fn.cast<Lambda>()->invoke(__list(args...,var(new Sequence(NULL,NULL))));
     }
   }
 #+end_src
@@ -2613,17 +2613,17 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
          __result = nil();"))
 
   (defn memory-sizeof-ferret-objects []
-    (println "var:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::var));")))
-    (println "Object:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Object));")))
-    (println "Pointer:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Pointer));")))
-    (println "Number:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Number));")))
-    (println "Keyword:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Keyword));")))
-    (println "Sequence:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Sequence));")))
-    (println "Char:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Character));")))
-    (println "String:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::String));")))
-    (println "Boolean:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Boolean));")))
-    (println "Lambda:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Lambda));")))
-    (println "Atom:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Atom));"))))
+    (println "var:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(var));")))
+    (println "Object:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Object));")))
+    (println "Pointer:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Pointer));")))
+    (println "Number:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Number));")))
+    (println "Keyword:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Keyword));")))
+    (println "Sequence:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Sequence));")))
+    (println "Char:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Character));")))
+    (println "String:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(String));")))
+    (println "Boolean:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Boolean));")))
+    (println "Lambda:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Lambda));")))
+    (println "Atom:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(Atom));"))))
 #+end_src
 
 Takes a function and returns the number of millis took.

@@ -4,7 +4,7 @@ Ferret is a Clojure to C++ compiler, projects aim is to create a
 functional minimum viable lisp that runs on embedded systems with
 deterministic behaviour by compiling a subset of Clojure to C++.
 
-Generated code is self contained ANSI C++98 with no third part
+Generated code is self contained ANSI C++11 with no third part
 dependencies including `libstdc++`. Which allows it to run on embedded
 systems with as little as 2KB of RAM and no `libstdc++`. (Arduino Uno
 / Atmega328 with 32kb Flash)
@@ -30,7 +30,7 @@ possible to implement with the current implementation.)
 
 All tests are compiled using,
 
- - `-std=c++98`
+ - `-std=c++11`
  - `-ansi`
  - `-pedantic`
  - `-Werror`

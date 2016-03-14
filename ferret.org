@@ -809,9 +809,9 @@ Without preprocessing following forms,
 would evaluate to,
 
 #+begin_example
-  "INVOKE_WITH(list,NEW_NUMBER(3),NEW_NUMBER(2),NEW_NUMBER(1))"
-  "INVOKE_WITH(+,NEW_NUMBER(2),NEW_NUMBER(1))"
-  "IF(INVOKE_WITH(<,b,a), b, a)"
+  "_i(list,NEW_NUMBER(3),NEW_NUMBER(2),NEW_NUMBER(1))"
+  "_i(+,NEW_NUMBER(2),NEW_NUMBER(1))"
+  "IF(_i(<,b,a), b, a)"
 #+end_example
 
 So the actual compilation will just map emit to all forms passed and
@@ -859,8 +859,8 @@ C++ skeleton.
     (invoke-lambda (emit fn state) (doall (map #(emit % state) args))))
 
   (defmethod emit 'invoke_lambda_stack [[_ lambda & args] state]
-    (invoke-lambda-stack (new-lambda-stack lambda)
-                         (doall (map #(emit % state) args))))
+    (invoke-lambda (new-lambda-stack lambda)
+                   (doall (map #(emit % state) args))))
 
   (defmethod emit 'define_var [[_ name form] state]
     (str "VAR " name " = " (emit form state)))
@@ -1154,55 +1154,13 @@ lambda forms.
           (str n "(" (apply str (interpose \, e)) ")")))))
 
   (defn invoke-lambda [n args]
-    (cond (empty? args)
-          (str "INVOKE(" n ")")
-          
-          (> (count args) 20)
-          (let [positions (reverse (map inc (range 0 (count args))))
-                args (->> (interleave positions args)
-                          (partition 2)
-                          reverse)]
-            (str
-             "INVOKE_WITH_SEQ(" n ","
-             (reduce (fn[h [idx v]]
-                       (str "VAR(new ferret::Sequence("v "," h "," idx"))"))
-                     "VAR(new ferret::Sequence(NULL,NULL))" args) ")"))
-
-          :default (str "INVOKE_WITH(" n "," (apply str (interpose \, args)) ")")))
-
-  (defn invoke-lambda-stack [n args]
-    (let [positions (reverse (map inc (range 0 (count args))))
-          args (->> (interleave positions args)
-                    (partition 2)
-                    reverse)]
-      (cond (empty? args)
-            (str n ".invoke(NIL)")
-            :default (str
-                      n ".invoke(" 
-                      (reduce (fn[h [idx v]]
-                                (str "VAR(new ferret::Sequence("v "," h "," idx"))"))
-                              "VAR(new ferret::Sequence(NULL,NULL))" args) ")"))))
-
-  (comment
-    ;;generate macros for fn invocation
-    (println "")
-    (println "")
-    (doseq [i (range 1 20)]
-      (let [to-char #(char (+ 97 %))
-            args-range (range i)
-            positions (reverse (map inc (range 0 (count args-range))))
-            args (->> (interleave positions args-range)
-                      (partition 2)
-                      reverse)]
-        (println
-         (str "#define INVOKE_WITH_" (inc i)
-              "(fn," (apply str (interpose \, (map to-char args-range))) ")")
-         "LAMBDA(fn)->invoke("
-         (reduce (fn[h [idx v]]
-                   (str "VAR(new ferret::Sequence("(to-char v) "," h "," idx"))"))
-                 "VAR(new ferret::Sequence(NULL,NULL))" args) ")")))
-    (println "")
-    )
+    (if (empty? args)
+      (str "_i(" n ")")
+      (str "_i(" n "," 
+           (reduce (fn[h v]
+                     (str h v))
+                   (->> args
+                        (interpose \,)))")")))
 
   (defn declare-lambda-classes [lambdas]
     (let [view (create-view
@@ -1263,6 +1221,7 @@ lambda forms.
         $object_interface$
 
         <<runtime-native-iseekable-headers>>
+        <<function-invocation-api-headers>>
 
         #if defined(STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS) && !defined(DISABLE_MAIN_FUNCTION)
           VAR _star_command_line_args_star_;
@@ -1274,6 +1233,8 @@ lambda forms.
 
         $native_declarations:{$it$} ;separator=\"\n\"$      
 
+        <<function-invocation-api>>
+  
         namespace ferret{
           $lambda_classes:{$it$} ;separator=\"\n\"$
           $lambda_bodies:{$it$} ;separator=\"\n\"$
@@ -1938,7 +1899,7 @@ A lazy list container implementing the seekable interface.
      ("var first" ""
       "return SEQUENCE(seq)->data;")
      ("var iterate" ""
-      "var s = INVOKE(SEQUENCE(seq)->next);
+      "var s = _i(SEQUENCE(seq)->next);
        if (IS_NIL(s))
          return NEW_SEQUENCE();
 
@@ -2189,13 +2150,66 @@ to execute them in a uniform fashion.
     (force-type true))
 #+end_src
 
-Function invocation macros,
+Function invocation,
+
+#+name: function-invocation-api-headers
+#+begin_src c++ :tangle no
+  namespace ferret{
+    template<typename T>        
+    T __list(T v);
+        
+    template<typename T, typename... Args>
+    T __list(T first, Args... args);
+        
+    template<typename T, typename... Args>
+    var _i(T fn, Args... args);
+        
+    template<typename T>
+    var _i(T fn);
+
+    template<>
+    var _i(var);
+  }
+#+end_src
+
+#+name: function-invocation-api
+#+begin_src c++ :tangle no
+  namespace ferret{
+    template<typename T>        
+    T __list(T v) {
+      return v;
+    }
+
+    template<typename T, typename... Args>
+    T __list(T first, Args... args) {
+
+      return VAR(new ferret::Sequence(first, __list(args...), (sizeof...(args))));
+    }
+
+    template<typename T, typename... Args>
+    var _i(T fn, Args... args) {
+      return fn.invoke(__list(args...,VAR(new ferret::Sequence(NULL,NULL))));
+    }
+
+    template<typename T>
+    var _i(T fn) {
+      return fn.invoke(NIL);
+    }
+
+    template<>
+    var _i(var fn) {
+      return LAMBDA(fn)->invoke(NIL);
+    }
+
+    template<typename... Args>
+    var _i(var fn, Args... args) {
+      return LAMBDA(fn)->invoke(__list(args...,VAR(new ferret::Sequence(NULL,NULL))));
+    }
+  }
+#+end_src
 
 #+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
-  #define INVOKE(f) LAMBDA(f)->invoke(NIL)
-  #define INVOKE_WITH_SEQ(f,args) LAMBDA(f)->invoke(args)
-
   #define FN(f) VAR(new ferret::f())
   #define CLOSURE(f,...) VAR(new ferret::f(__VA_ARGS__))
 #+end_src
@@ -2562,7 +2576,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
     (list 'do
           (list 'native-declare
                 `~(str "\n" out " " (symbol-conversion callback) "_callack" "(" in "){\n"
-                       "INVOKE(" (str (symbol-conversion callback) "_callback_fn")
+                       "_i(" (str (symbol-conversion callback) "_callback_fn")
                        (str \, (apply str (interpose " , " (reverse pass-vars)))) ");"
                        "\n}\n"))
           (list 'def `~(symbol (str callback "-callback-fn")) `~callback)))
@@ -2622,13 +2636,13 @@ Takes a function and returns the number of millis took.
         "struct timeval  te;
          gettimeofday(&te, NULL);
          unsigned long begin = (int)(te.tv_sec*1000LL + te.tv_usec/1000); 
-         INVOKE(f);
+         _i(f);
          gettimeofday(&te, NULL);
          unsigned long end = (int)(te.tv_sec*1000LL + te.tv_usec/1000); 
          __result = NEW_NUMBER((NUMBER_DATA_TYPE)(end - begin));")
     (on "defined ARDUINO"
         "unsigned long begin = millis();
-         INVOKE(f);
+         _i(f);
          unsigned long end = millis();
          __result = NEW_NUMBER((NUMBER_DATA_TYPE)(end - begin));"))
 #+end_src
@@ -2728,12 +2742,12 @@ implementation.
   (defmacro doseq [binding & body]
     (list '_doseq_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
 
-  (defn _doseq_ [seq f] "ITERATE(seq,it){INVOKE_WITH(f,FIRST(it));}")
+  (defn _doseq_ [seq f] "ITERATE(seq,it){_i(f,FIRST(it));}")
 
   (defmacro dotimes [binding & body]
     (list '_dotimes_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
 
-  (defn _dotimes_ [t f] "for(int i = 0; i < TO_INT(t); i++) INVOKE_WITH(f,NEW_NUMBER(i));")
+  (defn _dotimes_ [t f] "for(int i = 0; i < TO_INT(t); i++) _i(f,NEW_NUMBER(i));")
 #+end_src
 
 *** Conditionals
@@ -2757,8 +2771,8 @@ implementation.
     (list '_while_ (list 'fn* [] test) (cons 'fn* `( [] ~@body))))
 
   (defn _while_ [pred fn]
-    "while(INVOKE(pred))
-       INVOKE(fn);")
+    "while(_i(pred))
+       _i(fn);")
 
   (defmacro forever [& body]
     (cons 'while `(true  ~@body)))
@@ -2843,14 +2857,14 @@ implementation.
 #+begin_src clojure :tangle no
   (defn reduce
     ([f [sf & sr]]
-     "var acc = INVOKE_WITH(f, FIRST(sr), sf);
+     "var acc = _i(f, FIRST(sr), sf);
       ITERATE(REST(sr),it){
-        acc = INVOKE_WITH(f, acc, FIRST(it));
+        acc = _i(f, acc, FIRST(it));
       }
       return acc;")
     ([f acc coll]
      "ITERATE(coll,it){
-       acc = INVOKE_WITH(f, acc, FIRST(it));
+       acc = _i(f, acc, FIRST(it));
       }
       return acc;"))
 #+end_src
@@ -3315,7 +3329,7 @@ Runs the given lambda in a posix thread,
         "void *PTHREAD_LAMBDA_INVOKER(void *data) {
             ferret::var fn = ferret::var(static_cast<ferret::Object*>(data));
             OBJECT(fn)->subRef();
-            INVOKE(fn);
+            _i(fn);
             pthread_exit(NULL);
          }"
         "pthread_t th;
@@ -3877,7 +3891,7 @@ Some wrappers for the Arduino platform.
   (defn capture-output [form]
     (let [options (compile-options
                    {:compiler-options
-                    ["-std=c++98" "-ansi" "-pedantic"
+                    ["-std=c++11" "-pedantic"
                      "-Werror" "-Wall" "-Wextra"
                      "-Woverloaded-virtual" "-Wuninitialized"
                      "-Wmissing-declarations" "-Winit-self"
@@ -3914,39 +3928,6 @@ Some wrappers for the Arduino platform.
   <<runtime-native-memory-management-macros>>
   <<runtime-native-object-casting-macros>>
   <<runtime-native-math-config-macros>>
-
-  //Lambda Invocation
-
-  #define CAT( A, B ) A ## B
-  #define SELECT( NAME, NUM ) CAT( NAME ## _, NUM )
-
-  #define GET_COUNT( _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20 /* ad nauseam */, COUNT, ... ) COUNT
-  #define VA_SIZE( ... ) GET_COUNT( __VA_ARGS__, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 )
-
-  #define VA_SELECT( NAME, ... ) SELECT( NAME, VA_SIZE(__VA_ARGS__) )(__VA_ARGS__)
-
-  #define INVOKE_WITH(...) VA_SELECT(INVOKE_WITH,__VA_ARGS__)
-
-  // Auto Generated
-  #define INVOKE_WITH_2(fn,a) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(NULL,NULL)),1)) )
-  #define INVOKE_WITH_3(fn,a,b) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(NULL,NULL)),1)),2)) )
-  #define INVOKE_WITH_4(fn,a,b,c) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)) )
-  #define INVOKE_WITH_5(fn,a,b,c,d) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)) )
-  #define INVOKE_WITH_6(fn,a,b,c,d,e) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)) )
-  #define INVOKE_WITH_7(fn,a,b,c,d,e,f) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)) )
-  #define INVOKE_WITH_8(fn,a,b,c,d,e,f,g) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(g,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)),7)) )
-  #define INVOKE_WITH_9(fn,a,b,c,d,e,f,g,h) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(g,VAR(new ferret::Sequence(h,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)),7)),8)) )
-  #define INVOKE_WITH_10(fn,a,b,c,d,e,f,g,h,i) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(g,VAR(new ferret::Sequence(h,VAR(new ferret::Sequence(i,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)),7)),8)),9)) )
-  #define INVOKE_WITH_11(fn,a,b,c,d,e,f,g,h,i,j) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(g,VAR(new ferret::Sequence(h,VAR(new ferret::Sequence(i,VAR(new ferret::Sequence(j,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)),7)),8)),9)),10)) )
-  #define INVOKE_WITH_12(fn,a,b,c,d,e,f,g,h,i,j,k) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(g,VAR(new ferret::Sequence(h,VAR(new ferret::Sequence(i,VAR(new ferret::Sequence(j,VAR(new ferret::Sequence(k,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)),7)),8)),9)),10)),11)) )
-  #define INVOKE_WITH_13(fn,a,b,c,d,e,f,g,h,i,j,k,l) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(g,VAR(new ferret::Sequence(h,VAR(new ferret::Sequence(i,VAR(new ferret::Sequence(j,VAR(new ferret::Sequence(k,VAR(new ferret::Sequence(l,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)),7)),8)),9)),10)),11)),12)) )
-  #define INVOKE_WITH_14(fn,a,b,c,d,e,f,g,h,i,j,k,l,m) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(g,VAR(new ferret::Sequence(h,VAR(new ferret::Sequence(i,VAR(new ferret::Sequence(j,VAR(new ferret::Sequence(k,VAR(new ferret::Sequence(l,VAR(new ferret::Sequence(m,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)),7)),8)),9)),10)),11)),12)),13)) )
-  #define INVOKE_WITH_15(fn,a,b,c,d,e,f,g,h,i,j,k,l,m,n) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(g,VAR(new ferret::Sequence(h,VAR(new ferret::Sequence(i,VAR(new ferret::Sequence(j,VAR(new ferret::Sequence(k,VAR(new ferret::Sequence(l,VAR(new ferret::Sequence(m,VAR(new ferret::Sequence(n,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)),7)),8)),9)),10)),11)),12)),13)),14)) )
-  #define INVOKE_WITH_16(fn,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(g,VAR(new ferret::Sequence(h,VAR(new ferret::Sequence(i,VAR(new ferret::Sequence(j,VAR(new ferret::Sequence(k,VAR(new ferret::Sequence(l,VAR(new ferret::Sequence(m,VAR(new ferret::Sequence(n,VAR(new ferret::Sequence(o,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)),7)),8)),9)),10)),11)),12)),13)),14)),15)) )
-  #define INVOKE_WITH_17(fn,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(g,VAR(new ferret::Sequence(h,VAR(new ferret::Sequence(i,VAR(new ferret::Sequence(j,VAR(new ferret::Sequence(k,VAR(new ferret::Sequence(l,VAR(new ferret::Sequence(m,VAR(new ferret::Sequence(n,VAR(new ferret::Sequence(o,VAR(new ferret::Sequence(p,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)),7)),8)),9)),10)),11)),12)),13)),14)),15)),16)) )
-  #define INVOKE_WITH_18(fn,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(g,VAR(new ferret::Sequence(h,VAR(new ferret::Sequence(i,VAR(new ferret::Sequence(j,VAR(new ferret::Sequence(k,VAR(new ferret::Sequence(l,VAR(new ferret::Sequence(m,VAR(new ferret::Sequence(n,VAR(new ferret::Sequence(o,VAR(new ferret::Sequence(p,VAR(new ferret::Sequence(q,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)),7)),8)),9)),10)),11)),12)),13)),14)),15)),16)),17)) )
-  #define INVOKE_WITH_19(fn,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(g,VAR(new ferret::Sequence(h,VAR(new ferret::Sequence(i,VAR(new ferret::Sequence(j,VAR(new ferret::Sequence(k,VAR(new ferret::Sequence(l,VAR(new ferret::Sequence(m,VAR(new ferret::Sequence(n,VAR(new ferret::Sequence(o,VAR(new ferret::Sequence(p,VAR(new ferret::Sequence(q,VAR(new ferret::Sequence(r,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)),7)),8)),9)),10)),11)),12)),13)),14)),15)),16)),17)),18)) )
-  #define INVOKE_WITH_20(fn,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s) LAMBDA(fn)->invoke( VAR(new ferret::Sequence(a,VAR(new ferret::Sequence(b,VAR(new ferret::Sequence(c,VAR(new ferret::Sequence(d,VAR(new ferret::Sequence(e,VAR(new ferret::Sequence(f,VAR(new ferret::Sequence(g,VAR(new ferret::Sequence(h,VAR(new ferret::Sequence(i,VAR(new ferret::Sequence(j,VAR(new ferret::Sequence(k,VAR(new ferret::Sequence(l,VAR(new ferret::Sequence(m,VAR(new ferret::Sequence(n,VAR(new ferret::Sequence(o,VAR(new ferret::Sequence(p,VAR(new ferret::Sequence(q,VAR(new ferret::Sequence(r,VAR(new ferret::Sequence(s,VAR(new ferret::Sequence(NULL,NULL)),1)),2)),3)),4)),5)),6)),7)),8)),9)),10)),11)),12)),13)),14)),15)),16)),17)),18)),19)) )
 
   namespace ferret{
     class var;

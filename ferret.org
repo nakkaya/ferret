@@ -899,7 +899,7 @@ lambda forms.
                                    (vector pos val)))
                     (filter #(not= (second %) '_))
                     (reduce (fn[h [pos val]]
-                              (let [accesor (flatten [(repeat pos "REST") "FIRST"])]
+                              (let [accesor (flatten [(repeat pos "runtime::rest") "runtime::first"])]
                                 (if (coll? val)
                                   (conj h (destructure-arguments
                                            val (reduce (fn[h v] (str v "(" h ")")) name accesor)))
@@ -907,7 +907,7 @@ lambda forms.
       [args (if (empty? va-args)
               []
               (destructure-set-var
-               (last va-args) name (repeat (count args) "REST")))]))
+               (last va-args) name (repeat (count args) "runtime::rest")))]))
 
   (defn destructure-lambda [args]
     (flatten (destructure-arguments args "_args_")))
@@ -1262,7 +1262,7 @@ lambda forms.
         #if defined(STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS)
           _star_command_line_args_star_ = ferret::NewSequence();
           for (int i = argc - 1; i > -1 ; i--)
-            CONS(_star_command_line_args_star_,ferret::NewString(argv[i]));
+            ferret::runtime::cons(_star_command_line_args_star_,ferret::NewString(argv[i]));
         #endif
 
           ferret::ProgramRun();
@@ -1738,53 +1738,57 @@ containers.
 #+name: runtime-native-iseekable-headers
 #+begin_src c++ :tangle no
   namespace ferret{
-    var FIRST(var coll);
-    var REST(var coll);
-    var CONS(var seq, var x);
-    var NTH(var seq, var index);
+    namespace runtime {
+      var first(var coll);
+      var rest(var coll);
+      var cons(var seq, var x);
+      var nth(var seq, var index);
+    }
   }
 #+end_src
 
 #+name: runtime-native-iseekable-functions
 #+begin_src c++ :tangle no
   namespace ferret{
-    var FIRST(var coll){
-      if (coll.isNil())
-        return nil();
-      else
-        return coll.cast<ISeekable>()->first();
-    }
+    namespace runtime{
+      var first(var coll){
+        if (coll.isNil())
+          return nil();
+        else
+          return coll.cast<ISeekable>()->first();
+      }
 
-    var REST(var coll){
-      if (coll.isNil())
-        return NewSequence();
-      else
-        return coll.cast<ISeekable>()->rest();
-    }
+      var rest(var coll){
+        if (coll.isNil())
+          return NewSequence();
+        else
+          return coll.cast<ISeekable>()->rest();
+      }
 
-    var CONS(var seq, var x){
-      if (seq.isNil())
-        seq = NewSequence();
-      return seq.cast<ISeekable>()->cons(x);
-    }
+      var cons(var seq, var x){
+        if (seq.isNil())
+          seq = NewSequence();
+        return seq.cast<ISeekable>()->cons(x);
+      }
     
-    var NTH(var seq, var idx){
-      int index = ToInt(idx);
+      var nth(var seq, var idx){
+        int index = ToInt(idx);
 
-      if ( index < 0 || seq.cast<ISeekable>()->count() < idx)
-        return nil();
+        if ( index < 0 || seq.cast<ISeekable>()->count() < idx)
+          return nil();
       
-      var head = seq;
-      for(int i=0; i < index; i++)
-        head = REST(head);
-      return FIRST(head);
+        var head = seq;
+        for(int i=0; i < index; i++)
+          head = runtime::rest(head);
+        return runtime::first(head);
+      }
     }
   }
 #+end_src
 
 #+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
-  #define ITERATE(c,i) for(var i = c; !REST(i).isNil(); i = REST(i))
+  #define ITERATE(c,i) for(var i = c; !runtime::rest(i).isNil(); i = runtime::rest(i))
 #+end_src
 
 *** Sequence
@@ -1807,9 +1811,9 @@ A simple linked list container implementing the seekable interface.
 
       var itOther = o;
       ITERATE(this,it){
-        if (itOther.isNil() || FIRST(it).equals(FIRST(itOther))  == false)
+        if (itOther.isNil() || runtime::first(it).equals(runtime::first(itOther))  == false)
           return NewBoolean(false);
-        itOther = REST(itOther);
+        itOther = runtime::rest(itOther);
       }
       return NewBoolean(true);")
     
@@ -1819,7 +1823,7 @@ A simple linked list container implementing the seekable interface.
         data.toOutputStream();
         ITERATE(next,it){
           fprintf(OUTPUT_STREAM, \" \");
-          FIRST(it).toOutputStream();
+          runtime::first(it).toOutputStream();
         }
       }
       fprintf(OUTPUT_STREAM, \")\");
@@ -1856,18 +1860,18 @@ A lazy list container implementing the seekable interface.
        return NewBoolean(false);
       var itOther = o;
       ITERATE(this,it){
-        if (itOther.isNil() || FIRST(it).equals(FIRST(itOther))  == false)
+        if (itOther.isNil() || runtime::first(it).equals(runtime::first(itOther))  == false)
           return NewBoolean(false);
-        itOther = REST(itOther);
+        itOther = runtime::rest(itOther);
       }
       return NewBoolean(true);")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"(\");
         if (!seq.isNil()){ 
           seq.cast<Sequence>()->data.toOutputStream();
-          ITERATE(REST(var(this)),it){
+          ITERATE(runtime::rest(var(this)),it){
             fprintf(OUTPUT_STREAM, \" \");
-            FIRST(it).toOutputStream();
+            runtime::first(it).toOutputStream();
           }
         }
         fprintf(OUTPUT_STREAM, \")\");
@@ -1894,7 +1898,7 @@ A lazy list container implementing the seekable interface.
       "size_t acc = 1;
        var s = iterate();
        while(!s.equals(NewSequence())){ 
-        s = REST(s);
+        s = runtime::rest(s);
         acc++;
        }
        return acc;"))
@@ -1956,21 +1960,21 @@ Strings are represented as a linked list of characters.
        return NewBoolean(false);
       return NewBoolean(data.equals(o.cast<String>()->data));")
     (toOutputStream
-     "ITERATE(data,it){ FIRST(it).toOutputStream(); }
+     "ITERATE(data,it){ runtime::first(it).toOutputStream(); }
       return nil();")
     (fns
      ("var cons" "var x"
       "return data.cast<ISeekable>()->cons(x);")
      ("var first" ""
-      "return FIRST(data);")
+      "return runtime::first(data);")
      ("var rest" ""
-      "return REST(data);")
+      "return runtime::rest(data);")
      ("size_t count" ""
       "return data.cast<ISeekable>()->count();")
      ("ifdef STD_LIB"
       "std::string toString" ""
       "std::stringstream ss;
-       ITERATE(data,it){ss << FIRST(it).cast<Character>()->value;}
+       ITERATE(data,it){ss << runtime::first(it).cast<Character>()->value;}
        return ss.str();"))
     (post-code "template<typename T>
                 var NewString(T s) {
@@ -2061,7 +2065,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
       "DELETE_LOCK(lock);")
      ("var swap" "var f,var args"
       "WITH_LOCK(lock,{
-         args = CONS(args,data);
+         args = runtime::cons(args,data);
          data = f.cast<Lambda>()->invoke(args);
        });
       return data;"))
@@ -2492,7 +2496,7 @@ Once our object system is in place we can define rest of the runtime
 #+name: runtime-clojure-first
 #+begin_src clojure :tangle no
   (defn first [x]
-    "__result = FIRST(x);")
+    "__result = runtime::first(x);")
 
   (defn nil? [x] "__result = NewBoolean(x.isNil())")
 
@@ -2732,7 +2736,7 @@ implementation.
          var r = more.cast<ISeekable>()->rest();
          ITERATE(r,it){
           fprintf(OUTPUT_STREAM, \" \");
-          FIRST(it).toOutputStream();
+          runtime::first(it).toOutputStream();
          }"))
 
   (defnative newline [& more]
@@ -2749,7 +2753,7 @@ implementation.
   (defmacro doseq [binding & body]
     (list '_doseq_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
 
-  (defn _doseq_ [seq f] "ITERATE(seq,it){_i(f,FIRST(it));}")
+  (defn _doseq_ [seq f] "ITERATE(seq,it){_i(f,runtime::first(it));}")
 
   (defmacro dotimes [binding & body]
     (list '_dotimes_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
@@ -2864,14 +2868,14 @@ implementation.
 #+begin_src clojure :tangle no
   (defn reduce
     ([f [sf & sr]]
-     "var acc = _i(f, FIRST(sr), sf);
-      ITERATE(REST(sr),it){
-        acc = _i(f, acc, FIRST(it));
+     "var acc = _i(f, runtime::first(sr), sf);
+      ITERATE(runtime::rest(sr),it){
+        acc = _i(f, acc, runtime::first(it));
       }
       return acc;")
     ([f acc coll]
      "ITERATE(coll,it){
-       acc = _i(f, acc, FIRST(it));
+       acc = _i(f, acc, runtime::first(it));
       }
       return acc;"))
 #+end_src
@@ -2887,15 +2891,15 @@ implementation.
 
   (defn empty? [x] "__result = NewBoolean(x.cast<ISeekable>()->count() == 0)")
 
-  (defn rest [x] "var r = REST(x);
+  (defn rest [x] "var r = runtime::rest(x);
                   if (r.isNil())
                     return NewSequence();
                   else 
                     __result = r;")
 
-  (defn nth [coll index] "__result = NTH(coll,index);")
+  (defn nth [coll index] "__result = runtime::nth(coll,index);")
 
-  (defn cons [x seq] "__result = CONS(seq,x);")
+  (defn cons [x seq] "__result = runtime::cons(seq,x);")
 
   (defn apply [f args] "__result = f.cast<Lambda>()->invoke(args);")
 
@@ -2974,9 +2978,9 @@ implementation.
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
   (defn = [& args]
-    "var curr = FIRST(args);
-     ITERATE(REST(args),it){
-      var first = FIRST(it);
+    "var curr = runtime::first(args);
+     ITERATE(runtime::rest(args),it){
+      var first = runtime::first(it);
       if (curr.equals(first) == false)
         return NewBoolean(false);
       curr = first;

@@ -763,6 +763,13 @@ suggests and removes the node when predicate returns true.
                              
                              (while (< (inc-int) 10)
                                (print 1)))))))
+
+  (deftest test-program-main
+    (is (= "Hello World"
+           (capture-output '((configure-runtime! PROGRAM_MAIN greet)
+                             (defn hello []
+                               (print "Hello World"))
+                             (def greet hello))))))
 #+end_src
 
 ** Code Generation

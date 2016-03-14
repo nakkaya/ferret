@@ -3915,10 +3915,11 @@ Some wrappers for the Arduino platform.
 ** resources/Object.cpp
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/resources/Object.cpp
+  <<runtime-native-math-config-macros>>
+
   <<runtime-native-program-header>>
   <<runtime-native-memory-management-macros>>
   <<runtime-native-object-casting-macros>>
-  <<runtime-native-math-config-macros>>
 
   namespace ferret{
     class var;

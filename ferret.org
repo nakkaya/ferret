@@ -743,7 +743,7 @@ suggests and removes the node when predicate returns true.
                                                   (+ a b n))))
 
                              (native-declare "int i = 0;")
-                             (defn inc-int [] "__result =  NEW_NUMBER(i++);")
+                             (defn inc-int [] "__result =  NewNumber(i++);")
                              
                              (print (adder 9)
 
@@ -809,8 +809,8 @@ Without preprocessing following forms,
 would evaluate to,
 
 #+begin_example
-  "_i(list,NEW_NUMBER(3),NEW_NUMBER(2),NEW_NUMBER(1))"
-  "_i(+,NEW_NUMBER(2),NEW_NUMBER(1))"
+  "_i(list,NewNumber(3),NewNumber(2),NewNumber(1))"
+  "_i(+,NewNumber(2),NewNumber(1))"
   "IF(_i(<,b,a), b, a)"
 #+end_example
 
@@ -836,24 +836,24 @@ C++ skeleton.
 #+begin_src clojure :tangle no
   (defmethod emit :to-str [form state] (str form))
 
-  (defmethod emit :char [form state] (str "NEW_CHARACTER('" form "')"))
+  (defmethod emit :char [form state] (str "NewCharacter('" form "')"))
 
-  (defmethod emit :string [form state] (str "NEW_STRING(\"" form "\")"))
+  (defmethod emit :string [form state] (str "NewString(\"" form "\")"))
 
-  (defmethod emit :boolean [form state] (str "NEW_BOOLEAN(" form ")"))
+  (defmethod emit :boolean [form state] (str "NewBoolean(" form ")"))
 
   (defmethod emit :nil [form state] "NIL")
 
   (defmethod emit :keyword [form state]
-    (str "NEW_KEYWORD(" (reduce (fn[h v] (+ h (int v))) 0 (str form)) ")"))
+    (str "NewKeyword(" (reduce (fn[h v] (+ h (int v))) 0 (str form)) ")"))
 
   (defmethod emit :number [form state]
     (let [number (rationalize form)]
       (if (ratio? number)
         (let [num (numerator number)
               denom (denominator number)]
-          (str "NEW_RATIO(" num "," denom ")"))
-        (str "NEW_NUMBER(" number ")"))))
+          (str "NewRatio(" num "," denom ")"))
+        (str "NewNumber(" number ")"))))
 
   (defmethod emit :sequence [[fn & args] state]
     (invoke-lambda (emit fn state) (doall (map #(emit % state) args))))
@@ -1252,15 +1252,15 @@ lambda forms.
         int main(int argc, char* argv[]){
 
         #if defined(STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS)
-          _star_command_line_args_star_ = NEW_SEQUENCE();
+          _star_command_line_args_star_ = ferret::NewSequence();
           for (int i = argc - 1; i > -1 ; i--)
-            CONS(_star_command_line_args_star_,NEW_STRING(argv[i]));
+            CONS(_star_command_line_args_star_,ferret::NewString(argv[i]));
         #endif
 
           ferret::ProgramRun();
 
           #if defined(PROGRAM_MAIN)
-            INVOKE(ferret::PROGRAM_MAIN);
+            _i(ferret::PROGRAM_MAIN);
           #endif
 
           return 0;
@@ -1281,7 +1281,7 @@ lambda forms.
           #endif          
 
           #if defined(PROGRAM_MAIN)
-            INVOKE(ferret::PROGRAM_MAIN);
+            _i(ferret::PROGRAM_MAIN);
           #endif
         }
       #endif\n")]
@@ -1583,14 +1583,16 @@ An object to hold a reference to a C++ pointer,
     (data "void* ptr;")
     (new ("void* p" "ptr = p;"))
     (equals
-     "return NEW_BOOLEAN(ptr == POINTER(o)->ptr);")
+     "return NewBoolean(ptr == POINTER(o)->ptr);")
     (toOutputStream
-     "fprintf(OUTPUT_STREAM, \"Pointer<%p>\",ptr); return NIL;"))
+     "fprintf(OUTPUT_STREAM, \"Pointer<%p>\",ptr); return NIL;")
+    (post-code "var NewPointer(void * p) {
+                  return var(new ferret::Pointer(p));
+                }"))
 #+end_src
 
 #+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
-  #define NEW_POINTER(p) (VAR(new ferret::Pointer(p)))
   #define TO_POINTER(p,type) ((type *)POINTER(p)->ptr)
   #define TO_REFERENCE(p,type) (*(TO_POINTER(p,type)))
 #+end_src
@@ -1631,12 +1633,12 @@ Number Object,
              size_t other_type = OBJECT(o)->getType();
              if (self_type == NUMBER_TYPE && other_type == NUMBER_TYPE)
                if (getNumerator() == 0 && NUMBER(o)->getNumerator() == 0)
-                 return NEW_BOOLEAN(true);
+                 return NewBoolean(true);
                else
-                 return NEW_BOOLEAN((getNumerator() == NUMBER(o)->getNumerator()) &&
+                 return NewBoolean((getNumerator() == NUMBER(o)->getNumerator()) &&
                                     (getDenominator() == NUMBER(o)->getDenominator()));
              else
-               return NEW_BOOLEAN(false);")
+               return NewBoolean(false);")
     (toOutputStream
      "if (denominator == 1)
         fprintf(OUTPUT_STREAM, NUMBER_TYPE_FORMAT, numerator);
@@ -1650,30 +1652,31 @@ Number Object,
       return NIL;")
     
     (fns
-      ("NUMBER_DATA_TYPE getNumerator" "" "return numerator;")
-      ("NUMBER_DATA_TYPE getDenominator" "" "return denominator;")
-      ("float floatValue" "" "return (float)numerator/(float)denominator;")
-      ("int intValue" ""
-       "if (denominator == 1)
+     ("NUMBER_DATA_TYPE getNumerator" "" "return numerator;")
+     ("NUMBER_DATA_TYPE getDenominator" "" "return denominator;")
+     ("float floatValue" "" "return (float)numerator/(float)denominator;")
+     ("int intValue" ""
+      "if (denominator == 1)
           return (int)numerator;
         else
           return (int)floatValue();")
-      ("void simplificate" ""
-       "int commondivisor = 1;
+     ("void simplificate" ""
+      "int commondivisor = 1;
         for(NUMBER_DATA_TYPE i=2;i<=MIN(ABS(numerator), ABS(denominator));i++)
           if( numerator%i == 0 && denominator%i == 0 )
             commondivisor = i;
         numerator /= commondivisor;
         denominator /= commondivisor;")
-      ("~Number" "" "")))
-#+end_src
-
-#+name: runtime-native-object-casting-macros
-#+begin_src c++ :tangle no
-  #define TO_INT(i) (NUMBER(i)->intValue())
-
-  #define NEW_NUMBER(i) (VAR(new ferret::Number(i)))
-  #define NEW_RATIO(n,dn) (VAR(new ferret::Number(n,dn)))
+     ("~Number" "" ""))
+    (post-code "var NewNumber(NUMBER_DATA_TYPE i) {
+                  return var(new ferret::Number(i));
+                }
+                var NewRatio(NUMBER_DATA_TYPE n,NUMBER_DATA_TYPE dn) {
+                  return var(new ferret::Number(n,dn));
+                }
+                int ToInt(var i) {
+                  return (NUMBER(i)->intValue());
+                }"))
 #+end_src
 
 *** Keyword
@@ -1693,17 +1696,16 @@ Each keyword in the program is converted to an /Keyword/ object. A
            }"))
     (equals
      "if (!IS_TYPE(o,KEYWORD_TYPE))
-        return NEW_BOOLEAN(false);
-      return NEW_BOOLEAN(id == KEYWORD(o)->id);")
+        return NewBoolean(false);
+      return NewBoolean(id == KEYWORD(o)->id);")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"%d\", id); return NIL;")
     (fns ("bool equals" "Keyword k"
-          "return (id == k.id);")))
-#+end_src
-
-#+name: runtime-native-object-casting-macros
-#+begin_src c++ :tangle no
-  #define NEW_KEYWORD(k) (VAR(new ferret::Keyword(k)))
+          "return (id == k.id);"))
+    (post-code "template<typename T>
+                var NewKeyword(T k) {
+                  return var(new ferret::Keyword(k));
+                }"))
 #+end_src
 
 #+name: native-keyword-tests
@@ -1713,7 +1715,7 @@ Each keyword in the program is converted to an /Keyword/ object. A
            (capture-output '((print (= :test :test)
                                     (= :test :other_test)
                                     ((fn [keyword]
-                                       "__result = NEW_BOOLEAN(keyword.equals(NEW_KEYWORD(\":space\")))")
+                                       "__result = NewBoolean(keyword.equals(NewKeyword(\":space\")))")
                                      :space)))))))
 #+end_src
 
@@ -1728,15 +1730,13 @@ Holds a native /char/ type.
     (new ("char c" "value = c;"))
     (equals
      "if (!IS_TYPE(o,CHARACTER_TYPE))
-        return NEW_BOOLEAN(false);
-      return NEW_BOOLEAN(value == CHARACTER(o)->value);")
+        return NewBoolean(false);
+      return NewBoolean(value == CHARACTER(o)->value);")
     (toOutputStream
-     "fprintf(OUTPUT_STREAM, \"%c\",value); return NIL;"))
-#+end_src
-
-#+name: runtime-native-object-casting-macros
-#+begin_src c++ :tangle no
-  #define NEW_CHARACTER(c) (VAR(new ferret::Character(c)))
+     "fprintf(OUTPUT_STREAM, \"%c\",value); return NIL;")
+    (post-code "var NewCharacter(char c) {
+                  return var(new Character(c));
+                }"))
 #+end_src
 
 *** Seekable Interface
@@ -1776,19 +1776,19 @@ containers.
 
     var REST(var coll){
       if (IS_NIL(coll))
-        return NEW_SEQUENCE();
+        return NewSequence();
       else
         return ISEEKABLE(coll)->rest();
     }
 
     var CONS(var seq, var x){
       if (IS_NIL(seq))
-        seq = NEW_SEQUENCE();
+        seq = NewSequence();
       return ISEEKABLE(seq)->cons(x);
     }
     
     var NTH(var seq, var idx){
-      int index = TO_INT(idx);
+      int index = ToInt(idx);
 
       if ( index < 0 || ISEEKABLE(seq)->count() < idx)
         return NIL;
@@ -1803,7 +1803,6 @@ containers.
 
 #+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
-  #define NEW_SEQUENCE() (VAR(new ferret::Sequence()))
   #define ITERATE(c,i) for(var i = c; IS_NOT_NIL(REST(i)); i = REST(i))
 #+end_src
 
@@ -1823,15 +1822,15 @@ A simple linked list container implementing the seekable interface.
 
     (equals
      "if (!IS_TYPE(o,SEQUENCE_TYPE))
-       return NEW_BOOLEAN(false);
+       return NewBoolean(false);
 
       var itOther = o;
       ITERATE(this,it){
         if (IS_NIL(itOther) || FIRST(it).equals(FIRST(itOther))  == false)
-          return NEW_BOOLEAN(false);
+          return NewBoolean(false);
         itOther = REST(itOther);
       }
-      return NEW_BOOLEAN(true);")
+      return NewBoolean(true);")
     
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"(\");
@@ -1852,7 +1851,8 @@ A simple linked list container implementing the seekable interface.
      ("var rest" ""
       "return next;")
      ("size_t count" ""
-      "return size;")))
+      "return size;"))
+    (post-code "var NewSequence() {return var(new ferret::Sequence());}"))
 #+end_src
 
 *** Lazy Sequence
@@ -1865,21 +1865,21 @@ A lazy list container implementing the seekable interface.
     (interface :ISeekable)
     (data "var seq;")
     (new ("var t"
-          "seq = NEW_SEQUENCE();
+          "seq = NewSequence();
            SEQUENCE(seq)->next = t;")
          ("var d, var t"
-          "seq = NEW_SEQUENCE();
+          "seq = NewSequence();
            SEQUENCE(seq)->data = d; SEQUENCE(seq)->next = t;"))
     (equals
      "if (OBJECT(o)->getType() != LAZYSEQUENCE_TYPE)
-       return NEW_BOOLEAN(false);
+       return NewBoolean(false);
       var itOther = o;
       ITERATE(this,it){
         if (IS_NIL(itOther) || FIRST(it).equals(FIRST(itOther))  == false)
-          return NEW_BOOLEAN(false);
+          return NewBoolean(false);
         itOther = REST(itOther);
       }
-      return NEW_BOOLEAN(true);")
+      return NewBoolean(true);")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"(\");
         if (IS_NOT_NIL(seq)){ 
@@ -1894,29 +1894,32 @@ A lazy list container implementing the seekable interface.
     
     (fns
      ("var cons" "var x"
-      "return NEW_LAZY_SEQUENCE(x,SEQUENCE(seq)->next);")
+      "return var(new LazySequence(x,SEQUENCE(seq)->next));")
      
      ("var first" ""
       "return SEQUENCE(seq)->data;")
      ("var iterate" ""
       "var s = _i(SEQUENCE(seq)->next);
        if (IS_NIL(s))
-         return NEW_SEQUENCE();
+         return NewSequence();
 
        var data = SEQUENCE(LAZY_SEQUENCE(s)->seq)->data;
        var next = SEQUENCE(LAZY_SEQUENCE(s)->seq)->next;
 
-       return NEW_LAZY_SEQUENCE(data,next);")
+       return var(new LazySequence(data,next));")
      ("var rest" ""
       "return iterate();")
      ("size_t count" ""
       "size_t acc = 1;
        var s = iterate();
-       while(!s.equals(NEW_SEQUENCE())){ 
+       while(!s.equals(NewSequence())){ 
         s = REST(s);
         acc++;
        }
-       return acc;")))
+       return acc;"))
+    (post-code "var NewLazySequence(var d, var t) {
+                  return var(new LazySequence(d,t));
+                }"))
 #+end_src
 
 #+name: runtime-clojure-sequence-object
@@ -1931,7 +1934,6 @@ A lazy list container implementing the seekable interface.
 #+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
   #define LAZY_SEQUENCE(v) static_cast<ferret::LazySequence*>(v.get())
-  #define NEW_LAZY_SEQUENCE(d,t) var(new LazySequence(d,t))
 #+end_src
 
 #+name: runtime-clojure-sequences-tests
@@ -1975,8 +1977,8 @@ Strings are represented as a linked list of characters.
            data = s;"))
     (equals
      "if (!IS_TYPE(o,STRING_TYPE))
-       return NEW_BOOLEAN(false);
-      return NEW_BOOLEAN(data.equals(STRING(o)->data));")
+       return NewBoolean(false);
+      return NewBoolean(data.equals(STRING(o)->data));")
     (toOutputStream
      "ITERATE(data,it){ FIRST(it).toOutputStream(); }
       return NIL;")
@@ -1993,12 +1995,15 @@ Strings are represented as a linked list of characters.
       "std::string toString" ""
       "std::stringstream ss;
        ITERATE(data,it){ss << CHARACTER(FIRST(it))->value;}
-       return ss.str();")))
+       return ss.str();"))
+    (post-code "template<typename T>
+                var NewString(T s) {
+                    return var(new String(s));
+                }"))
 #+end_src
 
 #+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
-  #define NEW_STRING(s) (VAR(new ferret::String(s)))
   #define TO_C_STR(s) (STRING(s)->toString().c_str())
 #+end_src
 
@@ -2010,7 +2015,7 @@ Strings are represented as a linked list of characters.
                                     (= "Some String" "Other String")
                                     (= "Some String" "Some String")
                                     (= "Some String" 1)
-                                    ((fn [str] "__result = NEW_BOOLEAN((STRING(str)->toString() == \"String\"))")
+                                    ((fn [str] "__result = NewBoolean((STRING(str)->toString() == \"String\"))")
                                      "String")
                                     ))))))
 #+end_src
@@ -2025,8 +2030,8 @@ A boolean object,
     (data "bool value;")
     (new ("bool b" "value = b;"))
     (equals "if (!IS_TYPE(o,BOOLEAN_TYPE))
-               return NEW_BOOLEAN(false);
-             return NEW_BOOLEAN(value == BOOLEAN(o)->value);")
+               return var(new Boolean(false));
+             return var(new Boolean((value == BOOLEAN(o)->value)));")
     (toOutputStream
      "if (value)
         fprintf(OUTPUT_STREAM, \"true\"); 
@@ -2034,27 +2039,24 @@ A boolean object,
       fprintf(OUTPUT_STREAM, \"false\"); 
       return NIL;")
     
-    (post-code "
-  var::operator bool() const {
-    if (m_ptr == NULL)
-      return false;
-    else if (m_ptr->getType() == BOOLEAN_TYPE)
-      return static_cast<ferret::Boolean*>(m_ptr)->value;
-      else
-        return true;
-    }
-
-    bool var::equals (var rhs){
-      if (get() == rhs.get())
-        return true;
-      else
-        return BOOLEAN(get()->equals(rhs))->value;
-    }"))
-#+end_src
-
-#+name: runtime-native-object-casting-macros
-#+begin_src c++ :tangle no
-  #define NEW_BOOLEAN(b) (VAR(new ferret::Boolean(b)))
+    (post-code "var NewBoolean(bool b){
+                 return var(new ferret::Boolean(b));
+                };
+                var::operator bool() const {
+                  if (m_ptr == NULL)
+                    return false;
+                  else if (m_ptr->getType() == BOOLEAN_TYPE)
+                    return static_cast<ferret::Boolean*>(m_ptr)->value;
+                    else
+                      return true;
+                  }
+                
+                  bool var::equals (var rhs){
+                    if (get() == rhs.get())
+                      return true;
+                    else
+                      return BOOLEAN(get()->equals(rhs))->value;
+                  }"))
 #+end_src
 
 *** Atom
@@ -2071,8 +2073,8 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
           "data = d;
            INIT_LOCK(lock);"))
     (equals "if (!IS_TYPE(o,ATOM_TYPE))
-                 return NEW_BOOLEAN(false);
-               return NEW_BOOLEAN(this == ATOM(o));")
+                 return NewBoolean(false);
+               return NewBoolean(this == ATOM(o));")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"atom <\");
       data.toOutputStream();
@@ -2086,7 +2088,10 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
          args = CONS(args,data);
          data = LAMBDA(f)->invoke(args);
        });
-      return data;")))
+      return data;"))
+    (post-code "var NewAtom(var v) {
+                  return var(new Atom(v));
+                }"))
 #+end_src
 
 Operations on /Atoms/
@@ -2094,7 +2099,7 @@ Operations on /Atoms/
 #+name: runtime-clojure-atom-object
 #+begin_src clojure :tangle no
   (defn atom [x]
-    "__result = NEW_ATOM(x)")
+    "__result = NewAtom(x)")
 
   (defn swap! [a f & args]
     "__result = ATOM(a)->swap(f,args);")
@@ -2104,11 +2109,6 @@ Operations on /Atoms/
 
   (defn deref [a]
     "__result = ATOM(a)->data;")
-#+end_src
-
-#+name: runtime-native-object-casting-macros
-#+begin_src c++ :tangle no
-  #define NEW_ATOM(a) (VAR(new ferret::Atom(a)))
 #+end_src
 
 #+name: runtime-native-atom-tests
@@ -2143,8 +2143,8 @@ to execute them in a uniform fashion.
   (defobject Lambda
     (interfaces "var invoke(var args)")
     (equals "if (!IS_TYPE(o,LAMBDA_TYPE))
-                 return NEW_BOOLEAN(false);
-               return NEW_BOOLEAN(this == LAMBDA(o));")
+                 return NewBoolean(false);
+               return NewBoolean(this == LAMBDA(o));")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"lambda\"); return NIL;")
     (force-type true))
@@ -2487,7 +2487,7 @@ Once our object system is in place we can define rest of the runtime
   (defn first [x]
     "__result = FIRST(x);")
 
-  (defn nil? [x] "__result = NEW_BOOLEAN(IS_NIL(x))")
+  (defn nil? [x] "__result = NewBoolean(IS_NIL(x))")
 
   (defn char? [x] "__result = IS_TYPE(x,CHARACTER_TYPE);")
 #+end_src
@@ -2564,13 +2564,13 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 
   (defnative sleep [millis]
     (on "defined STD_LIB"
-        "usleep(TO_INT(millis) * 1000L);")
+        "usleep(ToInt(millis) * 1000L);")
     (on "defined ARDUINO"
-        "::delay(TO_INT(millis));"))
+        "::delay(ToInt(millis));"))
 
   (defnative get-char []
     (on "defined STD_LIB"
-        "__result = NEW_CHARACTER(getchar());"))
+        "__result = NewCharacter(getchar());"))
 
   (defmacro defcallback [callback out in & pass-vars]
     (list 'do
@@ -2592,10 +2592,10 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
          while (!feof(pipe.get()))
           if (fgets(buffer, 128, pipe.get()) != NULL)
            result += buffer;
-         __result = NEW_STRING(result.c_str());"))
+         __result = NewString(result.c_str());"))
 
   (defn system-exit [code]
-    "std::exit(TO_INT(code));")
+    "std::exit(ToInt(code));")
 
   (defnative memory-pool-free-pages []
     (on "defined MEMORY_POOL_SIZE"
@@ -2603,7 +2603,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
          for(int i = 0; i < MEMORY_POOL_SIZE; i++)
            if(ProgramMemory.used[i] == false)
              count++;
-         __result = NEW_NUMBER(count);"))
+         __result = NewNumber(count);"))
 
   (defnative memory-pool-print-snapshot []
     (on "defined MEMORY_POOL_SIZE"
@@ -2613,17 +2613,17 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
          __result = NIL;"))
 
   (defn memory-sizeof-ferret-objects []
-    (println "var:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::var));")))
-    (println "Object:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Object));")))
-    (println "Pointer:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Pointer));")))
-    (println "Number:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Number));")))
-    (println "Keyword:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Keyword));")))
-    (println "Sequence:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Sequence));")))
-    (println "Char:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Character));")))
-    (println "String:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::String));")))
-    (println "Boolean:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Boolean));")))
-    (println "Lambda:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Lambda));")))
-    (println "Atom:" ((fn [] "__result = NEW_NUMBER((NUMBER_DATA_TYPE)sizeof(ferret::Atom));"))))
+    (println "var:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::var));")))
+    (println "Object:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Object));")))
+    (println "Pointer:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Pointer));")))
+    (println "Number:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Number));")))
+    (println "Keyword:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Keyword));")))
+    (println "Sequence:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Sequence));")))
+    (println "Char:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Character));")))
+    (println "String:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::String));")))
+    (println "Boolean:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Boolean));")))
+    (println "Lambda:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Lambda));")))
+    (println "Atom:" ((fn [] "__result = NewNumber((NUMBER_DATA_TYPE)sizeof(ferret::Atom));"))))
 #+end_src
 
 Takes a function and returns the number of millis took.
@@ -2639,12 +2639,12 @@ Takes a function and returns the number of millis took.
          _i(f);
          gettimeofday(&te, NULL);
          unsigned long end = (int)(te.tv_sec*1000LL + te.tv_usec/1000); 
-         __result = NEW_NUMBER((NUMBER_DATA_TYPE)(end - begin));")
+         __result = NewNumber((NUMBER_DATA_TYPE)(end - begin));")
     (on "defined ARDUINO"
         "unsigned long begin = millis();
          _i(f);
          unsigned long end = millis();
-         __result = NEW_NUMBER((NUMBER_DATA_TYPE)(end - begin));"))
+         __result = NewNumber((NUMBER_DATA_TYPE)(end - begin));"))
 #+end_src
 
 Threads the expr through the forms. Inserts x as the
@@ -2747,7 +2747,7 @@ implementation.
   (defmacro dotimes [binding & body]
     (list '_dotimes_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
 
-  (defn _dotimes_ [t f] "for(int i = 0; i < TO_INT(t); i++) _i(f,NEW_NUMBER(i));")
+  (defn _dotimes_ [t f] "for(int i = 0; i < ToInt(t); i++) _i(f,NewNumber(i));")
 #+end_src
 
 *** Conditionals
@@ -2872,17 +2872,17 @@ implementation.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn list [& xs] "if (IS_NIL(xs))
-                       __result = NEW_SEQUENCE();
+                       __result = NewSequence();
                      else
                        __result = xs;")
 
-  (defn list? [x] "__result = NEW_BOOLEAN(IS_TYPE(x,SEQUENCE_TYPE));")
+  (defn list? [x] "__result = NewBoolean(IS_TYPE(x,SEQUENCE_TYPE));")
 
-  (defn empty? [x] "__result = NEW_BOOLEAN(ISEEKABLE(x)->count() == 0)")
+  (defn empty? [x] "__result = NewBoolean(ISEEKABLE(x)->count() == 0)")
 
   (defn rest [x] "var r = REST(x);
                   if (IS_NIL(r))
-                    return NEW_SEQUENCE();
+                    return NewSequence();
                   else 
                     __result = r;")
 
@@ -2903,8 +2903,8 @@ implementation.
 #+begin_src clojure :tangle no
   (defn count [s]
     "if (IS_NIL(s))
-       return NEW_NUMBER(0);
-     __result = NEW_NUMBER((NUMBER_DATA_TYPE)ISEEKABLE(s)->count());")
+       return NewNumber(0);
+     __result = NewNumber((NUMBER_DATA_TYPE)ISEEKABLE(s)->count());")
 #+end_src
 
 #+name: runtime-clojure-sequences-tests
@@ -2971,10 +2971,10 @@ implementation.
      ITERATE(REST(args),it){
       var first = FIRST(it);
       if (curr.equals(first) == false)
-        return NEW_BOOLEAN(false);
+        return NewBoolean(false);
       curr = first;
      }
-     return NEW_BOOLEAN(true);")
+     return NewBoolean(true);")
 
   (defmacro not= [& test]
     (list 'not (cons '= `( ~@test))))
@@ -2989,7 +2989,7 @@ implementation.
       NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
       NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
-      __result = NEW_BOOLEAN((an * bdn) < (bn * adn));")
+      __result = NewBoolean((an * bdn) < (bn * adn));")
     ([a b & more]
      (if (< a b)
        (apply < (cons b more))
@@ -3005,7 +3005,7 @@ implementation.
       NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
       NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
-      __result = NEW_BOOLEAN((an * bdn) > (bn * adn));")
+      __result = NewBoolean((an * bdn) > (bn * adn));")
     ([a b & more]
      (if (> a b)
        (apply > (cons b more))
@@ -3021,7 +3021,7 @@ implementation.
       NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
       NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
-      __result = NEW_BOOLEAN((an * bdn) >= (bn * adn));")
+      __result = NewBoolean((an * bdn) >= (bn * adn));")
     ([a b & more]
      (if (>= a b)
        (apply >= (cons b more))
@@ -3037,7 +3037,7 @@ implementation.
       NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
       NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
 
-      __result = NEW_BOOLEAN((an * bdn) <= (bn * adn));")
+      __result = NewBoolean((an * bdn) <= (bn * adn));")
     ([a b & more]
      (if (<= a b)
        (apply <= (cons b more))
@@ -3057,8 +3057,8 @@ implementation.
 
   (defn not [x]
     "if (x)
-       return NEW_BOOLEAN(false);
-     return NEW_BOOLEAN(true);")
+       return NewBoolean(false);
+     return NewBoolean(true);")
 #+end_src
 
 #+name: runtime-clojure-logical-operators-tests
@@ -3101,11 +3101,11 @@ implementation.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn integer? [x] "__result = NEW_BOOLEAN(IS_TYPE(x,NUMBER_TYPE) &&
-                                            (NUMBER(x)->getDenominator() == 1));")
+  (defn integer? [x] "__result = NewBoolean(IS_TYPE(x,NUMBER_TYPE) &&
+                                           (NUMBER(x)->getDenominator() == 1));")
 
-  (defn float? [x] "__result = NEW_BOOLEAN(IS_TYPE(x,NUMBER_TYPE) &&
-                                          (NUMBER(x)->getDenominator() != 1));")
+  (defn float? [x] "__result = NewBoolean(IS_TYPE(x,NUMBER_TYPE) &&
+                                         (NUMBER(x)->getDenominator() != 1));")
 
   (defn +
     ([] 0)
@@ -3119,7 +3119,7 @@ implementation.
 
       NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
-      __result = NEW_RATIO(((hn * vdn) + (vn * hdn)),ndn);")
+      __result = NewRatio(((hn * vdn) + (vn * hdn)),ndn);")
     ([x y & more]
      (reduce + (+ x y) more)))
 
@@ -3140,7 +3140,7 @@ implementation.
 
       NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
-      __result = NEW_RATIO(((hn * vdn) * (vn * hdn)),ndn);")
+      __result = NewRatio(((hn * vdn) * (vn * hdn)),ndn);")
     ([x y & more]
      (reduce * (* x y) more)))
 
@@ -3156,7 +3156,7 @@ implementation.
 
       NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
-      __result = NEW_RATIO(((hn * vdn) - (vn * hdn)),ndn);")
+      __result = NewRatio(((hn * vdn) - (vn * hdn)),ndn);")
     ([x y & more]
      (reduce - (- x y) more)))
 
@@ -3170,7 +3170,7 @@ implementation.
       NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
       NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
 
-      __result = NEW_RATIO((hn * vdn),(vn * hdn));")
+      __result = NewRatio((hn * vdn),(vn * hdn));")
     ([x y & more]
      (reduce / (/ x y) more)))
 
@@ -3186,9 +3186,9 @@ implementation.
   (defn zero? [x]
     (= x 0))
 
-  (defn floor [x] "__result = NEW_NUMBER(NUMBER(x)->intValue());")
+  (defn floor [x] "__result = NewNumber(NUMBER(x)->intValue());")
 
-  (defn mod [num div] "__result = NEW_NUMBER((NUMBER(num)->intValue() % TO_INT(div)));")
+  (defn mod [num div] "__result = NewNumber((NUMBER(num)->intValue() % ToInt(div)));")
 #+end_src
 
 #+name: runtime-clojure-math
@@ -3281,21 +3281,21 @@ implementation.
 
 #+name: runtime-clojure-bit-operations
 #+begin_src clojure :tangle no
-  (defn bit-not [x] "__result = NEW_NUMBER(~NUMBER(x)->getNumerator());")
+  (defn bit-not [x] "__result = NewNumber(~NUMBER(x)->getNumerator());")
 
-  (defn bit-and [x y] "__result = NEW_NUMBER((NUMBER(x)->getNumerator() &
+  (defn bit-and [x y] "__result = NewNumber((NUMBER(x)->getNumerator() &
                                               NUMBER(y)->getNumerator()));")
 
-  (defn bit-or [x y] "__result = NEW_NUMBER((NUMBER(x)->getNumerator() |
+  (defn bit-or [x y] "__result = NewNumber((NUMBER(x)->getNumerator() |
                                              NUMBER(y)->getNumerator()));")
 
-  (defn bit-xor [x y] "__result = NEW_NUMBER((NUMBER(x)->getNumerator() ^
+  (defn bit-xor [x y] "__result = NewNumber((NUMBER(x)->getNumerator() ^
                                               NUMBER(y)->getNumerator()));")
 
-  (defn bit-shift-left [x n] "__result = NEW_NUMBER((NUMBER(x)->getNumerator() <<
+  (defn bit-shift-left [x n] "__result = NewNumber((NUMBER(x)->getNumerator() <<
                                                      NUMBER(n)->getNumerator()));")
 
-  (defn bit-shift-right [x n] "__result = NEW_NUMBER((NUMBER(x)->getNumerator() >>
+  (defn bit-shift-right [x n] "__result = NewNumber((NUMBER(x)->getNumerator() >>
                                                       NUMBER(n)->getNumerator()));")
 #+end_src
 
@@ -3336,7 +3336,7 @@ Runs the given lambda in a posix thread,
          OBJECT(f)->addRef();
          if(::pthread_create(&th, 0, &PTHREAD_LAMBDA_INVOKER, static_cast<void*>(f.get())))
            return NIL;
-         __result = NEW_NUMBER(pthread_detach(th));"))
+         __result = NewNumber(pthread_detach(th));"))
 #+end_src
 
 #+name: runtime-clojure-bit-operations-tests
@@ -3483,16 +3483,16 @@ Some wrappers for the Arduino platform.
 #+name: runtime-clojure-arduino
 #+begin_src clojure :tangle no
   (defn pin-mode [pin mode]
-    "if (mode.equals(NEW_KEYWORD(618)) == true) // :input
-        pinMode(TO_INT(pin), INPUT);
+    "if (mode.equals(NewKeyword(618)) == true) // :input
+        pinMode(ToInt(pin), INPUT);
      else
-        pinMode(TO_INT(pin), OUTPUT);")
+        pinMode(ToInt(pin), OUTPUT);")
 
   (defn digital-write [pin mode]
-    "if (mode.equals(NEW_KEYWORD(474))  == true) // :high
-        digitalWrite(TO_INT(pin), HIGH);
+    "if (mode.equals(NewKeyword(474))  == true) // :high
+        digitalWrite(ToInt(pin), HIGH);
      else
-        digitalWrite(TO_INT(pin), LOW);")
+        digitalWrite(ToInt(pin), LOW);")
 #+end_src
 
 * Misc

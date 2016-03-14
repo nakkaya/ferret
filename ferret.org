@@ -1643,7 +1643,7 @@ Number Object,
           return (int)floatValue();")
      ("void simplificate" ""
       "int commondivisor = 1;
-        for(NUMBER_DATA_TYPE i=2;i<=MIN(ABS(numerator), ABS(denominator));i++)
+        for(NUMBER_DATA_TYPE i=2;i<=runtime::min(runtime::abs(numerator), runtime::abs(denominator));i++)
           if( numerator%i == 0 && denominator%i == 0 )
             commondivisor = i;
         numerator /= commondivisor;
@@ -2467,8 +2467,21 @@ Misc,
 
 #+name: runtime-native-program-header
 #+begin_src c++ :tangle no
-  #define MIN(a,b) ((a)<(b)?(a):(b))
-  #define ABS(a) ((a)<0 ? -(a) : (a))
+  namespace ferret{
+    namespace runtime{
+      #undef min
+      #undef abs
+      template<typename T>
+        T min(T a, T b){
+        return ((a)<(b)?(a):(b));
+      }
+
+      template<typename T>
+        T abs(T a){
+        return ((a)<0 ? -(a) : (a));
+      }
+    }
+  }
 #+end_src
 
 ** Lisp

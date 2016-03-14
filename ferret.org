@@ -1307,9 +1307,7 @@ Object Casting macros,
 #+begin_src c++ :tangle no
   #define VAR ferret::var
   #define NIL (VAR())
-  #define SEQUENCE(v) static_cast<ferret::Sequence*>(v.get())
   #define LAMBDA(v) static_cast<ferret::Lambda*>(v.get())
-  #define ATOM(v) static_cast<ferret::Atom*>(v.get())
 #+end_src
 
 Locking macros, See Program Header for more information.
@@ -1851,10 +1849,10 @@ A lazy list container implementing the seekable interface.
     (data "var seq;")
     (new ("var t"
           "seq = NewSequence();
-           SEQUENCE(seq)->next = t;")
+           seq.cast<Sequence>()->next = t;")
          ("var d, var t"
           "seq = NewSequence();
-           SEQUENCE(seq)->data = d; SEQUENCE(seq)->next = t;"))
+           seq.cast<Sequence>()->data = d; seq.cast<Sequence>()->next = t;"))
     (equals
      "if (o.cast<Object>()->getType() != LAZYSEQUENCE_TYPE)
        return NewBoolean(false);
@@ -1868,7 +1866,7 @@ A lazy list container implementing the seekable interface.
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"(\");
         if (!seq.isNil()){ 
-          SEQUENCE(seq)->data.toOutputStream();
+          seq.cast<Sequence>()->data.toOutputStream();
           ITERATE(REST(VAR(this)),it){
             fprintf(OUTPUT_STREAM, \" \");
             FIRST(it).toOutputStream();
@@ -1879,17 +1877,17 @@ A lazy list container implementing the seekable interface.
     
     (fns
      ("var cons" "var x"
-      "return var(new LazySequence(x,SEQUENCE(seq)->next));")
+      "return var(new LazySequence(x,seq.cast<Sequence>()->next));")
      
      ("var first" ""
-      "return SEQUENCE(seq)->data;")
+      "return seq.cast<Sequence>()->data;")
      ("var iterate" ""
-      "var s = _i(SEQUENCE(seq)->next);
+      "var s = _i(seq.cast<Sequence>()->next);
        if (s.isNil())
          return NewSequence();
 
-       var data = SEQUENCE(LAZY_SEQUENCE(s)->seq)->data;
-       var next = SEQUENCE(LAZY_SEQUENCE(s)->seq)->next;
+       var data = (s.cast<LazySequence>()->seq).cast<Sequence>()->data;
+       var next = (s.cast<LazySequence>()->seq).cast<Sequence>()->next;
 
        return var(new LazySequence(data,next));")
      ("var rest" ""
@@ -1914,11 +1912,6 @@ A lazy list container implementing the seekable interface.
 
   (defmacro lazy-seq [& body]
     (list 'new-lazy-seq (cons 'fn `( [] ~@body))))
-#+end_src
-
-#+name: runtime-native-object-casting-macros
-#+begin_src c++ :tangle no
-  #define LAZY_SEQUENCE(v) static_cast<ferret::LazySequence*>(v.get())
 #+end_src
 
 #+name: runtime-clojure-sequences-tests
@@ -2059,7 +2052,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
            INIT_LOCK(lock);"))
     (equals "if (!o.isType(ATOM_TYPE))
                  return NewBoolean(false);
-               return NewBoolean(this == ATOM(o));")
+               return NewBoolean(this == o.cast<Atom>());")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"atom <\");
       data.toOutputStream();
@@ -2087,13 +2080,13 @@ Operations on /Atoms/
     "__result = NewAtom(x)")
 
   (defn swap! [a f & args]
-    "__result = ATOM(a)->swap(f,args);")
+    "__result = a.cast<Atom>()->swap(f,args);")
 
   (defn reset! [a newval]
     (swap! a (fn [old curr] curr) newval))
 
   (defn deref [a]
-    "__result = ATOM(a)->data;")
+    "__result = a.cast<Atom>()->data;")
 #+end_src
 
 #+name: runtime-native-atom-tests

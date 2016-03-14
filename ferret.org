@@ -1307,21 +1307,13 @@ Object Casting macros,
 #+begin_src c++ :tangle no
   #define VAR ferret::var
   #define NIL (VAR())
-  #define OBJECT(v) static_cast<ferret::Object*>(v.get())
-  #define POINTER(v) static_cast<ferret::Pointer*>(v.get())
-  #define NUMBER(v) static_cast<ferret::Number*>(v.get())
-  #define CHARACTER(v) static_cast<ferret::Character*>(v.get())
-  #define BOOLEAN(v) static_cast<ferret::Boolean*>(v.get())
-  #define KEYWORD(v) static_cast<ferret::Keyword*>(v.get())
   #define ISEEKABLE(v) static_cast<ferret::ISeekable*>(v.get())
   #define SEQUENCE(v) static_cast<ferret::Sequence*>(v.get())
-  #define STRING(v) static_cast<ferret::String*>(v.get())
   #define LAMBDA(v) static_cast<ferret::Lambda*>(v.get())
   #define ATOM(v) static_cast<ferret::Atom*>(v.get())
 
   #define IS_NIL(o) (o.get() == NULL)
   #define IS_NOT_NIL(o) (o.get() != NULL)
-  #define IS_TYPE(o,type) (OBJECT(o)->getType() == type)
   #define IF(c,t,f) (c ? t : f)
 #+end_src
 
@@ -1583,7 +1575,7 @@ An object to hold a reference to a C++ pointer,
     (data "void* ptr;")
     (new ("void* p" "ptr = p;"))
     (equals
-     "return NewBoolean(ptr == POINTER(o)->ptr);")
+     "return NewBoolean(ptr == o.cast<Pointer>()->ptr);")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"Pointer<%p>\",ptr); return NIL;")
     (post-code "var NewPointer(void * p) {
@@ -1591,7 +1583,7 @@ An object to hold a reference to a C++ pointer,
                 }
                 template<typename T>
                 T* ToPointer(var p) {
-                  return ((T *)POINTER(p)->ptr);
+                  return ((T *)p.cast<Pointer>()->ptr);
                 }"))
 #+end_src
 
@@ -1628,13 +1620,13 @@ Number Object,
            denominator = NUMBER_PRECISION;
            simplificate();"))
     (equals "size_t self_type = getType();
-             size_t other_type = OBJECT(o)->getType();
+             size_t other_type = o.cast<Object>()->getType();
              if (self_type == NUMBER_TYPE && other_type == NUMBER_TYPE)
-               if (getNumerator() == 0 && NUMBER(o)->getNumerator() == 0)
+               if (getNumerator() == 0 && o.cast<Number>()->getNumerator() == 0)
                  return NewBoolean(true);
                else
-                 return NewBoolean((getNumerator() == NUMBER(o)->getNumerator()) &&
-                                    (getDenominator() == NUMBER(o)->getDenominator()));
+                 return NewBoolean((getNumerator() == o.cast<Number>()->getNumerator()) &&
+                                    (getDenominator() == o.cast<Number>()->getDenominator()));
              else
                return NewBoolean(false);")
     (toOutputStream
@@ -1673,7 +1665,7 @@ Number Object,
                   return var(new ferret::Number(n,dn));
                 }
                 int ToInt(var i) {
-                  return (NUMBER(i)->intValue());
+                  return (i.cast<Number>()->intValue());
                 }"))
 #+end_src
 
@@ -1693,9 +1685,9 @@ Each keyword in the program is converted to an /Keyword/ object. A
              id = id + (int)str[i];
            }"))
     (equals
-     "if (!IS_TYPE(o,KEYWORD_TYPE))
+     "if (!o.isType(KEYWORD_TYPE))
         return NewBoolean(false);
-      return NewBoolean(id == KEYWORD(o)->id);")
+      return NewBoolean(id == o.cast<Keyword>()->id);")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"%d\", id); return NIL;")
     (fns ("bool equals" "Keyword k"
@@ -1727,9 +1719,9 @@ Holds a native /char/ type.
     (data "char value;")
     (new ("char c" "value = c;"))
     (equals
-     "if (!IS_TYPE(o,CHARACTER_TYPE))
+     "if (!o.isType(CHARACTER_TYPE))
         return NewBoolean(false);
-      return NewBoolean(value == CHARACTER(o)->value);")
+      return NewBoolean(value == o.cast<Character>()->value);")
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"%c\",value); return NIL;")
     (post-code "var NewCharacter(char c) {
@@ -1819,7 +1811,7 @@ A simple linked list container implementing the seekable interface.
           "next = n; data = d; size = s;"))
 
     (equals
-     "if (!IS_TYPE(o,SEQUENCE_TYPE))
+     "if (!o.isType(SEQUENCE_TYPE))
        return NewBoolean(false);
 
       var itOther = o;
@@ -1869,7 +1861,7 @@ A lazy list container implementing the seekable interface.
           "seq = NewSequence();
            SEQUENCE(seq)->data = d; SEQUENCE(seq)->next = t;"))
     (equals
-     "if (OBJECT(o)->getType() != LAZYSEQUENCE_TYPE)
+     "if (o.cast<Object>()->getType() != LAZYSEQUENCE_TYPE)
        return NewBoolean(false);
       var itOther = o;
       ITERATE(this,it){
@@ -1974,9 +1966,9 @@ Strings are represented as a linked list of characters.
              s = ISEEKABLE(s)->cons(VAR(new ferret::Character(str[i])));
            data = s;"))
     (equals
-     "if (!IS_TYPE(o,STRING_TYPE))
+     "if (!o.isType(STRING_TYPE))
        return NewBoolean(false);
-      return NewBoolean(data.equals(STRING(o)->data));")
+      return NewBoolean(data.equals(o.cast<String>()->data));")
     (toOutputStream
      "ITERATE(data,it){ FIRST(it).toOutputStream(); }
       return NIL;")
@@ -1992,7 +1984,7 @@ Strings are represented as a linked list of characters.
      ("ifdef STD_LIB"
       "std::string toString" ""
       "std::stringstream ss;
-       ITERATE(data,it){ss << CHARACTER(FIRST(it))->value;}
+       ITERATE(data,it){ss << FIRST(it).cast<Character>()->value;}
        return ss.str();"))
     (post-code "template<typename T>
                 var NewString(T s) {
@@ -2002,7 +1994,7 @@ Strings are represented as a linked list of characters.
 
 #+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
-  #define TO_C_STR(s) (STRING(s)->toString().c_str())
+  #define TO_C_STR(s) (s.cast<String>()->toString().c_str())
 #+end_src
 
 #+name: native-string-tests
@@ -2013,7 +2005,7 @@ Strings are represented as a linked list of characters.
                                     (= "Some String" "Other String")
                                     (= "Some String" "Some String")
                                     (= "Some String" 1)
-                                    ((fn [str] "__result = NewBoolean((STRING(str)->toString() == \"String\"))")
+                                    ((fn [str] "__result = NewBoolean((str.cast<String>()->toString() == \"String\"))")
                                      "String")
                                     ))))))
 #+end_src
@@ -2027,9 +2019,9 @@ A boolean object,
   (defobject Boolean
     (data "bool value;")
     (new ("bool b" "value = b;"))
-    (equals "if (!IS_TYPE(o,BOOLEAN_TYPE))
+    (equals "if (!o.isType(BOOLEAN_TYPE))
                return var(new Boolean(false));
-             return var(new Boolean((value == BOOLEAN(o)->value)));")
+             return var(new Boolean((value == o.cast<Boolean>()->value)));")
     (toOutputStream
      "if (value)
         fprintf(OUTPUT_STREAM, \"true\"); 
@@ -2053,7 +2045,7 @@ A boolean object,
                     if (get() == rhs.get())
                       return true;
                     else
-                      return BOOLEAN(get()->equals(rhs))->value;
+                      return (get()->equals(rhs)).cast<Boolean>()->value;
                   }"))
 #+end_src
 
@@ -2070,7 +2062,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
     (new ("var d"
           "data = d;
            INIT_LOCK(lock);"))
-    (equals "if (!IS_TYPE(o,ATOM_TYPE))
+    (equals "if (!o.isType(ATOM_TYPE))
                  return NewBoolean(false);
                return NewBoolean(this == ATOM(o));")
     (toOutputStream
@@ -2140,7 +2132,7 @@ to execute them in a uniform fashion.
 #+begin_src clojure :tangle no
   (defobject Lambda
     (interfaces "var invoke(var args)")
-    (equals "if (!IS_TYPE(o,LAMBDA_TYPE))
+    (equals "if (!o.isType(LAMBDA_TYPE))
                  return NewBoolean(false);
                return NewBoolean(this == LAMBDA(o));")
     (toOutputStream
@@ -2279,7 +2271,13 @@ reaches zero it will automatically free the Object.
   #endif
         
     Object* get() { return m_ptr; }
-      
+    template<typename T>
+    T* cast() { return static_cast<T*>(m_ptr); }
+
+    bool isType(size_t type) { 
+      return (static_cast<Object*>(m_ptr)->getType() == type);
+    }
+
   private:
     void addRef(){
       // Only change if non-null
@@ -2487,7 +2485,7 @@ Once our object system is in place we can define rest of the runtime
 
   (defn nil? [x] "__result = NewBoolean(IS_NIL(x))")
 
-  (defn char? [x] "__result = IS_TYPE(x,CHARACTER_TYPE);")
+  (defn char? [x] "__result = x.isType(CHARACTER_TYPE);")
 #+end_src
 
 We can embed C++ code into our functions, which is how most of the
@@ -2874,7 +2872,7 @@ implementation.
                      else
                        __result = xs;")
 
-  (defn list? [x] "__result = NewBoolean(IS_TYPE(x,SEQUENCE_TYPE));")
+  (defn list? [x] "__result = NewBoolean(x.isType(SEQUENCE_TYPE));")
 
   (defn empty? [x] "__result = NewBoolean(ISEEKABLE(x)->count() == 0)")
 
@@ -2981,11 +2979,11 @@ implementation.
     ([] true)
     ([x] true)
     ([a b]
-     "NUMBER_DATA_TYPE an = NUMBER(a)->getNumerator();
-      NUMBER_DATA_TYPE adn = NUMBER(a)->getDenominator();
+     "NUMBER_DATA_TYPE an = a.cast<Number>()->getNumerator();
+      NUMBER_DATA_TYPE adn = a.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
-      NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
+      NUMBER_DATA_TYPE bn = b.cast<Number>()->getNumerator();
+      NUMBER_DATA_TYPE bdn = b.cast<Number>()->getDenominator();
 
       __result = NewBoolean((an * bdn) < (bn * adn));")
     ([a b & more]
@@ -2997,11 +2995,11 @@ implementation.
     ([] true)
     ([x] true)
     ([a b]
-     "NUMBER_DATA_TYPE an = NUMBER(a)->getNumerator();
-      NUMBER_DATA_TYPE adn = NUMBER(a)->getDenominator();
+     "NUMBER_DATA_TYPE an = a.cast<Number>()->getNumerator();
+      NUMBER_DATA_TYPE adn = a.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
-      NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
+      NUMBER_DATA_TYPE bn = b.cast<Number>()->getNumerator();
+      NUMBER_DATA_TYPE bdn = b.cast<Number>()->getDenominator();
 
       __result = NewBoolean((an * bdn) > (bn * adn));")
     ([a b & more]
@@ -3013,11 +3011,11 @@ implementation.
     ([] true)
     ([x] true)
     ([a b]
-     "NUMBER_DATA_TYPE an = NUMBER(a)->getNumerator();
-      NUMBER_DATA_TYPE adn = NUMBER(a)->getDenominator();
+     "NUMBER_DATA_TYPE an = a.cast<Number>()->getNumerator();
+      NUMBER_DATA_TYPE adn = a.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
-      NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
+      NUMBER_DATA_TYPE bn = b.cast<Number>()->getNumerator();
+      NUMBER_DATA_TYPE bdn = b.cast<Number>()->getDenominator();
 
       __result = NewBoolean((an * bdn) >= (bn * adn));")
     ([a b & more]
@@ -3029,11 +3027,11 @@ implementation.
     ([] true)
     ([x] true)
     ([a b]
-     "NUMBER_DATA_TYPE an = NUMBER(a)->getNumerator();
-      NUMBER_DATA_TYPE adn = NUMBER(a)->getDenominator();
+     "NUMBER_DATA_TYPE an = a.cast<Number>()->getNumerator();
+      NUMBER_DATA_TYPE adn = a.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE bn = NUMBER(b)->getNumerator();
-      NUMBER_DATA_TYPE bdn = NUMBER(b)->getDenominator();
+      NUMBER_DATA_TYPE bn = b.cast<Number>()->getNumerator();
+      NUMBER_DATA_TYPE bdn = b.cast<Number>()->getDenominator();
 
       __result = NewBoolean((an * bdn) <= (bn * adn));")
     ([a b & more]
@@ -3099,21 +3097,21 @@ implementation.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn integer? [x] "__result = NewBoolean(IS_TYPE(x,NUMBER_TYPE) &&
-                                           (NUMBER(x)->getDenominator() == 1));")
+  (defn integer? [x] "__result = NewBoolean(x.isType(NUMBER_TYPE) &&
+                                           (x.cast<Number>()->getDenominator() == 1));")
 
-  (defn float? [x] "__result = NewBoolean(IS_TYPE(x,NUMBER_TYPE) &&
-                                         (NUMBER(x)->getDenominator() != 1));")
+  (defn float? [x] "__result = NewBoolean(x.isType(NUMBER_TYPE) &&
+                                         (x.cast<Number>()->getDenominator() != 1));")
 
   (defn +
     ([] 0)
     ([x] x)
     ([h v]
-     "NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
-      NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
+     "NUMBER_DATA_TYPE hn = h.cast<Number>()->getNumerator();
+      NUMBER_DATA_TYPE hdn = h.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
-      NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
+      NUMBER_DATA_TYPE vn = v.cast<Number>()->getNumerator();
+      NUMBER_DATA_TYPE vdn = v.cast<Number>()->getDenominator();
 
       NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
@@ -3130,11 +3128,11 @@ implementation.
     ([] 1)
     ([x] x)
     ([h v]
-     "NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
-      NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
+     "NUMBER_DATA_TYPE hn = h.cast<Number>()->getNumerator();
+      NUMBER_DATA_TYPE hdn = h.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
-      NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
+      NUMBER_DATA_TYPE vn = v.cast<Number>()->getNumerator();
+      NUMBER_DATA_TYPE vdn = v.cast<Number>()->getDenominator();
 
       NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
@@ -3146,11 +3144,11 @@ implementation.
     ([x]
      (* -1 x))
     ([h v]
-     "NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
-      NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
+     "NUMBER_DATA_TYPE hn = h.cast<Number>()->getNumerator();
+      NUMBER_DATA_TYPE hdn = h.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
-      NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
+      NUMBER_DATA_TYPE vn = v.cast<Number>()->getNumerator();
+      NUMBER_DATA_TYPE vdn = v.cast<Number>()->getDenominator();
 
       NUMBER_DATA_TYPE ndn = (hdn * vdn);
 
@@ -3162,11 +3160,11 @@ implementation.
     ([x]
      (apply / (list 1 x)))
     ([h v]
-     "NUMBER_DATA_TYPE hn = NUMBER(h)->getNumerator();
-      NUMBER_DATA_TYPE hdn = NUMBER(h)->getDenominator();
+     "NUMBER_DATA_TYPE hn = h.cast<Number>()->getNumerator();
+      NUMBER_DATA_TYPE hdn = h.cast<Number>()->getDenominator();
 
-      NUMBER_DATA_TYPE vn = NUMBER(v)->getNumerator();
-      NUMBER_DATA_TYPE vdn = NUMBER(v)->getDenominator();
+      NUMBER_DATA_TYPE vn = v.cast<Number>()->getNumerator();
+      NUMBER_DATA_TYPE vdn = v.cast<Number>()->getDenominator();
 
       __result = NewRatio((hn * vdn),(vn * hdn));")
     ([x y & more]
@@ -3184,9 +3182,9 @@ implementation.
   (defn zero? [x]
     (= x 0))
 
-  (defn floor [x] "__result = NewNumber(NUMBER(x)->intValue());")
+  (defn floor [x] "__result = NewNumber(x.cast<Number>()->intValue());")
 
-  (defn mod [num div] "__result = NewNumber((NUMBER(num)->intValue() % ToInt(div)));")
+  (defn mod [num div] "__result = NewNumber((num.cast<Number>()->intValue() % ToInt(div)));")
 #+end_src
 
 #+name: runtime-clojure-math
@@ -3279,22 +3277,22 @@ implementation.
 
 #+name: runtime-clojure-bit-operations
 #+begin_src clojure :tangle no
-  (defn bit-not [x] "__result = NewNumber(~NUMBER(x)->getNumerator());")
+  (defn bit-not [x] "__result = NewNumber(~x.cast<Number>()->getNumerator());")
 
-  (defn bit-and [x y] "__result = NewNumber((NUMBER(x)->getNumerator() &
-                                              NUMBER(y)->getNumerator()));")
+  (defn bit-and [x y] "__result = NewNumber((x.cast<Number>()->getNumerator() &
+                                             y.cast<Number>()->getNumerator()));")
 
-  (defn bit-or [x y] "__result = NewNumber((NUMBER(x)->getNumerator() |
-                                             NUMBER(y)->getNumerator()));")
+  (defn bit-or [x y] "__result = NewNumber((x.cast<Number>()->getNumerator() |
+                                            y.cast<Number>()->getNumerator()));")
 
-  (defn bit-xor [x y] "__result = NewNumber((NUMBER(x)->getNumerator() ^
-                                              NUMBER(y)->getNumerator()));")
+  (defn bit-xor [x y] "__result = NewNumber((x.cast<Number>()->getNumerator() ^
+                                             y.cast<Number>()->getNumerator()));")
 
-  (defn bit-shift-left [x n] "__result = NewNumber((NUMBER(x)->getNumerator() <<
-                                                     NUMBER(n)->getNumerator()));")
+  (defn bit-shift-left [x n] "__result = NewNumber((x.cast<Number>()->getNumerator() <<
+                                                    n.cast<Number>()->getNumerator()));")
 
-  (defn bit-shift-right [x n] "__result = NewNumber((NUMBER(x)->getNumerator() >>
-                                                      NUMBER(n)->getNumerator()));")
+  (defn bit-shift-right [x n] "__result = NewNumber((x.cast<Number>()->getNumerator() >>
+                                                     n.cast<Number>()->getNumerator()));")
 #+end_src
 
 #+name: runtime-clojure-bit-operations-tests
@@ -3326,12 +3324,12 @@ Runs the given lambda in a posix thread,
         ("pthread.h")
         "void *PTHREAD_LAMBDA_INVOKER(void *data) {
             ferret::var fn = ferret::var(static_cast<ferret::Object*>(data));
-            OBJECT(fn)->subRef();
+            fn.cast<ferret::Object>()->subRef();
             _i(fn);
             pthread_exit(NULL);
          }"
         "pthread_t th;
-         OBJECT(f)->addRef();
+         f.cast<Object>()->addRef();
          if(::pthread_create(&th, 0, &PTHREAD_LAMBDA_INVOKER, static_cast<void*>(f.get())))
            return NIL;
          __result = NewNumber(pthread_detach(th));"))

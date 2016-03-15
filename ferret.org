@@ -2184,7 +2184,7 @@ Function invocation,
 
     template<typename T, typename... Args>
     var _i(T fn, Args... args) {
-      return fn.invoke(__list(args...,var(new Sequence(NULL,NULL))));
+      return fn.invoke(__list(args...,NewSequence()));
     }
 
     template<typename T>
@@ -2199,7 +2199,7 @@ Function invocation,
 
     template<typename... Args>
     var _i(var fn, Args... args) {
-      return fn.cast<Lambda>()->invoke(__list(args...,var(new Sequence(NULL,NULL))));
+      return fn.cast<Lambda>()->invoke(__list(args...,NewSequence()));
     }
   }
 #+end_src

@@ -178,7 +178,7 @@ directives,
 
     (defnative get-char []
       (on "defined GNU_GCC"
-          "__result = NEW_CHARACTER(getchar());"))
+          "__result = NewCharacter(getchar());"))
 
 This function when compiled on a system that defines `GNU_GCC` will
 return the result of `getchar` as a `Character` on ANY other system it
@@ -187,9 +187,9 @@ will return `nil`. You can have multiple `on` blocks per `defnative`,
     (defnative sleep [timeout]
       (on "defined GNU_GCC"
           ("unistd.h")
-          "::sleep(TO_INT(timeout));")
+          "::sleep(ToInt(timeout));")
       (on "defined AVR_GCC"
-          "::delay(TO_INT(timeout));"))
+          "::delay(ToInt(timeout));"))
 
 This way single function can be defined for multiple systems.
 

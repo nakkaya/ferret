@@ -67,10 +67,10 @@ Memory management is done using reference counting. On memory
 constraint systems such as micro controllers ferret can use a memory
 pool to avoid heap fragmentation and calling `malloc` / `free`.
 
-    (configure! MEMORY_POOL_SIZE 256)
+    (configure-runtime! MEMORY_POOL_SIZE 256)
 
 This will create a pool object as a global variable that holds an
-array of `256 / sizeof(size_t)`. Memory pooling is intended for embedded systems
+array of `256 / sizeof(long)`. Memory pooling is intended for embedded systems
 where calling `malloc`/`free` is not desired. It is not thread safe It
 should not be used in systems where better alternatives exists or you
 have enough memory.
@@ -81,8 +81,8 @@ Steps for using `tcmalloc` on Mac OS X, install dependencies,
 
 Then from your program you can link to it using,
 
-    (build-options :library-path ["/usr/local/Cellar/gperftools/2.4/lib/"]
-                   :link ["tcmalloc"])
+    (configure-ferret! :library-path ["/usr/local/Cellar/gperftools/2.4/lib/"]
+                       :link ["tcmalloc"])
 
 ## Compiling With Ferret
 

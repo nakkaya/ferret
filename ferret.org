@@ -1843,7 +1843,12 @@ A simple linked list container implementing the seekable interface.
       "return next;")
      ("size_t count" ""
       "return size;"))
-    (post-code "var NewSequence() {return var(new Sequence());}"))
+    (post-code "var NewSequence() {return var(new Sequence());}
+                var NewSequence(var v) { return var(new Sequence(v,NewSequence()));}
+                template <typename T, typename... Args>
+                var NewSequence(T first, Args... args) { 
+                  return var(new Sequence(first, NewSequence(args...), (sizeof...(args)))); 
+                }"))
 #+end_src
 
 *** Lazy Sequence
@@ -2141,12 +2146,6 @@ Function invocation,
 #+name: function-invocation-api-headers
 #+begin_src c++ :tangle no
   namespace ferret{
-    template<typename T>        
-    T __list(T v);
-        
-    template<typename T, typename... Args>
-    T __list(T first, Args... args);
-        
     template<typename T, typename... Args>
     var _i(T fn, Args... args);
         
@@ -2171,20 +2170,9 @@ Function invocation,
 #+name: function-invocation-api
 #+begin_src c++ :tangle no
   namespace ferret{
-    template<typename T>        
-    T __list(T v) {
-      return v;
-    }
-
-    template<typename T, typename... Args>
-    T __list(T first, Args... args) {
-
-      return var(new Sequence(first, __list(args...), (sizeof...(args))));
-    }
-
     template<typename T, typename... Args>
     var _i(T fn, Args... args) {
-      return fn.invoke(__list(args...,NewSequence()));
+      return fn.invoke(NewSequence(args...));
     }
 
     template<typename T>
@@ -2199,7 +2187,7 @@ Function invocation,
 
     template<typename... Args>
     var _i(var fn, Args... args) {
-      return fn.cast<Lambda>()->invoke(__list(args...,NewSequence()));
+      return fn.cast<Lambda>()->invoke(NewSequence(args...));
     }
   }
 #+end_src

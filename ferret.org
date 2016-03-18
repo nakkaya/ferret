@@ -1844,7 +1844,7 @@ A simple linked list container implementing the seekable interface.
      ("size_t count" ""
       "return size;"))
     (post-code "var NewSequence() {return var(new Sequence());}
-                var NewSequence(var v) { return var(new Sequence(v,NewSequence()));}
+                var NewSequence(var v) { return v;}
                 template <typename T, typename... Args>
                 var NewSequence(T first, Args... args) { 
                   return var(new Sequence(first, NewSequence(args...), (sizeof...(args)))); 
@@ -2172,7 +2172,7 @@ Function invocation,
   namespace ferret{
     template<typename T, typename... Args>
     var _i(T fn, Args... args) {
-      return fn.invoke(NewSequence(args...));
+      return fn.invoke(NewSequence(args...,NewSequence()));
     }
 
     template<typename T>
@@ -2187,7 +2187,7 @@ Function invocation,
 
     template<typename... Args>
     var _i(var fn, Args... args) {
-      return fn.cast<Lambda>()->invoke(NewSequence(args...));
+      return fn.cast<Lambda>()->invoke(NewSequence(args...,NewSequence()));
     }
   }
 #+end_src

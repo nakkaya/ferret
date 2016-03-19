@@ -1773,7 +1773,10 @@ containers.
 
       var cons(var seq, var x){
         if (seq.isNil())
-          seq = NewSequence();
+          return NewSequence(x);
+        if (seq.cast<Object>()->getType() == runtime::type::Sequence
+            && seq.cast<ISeekable>()->count() == 0)
+          return NewSequence(x);
         return seq.cast<ISeekable>()->cons(x);
       }
     
@@ -1794,7 +1797,7 @@ containers.
 
 #+name: runtime-native-object-casting-macros
 #+begin_src c++ :tangle no
-  #define ITERATE(c,i) for(var i = c; !runtime::rest(i).isNil(); i = runtime::rest(i))
+  #define ITERATE(c,i) for(var i = c; !i.isNil(); i = runtime::rest(i))
 #+end_src
 
 *** Sequence
@@ -1825,7 +1828,7 @@ A simple linked list container implementing the seekable interface.
     
     (toOutputStream
      "fprintf(OUTPUT_STREAM, \"(\");
-      if (!next.isNil()){ 
+      if (size != 0){ 
         data.toOutputStream();
         ITERATE(next,it){
           fprintf(OUTPUT_STREAM, \" \");
@@ -1847,10 +1850,10 @@ A simple linked list container implementing the seekable interface.
                  return var(new Sequence());
                 }
                 var NewSequence(var v) {
-                 return var(new Sequence(v, NewSequence(), 1));
+                 return var(new Sequence(v, nil(), 1));
                 }
-                template <typename T, typename... Args>
-                T NewSequence(const T& first, const Args&... args) { 
+                template <typename... Args>
+                var NewSequence(var first, Args... args) { 
                  return var(new Sequence(first, NewSequence(args...), ((sizeof...(args)) + 1))); 
                 }"))
 #+end_src
@@ -1901,7 +1904,7 @@ A lazy list container implementing the seekable interface.
      ("var iterate" ""
       "var s = _i(seq.cast<Sequence>()->next);
        if (s.isNil())
-         return NewSequence();
+         return nil();
 
        var data = (s.cast<LazySequence>()->seq).cast<Sequence>()->data;
        var next = (s.cast<LazySequence>()->seq).cast<Sequence>()->next;
@@ -1912,7 +1915,7 @@ A lazy list container implementing the seekable interface.
      ("size_t count" ""
       "size_t acc = 1;
        var s = iterate();
-       while(!s.equals(NewSequence())){ 
+       while(!s.isNil()){ 
         s = runtime::rest(s);
         acc++;
        }
@@ -1966,9 +1969,9 @@ Strings are represented as a linked list of characters.
           "int length = 0;
            for (length = 0; str[length] != '\\0'; length++);
            length--;
-           var s = var(new Sequence());
-           for (int i = length; i >= 0; i--)
-             s = s.cast<ISeekable>()->cons(var(new Character(str[i])));
+           var s = NewSequence(NewCharacter((str[length])));
+           for (int i = --length; i >= 0; i--)
+             s = s.cast<ISeekable>()->cons(NewCharacter((str[i])));
            data = s;"))
     (equals
      "if (!o.isType(runtime::type::String))

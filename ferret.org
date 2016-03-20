@@ -3560,7 +3560,7 @@ Some wrappers for the Arduino platform.
               :include-path []
               :library-path []
               :link []
-              :compiler-options []
+              :compiler-options ["-std=c++11"]
               :source-extension "cpp"
               :base-name "solution"}
              options))
@@ -3611,7 +3611,7 @@ Some wrappers for the Arduino platform.
         (println "[+] Compiling")
         (FileUtils/writeStringToFile (file file-name) (solution-template source))
         (let [formatted-source (try (with-sh-dir "./"
-                                      (sh "clang-format" "-style" "{Standard: Cpp03}" file-name))
+                                      (sh "clang-format" "-style" "{Standard: Cpp11}" file-name))
                                     (catch Exception e nil))]
           (when (:fomat-code options)
             (if formatted-source

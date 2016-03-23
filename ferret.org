@@ -408,12 +408,12 @@ the free variable problem.
                          (let [[_ n & r] v]
                            (if (= r f) n))) nil @fns)]
       (when name
-        (apply list 'lambda-object name env))))
+        (apply list 'fir-lambda-object name env))))
 
   (defn define-lambda [fns env args body]
     (let [n (gensym)]
-      (dosync (alter fns conj (concat ['define-lambda n env args] body)))
-      (apply list 'lambda-object n env)))
+      (dosync (alter fns conj (concat ['fir-define-lambda n env args] body)))
+      (apply list 'fir-lambda-object n env)))
 
   (defn closure-conversion
     ([form]
@@ -495,7 +495,7 @@ with the global name for readability.
     (->> (select-form form (is-form? 'def))
          (filter (fn [[_ name val]]
                    (and (seq? val)
-                        (= 'lambda-object (first val)))))))
+                        (= 'fir-lambda-object (first val)))))))
 
   (defn replace-fn-call-sites-pure [form fn-defs fn-table]
     (let [no-global-fn (reduce (fn[h v]
@@ -508,7 +508,7 @@ with the global name for readability.
                                      (morph-form h symbol?
                                                  (fn [f]
                                                    (if (= f name)
-                                                     (list 'lambda-object gensym)
+                                                     (list 'fir-lambda-object gensym)
                                                      f))))
                                    no-global-fn fn-table)
           embed-fn-names (reduce (fn[h [name gensym]]
@@ -587,7 +587,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
   (defn escape-analysis [form]
     (let [stack-lambda-pred (fn [f]
                               (and (seq? f)
-                                   (is-special-form? 'lambda-object (first f))))
+                                   (is-special-form? 'fir-lambda-object (first f))))
           ;;espace lambda classes
           escapeable-lambdas (->> (collect-form
                                    form
@@ -606,11 +606,11 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
           form (morph-form form
                            (fn [f]
                              (and (seq? f)
-                                  (= (first f) 'define-lambda)
+                                  (= (first f) 'fir-define-lambda)
                                   (escapeable-lambdas (second f))))
-                           #(cons 'define-lambda-stack (rest %)))
+                           #(cons 'fir-define-lambda-stack (rest %)))
           ;;espace lambda objects
-          form (morph-form form stack-lambda-pred (fn [f] (cons 'invoke-lambda-stack f)))]
+          form (morph-form form stack-lambda-pred (fn [f] (cons 'fir-invoke-lambda-stack f)))]
       form))
 #+end_src
 
@@ -677,7 +677,7 @@ suggests and removes the node when predicate returns true.
     (let [form (->> '((def make-adder (fn [n] (fn [x] (+ x n)))))
                     expand-macros-all
                     closure-conversion)]
-      (is (= (first (second form)) 'define-lambda))
+      (is (= (first (second form)) 'fir-define-lambda))
       (is (= (last (second form)) '(+ x n)))
       (is (= (second (first form)) 'make-adder))
       (is (= (first (first form)) 'def))))
@@ -789,17 +789,17 @@ suggests and removes the node when predicate returns true.
 #+name: core-code-generation-emit
 #+begin_src clojure :tangle no  
   (defmulti emit (fn [form _]
-                   (cond (is-special-form? 'defobject form) 'defobject
-                         (is-special-form? 'define_lambda form) 'define_lambda
-                         (is-special-form? 'define_lambda_stack form) 'define_lambda_stack
-                         (is-special-form? 'dispatch_lambda form) 'dispatch_lambda
-                         (is-special-form? 'lambda_object form) 'lambda_object
-                         (is-special-form? 'define_var form) 'define_var
+                   (cond (is-special-form? 'fir_define_lambda form) 'fir_define_lambda
+                         (is-special-form? 'fir_define_lambda_stack form) 'fir_define_lambda_stack
+                         (is-special-form? 'fir_dispatch_lambda form) 'fir_dispatch_lambda
+                         (is-special-form? 'fir_lambda_object form) 'fir_lambda_object
+                         (is-special-form? 'fir_invoke_lambda_stack form) 'fir_invoke_lambda_stack
+                         (is-special-form? 'fir_define_var form) 'fir_define_var
+                         (is-special-form? 'defobject form) 'defobject
                          (is-special-form? 'native_declare form) 'native_declare
                          (is-special-form? 'native_define form) 'native_define
                          (is-special-form? 'if form) 'if
                          (is-special-form? 'def form) 'def
-                         (is-special-form? 'invoke_lambda_stack form) 'invoke_lambda_stack
                          (to-str? form) :to-str
                          (keyword? form) :keyword
                          (number? form) :number
@@ -874,11 +874,11 @@ C++ skeleton.
   (defmethod emit :sequence [[fn & args] state]
     (invoke-lambda (emit fn state) (doall (map #(emit % state) args))))
 
-  (defmethod emit 'invoke_lambda_stack [[_ lambda & args] state]
+  (defmethod emit 'fir_invoke_lambda_stack [[_ lambda & args] state]
     (invoke-lambda (new-lambda-stack lambda)
                    (doall (map #(emit % state) args))))
 
-  (defmethod emit 'define_var [[_ name form] state]
+  (defmethod emit 'fir_define_var [[_ name form] state]
     (str "var " name " = " (emit form state)))
 
   (defmethod emit 'native_declare [[_ declaration] state]
@@ -973,7 +973,7 @@ lambda forms.
 
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
-  (defmethod emit 'lambda_object [l state]
+  (defmethod emit 'fir_lambda_object [l state]
     (new-lambda l))
 
   (defn emit-define-lambda-aux [name env args body state]
@@ -985,7 +985,7 @@ lambda forms.
                       ["nil();"]
                       (and (= 1 (count body))
                            (seq? (first body))
-                           (= 'dispatch_lambda (first (first body))))
+                           (= 'fir_dispatch_lambda (first (first body))))
                       [(emit (first body) state) "nil();"]
                       (and (= 1 (count body))
                            (string? (first body)))
@@ -1005,12 +1005,12 @@ lambda forms.
         (emit dec state))
       [name env (destructure-lambda args) body]))
 
-  (defmethod emit 'define_lambda [[_ name env args & body] state]
+  (defmethod emit 'fir_define_lambda [[_ name env args & body] state]
     (let [[name env args body] (emit-define-lambda-aux name env args body state)]
       (append-to! state [:lambdas]
                   {:name name :env env :args args :body body}) ""))
 
-  (defmethod emit 'define_lambda_stack [[_ name env args & body] state]
+  (defmethod emit 'fir_define_lambda_stack [[_ name env args & body] state]
     (let [[name env args body] (emit-define-lambda-aux name env args body state)]
       (append-to! state [:lambdas]
                   {:name name :env env :args args :body body :stack true}) ""))
@@ -1018,7 +1018,7 @@ lambda forms.
 
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
-  (defmethod emit 'dispatch_lambda [[_ args-symbol & fns] state]
+  (defmethod emit 'fir_dispatch_lambda [[_ args-symbol & fns] state]
     (let [fns (->> fns
                    (partition 2))
           nil-dispatch (filter #(= (first %) 0) fns)]
@@ -2734,7 +2734,7 @@ implementation.
         `(fn* (& ~(list 'ferret-compiler-no-closure fn-arg-symbol))
               ~(->> form
                     (cons fn-arg-symbol)
-                    (cons 'dispatch-lambda))))))
+                    (cons 'fir-dispatch-lambda))))))
 #+end_src
 
 *** Console I/O

@@ -40,9 +40,13 @@ emacs -nw -Q --batch --eval "
  (progn 
    (org-html-export-as-html nil)
    (with-current-buffer \"*Org HTML Export*\"
-     (write-region (org-no-properties (buffer-string)) nil \"manual.html\"))))"
+     (write-region (org-no-properties (buffer-string)) nil \"ferret-manual.html\"))))"
 
 cd src/
 lein uberjar
 cd ../
-cat src/resources/bash_executable_stub.sh src/target/ferret-app.jar > ferret && chmod +x ferret
+cat src/resources/bash_executable_stub.sh src/target/ferret.jar > ferret && chmod +x ferret
+
+s3cmd --acl-public -m application/octet-stream put ferret s3://dropbox.nakkaya.com/builds/
+s3cmd --acl-public -m application/octet-stream put src/target/ferret.jar s3://dropbox.nakkaya.com/builds/
+s3cmd --acl-public -m text/html put ferret-manual.html s3://dropbox.nakkaya.com/builds/

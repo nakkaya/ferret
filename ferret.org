@@ -1,4 +1,4 @@
-#+title: Ferret: Clojure to C++ Compiler
+#+title: Ferret User's Guide
 #+tags: clojure c++ arduino avr-gcc gcc
 #+STARTUP: hidestars
 #+TAGS: noexport(e)
@@ -278,7 +278,7 @@ ferret. Following shows a blink example for Arduino.
    (sleep 500))
 #+end_src
 
-Rename *solution.cpp* to *./program_name/program_name.pde* and compile
+Rename *solution.cpp* to *./program\_name/program\_name.pde* and compile
 using Arduino IDE.
 
 If you are using the memory pool, there are two functions you can use

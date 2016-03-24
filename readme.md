@@ -164,7 +164,7 @@ You can declare global level things using,
 this will define an `int` called `i` as a global variable. If a
 function only contains a string such as,
 
-    (defn inc-int [] "__result =  NEW_NUMBER(i++);")
+    (defn inc-int [] "__result =  NewNumber(i++);")
 
 It is assumed to be a native function string it is taken as C++
 code. You can then use it like any other ferret function.

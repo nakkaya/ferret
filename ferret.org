@@ -3,11 +3,46 @@
 #+STARTUP: hidestars
 #+TAGS: noexport(e)
 #+EXPORT_EXCLUDE_TAGS: noexport
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://thomasf.github.io/solarized-css/solarized-dark.min.css" />
-#+OPTIONS: toc:nil
-#+TOC: headlines 3
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/bigblow/css/htmlize.css"/>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/bigblow/css/bigblow.css"/>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/bigblow/css/hideshow.css"/>
+#+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/bigblow/js/jquery-1.11.0.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/bigblow/js/jquery-ui-1.10.2.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/bigblow/js/jquery.localscroll-min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/bigblow/js/jquery.scrollTo-1.4.3.1-min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/bigblow/js/jquery.zclip.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/bigblow/js/bigblow.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/bigblow/js/hideshow.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/lib/js/jquery.stickytableheaders.min.js"></script>
+#+HTML_HEAD: <style>#content { max-width:1024px;} </style>
+#+OPTIONS: H:10
 
-* License
+* About
+** What Is Ferret
+
+Ferret is a Clojure to C++ compiler, projects aim is to create a
+functional minimum viable lisp that runs on embedded systems with
+deterministic behaviour by compiling a subset of Clojure to C++.
+
+Generated code is self contained ANSI C++11 with no third part
+dependencies including libstdc++. Which allows it to run on embedded
+systems with as little as 2KB of RAM and no libstdc++. (Arduino Uno
+/ Atmega328 with 32kb Flash)
+
+Ferret is not trying to be a 1 to 1 Clojure to C++ compiler. Projects
+eventual aim is to create Clojure flavored lisp with ideas from Ada
+that makes it suitable for embedded programming.
+
+** Features
+
+ - Very small foot print.
+ - Functional
+ - Macros
+ - Destructuring
+ - Easy FFI (Inline C,C++)
+ - Memory Pooling
+
+** License
 
 Copyright 2015 Nurullah Akkaya
 
@@ -1319,26 +1354,6 @@ lambda forms.
 
 On the C++ side we define our own object system.
 
-Locking macros, See Program Header for more information.
-
-#+name: runtime-native-object-casting-macros
-#+begin_src c++ :tangle no
-  #if defined(FERRET_STD_LIB) && !defined(FERRET_SINGLE_THREADED)
-   #define FERRET_NEW_LOCK(symbol) pthread_mutex_t symbol;
-   #define FERRET_INIT_LOCK(symbol) pthread_mutex_init(&symbol, NULL);
-   #define FERRET_DELETE_LOCK(symbol) pthread_mutex_destroy(&symbol);
-   #define FERRET_WITH_LOCK(lock,code) \
-     pthread_mutex_lock(&lock); \
-     code;                      \
-     pthread_mutex_unlock(&lock);
-  #else
-   #define FERRET_NEW_LOCK(symbol)
-   #define FERRET_INIT_LOCK(symbol)
-   #define FERRET_DELETE_LOCK(symbol)
-   #define FERRET_WITH_LOCK(lock,code) code;
-  #endif
-#+end_src
-
 *** Memory Pool
 
     When,
@@ -1471,6 +1486,19 @@ Locking macros, See Program Header for more information.
   #endif
 #+end_src
 
+Dispatch correct memory allocation/deallocation implementation,
+
+#+name: runtime-native-memory-management-macros
+#+begin_src c++ :tangle no
+  #ifdef FERRET_MEMORY_POOL_SIZE
+    #define FERRET_ALLOCATE(size) ProgramMemory.allocate(size)
+    #define FERRET_FREE(pre) ProgramMemory.free(ptr)
+  #else
+    #define FERRET_ALLOCATE(size) malloc(size)
+    #define FERRET_FREE(ptr) free(ptr)
+  #endif
+#+end_src
+
 #+name: runtime-clojure-memory-pool-tests
 #+begin_src clojure :tangle no
   (deftest memory-pool-test
@@ -1491,29 +1519,6 @@ Locking macros, See Program Header for more information.
               ((fn [] "std::cout << (NULL != mem.allocate(sizeof(size_t)*1)) << \" \";"))
               ((fn [] "std::cout << (NULL != mem.allocate(sizeof(size_t)*1)) << \" \";"))
               ((fn [] "std::cout << (NULL == mem.allocate(sizeof(size_t)*10)) << \" \";")))))))
-#+end_src
-
-*** Memory Allocation/Deallocation
-
-Dispatch correct memory allocation/deallocation implementation,
-
-#+name: runtime-native-memory-management-macros
-#+begin_src c++ :tangle no
-  #ifdef FERRET_MEMORY_POOL_SIZE
-    #define FERRET_ALLOCATE(size) ProgramMemory.allocate(size)
-    #define FERRET_FREE(pre) ProgramMemory.free(ptr)
-  #else
-    #define FERRET_ALLOCATE(size) malloc(size)
-    #define FERRET_FREE(ptr) free(ptr)
-  #endif
-#+end_src
-
-#+name: runtime-native-memory-management-macros
-#+begin_src c++ :tangle no
-  #define FERRET_NEW_REF() size_t refCount;
-  #define FERRET_INIT_REF() refCount = 0;
-  #define FERRET_INC_REF(this) refCount++;
-  #define FERRET_DEC_REF(this) (--refCount <= 0);
 #+end_src
 
 *** Object
@@ -1808,7 +1813,7 @@ containers.
   }
 #+end_src
 
-#+name: runtime-native-object-casting-macros
+#+name: runtime-native-macros
 #+begin_src c++ :tangle no
   #define FERRET_ITERATE(c,i) for(var i = c; !i.isNil(); i = runtime::rest(i))
 #+end_src
@@ -2500,6 +2505,34 @@ Misc,
       }
     }
   }
+#+end_src
+
+Locking macros, See Program Header for more information.
+
+#+name: runtime-native-macros
+#+begin_src c++ :tangle no
+  #if defined(FERRET_STD_LIB) && !defined(FERRET_SINGLE_THREADED)
+   #define FERRET_NEW_LOCK(symbol) pthread_mutex_t symbol;
+   #define FERRET_INIT_LOCK(symbol) pthread_mutex_init(&symbol, NULL);
+   #define FERRET_DELETE_LOCK(symbol) pthread_mutex_destroy(&symbol);
+   #define FERRET_WITH_LOCK(lock,code) \
+     pthread_mutex_lock(&lock); \
+     code;                      \
+     pthread_mutex_unlock(&lock);
+  #else
+   #define FERRET_NEW_LOCK(symbol)
+   #define FERRET_INIT_LOCK(symbol)
+   #define FERRET_DELETE_LOCK(symbol)
+   #define FERRET_WITH_LOCK(lock,code) code;
+  #endif
+#+end_src
+
+#+name: runtime-native-memory-management-macros
+#+begin_src c++ :tangle no
+  #define FERRET_NEW_REF() size_t refCount;
+  #define FERRET_INIT_REF() refCount = 0;
+  #define FERRET_INC_REF(this) refCount++;
+  #define FERRET_DEC_REF(this) (--refCount <= 0);
 #+end_src
 
 ** Lisp
@@ -3492,15 +3525,6 @@ returns true returns the next state.
                              (print (deref state)))))))
 #+end_src
 
-*** PID
-
-#+name: runtime-clojure-arduino
-#+begin_src clojure :tangle no
-
-#+end_src
-
-
-
 *** Arduino
 
 Some wrappers for the Arduino platform.
@@ -3953,7 +3977,7 @@ Some wrappers for the Arduino platform.
 
   <<runtime-native-program-header>>
   <<runtime-native-memory-management-macros>>
-  <<runtime-native-object-casting-macros>>
+  <<runtime-native-macros>>
 
   namespace ferret{
     class var;

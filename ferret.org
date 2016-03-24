@@ -2823,11 +2823,19 @@ Clojure, the only exception is that stuff should not expand to fully
 qualified Clojure symbols, so the symbol /fn/ should not expand to
 /clojure.core/fn/,
 
+
 #+name: runtime-clojure-defn
 #+begin_src clojure :tangle no
   (defmacro defn [name & body]
     (list 'def name (cons 'fn `~body)))
+#+end_src
 
+*** Native Declarations
+
+Include native headers, (*.h* files)
+
+#+name: runtime-clojure-defn
+#+begin_src clojure :tangle no
   (defmacro native-header [& body]
     (cons 'native-declare
           (->> (map #(if (symbol? %)
@@ -2836,18 +2844,36 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
                     body)
                (apply str)
                (list))))
+#+end_src
 
+Configure Ferret Runtime options, (memory pooling, math containers etc.)
+
+#+name: runtime-clojure-defn
+#+begin_src clojure :tangle no
   (defmacro configure-runtime! [& body]
     (cons 'native-define
           (->> (partition 2 body)
                (map #(str "#define " (first %) " " (second %) "\n"))
                (list))))
+#+end_src
 
+Embed compilations options, (build command, extra source files etc.)
+
+#+name: runtime-clojure-defn
+#+begin_src clojure :tangle no
   (defmacro configure-ferret! [& body]
     (list 'native-define (str "// Ferret Build Configuration Begin\n"
                               "//" (str (apply hash-map body)) "\n"
                               "// Ferret Build Configuration End\n")))
+#+end_src
 
+*** Native Functions
+
+Allows a function to be defined for multiple platforms see [[FFI]] for
+examples.
+
+#+name: runtime-clojure-defn
+#+begin_src clojure :tangle no
   (defmacro defnative [name args & form]
     (let [includes (->> (filter #(seq? (nth % 2)) form)
                         (map #(cons (nth % 1) (apply list (nth % 2))))

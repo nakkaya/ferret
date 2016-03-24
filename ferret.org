@@ -701,6 +701,20 @@ suggests and removes the node when predicate returns true.
            (some true? (map #(= % (first f)) s)))))
 #+end_src
 
+#+name: core-code-generation-misc
+#+begin_src clojure :tangle no
+  (defn read-clojure-file [f]
+    (try
+      (read-string (str \( (FileUtils/readFileToString (file f)) \)))
+      (catch Exception e
+        (println "Error Reading," f)
+        (System/exit 1))))
+
+  (defn is-special-form? [s f]
+    (and (seq? f)
+         (= (first f) s)))
+#+end_src
+
 *** Tests
 
 #+name: compiler-transformation-tests
@@ -835,7 +849,7 @@ suggests and removes the node when predicate returns true.
                          (is-special-form? 'native_define form) 'native_define
                          (is-special-form? 'if form) 'if
                          (is-special-form? 'def form) 'def
-                         (to-str? form) :to-str
+                         (symbol? form) :to-str
                          (keyword? form) :keyword
                          (number? form) :number
                          (nil? form) :nil
@@ -868,6 +882,14 @@ would evaluate to,
 So the actual compilation will just map emit to all forms passed and
 /string-template/ will handle the job of putting them into an empty
 C++ skeleton.
+
+#+name: core-code-generation-misc
+#+begin_src clojure :tangle no
+    (defn append-to! [r ks v]
+      (dosync 
+       (let [cv (reduce (fn[h v] (v h)) @r ks)]
+         (alter r assoc-in ks (conj cv v)))))
+#+end_src
 
 #+name: core-code-generation-emit-source
 #+begin_src clojure :tangle no
@@ -2027,13 +2049,14 @@ Strings are represented as a linked list of characters.
 #+begin_src clojure :tangle no
   (deftest native-string-test
     (is (= "Some String false true false true"
-           (capture-output '((print "Some String"
-                                    (= "Some String" "Other String")
-                                    (= "Some String" "Some String")
-                                    (= "Some String" 1)
-                                    ((fn [str] "__result = NewBoolean((str.cast<String>()->toString() == \"String\"))")
-                                     "String")
-                                    ))))))
+           (capture-output
+            '((print "Some String"
+                     (= "Some String" "Other String")
+                     (= "Some String" "Some String")
+                     (= "Some String" 1)
+                     ((fn [str] "__result = NewBoolean((str.cast<String>()->toString() == \"String\"))")
+                      "String")
+                     ))))))
 #+end_src
 
 *** Boolean
@@ -3544,45 +3567,8 @@ Some wrappers for the Arduino platform.
         digitalWrite(ToInt(pin), LOW);")
 #+end_src
 
-* Misc
-** I/O
-
-  #+name: core-code-generation-misc
-  #+begin_src clojure
-    ;; I/O
-    (defn read-clojure-file [f]
-      (try
-        (read-string (str \( (FileUtils/readFileToString (file f)) \)))
-        (catch Exception e
-          (println "Error Reading," f)
-          (System/exit 1))))
-
-    (defn copy-to-solution [fin fout]
-      (FileUtils/copyURLToFile (ClassLoader/getSystemResource fin) (file fout)))
-
-    (defn delete-recursively [file]
-      (let [func (fn [func f]
-                   (when (.isDirectory f)
-                     (doseq [f2 (.listFiles f)]
-                       (func func f2)))
-                   (clojure.java.io/delete-file f))]
-        (when (.exists file)
-          (func func file))))
-
-    (defn append-to! [r ks v]
-      (dosync 
-       (let [cv (reduce (fn[h v] (v h)) @r ks)]
-         (alter r assoc-in ks (conj cv v)))))
-
-    (defn to-str? [f]
-      (symbol? f))
-
-    (defn is-special-form? [s f]
-      (and (seq? f)
-           (= (first f) s)))
-  #+end_src
-
-** Main
+* Main
+** Options
 
    Default compile options, 
 
@@ -3634,6 +3620,8 @@ Some wrappers for the Arduino platform.
           (compile-options {}))))
   #+end_src
 
+** Compile to C++
+
    Compile the form to C++,
 
   #+name: core-code-compile-code
@@ -3652,6 +3640,8 @@ Some wrappers for the Arduino platform.
                   (spit file-name (:out formatted-source)))
               (println "[+] Install clang-format for Formatted Output (Optional)"))))))
   #+end_src
+
+** Compile to Binary
 
    Compile C++ code to binary,
 
@@ -3707,6 +3697,8 @@ Some wrappers for the Arduino platform.
                       (println "[+] Done")
                       true)))))))
   #+end_src
+
+** Compiler Main
 
    Compiler /main/,
 

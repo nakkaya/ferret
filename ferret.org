@@ -576,7 +576,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
                           (shake-concat f built-in fns))) %))))
 #+end_src
 
-****  Escape Analysis
+**** Escape Analysis
 
       Determines that a certain allocation never escapes the local
       function. This means that allocation can

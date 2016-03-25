@@ -14,8 +14,9 @@
 #+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/bigblow/js/bigblow.js"></script>
 #+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/bigblow/js/hideshow.js"></script>
 #+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/lib/js/jquery.stickytableheaders.min.js"></script>
-#+HTML_HEAD: <style>#content { max-width:1024px;} </style>
-#+HTML_HEAD: <style>#postamble { max-width:1024px;} </style>
+#+HTML_HEAD: <style>#content {max-width:1024px;} </style>
+#+HTML_HEAD: <style>#postamble {max-width:1024px;} </style>
+#+HTML_HEAD: <style>#left-panel-wrapper {display: none;} </style>
 #+OPTIONS: H:10
 
 * About

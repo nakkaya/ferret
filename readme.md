@@ -1,7 +1,5 @@
 ## [Ferret User's Guide](http://dropbox.nakkaya.com/builds/ferret-manual.html)
 
-## License
-
 Copyright 2015 Nurullah Akkaya
 
 This file is part of Ferret.

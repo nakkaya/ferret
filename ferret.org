@@ -66,9 +66,9 @@ along with Foobar. If not, see http://www.gnu.org/licenses/.
 * Overview
 ** Implementation Notes
 
-Ferret is a functional, lazy language. All functions should mimic their
-Clojure counter parts. If they don't  it is considered a bug. (or not
-possible to implement with the current implementation.)
+Ferret is a functional, lazy language. All functions should mimic
+their Clojure counter parts. If they don't it is considered a bug. (or
+not possible to implement with the current implementation.)
 
 Generated code is self contained *ISO C++11* with no third part
 dependencies including libstdc++. All tests are compiled using,
@@ -1603,12 +1603,11 @@ lambda forms.
       (render-view view)))
 #+end_src
 
-* Runtime
-** Native
+* Native Core
 
 On the C++ side we define our own object system.
 
-*** Memory Pool
+** Memory Pool
 
     When,
 
@@ -1775,7 +1774,8 @@ Dispatch correct memory allocation/deallocation implementation,
               ((fn [] "std::cout << (NULL == mem.allocate(sizeof(size_t)*10)) << \" \";")))))))
 #+end_src
 
-*** Object
+** Object System
+*** Base
 
 All our types are derived from the base Object type,
 
@@ -1826,7 +1826,8 @@ All our types are derived from the base Object type,
   };
 #+end_src
 
-*** Pointer
+*** Objects
+**** Pointer
 
 An object to hold a reference to a C++ pointer,
 
@@ -1852,7 +1853,7 @@ An object to hold a reference to a C++ pointer,
                 }"))
 #+end_src
 
-*** Number
+**** Number
 
 There is only one number type in ferret. All numbers are kept as
 ratios. Default number size is /int/. A ratio is kept in memory as two
@@ -1938,7 +1939,7 @@ Number Object,
                 }"))
 #+end_src
 
-*** Keyword
+**** Keyword
 
 Each keyword in the program is converted to an /Keyword/ object. A
 /Keyword/ holds a simple hash of the keyword as an integer.
@@ -1978,7 +1979,7 @@ Each keyword in the program is converted to an /Keyword/ object. A
                                      :space)))))))
 #+end_src
 
-*** Character
+**** Character
 
 Holds a native /char/ type.
 
@@ -1998,81 +1999,7 @@ Holds a native /char/ type.
                 }"))
 #+end_src
 
-*** Seekable Interface
-
-All sequence functions use this interface to iterate seekable
-containers.
-
-#+name: runtime-clojure-seekable-interface
-#+begin_src clojure :tangle no
-  (defobject ISeekable
-    (interfaces "var cons(var x)"
-                "var first()"
-                "var rest()"
-                "size_t count()")
-    (fns ("virtual ~ISeekable" "" "")))
-#+end_src
-
-#+name: runtime-native-iseekable-headers
-#+begin_src c++ :tangle no
-  namespace ferret{
-    namespace runtime {
-      var first(var coll);
-      var rest(var coll);
-      var cons(var seq, var x);
-      var nth(var seq, var index);
-    }
-  }
-#+end_src
-
-#+name: runtime-native-iseekable-functions
-#+begin_src c++ :tangle no
-  namespace ferret{
-    namespace runtime{
-      var first(var coll){
-        if (coll.isNil())
-          return nil();
-        else
-          return coll.cast<ISeekable>()->first();
-      }
-
-      var rest(var coll){
-        if (coll.isNil())
-          return NewSequence();
-        else
-          return coll.cast<ISeekable>()->rest();
-      }
-
-      var cons(var seq, var x){
-        if (seq.isNil())
-          return NewSequence(x);
-        if (seq.cast<Object>()->getType() == runtime::type::Sequence
-            && seq.cast<ISeekable>()->count() == 0)
-          return NewSequence(x);
-        return seq.cast<ISeekable>()->cons(x);
-      }
-    
-      var nth(var seq, var idx){
-        int index = ToInt(idx);
-
-        if ( index < 0 || seq.cast<ISeekable>()->count() < idx)
-          return nil();
-      
-        var head = seq;
-        for(int i=0; i < index; i++)
-          head = runtime::rest(head);
-        return runtime::first(head);
-      }
-    }
-  }
-#+end_src
-
-#+name: runtime-native-macros
-#+begin_src c++ :tangle no
-  #define FERRET_ITERATE(c,i) for(var i = c; !i.isNil(); i = runtime::rest(i))
-#+end_src
-
-*** Sequence
+**** Sequence
 
 Linked list container implementing the seekable interface.
 
@@ -2130,7 +2057,7 @@ Linked list container implementing the seekable interface.
                 }"))
 #+end_src
 
-*** Lazy Sequence
+**** Lazy Sequence
 
 A lazy list container implementing the seekable interface.
 
@@ -2224,7 +2151,7 @@ A lazy list container implementing the seekable interface.
                                     (lazy-countdown 10)))))))
 #+end_src
 
-*** String
+**** String
 
 Strings are represented as a linked list of characters.
 
@@ -2291,7 +2218,7 @@ Strings are represented as a linked list of characters.
                      ))))))
 #+end_src
 
-*** Boolean
+**** Boolean
 
 A boolean object,
 
@@ -2330,7 +2257,7 @@ A boolean object,
                   }"))
 #+end_src
 
-*** Atom
+**** Atom
 
 Mimics Clojure's /atom/. It is thread safe when used on system where
 =FERRET_STD_LIB= is defined.
@@ -2402,7 +2329,82 @@ Operations on /Atoms/
                                (print (= a 1))))))))
 #+end_src
 
-*** Lambda
+*** Interfaces
+**** Seekable
+
+All sequence functions use this interface to iterate seekable
+containers.
+
+#+name: runtime-clojure-seekable-interface
+#+begin_src clojure :tangle no
+  (defobject ISeekable
+    (interfaces "var cons(var x)"
+                "var first()"
+                "var rest()"
+                "size_t count()")
+    (fns ("virtual ~ISeekable" "" "")))
+#+end_src
+
+#+name: runtime-native-iseekable-headers
+#+begin_src c++ :tangle no
+  namespace ferret{
+    namespace runtime {
+      var first(var coll);
+      var rest(var coll);
+      var cons(var seq, var x);
+      var nth(var seq, var index);
+    }
+  }
+#+end_src
+
+#+name: runtime-native-iseekable-functions
+#+begin_src c++ :tangle no
+  namespace ferret{
+    namespace runtime{
+      var first(var coll){
+        if (coll.isNil())
+          return nil();
+        else
+          return coll.cast<ISeekable>()->first();
+      }
+
+      var rest(var coll){
+        if (coll.isNil())
+          return NewSequence();
+        else
+          return coll.cast<ISeekable>()->rest();
+      }
+
+      var cons(var seq, var x){
+        if (seq.isNil())
+          return NewSequence(x);
+        if (seq.cast<Object>()->getType() == runtime::type::Sequence
+            && seq.cast<ISeekable>()->count() == 0)
+          return NewSequence(x);
+        return seq.cast<ISeekable>()->cons(x);
+      }
+    
+      var nth(var seq, var idx){
+        int index = ToInt(idx);
+
+        if ( index < 0 || seq.cast<ISeekable>()->count() < idx)
+          return nil();
+      
+        var head = seq;
+        for(int i=0; i < index; i++)
+          head = runtime::rest(head);
+        return runtime::first(head);
+      }
+    }
+  }
+#+end_src
+
+#+name: runtime-native-macros
+#+begin_src c++ :tangle no
+  #define FERRET_ITERATE(c,i) for(var i = c; !i.isNil(); i = runtime::rest(i))
+#+end_src
+
+**** Lambda
 
 Every lambda object implements the /Lambda/ interface. All lambdas are
 executed via /invoke/ method that takes a sequence of vars as argument
@@ -2494,7 +2496,7 @@ Function invocation,
                                       (m-func 1 2 (list 3 3) 4))))))))
 #+end_src
 
-*** var
+** Reference Counting
 
 Garbage collection is handled by reference counting, a /var/ holds a
 pointer to an Object, everything is passed around as /vars/ it is
@@ -2575,7 +2577,7 @@ reaches zero it will automatically free the Object.
   }
 #+end_src
 
-*** Program Header
+** Program Header
 
 Some options can be configured using /#define/ directives, these can
 be defined using /native-define/ from program code. When,
@@ -2791,7 +2793,7 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
   #define FERRET_DEC_REF(this) (--refCount <= 0);
 #+end_src
 
-** Lisp
+* Clojure Core
 
 Once our object system is in place we can define rest of the runtime
 (functions/macros) using our Clojure subset,
@@ -2830,7 +2832,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
     (list 'def name (cons 'fn `~body)))
 #+end_src
 
-*** Native Declarations
+** Native Declarations
 
 Include native headers, (*.h* files)
 
@@ -2867,7 +2869,7 @@ Embed compilations options, (build command, extra source files etc.)
                               "// Ferret Build Configuration End\n")))
 #+end_src
 
-*** Native Functions
+** Native Functions
 
 Allows a function to be defined for multiple platforms see [[FFI]] for
 examples.
@@ -2896,7 +2898,7 @@ examples.
       (list 'def name (cons 'fn* `( ~args ~@includes ~@pre-ample  ~body)))))
 #+end_src
 
-*** Misc
+** Misc
 
 #+name: runtime-clojure-misc
 #+begin_src clojure :tangle no
@@ -3052,7 +3054,7 @@ implementation.
                     (cons 'fir-dispatch-lambda))))))
 #+end_src
 
-*** Console I/O
+** Console I/O
 
 #+name: runtime-clojure-console-io
 #+begin_src clojure :tangle no
@@ -3075,7 +3077,7 @@ implementation.
   <<runtime-clojure-println>>
 #+end_src
 
-*** Looping
+** Looping
 
 #+name: runtime-clojure-looping
 #+begin_src clojure :tangle no
@@ -3090,7 +3092,7 @@ implementation.
   (defn _dotimes_ [t f] "for(int i = 0; i < ToInt(t); i++) _i(f,NewNumber(i));")
 #+end_src
 
-*** Conditionals
+** Conditionals
 
 #+name: runtime-clojure-conditionals
 #+begin_src clojure :tangle no
@@ -3151,7 +3153,7 @@ implementation.
                                       a)))))))
 #+end_src
 
-*** Sequence
+** Sequence
 
 #+name: runtime-clojure-sequence-lazy
 #+begin_src clojure :tangle no
@@ -3302,7 +3304,7 @@ implementation.
                                     (nth (list 1 2 3) -10)))))))
 #+end_src
 
-*** Logical Operators
+** Logical Operators
 
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
@@ -3437,7 +3439,7 @@ implementation.
                                       (= nil ((fn [x y] ) 1 2)))))))))
 #+end_src
 
-*** Math
+** Math
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
@@ -3617,7 +3619,7 @@ implementation.
                                     (clamp -100 -10 0)))))))
 #+end_src
 
-*** Bit Operations
+** Bit Operations
 
 #+name: runtime-clojure-bit-operations
 #+begin_src clojure :tangle no
@@ -3657,7 +3659,7 @@ implementation.
                                     (bit-shift-right 4 2)))))))
 #+end_src
 
-*** Concurrency
+** Concurrency
 
 Runs the given lambda in a posix thread,
 
@@ -3692,7 +3694,7 @@ Runs the given lambda in a posix thread,
                              (sleep 3))))))
 #+end_src
 
-*** State Machines
+** State Machines
 
 This macro allows users to define state machines using the following
 DSL,
@@ -3807,7 +3809,7 @@ returns true returns the next state.
                              (print (deref state)))))))
 #+end_src
 
-*** Arduino
+** Arduino
 
 Some wrappers for the Arduino platform.
 

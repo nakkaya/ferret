@@ -4115,6 +4115,9 @@ Create some dummy libs under /test/modules/,
 
 ** Libraries
 
+  - RPi GPIO
+    - http://elinux.org/RPi_Low-level_peripherals
+    - http://elinux.org/RPi_GPIO_Code_Samples
   - Sqlite Wrapper.
   - Web Framework.
     - [[https://github.com/ipkn/crow][crow]]

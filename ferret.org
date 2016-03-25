@@ -4044,6 +4044,67 @@ Create some dummy libs under /test/modules/,
                              (print (deref state)))))))
 #+end_src
 
+* Roadmap
+** Core
+
+  - *Unit Testing*
+    - [[http://www.jera.com/techinfo/jtns/jtn002.html][JTN002 - MinUnit -- a minimal unit testing framework for C]]
+  - *Pre/Post conditions* for functions.
+    - By default print error and abort. 
+    - Let user define a callback function.
+  - *Compile Time Interfaces*
+    Load different module implementations for different config
+    options.
+  - *Association Lists* as an alternative to maps. More suited to
+    embedded systems. Quoted from Wikipedia, for quite small values of
+    n it is more efficient in terms of time and space than more
+    sophisticated strategies such as hash tables.
+  - *Unbounded Precision Integers*
+    From p.11: PICOBIT: A Compact Scheme System for Microcontrollers
+    - Larger values are needed in some embedded applications.
+      - 48 bit integers to store MAC addresses.
+      - SHA family of cryptographic hashing functions, which need
+        values up to 512 bits wide.
+      - If an application keeps track of time at the microsecond level
+        using a 32-bit value, a wraparound will occur every hour or
+        so.
+    - Unbounded precision integers are encoded in PICOBIT as linked
+      lists of 16 bit values. At the end of each list is either the
+      integer 0 or -1, to represent the sign. 0, -1 and other small
+      integers have dedicated encodings and do not need to be
+      represented as linked lists. The use of this “little-endian”
+      representation simplifies the bignum algorithms in particular
+      for numbers of different lengths.
+    - On versions of PICOBIT which do not support unbounded precision
+      integers (including PICOBIT Light), integers are limited to 24
+      bits, and encoded directly in the object.
+  - *How to propagate errors* - No Exceptions on embedded systems.
+    Quoted from Bjarne's C++ FAQ - JSF++ is for hard-real time and
+    safety-critical applications (flight control software). If a
+    computation takes too long someone may die. For that reason, we
+    have to guarantee response times, and we can't - with the current
+    level of tool support - do that for exceptions. In that context,
+    even free store allocation is banned! Actually, the JSF++
+    recommendations for error handling simulate the use of exceptions
+    in anticipation of the day where we have the tools to do things
+    right, i.e. using exceptions.
+  - *MemoryPool* - Out Of Memory should not be fatal.
+    - Seperate static critical data structures to a seperate pool.
+  - *Ranged Numbers* - This type is an int but can only be 1-12.
+  - *Safety when used in ISR*.
+  - *Escape Analysis* for other types. Escape analysis is only used
+    for functions.
+  - *Readbility* - Add context to auto generated symbols in compiled
+    code.
+  - *Core.typed* - Attach type information to the program.
+
+** Libraries
+
+  - Sqlite Wrapper.
+  - Web Framework.
+    - [[https://github.com/ipkn/crow][crow]]
+    - [[http://siliconframework.org/][Silicon]]
+
 * Files                                                            :noexport:
 ** project.clj
 #+begin_src clojure :mkdirp yes :tangle src/project.clj

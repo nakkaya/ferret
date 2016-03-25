@@ -2512,6 +2512,15 @@ is used it will disable locking for built in data structures. By
 default when compiling with non embedded compiler. It will use /POSIX/
 /mutexes/ for locking /Objects/.
 
+When running on systems with UART (ie. embedded systems) following can
+be used to set baud rate.
+
+#+BEGIN_EXAMPLE
+  (configure-runtime! FERRET_UART_RATE 57600)
+#+END_EXAMPLE
+
+By default baud rate is *9600 bps*.
+
 ** Initialization
 *** Detect Hardware
 
@@ -2552,6 +2561,15 @@ default when compiling with non embedded compiler. It will use /POSIX/
 
 Hardware specific initialization code, 
 
+Setup UART rate,
+
+#+name: runtime-native-program-header
+#+begin_src c++ :tangle no
+#if !defined(FERRET_UART_RATE)
+ # define FERRET_UART_RATE 9600
+#endif
+#+end_src
+
 **** Arduino
 
 If running on the Arduino platform fix pure virtual functions,
@@ -2584,7 +2602,7 @@ Setup [[https://en.wikipedia.org/wiki/Universal_asynchronous_receiver/transmitte
   #ifdef FERRET_HARDWARE_ARDUINO_UNO
    #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
    #define FERRET_INIT_OUTPUT_STREAM                                          \
-      Serial.begin(9600);                                                     \
+      Serial.begin(FERRET_UART_RATE);                                                     \
       fdev_setup_stream (&uartout, uart_putchar, NULL, _FDEV_SETUP_WRITE);
    #else
     #define FERRET_INIT_OUTPUT_STREAM ;
@@ -2603,7 +2621,7 @@ Setup [[https://en.wikipedia.org/wiki/Universal_asynchronous_receiver/transmitte
 #+begin_src c++ :tangle no
 #ifdef FERRET_HARDWARE_ARDUINO_DUE
  #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
-  #define FERRET_INIT_OUTPUT_STREAM Serial.begin(9600);
+  #define FERRET_INIT_OUTPUT_STREAM Serial.begin(FERRET_UART_RATE);
  #else
   #define FERRET_INIT_OUTPUT_STREAM ;
  #endif

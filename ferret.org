@@ -82,7 +82,6 @@ dependencies including libstdc++. All tests are compiled using,
  - *-Wuninitialized*
  - *-Wmissing-declarations*
  - *-Winit-self*
- - *-Wno-variadic-macros*
 
 ** Object System
 
@@ -4195,8 +4194,7 @@ Some wrappers for the Arduino platform.
                     ["-std=c++11" "-pedantic"
                      "-Werror" "-Wall" "-Wextra"
                      "-Woverloaded-virtual" "-Wuninitialized"
-                     "-Wmissing-declarations" "-Winit-self"
-                     "-Wno-variadic-macros"]})] ;; C99 Standart
+                     "-Wmissing-declarations" "-Winit-self"]})]
       (compile->cpp form options)
       (compile->binary options [])
       (with-sh-dir "./"

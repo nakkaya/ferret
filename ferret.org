@@ -25,7 +25,7 @@ Ferret is a Clojure to C++ compiler, projects aim is to create a
 functional minimum viable lisp that runs on embedded systems with
 deterministic behaviour by compiling a subset of Clojure to C++.
 
-Generated code is self contained ANSI C++11 with no third part
+Generated code is self contained ISO C++11 with no third part
 dependencies including libstdc++. Which allows it to run on embedded
 systems with as little as 2KB of RAM and no libstdc++. (Arduino Uno
 / Atmega328 with 32kb Flash)
@@ -42,26 +42,7 @@ that makes it suitable for embedded programming.
  - Destructuring
  - Easy FFI (Inline C,C++)
  - Memory Pooling
-
-** Implementation Notes
-
-Ferret is a functional, lazy language. All functions should mimic their
-Clojure counter parts. If they don't  it is considered a bug. (or not
-possible to implement with the current implementation.)
-
-All tests are compiled using,
-
- - -std=c++11
- - -ansi
- - -pedantic
- - -Werror
- - -Wall
- - -Wextra
- - -Woverloaded-virtual
- - -Wuninitialized
- - -Wmissing-declarations
- - -Winit-self
- - -Wno-variadic-macros
+ - Module System
 
 ** License
 
@@ -83,6 +64,26 @@ You should have received a copy of the GNU General Public License
 along with Foobar. If not, see http://www.gnu.org/licenses/.
 
 * Overview
+** Implementation Notes
+
+Ferret is a functional, lazy language. All functions should mimic their
+Clojure counter parts. If they don't  it is considered a bug. (or not
+possible to implement with the current implementation.)
+
+Generated code is self contained *ISO C++11* with no third part
+dependencies including libstdc++. All tests are compiled using,
+
+ - *-std=c++11*
+ - *-pedantic*
+ - *-Werror*
+ - *-Wall*
+ - *-Wextra*
+ - *-Woverloaded-virtual*
+ - *-Wuninitialized*
+ - *-Wmissing-declarations*
+ - *-Winit-self*
+ - *-Wno-variadic-macros*
+
 ** Object System
 
 All objects derive from `Object` class.
@@ -93,14 +94,14 @@ All objects derive from `Object` class.
  - *Character*
  - *Sequence*
  - *LazySequence*
- - *String* - As *Sequence* of *Character*s
+ - *String* - As *Sequence* of *Character*
  - *Boolean*
  - *Atom* - Mimics Clojure atoms.
 
 Interfaces,
 
  - *Lambda* - Provides *invoke* for callable objects.
- - *ISeekable* - Provides *first*, *rest*, *cons* for seekable containers.
+ - *ISeekable* - Provides *first*, *rest*, *cons*, *count* for seekable containers.
 
 ** Memory management
 
@@ -114,7 +115,7 @@ pool to avoid heap fragmentation and calling malloc/free.
 
 This will create a pool object as a global variable that holds an
 array of *256 / sizeof(long)*. Memory pooling is intended for embedded systems
-where calling malloc/free is not desired. It is not thread safe It
+where calling malloc/free is not desired. It is *not thread safe* It
 should not be used in systems where better alternatives exists or you
 have enough memory.
 
@@ -248,8 +249,8 @@ directives,
         "__result = NewCharacter(getchar());"))
 #+end_src
 
-This function when compiled on a system that defines *GNU_GCC* will
-return the result of *getchar* as a *Character* on ANY other system it
+This function when compiled on a system that defines =GNU_GCC= will
+return the result of *getchar* as a *Character* , on ANY other system it
 will return *nil*. You can have multiple *on* blocks per *defnative*,
 
 #+begin_src clojure
@@ -261,7 +262,7 @@ will return *nil*. You can have multiple *on* blocks per *defnative*,
         "::delay(ToInt(timeout));"))
 #+end_src
 
-This way single function can be defined for multiple systems.
+This way a single function can be defined for multiple systems.
 
 ** Embedded Usage
 
@@ -278,7 +279,7 @@ ferret. Following shows a blink example for Arduino.
    (sleep 500))
 #+end_src
 
-Rename *solution.cpp* to *./program\_name/program\_name.pde* and compile
+Rename *solution.cpp* to =./program_name/program_name.pde= and compile
 using Arduino IDE.
 
 If you are using the memory pool, there are two functions you can use
@@ -372,8 +373,8 @@ of mod -> aliases pairs.
 #+end_src
 
 Loads all modules listed in the package list. When a module is loaded
-all its symbols are replaces with its module name except /core/
-functions. Module name acts as namespaces. Returns a form that the is
+all its symbols are replaced with its module name except /core/
+functions. Module names acts as namespaces. Returns a form that the is
 concatenation of all modules listed in form.
 
 #+name: core-compilation-add-built-in
@@ -393,8 +394,8 @@ concatenation of all modules listed in form.
 #+end_src
 
 Convert all aliased symbols in the form to their fully qualified
-modules names. So /helper-a/ defined in module /util.db/ becomes
-/util_db_helper-a/. 
+modules names. So =helper-a= defined in module =util.db= becomes
+=util_db_helper-a=.
 
 #+name: core-compilation-add-built-in
 #+begin_src clojure :tangle no
@@ -643,8 +644,8 @@ that takes no parameters and executed in place.
     (fn [n] (+ x n)))
 #+end_src
 
-in the above snippet x is a free variable, the function /make-adder/
-returns, has to have a way of referencing that variable when it is
+in the above snippet x is a free variable, when the function /make-adder/
+returns, it need to have a way of referencing that variable when it is
 used. The way we do this is that, every function will pass its arguments to
 inner functions (if any) it contains.
 
@@ -661,9 +662,9 @@ Above form will be converted to,
   (lambda_object G__3155)
 #+end_src
 
-What this means is, define a functor named /G__3154/ that holds a
-reference to /x/, and another functor /G__3155/ that has no state. When
-we create an instance of /G__3154/ we pass /x/ to its
+What this means is, define a functor named =G__3154= that holds a
+reference to /x/, and another functor =G__3155= that has no state. When
+we create an instance of =G__3154= we pass /x/ to its
 constructor. Since every thing is already converted to fns this
 mechanism allows variables to be referenced down the line and solves
 the free variable problem.
@@ -711,7 +712,7 @@ the free variable problem.
 
 Some symbols valid in Clojure are not valid C++ identifiers. This
 transformation converts all symbols that are not legal C++ identifiers
-into valid ones.
+into legal ones.
 
 #+name: core-compilation-symbol-conversion
 #+begin_src clojure :tangle no
@@ -731,7 +732,7 @@ into valid ones.
 **** Replace Fn Call Sites
 
 Final step replaces all functions calls with new function
-objects /define_lambda/ are renamed to /fn/. This removes all globals
+objects =define_lambda= are renamed to /fn/. This removes all globals
 variables unless the /fn/ defined is a closure. In which case it is
 left as a global variable and the class implementation is prepended
 with the global name for readability.
@@ -846,9 +847,8 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 
 **** Escape Analysis
 
-      Determines that a certain allocation never escapes the local
-      function. This means that allocation can
-      be done on the stack.
+Determines that a certain allocation never escapes the local
+function. This means that allocation can be done on the stack.
 
 #+name: core-compilation-shake-concat
 #+begin_src clojure
@@ -1065,8 +1065,8 @@ suggests and removes the node when predicate returns true.
 
 ** Code Generation
 
- Once compilation is complete the form is in a form that is very
- close to C++. running /emit/ on the form converts the form into C++.
+ Once compilation is complete the form is in a state that is very
+ close to C++. running /emit/ on the form converts it into C++.
 
 #+name: core-code-generation-emit
 #+begin_src clojure :tangle no  
@@ -2075,7 +2075,7 @@ containers.
 
 *** Sequence
 
-A simple linked list container implementing the seekable interface.
+Linked list container implementing the seekable interface.
 
 #+name: runtime-clojure-sequence-object
 #+begin_src clojure :tangle no
@@ -2334,7 +2334,7 @@ A boolean object,
 *** Atom
 
 Mimics Clojure's /atom/. It is thread safe when used on system where
-/FERRET_STD_LIB/ is defined.
+=FERRET_STD_LIB= is defined.
 
 #+name: runtime-clojure-atom-object
 #+begin_src clojure :tangle no
@@ -2406,9 +2406,9 @@ Operations on /Atoms/
 *** Lambda
 
 Every lambda object implements the /Lambda/ interface. All lambdas are
-executed via /invoke/ method that takes a that takes a sequence of
-vars as argument or /nil()/ if there are non, this allows us
-to execute them in a uniform fashion.
+executed via /invoke/ method that takes a sequence of vars as argument
+or /nil()/ if there are non, this allows us to execute them in a
+uniform fashion.
 
 #+name: runtime-clojure-lambda-interface
 #+begin_src clojure :tangle no
@@ -2722,15 +2722,15 @@ UNO,
 
 #+name: runtime-native-program-header
 #+begin_src c++ :tangle no
-#ifdef FERRET_HARDWARE_ARDUINO_UNO
- #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
-  #define FERRET_INIT_OUTPUT_STREAM                                              \
-    Serial.begin(9600);                                                   \
-    fdev_setup_stream (&uartout, uart_putchar, NULL, _FDEV_SETUP_WRITE);
- #else
-  #define FERRET_INIT_OUTPUT_STREAM ;
- #endif
-#endif
+  #ifdef FERRET_HARDWARE_ARDUINO_UNO
+   #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
+   #define FERRET_INIT_OUTPUT_STREAM                                          \
+      Serial.begin(9600);                                                     \
+      fdev_setup_stream (&uartout, uart_putchar, NULL, _FDEV_SETUP_WRITE);
+   #else
+    #define FERRET_INIT_OUTPUT_STREAM ;
+   #endif
+  #endif
 #+end_src
 
 When C++ Standard Library is present
@@ -2763,7 +2763,8 @@ Misc,
   }
 #+end_src
 
-Locking macros, See Program Header for more information.
+Locking macros. They are disabled when running single threaded or on
+an embedded platform. (=FERRET_STD_LIB= not defined.)
 
 #+name: runtime-native-macros
 #+begin_src c++ :tangle no

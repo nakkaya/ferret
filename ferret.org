@@ -1368,6 +1368,196 @@ lambda forms.
       (render-view view)))
 #+end_src
 
+** Main
+*** Options
+
+   Default compile options, 
+
+  #+name: core-code-compile-code
+  #+begin_src clojure
+    (defn compile-options [& [options]]
+      (merge {:compiler "g++"
+              :include-path []
+              :library-path []
+              :link []
+              :compiler-options ["-std=c++11"]
+              :source-extension "cpp"
+              :base-name "solution"}
+             options))
+
+    (defn cpp-file-name [options]
+      (str (:output-path options) (:base-name options) "." (:source-extension options)))
+  #+end_src
+
+   Read the /cpp/ file parse build options embedded in it.
+
+  #+name: core-code-compile-code
+  #+begin_src clojure
+    (defn compile-options-parse-source [file]
+      (try
+        (let [program (slurp file)
+              options (->> program
+                           (re-seq #"(?s)Ferret Build Configuration Begin.*?//(.*?)// Ferret Build Configuration")
+                           (map second)
+                           (map #(.replaceAll % "//" ""))
+                           (map #(.replaceAll % "\n" " "))
+                           (map read-string))
+              keys (->> options
+                        (map #(keys %))
+                        flatten
+                        (into #{})
+                        (into []))
+              combine (fn [key]
+                        (->> options
+                             (reduce (fn[h v]
+                                       (if (nil? (key v))
+                                         h
+                                         (apply merge (flatten [h (key v)])))) #{})
+                             (into [])))]
+          (compile-options
+           (reduce (fn[h v]
+                     (assoc h v (combine v))) {} keys)))
+        (catch Exception e
+          (compile-options {}))))
+  #+end_src
+
+*** Compile to C++
+
+   Compile the form to C++,
+
+  #+name: core-code-compile-code
+  #+begin_src clojure
+    (defn compile->cpp [form options]
+      (let [file-name (cpp-file-name options)
+            source (emit-source form options)]
+        (println "[+] Compiling")
+        (FileUtils/writeStringToFile (file file-name) (solution-template source))
+        (let [formatted-source (try (with-sh-dir "./"
+                                      (sh "clang-format" "-style" "{Standard: Cpp11}" file-name))
+                                    (catch Exception e nil))]
+          (when (:fomat-code options)
+            (if formatted-source
+              (do (println "[+] Formatting Code") 
+                  (spit file-name (:out formatted-source)))
+              (println "[+] Install clang-format for Formatted Output (Optional)"))))))
+  #+end_src
+
+*** Compile to Binary
+
+   Compile C++ code to binary,
+
+  #+name: core-code-compile-code
+  #+begin_src clojure
+    (defn compile->binary [options extra-source-files]
+      (let [command (flatten [(:compiler options)
+                              (map #(str %) (:compiler-options options))
+                              (map #(str "-I" %) (:include-path options))
+                              (map #(str "-L" %) (:library-path options))
+                              (map #(str "-l" %) (:link options))
+                              (map #(let [extension (org.apache.commons.io.FilenameUtils/getExtension %)]
+                                      [(cond (= extension "c") ["-x" "c"]
+                                             (= extension "c++") ["-x" "c++"]
+                                             :default "")
+                                       %])
+                                   extra-source-files)
+                              ["-x" "c++"]
+                              (str (:base-name options) "." (:source-extension options))])]
+
+        (println "[+] Building Binary")
+        (if (:build-command options)
+          (do (println "[+] Build Command" (:build-command options))
+              (let [ret (with-sh-dir (:output-path options)
+                          (apply sh (flatten ["bash" "-c" (:build-command options)])))]
+                (if (not= 0 (:exit ret))
+                  (do (println "[+] Build Error")
+                      (println (:err ret))
+                      (System/exit 1))
+                  (println (:out ret)))))
+          (do (println "[+] Compiler:" (:compiler options))
+              (println "[+] Options:")
+              (doseq [option (:compiler-options options)]
+                (println "           " option))
+              (println "[+] Include Path:")
+              (doseq [path (:include-path options)]
+                (println "           " path))
+              (println "[+] Library Path:")
+              (doseq [path (:library-path options)]
+                (println "           " path))
+              (println "[+] Link:")
+              (doseq [link (:link options)]
+                (println "           " link))
+              (let [ret (with-sh-dir (:output-path options)
+                          (apply sh command))]
+                (if (not= 0 (:exit ret))
+                  (do (println "[+] Build Error")
+                      (println (:err ret))
+                      (System/exit 1))
+                  (do (when (:name options)
+                        (with-sh-dir (:output-path options)
+                          (sh "mv" "a.out" (str "./" (:name options)))))
+                      (println "[+] Done")
+                      true)))))))
+  #+end_src
+
+*** Compiler Main
+
+   Compiler /main/,
+
+  #+name: core-code-compile-code
+  #+begin_src clojure
+    (def program-options [["-i" "--input FILE" "Input File" :default "./core.clj"]
+                          ["-c" "--compile" "Compile Solution"]
+                          ["-f" "--source-files FILE" "Extra Source Files to Pass to GCC"]
+                          ["-w" "--watch-input" "Automatically recompile input file on change."]
+                          [nil "--disable-formatting" "Disables solution formatting using clang-format."]
+                          [nil "--global-functions" "Disables replace-fn-call-sites optimization."]
+                          [nil "--ast" "Print Intermediate AST."]
+                          ["-h" "--help" "Print Help"]])
+
+    (defn -main [& args]
+      (let [args (parse-opts args program-options)]
+        (when (->> args :options :help)
+          (println "Ferret Compiler")
+          (println (:summary args))
+          (System/exit 0))
+
+        (let [input (if (and (->> args :options :input)
+                             (.exists (file (->> args :options :input))))
+                      (->> args :options :input)
+                      (do (println "No Input File.")
+                          (System/exit 1)))
+              input-base-name (org.apache.commons.io.FilenameUtils/getBaseName input)
+              input-path (str (org.apache.commons.io.FilenameUtils/getPrefix input)
+                              (org.apache.commons.io.FilenameUtils/getPath input))
+              options (-> (file (str input-base-name ".cpp"))
+                          compile-options-parse-source
+                          (assoc :base-name input-base-name)
+                          (assoc :output-path input-path)
+                          (assoc :ast (->> args :options :ast))
+                          (assoc :fomat-code (not (->> args :options :disable-formatting)))
+                          (assoc :global-functions (->> args :options :global-functions)))
+              extra-source-files (cond (not (empty? (:arguments args))) (:arguments args)
+                                       (not (empty? (:extra-source-files options))) (:extra-source-files options)
+                                       :default [])
+              build-fn (fn []
+                         (let [input (read-clojure-file input)]
+                           (compile->cpp input options)
+                           (when (->> args :options :compile)
+                             (let [options (-> (file (cpp-file-name options))
+                                               compile-options-parse-source
+                                               (assoc :output-path input-path)
+                                               (assoc :base-name input-base-name))
+                                   options (assoc options :base-name input-base-name)]
+                               (compile->binary options extra-source-files)))))]
+          (if (nil? (->> args :options :watch-input))
+            (build-fn)
+            (do (watcher/watcher [input]
+                                 (watcher/rate 1000)
+                                 (watcher/on-change (fn [_] (build-fn))))
+                @(promise)))
+          (shutdown-agents))))
+  #+end_src
+
 * Native Core
 
 On the C++ side we define our own object system.
@@ -3837,196 +4027,6 @@ Create some dummy libs under /test/modules/,
                              (print " ")
                              (print (deref state)))))))
 #+end_src
-
-* Main
-** Options
-
-   Default compile options, 
-
-  #+name: core-code-compile-code
-  #+begin_src clojure
-    (defn compile-options [& [options]]
-      (merge {:compiler "g++"
-              :include-path []
-              :library-path []
-              :link []
-              :compiler-options ["-std=c++11"]
-              :source-extension "cpp"
-              :base-name "solution"}
-             options))
-
-    (defn cpp-file-name [options]
-      (str (:output-path options) (:base-name options) "." (:source-extension options)))
-  #+end_src
-
-   Read the /cpp/ file parse build options embedded in it.
-
-  #+name: core-code-compile-code
-  #+begin_src clojure
-    (defn compile-options-parse-source [file]
-      (try
-        (let [program (slurp file)
-              options (->> program
-                           (re-seq #"(?s)Ferret Build Configuration Begin.*?//(.*?)// Ferret Build Configuration")
-                           (map second)
-                           (map #(.replaceAll % "//" ""))
-                           (map #(.replaceAll % "\n" " "))
-                           (map read-string))
-              keys (->> options
-                        (map #(keys %))
-                        flatten
-                        (into #{})
-                        (into []))
-              combine (fn [key]
-                        (->> options
-                             (reduce (fn[h v]
-                                       (if (nil? (key v))
-                                         h
-                                         (apply merge (flatten [h (key v)])))) #{})
-                             (into [])))]
-          (compile-options
-           (reduce (fn[h v]
-                     (assoc h v (combine v))) {} keys)))
-        (catch Exception e
-          (compile-options {}))))
-  #+end_src
-
-** Compile to C++
-
-   Compile the form to C++,
-
-  #+name: core-code-compile-code
-  #+begin_src clojure
-    (defn compile->cpp [form options]
-      (let [file-name (cpp-file-name options)
-            source (emit-source form options)]
-        (println "[+] Compiling")
-        (FileUtils/writeStringToFile (file file-name) (solution-template source))
-        (let [formatted-source (try (with-sh-dir "./"
-                                      (sh "clang-format" "-style" "{Standard: Cpp11}" file-name))
-                                    (catch Exception e nil))]
-          (when (:fomat-code options)
-            (if formatted-source
-              (do (println "[+] Formatting Code") 
-                  (spit file-name (:out formatted-source)))
-              (println "[+] Install clang-format for Formatted Output (Optional)"))))))
-  #+end_src
-
-** Compile to Binary
-
-   Compile C++ code to binary,
-
-  #+name: core-code-compile-code
-  #+begin_src clojure
-    (defn compile->binary [options extra-source-files]
-      (let [command (flatten [(:compiler options)
-                              (map #(str %) (:compiler-options options))
-                              (map #(str "-I" %) (:include-path options))
-                              (map #(str "-L" %) (:library-path options))
-                              (map #(str "-l" %) (:link options))
-                              (map #(let [extension (org.apache.commons.io.FilenameUtils/getExtension %)]
-                                      [(cond (= extension "c") ["-x" "c"]
-                                             (= extension "c++") ["-x" "c++"]
-                                             :default "")
-                                       %])
-                                   extra-source-files)
-                              ["-x" "c++"]
-                              (str (:base-name options) "." (:source-extension options))])]
-
-        (println "[+] Building Binary")
-        (if (:build-command options)
-          (do (println "[+] Build Command" (:build-command options))
-              (let [ret (with-sh-dir (:output-path options)
-                          (apply sh (flatten ["bash" "-c" (:build-command options)])))]
-                (if (not= 0 (:exit ret))
-                  (do (println "[+] Build Error")
-                      (println (:err ret))
-                      (System/exit 1))
-                  (println (:out ret)))))
-          (do (println "[+] Compiler:" (:compiler options))
-              (println "[+] Options:")
-              (doseq [option (:compiler-options options)]
-                (println "           " option))
-              (println "[+] Include Path:")
-              (doseq [path (:include-path options)]
-                (println "           " path))
-              (println "[+] Library Path:")
-              (doseq [path (:library-path options)]
-                (println "           " path))
-              (println "[+] Link:")
-              (doseq [link (:link options)]
-                (println "           " link))
-              (let [ret (with-sh-dir (:output-path options)
-                          (apply sh command))]
-                (if (not= 0 (:exit ret))
-                  (do (println "[+] Build Error")
-                      (println (:err ret))
-                      (System/exit 1))
-                  (do (when (:name options)
-                        (with-sh-dir (:output-path options)
-                          (sh "mv" "a.out" (str "./" (:name options)))))
-                      (println "[+] Done")
-                      true)))))))
-  #+end_src
-
-** Compiler Main
-
-   Compiler /main/,
-
-  #+name: core-code-compile-code
-  #+begin_src clojure
-    (def program-options [["-i" "--input FILE" "Input File" :default "./core.clj"]
-                          ["-c" "--compile" "Compile Solution"]
-                          ["-f" "--source-files FILE" "Extra Source Files to Pass to GCC"]
-                          ["-w" "--watch-input" "Automatically recompile input file on change."]
-                          [nil "--disable-formatting" "Disables solution formatting using clang-format."]
-                          [nil "--global-functions" "Disables replace-fn-call-sites optimization."]
-                          [nil "--ast" "Print Intermediate AST."]
-                          ["-h" "--help" "Print Help"]])
-
-    (defn -main [& args]
-      (let [args (parse-opts args program-options)]
-        (when (->> args :options :help)
-          (println "Ferret Compiler")
-          (println (:summary args))
-          (System/exit 0))
-
-        (let [input (if (and (->> args :options :input)
-                             (.exists (file (->> args :options :input))))
-                      (->> args :options :input)
-                      (do (println "No Input File.")
-                          (System/exit 1)))
-              input-base-name (org.apache.commons.io.FilenameUtils/getBaseName input)
-              input-path (str (org.apache.commons.io.FilenameUtils/getPrefix input)
-                              (org.apache.commons.io.FilenameUtils/getPath input))
-              options (-> (file (str input-base-name ".cpp"))
-                          compile-options-parse-source
-                          (assoc :base-name input-base-name)
-                          (assoc :output-path input-path)
-                          (assoc :ast (->> args :options :ast))
-                          (assoc :fomat-code (not (->> args :options :disable-formatting)))
-                          (assoc :global-functions (->> args :options :global-functions)))
-              extra-source-files (cond (not (empty? (:arguments args))) (:arguments args)
-                                       (not (empty? (:extra-source-files options))) (:extra-source-files options)
-                                       :default [])
-              build-fn (fn []
-                         (let [input (read-clojure-file input)]
-                           (compile->cpp input options)
-                           (when (->> args :options :compile)
-                             (let [options (-> (file (cpp-file-name options))
-                                               compile-options-parse-source
-                                               (assoc :output-path input-path)
-                                               (assoc :base-name input-base-name))
-                                   options (assoc options :base-name input-base-name)]
-                               (compile->binary options extra-source-files)))))]
-          (if (nil? (->> args :options :watch-input))
-            (build-fn)
-            (do (watcher/watcher [input]
-                                 (watcher/rate 1000)
-                                 (watcher/on-change (fn [_] (build-fn))))
-                @(promise)))
-          (shutdown-agents))))
-  #+end_src
 
 * Files                                                            :noexport:
 ** project.clj

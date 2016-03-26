@@ -2448,7 +2448,8 @@ reaches zero it will automatically free the Object.
 ** Configuration
 
 Some options can be configured using /#define/ directives, these can
-be defined using /native-define/ from program code. When,
+be defined using /native-define/ or /configure-runtime!/ from program
+code.
 
 To disable output stream (usefull on micro controllers to reduce code
 size.) use,
@@ -2464,7 +2465,7 @@ To disable main use,
 #+END_EXAMPLE
 
 main won't be defined you need to call /ferret::ProgramRun()/ manually
-to start the program. Detect host,
+to start the program.
 
 When
 
@@ -2482,7 +2483,7 @@ When
 #+END_EXAMPLE
 
 is used it will disable locking for built in data structures. By
-default when compiling with non embedded compiler. It will use /POSIX/
+default when compiling for non embedded platform, Ferret will use /POSIX/
 /mutexes/ for locking /Objects/.
 
 When running on systems with UART (ie. embedded systems) following can

@@ -47,6 +47,9 @@ lein uberjar
 cd ../
 cat src/resources/bash_executable_stub.sh src/target/ferret.jar > ferret && chmod +x ferret
 
-s3cmd --acl-public -m application/octet-stream put ferret s3://dropbox.nakkaya.com/builds/
-s3cmd --acl-public -m application/octet-stream put src/target/ferret.jar s3://dropbox.nakkaya.com/builds/
-s3cmd --acl-public -m text/html put ferret-manual.html s3://dropbox.nakkaya.com/builds/
+if [[ $@ == **deploy** ]]
+then
+    s3cmd --acl-public -m application/octet-stream put ferret s3://dropbox.nakkaya.com/builds/
+    s3cmd --acl-public -m application/octet-stream put src/target/ferret.jar s3://dropbox.nakkaya.com/builds/
+    s3cmd --acl-public -m text/html put ferret-manual.html s3://dropbox.nakkaya.com/builds/
+fi

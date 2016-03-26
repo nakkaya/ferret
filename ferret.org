@@ -2402,18 +2402,26 @@ reaches zero it will automatically free the Object.
 #+begin_src c++ :tangle no
   class var{
   public:
-    var(Object* ptr=0) : m_ptr(ptr) { addRef(); }
+    var(Object* ptr = nullptr) : m_ptr(ptr) { addRef(); }
 
     var(const var& p) : m_ptr(p.m_ptr) { addRef(); }
+
+    var(var&& p) : m_ptr(p.m_ptr) { p.m_ptr = nullptr; }
       
     ~var() { subRef(); }
-      
+
+    var& operator=(var&& p){
+      if (this != &p){
+        m_ptr = p.m_ptr;
+        p.m_ptr = nullptr;
+      }
+      return *this;
+    }
+    
     var& operator= (const var& p){
       return *this = p.m_ptr;
     }
-
-    bool equals (var rhs);
-      
+    
     var& operator= (Object* ptr){
       if (m_ptr != ptr){
         subRef();

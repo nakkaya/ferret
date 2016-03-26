@@ -3087,7 +3087,8 @@ implementation.
 
   (defn list? [x] "__result = NewBoolean(x.isType(runtime::type::Sequence));")
 
-  (defn empty? [x] "__result = NewBoolean(x.cast<ISeekable>()->count() == 0)")
+  (defn empty? [x]
+    (= (list ) (rest x)))
 
   (defn rest [x] "var r = runtime::rest(x);
                   if (r.isNil())

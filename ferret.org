@@ -1691,7 +1691,7 @@ code. (ie. printing on different embedded systems.)
       if ( page == -1){
         page = findPage(length,0);
         if (page == -1 )
-          return NULL;
+          return nullptr;
       }
       
       used[page] = reqSize;
@@ -1979,7 +1979,7 @@ Linked list container implementing the seekable interface.
     (data "var next;"
           "var data;"
           "size_t size;")
-    (new ("var d = NULL, var n = NULL, size_t s = 0"
+    (new ("var d = nullptr, var n = nullptr, size_t s = 0"
           "next = n; data = d; size = s;"))
 
     (equals
@@ -2112,7 +2112,7 @@ Strings are represented as a linked list of characters.
     (interface :ISeekable)
     (data "var data;")
     (new (""
-          "data = NULL;")
+          "data = nullptr;")
          ("var s"
           "data = s;")
          ("const char * str"
@@ -2178,7 +2178,7 @@ A boolean object,
                  return var(new Boolean(b));
                 };
                 var::operator bool() const {
-                  if (m_ptr == NULL)
+                  if (m_ptr == nullptr)
                     return false;
                   else if (m_ptr->getType() == runtime::type::Boolean)
                     return static_cast<Boolean*>(m_ptr)->value;
@@ -2431,11 +2431,13 @@ reaches zero it will automatically free the Object.
       return *this;
     }
 
+    bool equals (var rhs);
+    
     operator bool() const;
 
   #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
     var toOutputStream() {
-      if (m_ptr != NULL )
+      if (m_ptr != nullptr )
         m_ptr->toOutputStream();
       else
         fprintf(FERRET_OUTPUT_STREAM, "nil");
@@ -2452,7 +2454,7 @@ reaches zero it will automatically free the Object.
     }
 
     bool isNil() { 
-      return (m_ptr == NULL);
+      return (m_ptr == nullptr);
     }
 
   private:
@@ -2467,7 +2469,7 @@ reaches zero it will automatically free the Object.
         // Subtract and test if this was the last pointer.
         if (m_ptr->subRef()){
           delete m_ptr;
-          m_ptr=0;
+          m_ptr = nullptr;
         }
       }
     }
@@ -3638,11 +3640,11 @@ Some wrappers for the Arduino platform.
               ((fn [] "std::cout << mem.nextAvaliblePage(2) << \" \";"))
               ((fn [] "mem.free(ptr);"))
               ((fn [] "std::cout << mem.nextAvaliblePage(2) << \" \";"))
-              ((fn [] "std::cout << (NULL == mem.allocate(sizeof(size_t)*40)) << \" \";"))
-              ((fn [] "std::cout << (NULL != mem.allocate(sizeof(size_t)*6)) << \" \";"))
-              ((fn [] "std::cout << (NULL != mem.allocate(sizeof(size_t)*1)) << \" \";"))
-              ((fn [] "std::cout << (NULL != mem.allocate(sizeof(size_t)*1)) << \" \";"))
-              ((fn [] "std::cout << (NULL == mem.allocate(sizeof(size_t)*10)) << \" \";")))))))
+              ((fn [] "std::cout << (nullptr == mem.allocate(sizeof(size_t)*40)) << \" \";"))
+              ((fn [] "std::cout << (nullptr != mem.allocate(sizeof(size_t)*6)) << \" \";"))
+              ((fn [] "std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";"))
+              ((fn [] "std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";"))
+              ((fn [] "std::cout << (nullptr == mem.allocate(sizeof(size_t)*10)) << \" \";")))))))
 #+end_src
 
 *** Object System

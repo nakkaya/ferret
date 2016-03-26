@@ -64,182 +64,65 @@ General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with Foobar. If not, see http://www.gnu.org/licenses/.
 
-* Overview
-** Getting Ferret
-
-Ferret is available as prebuilt and source code distributions. See
-[[Download]] for download links to prebuilt packages.
-
-This is a literate program, inspired by Donald Knuth (Knuth, Donald
-“Literate Programming (1984)” Literate Programming CSLI, p99). It is
-intended to be read like a novel from cover to cover. The ideas are
-expressed clearly but they are grounded in the actual source code.
-
-The code in this document is the executable source. Use the *build*
-script in the source distribution to extract source code.
-
-The latest sources are available at the Ferret [[https://git.nakkaya.com/nakkaya/ferret][git repo]].
-
-** Implementation Notes
-
-Ferret is a functional, lazy language. All functions should mimic
-their Clojure counter parts. If they don't it is considered a bug. (or
-not possible to implement with the current implementation.)
-
-Generated code is self contained *ISO C++11* with no third part
-dependencies including libstdc++. All tests are compiled using,
-
- - *-std=c++11*
- - *-pedantic*
- - *-Werror*
- - *-Wall*
- - *-Wextra*
- - *-Woverloaded-virtual*
- - *-Wuninitialized*
- - *-Wmissing-declarations*
- - *-Winit-self*
-
-** Object System
-
-All objects derive from `Object` class.
-
- - *Pointer* - For Holding references to native objects.
- - *Number* - All numbers are kept as ratios (two ints).
- - *Keyword* 
- - *Character*
- - *Sequence*
- - *LazySequence*
- - *String* - As *Sequence* of *Character*
- - *Boolean*
- - *Atom* - Mimics Clojure atoms.
-
-Interfaces,
-
- - *Lambda* - Provides *invoke* for callable objects.
- - *ISeekable* - Provides *first*, *rest*, *cons*, *count* for seekable containers.
-
-** Memory management
-
-Memory management is done using reference counting. On memory
-constraint systems such as micro controllers ferret can use a memory
-pool to avoid heap fragmentation and calling malloc/free.
-
-#+BEGIN_EXAMPLE
-  (configure-runtime! FERRET_MEMORY_POOL_SIZE 256)
-#+END_EXAMPLE
-
-This will create a pool object as a global variable that holds an
-array of *256 / sizeof(long)*. 
-
-By default page size is =sizeof(long)=. This can be changed using,
-
-#+BEGIN_EXAMPLE
-  (configure-runtime! FERRET_MEMORY_POOL_PAGE_TYPE char)
-#+END_EXAMPLE
-
-Memory pooling is intended for embedded systems where calling
-malloc/free is not desired. It is *not thread safe* It should not be
-used in systems where better alternatives exists or you have enough
-memory.
-
-Steps for using *tcmalloc* on Mac OS X, install dependencies, 
-
-#+BEGIN_EXAMPLE
-  brew install google-perftools
-#+END_EXAMPLE
-
-Then from your program you can link to it using,
-
-#+begin_src clojure
-  (configure-ferret! :library-path ["/usr/local/Cellar/gperftools/2.4/lib/"]
-                     :link ["tcmalloc"])
-#+end_src
-
-* Usage
+* Getting Started
 ** Download
 
    - [[http://dropbox.nakkaya.com/builds/ferret][Executable]] (Requires Bash and JVM)
    - [[http://dropbox.nakkaya.com/builds/ferret.jar][Standalone Jar]] (Requires JVM)
 
-** Compiling With Ferret
+** A glimpse of Ferret
 
-Compile *prog.clj*,
+On any system, we can just compile a program directly into an
+executable. Here's a program that sums the first 5 positive numbers.
+
+#+begin_src clojure
+  ;;; lazy-sum.clj
+  (defn positive-numbers
+    ([]
+     (positive-numbers 1))
+    ([n]
+     (cons n (lazy-seq (positive-numbers (inc n))))))
+
+  (println (->> (positive-numbers)
+                (take 5)
+                (apply +)))
+#+end_src
+
+We can compile this program using *ferret*, creating an executable named
+*a.out*.
 
 #+BEGIN_EXAMPLE
-  ferret -i prog.clj
+  $ ./ferret -i lazy-sum.clj -c
+  $ ./a.out
+  15
 #+END_EXAMPLE
 
-or if you are using the jar version,
-
-#+BEGIN_EXAMPLE
-  java -jar ferret.jar -i prog.clj
-#+END_EXAMPLE
-
-Output will be placed in a a file called *prog.cpp* passing the
+Output will be placed in a a file called *lazy-sum.cpp*, passing the
 *-c* flag will cause this file to be automatically compiled using GNU
-C++. (Other compilers are supprted see Implementation Notes).
+C++. (Other compilers are supprted see [[Overview]]).
 
-For profiling you can use Valgrind with the following options
+Following shows a blink example for Arduino.
+
+#+begin_src clojure
+  ;;; blink.clj
+  (pin-mode 13 :output)
+
+  (forever
+   (digital-write 13 :high)
+   (sleep 500)
+   (digital-write 13 :low)
+   (sleep 500))
+#+end_src
 
 #+BEGIN_EXAMPLE
-  valgrind --tool=callgrind ./(Your binary)
+  $ ./ferret -i blink.clj
+  $ mkdir blink
+  $ mv blink.cpp blink/blink.ino
 #+END_EXAMPLE
 
-View results using,
+Then upload as usual.
 
-#+BEGIN_EXAMPLE
-  qcachegrind callgrind.out.XXX
-#+END_EXAMPLE
-
-** Examples
-
-Some supported forms, (Arithmetic, Comparison, Conditionals etc.)
-
-#+begin_src clojure
-  (+ 0.3 0.3)
-  (* 2.0 2 2)
-  (bit-not  4) ;; -5
-  (pos? 0.2)
-  (neg? -1)
-
-  (< 2 3 4 5)
-  (>= 5 4 3 2 2 2)
-  (= 2 2.0 2)
-
-  (if (zero? 0)
-    true false)
-
-  (when (zero? 0)
-    (println "Zero"))
-#+end_src
-
-Sequences,
-
-#+begin_src clojure
-  (let [alist (list 1 2 3 4)]
-    (println (first alist))
-    (println (rest alist))
-    (println (count alist)))
-
-
-  (reduce + (list 1 2 3 4 5 6))
-  (apply + (list 1 2 3 4 5 6))
-
-#+end_src
-
-Sequence functions use the *ISeekable* interface to iterate there is
-also a *defobject* special form that allows user defineable
-classes. So you can plug your own objects into ferret ecosystem.
-
-Atoms,
-
-#+begin_src clojure
-  (let [a (atom nil)]
-    (reset! a 1)
-    (swap! a inc))
-#+end_src
-
-** FFI
+** Accessing C,C++ Libraries
 
 You can declare global level things using,
 
@@ -287,36 +170,116 @@ will return *nil*. You can have multiple *on* blocks per *defnative*,
 
 This way a single function can be defined for multiple systems.
 
-** Embedded Usage
-
-If you can use a C++ compiler for your embedded platform, you can use
-ferret. Following shows a blink example for Arduino.
-
-#+begin_src clojure
-  (pin-mode 13 :output)
-
-  (forever
-   (digital-write 13 :high)
-   (sleep 500)
-   (digital-write 13 :low)
-   (sleep 500))
-#+end_src
-
-Rename *solution.cpp* to =./program_name/program_name.pde= and compile
-using Arduino IDE.
-
-If you are using the memory pool, there are two functions you can use
-to check on memory,
-
- - *memory-pool-free-pages* - Returns the number of free memory pages.
- - *memory-pool-print-snapshot* - Prints the current state of
-    memory. Each block is  denoted as 0(free) or 1(used).
-
 ** Wrapping Third Party C,C++ Libraries
 
    - [[https://git.nakkaya.com/nakkaya/ferret-serial][ferret-serial]] - Boost Asio Serial Port Wrapper For Ferret.
    - [[https://git.nakkaya.com/nakkaya/ferret-firmata][ferret-firmata]] - Firmata protocol implementation that uses *ferret-serial* and *stl*.
    - [[https://git.nakkaya.com/nakkaya/ferret-qt][ferret-qt]] - QT Embedded Webkit Wrapper For Ferret.
+
+** Miscellaneous
+
+For profiling you can use Valgrind with the following options
+
+#+BEGIN_EXAMPLE
+  valgrind --tool=callgrind ./(Your binary)
+#+END_EXAMPLE
+
+View results using,
+
+#+BEGIN_EXAMPLE
+  qcachegrind callgrind.out.XXX
+#+END_EXAMPLE
+
+* Overview
+** Getting Ferret
+
+Ferret is available as prebuilt and source code distributions. See
+[[Download]] for download links to prebuilt packages.
+
+This is a literate program, inspired by Donald Knuth (Knuth, Donald
+“Literate Programming (1984)” Literate Programming CSLI, p99). It is
+intended to be read like a novel from cover to cover. The ideas are
+expressed clearly but they are grounded in the actual source code.
+
+The code in this document is the executable source. Use the *build*
+script in the source distribution to extract source code.
+
+The latest sources are available at the Ferret [[https://git.nakkaya.com/nakkaya/ferret][git repo]].
+
+** Implementation Notes
+
+Ferret is a functional, lazy language. All functions should mimic
+their Clojure counter parts. If they don't it is considered a bug. (or
+not possible to implement with the current implementation.)
+
+Generated code is self contained *ISO C++11* with no third part
+dependencies including libstdc++. All tests are compiled using,
+
+ - *-std=c++11*
+ - *-pedantic*
+ - *-Werror*
+ - *-Wall*
+ - *-Wextra*
+ - *-Woverloaded-virtual*
+ - *-Wuninitialized*
+ - *-Wmissing-declarations*
+ - *-Winit-self*
+
+** Object System
+
+All objects derive from a [[Base]] class.
+
+ - [[Pointer]] - For Holding references to native objects.
+ - [[Number]] - All numbers are kept as ratios (two ints).
+ - [[Keyword]] 
+ - [[Character]]
+ - [[Sequence]]
+ - [[Lazy Sequence]]
+ - [[String]] - As [[Sequence]] of [[Character]]s
+ - [[Boolean]]
+ - [[Atom]] - Mimics Clojure atoms.
+
+Interfaces,
+
+ - [[Lambda]] - Provides *invoke* for callable objects.
+ - [[Seekable]] - Provides *first*, *rest*, *cons*, *count* for [[Seekable]] containers.
+
+** Memory management
+
+Memory management is done using reference counting. On memory
+constraint systems such as micro controllers ferret can use a memory
+pool to avoid heap fragmentation and calling malloc/free.
+
+#+BEGIN_EXAMPLE
+  (configure-runtime! FERRET_MEMORY_POOL_SIZE 256)
+#+END_EXAMPLE
+
+This will create a pool object as a global variable that holds an
+array of *256 / sizeof(long)*. 
+
+By default page size is =sizeof(long)=. This can be changed using,
+
+#+BEGIN_EXAMPLE
+  (configure-runtime! FERRET_MEMORY_POOL_PAGE_TYPE char)
+#+END_EXAMPLE
+
+Memory pooling is intended for embedded systems where calling
+malloc/free is not desired. It is *not thread safe* It should not be
+used in systems where better alternatives exists or you have enough
+memory.
+
+Steps for using *tcmalloc* on Mac OS X, install dependencies, 
+
+#+BEGIN_EXAMPLE
+  brew install google-perftools
+#+END_EXAMPLE
+
+Then from your program you can link to it using,
+
+#+begin_src clojure
+  (configure-ferret! :library-path ["/usr/local/Cellar/gperftools/2.4/lib/"]
+                     :link ["tcmalloc"])
+#+end_src
 
 * Compiler
 
@@ -4073,6 +4036,8 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
+  - *Lazy Sequence* - Should cache the result of *rest* and return it
+    on subsequent calls.
   - *Unit Testing*
     - [[http://www.jera.com/techinfo/jtns/jtn002.html][JTN002 - MinUnit -- a minimal unit testing framework for C]]
   - *Pre/Post conditions* for functions.

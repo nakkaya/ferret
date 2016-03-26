@@ -26,10 +26,9 @@ Ferret is a Clojure to C++ compiler, projects aim is to create a
 functional minimum viable lisp that runs on embedded systems with
 deterministic behaviour by compiling a subset of Clojure to C++.
 
-Generated code is self contained *ISO C++11* with no third part
-dependencies including libstdc++. Which allows it to run on embedded
-systems with as little as 2KB of RAM and no libstdc++. (Arduino Uno
-/ Atmega328 with 32kb Flash)
+Generated code is self contained *ISO C++11* with no
+dependencies. Which allows it to run on embedded systems with as
+little as 2KB of RAM. (Arduino Uno / Atmega328 with 32kb Flash)
 
 Ferret is not trying to be a 1 to 1 Clojure to C++ compiler. Projects
 eventual aim is to create Clojure flavored lisp with ideas from Ada
@@ -212,18 +211,20 @@ Ferret is a functional, lazy language. All functions should mimic
 their Clojure counter parts. If they don't it is considered a bug. (or
 not possible to implement with the current implementation.)
 
-Generated code is self contained *ISO C++11* with no third part
-dependencies including libstdc++. All tests are compiled using,
+The compiler and the C++ runtime needed is split into three sections.
 
- - *-std=c++11*
- - *-pedantic*
- - *-Werror*
- - *-Wall*
- - *-Wextra*
- - *-Woverloaded-virtual*
- - *-Wuninitialized*
- - *-Wmissing-declarations*
- - *-Winit-self*
+ - [[Compiler]]
+ - [[Native Core]]
+ - [[Clojure Core]]
+
+*[[Compiler]]* section contains the actual compiler written in Clojure. It
+takes the Clojure code and converts it to a Intermediate
+representation by taking the Clojure form and running it [[Compilation][through some
+transformations]]. This IR is then run through [[Code Generation]] module to
+create C++ code. *[[Native Core]]* contains the C++ runtime needed to
+support Ferret such as [[Object System]], [[Memory Pool][ Memory Pooling]], [[Reference Counting][Garbage
+Collection]]. It is written in a mixture of C++ and Ferret DSL. *[[Clojure
+Core]]* corresponds to *clojure.core* contains all functions.
 
 ** Object System
 
@@ -3424,6 +3425,19 @@ Some wrappers for the Arduino platform.
   :PROPERTIES:
   :noweb-ref: ferret-unit-tests
   :END:
+
+All tests are compiled using,
+
+ - *-std=c++11*
+ - *-pedantic*
+ - *-Werror*
+ - *-Wall*
+ - *-Wextra*
+ - *-Woverloaded-virtual*
+ - *-Wuninitialized*
+ - *-Wmissing-declarations*
+ - *-Winit-self*
+
 ** Compiler
 *** Internal
 

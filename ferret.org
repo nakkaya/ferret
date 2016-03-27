@@ -261,7 +261,7 @@ transformations]]. This IR is then run through [[Code Generation]] module to
 create C++ code. *[[Native Core]]* contains the C++ runtime needed to
 support Ferret such as [[Object System]], [[Memory Pool][ Memory Pooling]], [[Reference Counting][Garbage
 Collection]]. It is written in a mixture of C++ and Ferret DSL. *[[Clojure
-Core]]* corresponds to *clojure.core* contains all functions.
+Core]]* corresponds to *clojure.core*, contains all functions.
 
 All Ferret objects derive from a [[Base]] class.
 

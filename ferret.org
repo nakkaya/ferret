@@ -4049,6 +4049,7 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
+  - *assert* - https://clojuredocs.org/clojure.core/assert
   - *Lazy Sequence* - Should cache the result of *rest* and return it
     on subsequent calls.
   - *Unit Testing*

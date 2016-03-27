@@ -1706,11 +1706,13 @@ All our types are derived from the base Object type,
   public:
     Object(){
       FERRET_INIT_REF();
-      FERRET_INIT_LOCK(lock);
+    }
+
+    Object(const Object& other){
+      FERRET_COPY_REF(other);
     }
     
     virtual ~Object() {
-      FERRET_DELETE_LOCK(lock);
     };
     
     virtual size_t getType() = 0;
@@ -1722,15 +1724,11 @@ All our types are derived from the base Object type,
     virtual var equals(var o) = 0;
     
     void addRef() {
-      FERRET_WITH_LOCK(lock,{FERRET_INC_REF(this)});
+      FERRET_INC_REF(this);
     }
     
     bool subRef() {
-      bool ret;
-      FERRET_WITH_LOCK(lock,{
-          ret = FERRET_DEC_REF(this);
-      });
-      return ret;
+      return FERRET_DEC_REF(this);
     }
     
     void* operator new(size_t size){
@@ -1743,7 +1741,6 @@ All our types are derived from the base Object type,
     
   private:
     FERRET_NEW_REF()
-    FERRET_NEW_LOCK(lock)
   };
 #+end_src
 
@@ -2167,8 +2164,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
     (data "var data;"
           "FERRET_NEW_LOCK(lock)")
     (new ("var d"
-          "data = d;
-           FERRET_INIT_LOCK(lock);"))
+          "data = d;"))
     (equals "if (!o.isType(runtime::type::Atom))
                  return NewBoolean(false);
                return NewBoolean(this == o.cast<Atom>());")
@@ -2178,8 +2174,6 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
       fprintf(FERRET_OUTPUT_STREAM, \">\");
       return nil();")
     (fns
-     ("~Atom" ""
-      "FERRET_DELETE_LOCK(lock);")
      ("var swap" "var f,var args"
       "FERRET_WITH_LOCK(lock,{
          args = runtime::cons(args,data);
@@ -2521,6 +2515,7 @@ By default baud rate is *9600 bps*.
    #include <sstream>
    #include <cstdio>
    #include <cstdlib>
+   #include <atomic>
   #endif
 
   #ifdef FERRET_HARDWARE_ARDUINO
@@ -2620,17 +2615,14 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
 #+name: runtime-native-macros
 #+begin_src c++ :tangle no
   #if defined(FERRET_STD_LIB) && !defined(FERRET_SINGLE_THREADED)
-   #define FERRET_NEW_LOCK(symbol) pthread_mutex_t symbol;
-   #define FERRET_INIT_LOCK(symbol) pthread_mutex_init(&symbol, NULL);
-   #define FERRET_DELETE_LOCK(symbol) pthread_mutex_destroy(&symbol);
-   #define FERRET_WITH_LOCK(lock,code) \
-     pthread_mutex_lock(&lock); \
-     code;                      \
-     pthread_mutex_unlock(&lock);
+   #define FERRET_NEW_LOCK(symbol) std::mutex symbol;
+   #define FERRET_WITH_LOCK(l,code)                            \
+     {                                                         \
+     std::lock_guard<std::mutex> ferretScopeGuard(lock);       \
+     code;                                                     \
+     }
   #else
    #define FERRET_NEW_LOCK(symbol)
-   #define FERRET_INIT_LOCK(symbol)
-   #define FERRET_DELETE_LOCK(symbol)
    #define FERRET_WITH_LOCK(lock,code) code;
   #endif
 #+end_src
@@ -2639,7 +2631,14 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
 
 #+name: runtime-native-memory-management-macros
 #+begin_src c++ :tangle no
-  #define FERRET_NEW_REF() size_t refCount;
+  #if defined(FERRET_SINGLE_THREADED)
+    #define FERRET_NEW_REF() size_t refCount;
+    #define FERRET_COPY_REF(other) refCount = other.refCount;
+  #else
+    #define FERRET_NEW_REF() std::atomic<size_t> refCount;
+    #define FERRET_COPY_REF(other) refCount.exchange(other.refCount);
+  #endif
+
   #define FERRET_INIT_REF() refCount = 0;
   #define FERRET_INC_REF(this) refCount++;
   #define FERRET_DEC_REF(this) (--refCount <= 0);

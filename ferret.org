@@ -3308,24 +3308,16 @@ implementation.
 
 ** Concurrency
 
-Runs the given lambda in a posix thread,
+Runs the given lambda in a thread,
 
 #+name: runtime-clojure-bit-operations
 #+begin_src clojure :tangle no
-  (defnative pthread-create [f]
+  (defnative thread [f]
     (on "defined FERRET_STD_LIB"
-        ("pthread.h")
-        "void *PTHREAD_LAMBDA_INVOKER(void *data) {
-            ferret::var fn = ferret::var(static_cast<ferret::Object*>(data));
-            fn.cast<ferret::Object>()->subRef();
-            _i(fn);
-            pthread_exit(NULL);
-         }"
-        "pthread_t th;
-         f.cast<Object>()->addRef();
-         if(::pthread_create(&th, 0, &PTHREAD_LAMBDA_INVOKER, static_cast<void*>(f.get())))
-           return nil();
-         __result = NewNumber(pthread_detach(th));"))
+        ("<thread>")
+        "std::thread t([f](){return _i(f);});
+         t.detach();
+         __result = nil();"))
 #+end_src
 
 ** State Machines
@@ -3991,14 +3983,14 @@ Create some dummy libs under /test/modules/,
 #+end_src
 
 #+begin_src clojure :tangle no
-  (deftest pthreads-test
+  (deftest thread-test
     (is (= "Thread-1Thread-2"
            (capture-output '((defn print-some [y x]
                                (fn []
                                  (sleep y)
                                  (print x)))
-                             (pthread-create (print-some 0 "Thread-1"))
-                             (pthread-create (print-some 1 "Thread-2"))
+                             (thread (print-some 0 "Thread-1"))
+                             (thread (print-some 1 "Thread-2"))
                              (sleep 3))))))
 #+end_src
 

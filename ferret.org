@@ -2757,7 +2757,8 @@ examples.
 
   (defnative sleep [millis]
     (on "defined FERRET_STD_LIB"
-        "usleep(ToInt(millis) * 1000L);")
+        ("unistd.h")
+        "::usleep(ToInt(millis) * 1000L);")
     (on "defined FERRET_HARDWARE_ARDUINO"
         "::delay(ToInt(millis));"))
 

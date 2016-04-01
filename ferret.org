@@ -1945,6 +1945,9 @@ Linked list container implementing the seekable interface.
      "if (!o.isType(runtime::type::Sequence))
        return NewBoolean(false);
 
+      if (size != o.cast<Sequence>()->size)
+        return NewBoolean(false);
+
       var itOther = o;
       FERRET_ITERATE(this,it){
         if (itOther.isNil() || runtime::first(it).equals(runtime::first(itOther))  == false)
@@ -3051,7 +3054,7 @@ implementation.
   (defn list? [x] "__result = NewBoolean(x.isType(runtime::type::Sequence));")
 
   (defn empty? [x]
-    (= (list ) (rest x)))
+    (= (list ) x))
 
   (defn rest [x] "var r = runtime::rest(x);
                   if (r.isNil())
@@ -3633,6 +3636,12 @@ All tests are compiled using,
 
 #+begin_src clojure :tangle no
   (deftest native-core-sequences
+    (is (= "false false true false false"
+           (capture-output '((print (= (list ) (list 1 2 3))
+                                    (= (list 1 2) (list 1 2 3))
+                                    (= (list 1 2 3) (list 1 2 3))
+                                    (= (list 1 2 3) (list 1 2 4))
+                                    (= (list 1 1 3) (list 1 2 3)))))))
     (is (= "(1 2 3 4) 1 (2 3 4) (3 4) (3 3 4) 3 4 (4 3 2 1 1 2) (4 3 2 1) 21 21 (nil) (1) () nil 0"
            (capture-output '((print (list 1 2 3 4)
                                     (first (list 1 2 3 4))

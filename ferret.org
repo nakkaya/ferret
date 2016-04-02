@@ -4066,6 +4066,7 @@ Create some dummy libs under /test/modules/,
     n it is more efficient in terms of time and space than more
     sophisticated strategies such as hash tables.
   - *Unbounded Precision Integers*
+    - [[https://web.archive.org/web/20101208222557/http://www.mactech.com/articles/mactech/Vol.08/08.03/BigNums/index.html][Arbitrarily Large Bignums]]
     From p.11: PICOBIT: A Compact Scheme System for Microcontrollers
     - Larger values are needed in some embedded applications.
       - 48 bit integers to store MAC addresses.

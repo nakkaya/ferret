@@ -3414,6 +3414,27 @@ Some wrappers for the Arduino platform.
         digitalWrite(ToInt(pin), LOW);")
 #+end_src
 
+** Testing
+
+#+name: runtime-clojure-testing
+#+begin_src clojure :tangle no
+  (defn assert-aux [f msg]
+    (when (not (f))
+      (println "Assertion Failed ==>" msg)
+      ((fn [] "std::abort();"))))
+
+  (defn assert-aux-callback [f callback]
+    (when (not (f)) (callback)))
+
+  (defmacro assert
+    ([exp]
+     (list 'assert-aux
+           (cons 'fn `( [] ~exp)) (pr-str exp)))
+    ([exp callback]
+     (list 'assert-aux-callback
+           (cons 'fn `( [] ~exp)) (cons 'fn `( [] ~callback)))))
+#+end_src
+
 * Tests
   :PROPERTIES:
   :noweb-ref: ferret-unit-tests
@@ -4047,10 +4068,37 @@ Create some dummy libs under /test/modules/,
                              (print (deref state)))))))
 #+end_src
 
+*** Testing
+
+#+begin_src clojure :tangle no
+  (deftest testing-test
+    (is (= "Assertion Failed ==> false\n"
+           (capture-output '((assert true)
+                             (assert false)))))
+    (is (= "Assertion Failed ==> (= 2 3)\n"
+           (capture-output '((assert (= 2 2))
+                             (assert (= 2 3))))))
+    (is (= "Assertion Failed ==> (= a b)\n"
+           (capture-output '((let [a 1
+                                   b 2]
+                               (assert (= a a))
+                               (assert (= a b)))))))
+    (is (= "CB"
+           (capture-output '((assert true)
+                             (assert false (print "CB"))))))
+    (is (= "CB"
+           (capture-output '((assert (= 2 2))
+                             (assert (= 2 3) (print "CB"))))))
+    (is (= "CB"
+           (capture-output '((let [a 1
+                                   b 2]
+                               (assert (= a a))
+                               (assert (= a b) (print "CB"))))))))
+#+end_src
+
 * Roadmap
 ** Core
 
-  - *assert* - https://clojuredocs.org/clojure.core/assert
   - *Lazy Sequence* - Should cache the result of *rest* and return it
     on subsequent calls.
   - *Unit Testing*
@@ -4105,7 +4153,7 @@ Create some dummy libs under /test/modules/,
     code.
   - *Core.typed* - Attach type information to the program.
 
-** Libraries
+*** Libraries
 
   - RPi GPIO
     - http://elinux.org/RPi_Low-level_peripherals
@@ -4115,6 +4163,9 @@ Create some dummy libs under /test/modules/,
     - [[https://github.com/ipkn/crow][crow]]
     - [[http://siliconframework.org/][Silicon]]
 
+** The Rearview
+*** Core
+  - *assert* - https://clojuredocs.org/clojure.core/assert
 * Files                                                            :noexport:
 ** project.clj
 #+begin_src clojure :mkdirp yes :tangle src/project.clj
@@ -4349,6 +4400,7 @@ Create some dummy libs under /test/modules/,
   <<runtime-clojure-misc>>
   <<runtime-clojure-state-machine>>
   <<runtime-clojure-arduino>>
+  <<runtime-clojure-testing>>
 #+end_src
 
 ** resources/bash_executable_stub.sh

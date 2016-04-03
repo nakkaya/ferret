@@ -1829,14 +1829,11 @@ Number Object,
            numerator = decimal + (integer * math::precision);
            denominator = math::precision;
            simplificate();"))
-    (equals "if (o.cast<Object>()->getType() == runtime::type::Number)
-               if (getNumerator() == 0 && o.cast<Number>()->getNumerator() == 0)
-                 return NewBoolean(true);
-               else
-                 return NewBoolean((getNumerator() == o.cast<Number>()->getNumerator()) &&
-                                   (getDenominator() == o.cast<Number>()->getDenominator()));
+    (equals "if (getNumerator() == 0 && o.cast<Number>()->getNumerator() == 0)
+               return NewBoolean(true);
              else
-               return NewBoolean(false);")
+               return NewBoolean((getNumerator() == o.cast<Number>()->getNumerator()) &&
+                                 (getDenominator() == o.cast<Number>()->getDenominator()));")
     (toOutputStream
      "if (denominator == 1)
         fprintf(FERRET_OUTPUT_STREAM, math::format, numerator);
@@ -1893,9 +1890,7 @@ Each keyword in the program is converted to an /Keyword/ object. A
              id = id + (int)str[i];
            }"))
     (equals
-     "if (!o.isType(runtime::type::Keyword))
-        return NewBoolean(false);
-      return NewBoolean(id == o.cast<Keyword>()->id);")
+     "return NewBoolean(id == o.cast<Keyword>()->id);")
     (toOutputStream
      "fprintf(FERRET_OUTPUT_STREAM, \"%d\", id); return nil();")
     (fns ("bool equals" "Keyword k"
@@ -1921,10 +1916,7 @@ Linked list container implementing the seekable interface.
           "next = n; data = d; size = s;"))
 
     (equals
-     "if (!o.isType(runtime::type::Sequence))
-       return NewBoolean(false);
-
-      if (size != o.cast<Sequence>()->size)
+     "if (size != o.cast<Sequence>()->size)
         return NewBoolean(false);
 
       var itOther = o;
@@ -1983,9 +1975,7 @@ A lazy list container implementing the seekable interface.
           "seq = NewSequence();
            seq.cast<Sequence>()->data = d; seq.cast<Sequence>()->next = t;"))
     (equals
-     "if (o.cast<Object>()->getType() != runtime::type::LazySequence)
-       return NewBoolean(false);
-      var itOther = o;
+     "var itOther = o;
       FERRET_ITERATE(this,it){
         if (itOther.isNil() || runtime::first(it).equals(runtime::first(itOther))  == false)
           return NewBoolean(false);
@@ -2065,9 +2055,7 @@ Strings are represented as a linked list of characters.
              s = s.cast<ISeekable>()->cons(NewNumber((str[i])));
            data = s;"))
     (equals
-     "if (!o.isType(runtime::type::String))
-       return NewBoolean(false);
-      return NewBoolean(data.equals(o.cast<String>()->data));")
+     "return NewBoolean(data.equals(o.cast<String>()->data));")
     (toOutputStream
      "FERRET_ITERATE(data,it){ 
        char ch = runtime::first(it).cast<Number>()->intValue();
@@ -2108,9 +2096,7 @@ A boolean object,
   (defobject Boolean
     (data "bool value;")
     (new ("bool b" "value = b;"))
-    (equals "if (!o.isType(runtime::type::Boolean))
-               return var(new Boolean(false));
-             return var(new Boolean((value == o.cast<Boolean>()->value)));")
+    (equals "return var(new Boolean((value == o.cast<Boolean>()->value)));")
     (toOutputStream
      "if (value)
         fprintf(FERRET_OUTPUT_STREAM, \"true\"); 
@@ -2126,13 +2112,14 @@ A boolean object,
                     return false;
                   else if (m_ptr->getType() == runtime::type::Boolean)
                     return static_cast<Boolean*>(m_ptr)->value;
-                    else
-                      return true;
+                  else
+                    return true;
                   }
-                
                   bool var::equals (var rhs){
                     if (get() == rhs.get())
                       return true;
+                    else if (m_ptr->getType() != rhs.cast<Object>()->getType())
+                      return false;
                     else
                       return (get()->equals(rhs)).cast<Boolean>()->value;
                   }"))
@@ -2150,9 +2137,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
           "FERRET_NEW_LOCK(lock)")
     (new ("var d"
           "data = d;"))
-    (equals "if (!o.isType(runtime::type::Atom))
-                 return NewBoolean(false);
-               return NewBoolean(this == o.cast<Atom>());")
+    (equals "return NewBoolean(this == o.cast<Atom>());")
     (toOutputStream
      "fprintf(FERRET_OUTPUT_STREAM, \"atom <\");
       data.toOutputStream();
@@ -2273,9 +2258,7 @@ uniform fashion.
 #+begin_src clojure :tangle no
   (defobject Lambda
     (interfaces "var invoke(var args)")
-    (equals "if (!o.isType(runtime::type::Lambda))
-                 return NewBoolean(false);
-               return NewBoolean(this == o.cast<Lambda>());")
+    (equals "return NewBoolean(this == o.cast<Lambda>());")
     (toOutputStream
      "fprintf(FERRET_OUTPUT_STREAM, \"lambda\"); return nil();")
     (force-type true))

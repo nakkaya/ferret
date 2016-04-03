@@ -1308,17 +1308,18 @@ lambda forms.
 
       #if !defined(FERRET_DISABLE_MAIN_FUNCTION)
         int main(int argc, char* argv[]){
+          using namespace ferret;
 
         #if defined(FERRET_STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS)
-          _star_command_line_args_star_ = ferret::obj<ferret::Sequence>();
+          _star_command_line_args_star_ = obj<Sequence>();
           for (int i = argc - 1; i > -1 ; i--)
-            ferret::runtime::cons(ferret::obj<ferret::String>(argv[i]),_star_command_line_args_star_);
+            runtime::cons(obj<String>(argv[i]),_star_command_line_args_star_);
         #endif
 
-          ferret::ProgramRun();
+          ProgramRun();
 
           #if defined(FERRET_PROGRAM_MAIN)
-            _i(ferret::FERRET_PROGRAM_MAIN);
+            _i(FERRET_PROGRAM_MAIN);
           #endif
 
           return 0;
@@ -1329,17 +1330,19 @@ lambda forms.
         void setup(){
           FERRET_INIT_OUTPUT_STREAM
 
+          using namespace ferret;
           #if defined(FERRET_PROGRAM_MAIN)
-            ferret::ProgramRun();
+            ProgramRun();
           #endif
         }
         void loop(){
+          using namespace ferret;
           #if !defined(FERRET_PROGRAM_MAIN)
-            ferret::ProgramRun();
+            ProgramRun();
           #endif          
 
           #if defined(FERRET_PROGRAM_MAIN)
-            _i(ferret::FERRET_PROGRAM_MAIN);
+            _i(FERRET_PROGRAM_MAIN);
           #endif
         }
       #endif\n")]

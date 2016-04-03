@@ -905,8 +905,8 @@ Without preprocessing following forms,
 would evaluate to,
 
 #+begin_example
-  "_i(list,obj<Number>(1),obj<Number>(2),obj<Number>(3))"
-  "_i(+,obj<Number>(1),obj<Number>(2))"
+  "run(list,obj<Number>(1),obj<Number>(2),obj<Number>(3))"
+  "run(+,obj<Number>(1),obj<Number>(2))"
   "((<,b,a) ? a : b)"
 #+end_example
 
@@ -1212,8 +1212,8 @@ lambda forms.
 
   (defn invoke-lambda [n args]
     (if (empty? args)
-      (str "_i(" n ")")
-      (str "_i(" n "," 
+      (str "run(" n ")")
+      (str "run(" n "," 
            (reduce (fn[h v]
                      (str h v))
                    (->> args
@@ -1319,7 +1319,7 @@ lambda forms.
           ProgramRun();
 
           #if defined(FERRET_PROGRAM_MAIN)
-            _i(FERRET_PROGRAM_MAIN);
+            run(FERRET_PROGRAM_MAIN);
           #endif
 
           return 0;
@@ -1342,7 +1342,7 @@ lambda forms.
           #endif          
 
           #if defined(FERRET_PROGRAM_MAIN)
-            _i(FERRET_PROGRAM_MAIN);
+            run(FERRET_PROGRAM_MAIN);
           #endif
         }
       #endif\n")]
@@ -1978,7 +1978,7 @@ A lazy list container implementing the seekable interface.
      ("var first" ""
       "return seq.cast<Sequence>()->data;")
      ("var iterate" ""
-      "var s = _i(seq.cast<Sequence>()->next);
+      "var s = run(seq.cast<Sequence>()->next);
        if (s.isNil())
          return nil();
 
@@ -2234,50 +2234,50 @@ Function invocation,
 #+begin_src c++ :tangle no
   namespace ferret{
     template<typename T, typename... Args>
-    var _i(T fn, Args... args);
+    var run(T fn, Args... args);
         
     template<typename T>
-    var _i(T fn);
+    var run(T fn);
 
     template<>
-    var _i(var);
+    var run(var);
   }
 #+end_src
 
 #+name: function-invocation-api
 #+begin_src c++ :tangle no
   namespace ferret{
-    var _iArgs() { 
+    var runArgs() { 
       return nil(); 
     }
     
-    var _iArgs(var v) { 
+    var runArgs(var v) { 
       return obj<Sequence>(v,nil(),1);
     }
     
     template <typename... Args>
-    var _iArgs(var first, Args... args) { 
-      return obj<Sequence>(first, _iArgs(args...), ((sizeof...(args)) + 1)); 
+    var runArgs(var first, Args... args) { 
+      return obj<Sequence>(first, runArgs(args...), ((sizeof...(args)) + 1)); 
     }
     
     template<typename T, typename... Args>
-    var _i(T fn, Args... args) {
-      return fn.invoke(_iArgs(args...));
+    var run(T fn, Args... args) {
+      return fn.invoke(runArgs(args...));
     }
 
     template<typename T>
-    var _i(T fn) {
+    var run(T fn) {
       return fn.invoke(nil());
     }
 
     template<>
-    var _i(var fn) {
+    var run(var fn) {
       return fn.cast<Lambda>()->invoke(nil());
     }
 
     template<typename... Args>
-    var _i(var fn, Args... args) {
-      return fn.cast<Lambda>()->invoke(_iArgs(args...));
+    var run(var fn, Args... args) {
+      return fn.cast<Lambda>()->invoke(runArgs(args...));
     }
   }
 #+end_src
@@ -2708,7 +2708,7 @@ examples.
     (list 'do
           (list 'native-declare
                 `~(str "\n" out " " (symbol-conversion callback) "_callack" "(" in "){\n"
-                       "_i(" (str (symbol-conversion callback) "_callback_fn")
+                       "run(" (str (symbol-conversion callback) "_callback_fn")
                        (str \, (apply str (interpose " , " (reverse pass-vars)))) ");"
                        "\n}\n"))
           (list 'def `~(symbol (str callback "-callback-fn")) `~callback)))
@@ -2767,13 +2767,13 @@ Takes a function and returns the number of millis took.
         "struct timeval  te;
          gettimeofday(&te, NULL);
          unsigned long begin = (int)(te.tv_sec*1000LL + te.tv_usec/1000); 
-         _i(f);
+         run(f);
          gettimeofday(&te, NULL);
          unsigned long end = (int)(te.tv_sec*1000LL + te.tv_usec/1000); 
          __result = obj<Number>((math::container)(end - begin));")
     (on "defined FERRET_HARDWARE_ARDUINO"
         "unsigned long begin = millis();
-         _i(f);
+         run(f);
          unsigned long end = millis();
          __result = obj<Number>((math::container)(end - begin));"))
 #+end_src
@@ -2873,12 +2873,12 @@ implementation.
   (defmacro doseq [binding & body]
     (list '_doseq_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
 
-  (defn _doseq_ [seq f] "FERRET_ITERATE(seq,it){_i(f,runtime::first(it));}")
+  (defn _doseq_ [seq f] "FERRET_ITERATE(seq,it){run(f,runtime::first(it));}")
 
   (defmacro dotimes [binding & body]
     (list '_dotimes_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
 
-  (defn _dotimes_ [t f] "for(int i = 0; i < ToInt(t); i++) _i(f,obj<Number>(i));")
+  (defn _dotimes_ [t f] "for(int i = 0; i < ToInt(t); i++) run(f,obj<Number>(i));")
 #+end_src
 
 ** Conditionals
@@ -2902,8 +2902,8 @@ implementation.
     (list '_while_ (list 'fn* [] test) (cons 'fn* `( [] ~@body))))
 
   (defn _while_ [pred fn]
-    "while(_i(pred))
-       _i(fn);")
+    "while(run(pred))
+       run(fn);")
 
   (defmacro forever [& body]
     (cons 'while `(true  ~@body)))
@@ -2966,14 +2966,14 @@ implementation.
 #+begin_src clojure :tangle no
   (defn reduce
     ([f [sf & sr]]
-     "var acc = _i(f, runtime::first(sr), sf);
+     "var acc = run(f, runtime::first(sr), sf);
       FERRET_ITERATE(runtime::rest(sr),it){
-        acc = _i(f, acc, runtime::first(it));
+        acc = run(f, acc, runtime::first(it));
       }
       return acc;")
     ([f acc coll]
      "FERRET_ITERATE(coll,it){
-       acc = _i(f, acc, runtime::first(it));
+       acc = run(f, acc, runtime::first(it));
       }
       return acc;"))
 #+end_src
@@ -3253,7 +3253,7 @@ Runs the given lambda in a thread,
   (defnative thread [f]
     (on "defined FERRET_STD_LIB"
         ("thread")
-        "std::thread t([f](){return _i(f);});
+        "std::thread t([f](){return run(f);});
          t.detach();
          __result = nil();"))
 #+end_src

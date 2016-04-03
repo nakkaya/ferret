@@ -1310,9 +1310,9 @@ lambda forms.
         int main(int argc, char* argv[]){
 
         #if defined(FERRET_STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS)
-          _star_command_line_args_star_ = ferret::NewSequence();
+          _star_command_line_args_star_ = ferret::New<ferret::Sequence>();
           for (int i = argc - 1; i > -1 ; i--)
-            ferret::runtime::cons(_star_command_line_args_star_,ferret::New<ferret::String>(argv[i]));
+            ferret::runtime::cons(ferret::New<ferret::String>(argv[i]),_star_command_line_args_star_);
         #endif
 
           ferret::ProgramRun();
@@ -1930,17 +1930,7 @@ Linked list container implementing the seekable interface.
      ("var rest" ""
       "return next;")
      ("size_t count" ""
-      "return size;"))
-    (post-code "var NewSequence() {
-                 return var(new Sequence());
-                }
-                var NewSequence(var v) {
-                 return var(new Sequence(v, nil(), 1));
-                }
-                template <typename... Args>
-                var NewSequence(var first, Args... args) { 
-                 return var(new Sequence(first, NewSequence(args...), ((sizeof...(args)) + 1))); 
-                }"))
+      "return size;")))
 #+end_src
 
 **** Lazy Sequence
@@ -1953,10 +1943,10 @@ A lazy list container implementing the seekable interface.
     (interface :ISeekable)
     (data "var seq;")
     (new ("var t"
-          "seq = NewSequence();
+          "seq = New<Sequence>();
            seq.cast<Sequence>()->next = t;")
          ("var d, var t"
-          "seq = NewSequence();
+          "seq = New<Sequence>();
            seq.cast<Sequence>()->data = d; seq.cast<Sequence>()->next = t;"))
     (equals
      "var itOther = o;
@@ -2031,9 +2021,9 @@ Strings are represented as a linked list of characters.
           "int length = 0;
            for (length = 0; str[length] != '\\0'; length++);
            length--;
-           var s = NewSequence(New<Number>((str[length])));
+           var s = runtime::cons(New<Number>(str[length]),New<Sequence>());
            for (int i = --length; i >= 0; i--)
-             s = s.cast<ISeekable>()->cons(New<Number>((str[i])));
+             s = runtime::cons(New<Number>(str[i]),s);
            data = s;"))
     (equals
      "return New<Boolean>(data.equals(o.cast<String>()->data));")
@@ -2120,7 +2110,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
     (fns
      ("var swap" "var f,var args"
       "FERRET_WITH_LOCK(lock,{
-         args = runtime::cons(args,data);
+         args = runtime::cons(data, args);
          data = f.cast<Lambda>()->invoke(args);
        });
       return data;")))
@@ -2165,7 +2155,7 @@ containers.
     namespace runtime {
       var first(var coll);
       var rest(var coll);
-      var cons(var seq, var x);
+      var cons(var x, var seq);
       var nth(var seq, var index);
     }
   }
@@ -2184,17 +2174,17 @@ containers.
 
       var rest(var coll){
         if (coll.isNil())
-          return NewSequence();
+          return New<Sequence>();
         else
           return coll.cast<ISeekable>()->rest();
       }
 
-      var cons(var seq, var x){
+      var cons(var x, var seq){
         if (seq.isNil())
-          return NewSequence(x);
+          return New<Sequence>(x, nil(), 1);
         if (seq.cast<Object>()->getType() == runtime::type::Sequence
             && seq.cast<ISeekable>()->count() == 0)
-          return NewSequence(x);
+          return New<Sequence>(x, nil(), 1);
         return seq.cast<ISeekable>()->cons(x);
       }
     
@@ -2264,9 +2254,22 @@ Function invocation,
 #+name: function-invocation-api
 #+begin_src c++ :tangle no
   namespace ferret{
+    var _iArgs() { 
+      return nil(); 
+    }
+    
+    var _iArgs(var v) { 
+      return New<Sequence>(v,nil(),1);
+    }
+    
+    template <typename... Args>
+    var _iArgs(var first, Args... args) { 
+      return New<Sequence>(first, _iArgs(args...), ((sizeof...(args)) + 1)); 
+    }
+    
     template<typename T, typename... Args>
     var _i(T fn, Args... args) {
-      return fn.invoke(NewSequence(args...));
+      return fn.invoke(_iArgs(args...));
     }
 
     template<typename T>
@@ -2281,7 +2284,7 @@ Function invocation,
 
     template<typename... Args>
     var _i(var fn, Args... args) {
-      return fn.cast<Lambda>()->invoke(NewSequence(args...));
+      return fn.cast<Lambda>()->invoke(_iArgs(args...));
     }
   }
 #+end_src
@@ -2985,7 +2988,7 @@ implementation.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn list [& xs] "if (xs.isNil())
-                       __result = NewSequence();
+                       __result = New<Sequence>();
                      else
                        __result = xs;")
 
@@ -2996,13 +2999,13 @@ implementation.
 
   (defn rest [x] "var r = runtime::rest(x);
                   if (r.isNil())
-                    return NewSequence();
+                    return New<Sequence>();
                   else 
                     __result = r;")
 
   (defn nth [coll index] "__result = runtime::nth(coll,index);")
 
-  (defn cons [x seq] "__result = runtime::cons(seq,x);")
+  (defn cons [x seq] "__result = runtime::cons(x, seq);")
 
   (defn apply [f args] "__result = f.cast<Lambda>()->invoke(args);")
 

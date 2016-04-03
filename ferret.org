@@ -1200,8 +1200,8 @@ lambda forms.
       (let [n (second l)
             e (env l)]
         (if (empty? e)
-          (str "fn<" n ">()")
-          (str "closure<" n ">(" (apply str (interpose \, e)) ")"))))
+          (str "New<" n ">()")
+          (str "New<" n ">(" (apply str (interpose \, e)) ")"))))
 
     (defn new-lambda-stack [l]
       (let [n (second l)
@@ -2238,16 +2238,6 @@ Function invocation,
 
     template<>
     var _i(var);
-
-    template<typename T>
-    var fn(){
-      return var(new T());
-    }
-
-    template<typename T, typename... Args>
-    var closure(Args... args) {
-      return var(new T(args...));
-    }
   }
 #+end_src
 

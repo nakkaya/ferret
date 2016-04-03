@@ -188,11 +188,11 @@ directives,
 #+begin_src clojure
   (defnative get-char []
     (on "defined GNU_GCC"
-        "__result = NewCharacter(getchar());"))
+        "__result = NewNumber(getchar());"))
 #+end_src
 
 This function when compiled on a system that defines =GNU_GCC= will
-return the result of *getchar* as a *Character* , on ANY other system it
+return the result of *getchar* as a *Number* , on ANY other system it
 will return *nil*. You can have multiple *on* blocks per *defnative*,
 
 #+begin_src clojure
@@ -268,10 +268,9 @@ All Ferret objects derive from a [[Base]] class.
  - [[Pointer]] - For Holding references to native objects.
  - [[Number]] - All numbers are kept as ratios (two ints).
  - [[Keyword]] 
- - [[Character]]
  - [[Sequence]]
  - [[Lazy Sequence]]
- - [[String]] - As [[Sequence]] of [[Character]]s
+ - [[String]] - As [[Sequence]] of [[Number]]s
  - [[Boolean]]
  - [[Atom]] - Mimics Clojure atoms.
 
@@ -885,7 +884,7 @@ suggests and removes the node when predicate returns true.
                          (keyword? form) :keyword
                          (number? form) :number
                          (nil? form) :nil
-                         (char? form) :char
+                         (char? form) :number
                          (string? form) :string
                          (or (true? form) (false? form)) :boolean
                          (seq? form) :sequence)))
@@ -941,7 +940,7 @@ C++ skeleton.
 #+begin_src clojure :tangle no
   (defmethod emit :to-str [form state] (str form))
 
-  (defmethod emit :char [form state] (str "NewCharacter('" form "')"))
+  (defmethod emit :char [form state] (str "NewNumber('" form "')"))
 
   (defmethod emit :string [form state] (str "NewString(\"" form "\")"))
 
@@ -1907,26 +1906,6 @@ Each keyword in the program is converted to an /Keyword/ object. A
                 }"))
 #+end_src
 
-**** Character
-
-Holds a native /char/ type.
-
-#+name: runtime-clojure-character-object
-#+begin_src clojure :tangle no
-  (defobject Character
-    (data "char value;")
-    (new ("char c" "value = c;"))
-    (equals
-     "if (!o.isType(runtime::type::Character))
-        return NewBoolean(false);
-      return NewBoolean(value == o.cast<Character>()->value);")
-    (toOutputStream
-     "fprintf(FERRET_OUTPUT_STREAM, \"%c\",value); return nil();")
-    (post-code "var NewCharacter(char c) {
-                  return var(new Character(c));
-                }"))
-#+end_src
-
 **** Sequence
 
 Linked list container implementing the seekable interface.
@@ -2081,16 +2060,19 @@ Strings are represented as a linked list of characters.
           "int length = 0;
            for (length = 0; str[length] != '\\0'; length++);
            length--;
-           var s = NewSequence(NewCharacter((str[length])));
+           var s = NewSequence(NewNumber((str[length])));
            for (int i = --length; i >= 0; i--)
-             s = s.cast<ISeekable>()->cons(NewCharacter((str[i])));
+             s = s.cast<ISeekable>()->cons(NewNumber((str[i])));
            data = s;"))
     (equals
      "if (!o.isType(runtime::type::String))
        return NewBoolean(false);
       return NewBoolean(data.equals(o.cast<String>()->data));")
     (toOutputStream
-     "FERRET_ITERATE(data,it){ runtime::first(it).toOutputStream(); }
+     "FERRET_ITERATE(data,it){ 
+       char ch = runtime::first(it).cast<Number>()->intValue();
+       fprintf(FERRET_OUTPUT_STREAM, \"%c\",ch);
+      }
       return nil();")
     (fns
      ("var cons" "var x"
@@ -2104,7 +2086,7 @@ Strings are represented as a linked list of characters.
      ("ifdef FERRET_STD_LIB"
       "std::string toString" ""
       "std::stringstream ss;
-       FERRET_ITERATE(data,it){ss << runtime::first(it).cast<Character>()->value;}
+       FERRET_ITERATE(data,it){ss << (char)runtime::first(it).cast<Number>()->intValue();}
        return ss.str();"))
     (post-code "template<typename T>
                 var NewString(T s) {
@@ -2658,8 +2640,6 @@ Once our object system is in place we can define rest of the runtime
     "__result = runtime::first(x);")
 
   (defn nil? [x] "__result = NewBoolean(x.isNil())")
-
-  (defn char? [x] "__result = x.isType(runtime::type::Character);")
 #+end_src
 
 We can embed C++ code into our functions, which is how most of the
@@ -2767,7 +2747,7 @@ examples.
 
   (defnative get-char []
     (on "defined FERRET_STD_LIB"
-        "__result = NewCharacter(getchar());"))
+        "__result = NewNumber(getchar());"))
 
   (defmacro defcallback [callback out in & pass-vars]
     (list 'do
@@ -2816,7 +2796,6 @@ examples.
     (println "Number:" ((fn [] "__result = NewNumber((math::container)sizeof(Number));")))
     (println "Keyword:" ((fn [] "__result = NewNumber((math::container)sizeof(Keyword));")))
     (println "Sequence:" ((fn [] "__result = NewNumber((math::container)sizeof(Sequence));")))
-    (println "Char:" ((fn [] "__result = NewNumber((math::container)sizeof(Character));")))
     (println "String:" ((fn [] "__result = NewNumber((math::container)sizeof(String));")))
     (println "Boolean:" ((fn [] "__result = NewNumber((math::container)sizeof(Boolean));")))
     (println "Lambda:" ((fn [] "__result = NewNumber((math::container)sizeof(Lambda));")))
@@ -3680,14 +3659,12 @@ All tests are compiled using,
                                     (rest (list))
                                     (first (rest (rest (list))))
                                     (count (list )))))))
-    (is (= "(6 5 4 3 2 1) (6 5 4 3 2) (4 3 2 1 0) (. o l l e H) true"
+    (is (= "(6 5 4 3 2 1) (6 5 4 3 2) (4 3 2 1 0) true"
            (capture-output '((print (reverse (list 1 2 3 4 5 6))
                                     (reduce (fn [h v]
                                               (conj h (inc v))) (list) (list 1 2 3 4 5))
                                     (reduce (fn [h v]
                                               (conj h (dec v))) (list) (list 1 2 3 4 5))
-                                    (reduce (fn [h v]
-                                              (conj h v)) (list) "Hello.")
                                     (= (list ) (list )))))))
 
     (is (= "(1 2 3 4 5 6) (7 6 5 4 3 2) (1 7 6 5 4 3 2) true"
@@ -4384,7 +4361,6 @@ Create some dummy libs under /test/modules/,
   <<runtime-clojure-lambda-interface>>
   <<runtime-clojure-keyword-object>>
   <<runtime-clojure-sequence-object>>
-  <<runtime-clojure-character-object>>
   <<runtime-clojure-string-object>>
   <<runtime-clojure-atom-object>>
   <<runtime-clojure-defn>>

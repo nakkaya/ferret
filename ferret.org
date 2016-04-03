@@ -2115,13 +2115,13 @@ A boolean object,
                   else
                     return true;
                   }
-                  bool var::equals (var rhs){
+                  var var::equals (var rhs){
                     if (get() == rhs.get())
-                      return true;
+                      return NewBoolean(true);
                     else if (m_ptr->getType() != rhs.cast<Object>()->getType())
-                      return false;
+                      return NewBoolean(false);
                     else
-                      return (get()->equals(rhs)).cast<Boolean>()->value;
+                      return get()->equals(rhs);
                   }"))
 #+end_src
 
@@ -2355,7 +2355,7 @@ reaches zero it will automatically free the Object.
       return *this;
     }
 
-    bool equals (var rhs);
+    var equals (var rhs);
     
     operator bool() const;
 

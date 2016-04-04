@@ -1950,11 +1950,9 @@ A lazy list container implementing the seekable interface.
     (interface :ISeekable)
     (data "var seq;")
     (new ("var t"
-          "seq = obj<Sequence>();
-           seq.cast<Sequence>()->next = t;")
+          "seq = obj<Sequence>(nullptr,t,0);")
          ("var d, var t"
-          "seq = obj<Sequence>();
-           seq.cast<Sequence>()->data = d; seq.cast<Sequence>()->next = t;"))
+          "seq = obj<Sequence>(d,t,0);"))
     (equals
      "var itOther = o;
       FERRET_ITERATE(this,it){
@@ -1966,7 +1964,7 @@ A lazy list container implementing the seekable interface.
     (toOutputStream
      "fprintf(FERRET_OUTPUT_STREAM, \"(\");
         if (!seq.isNil()){ 
-          seq.cast<Sequence>()->data.toOutputStream();
+          runtime::first(seq).toOutputStream();
           FERRET_ITERATE(runtime::rest(var(this)),it){
             fprintf(FERRET_OUTPUT_STREAM, \" \");
             runtime::first(it).toOutputStream();
@@ -1977,19 +1975,15 @@ A lazy list container implementing the seekable interface.
     
     (fns
      ("var cons" "var x"
-      "return obj<LazySequence>(x,seq.cast<Sequence>()->next);")
+      "return obj<LazySequence>(x,runtime::rest(seq));")
      
      ("var first" ""
-      "return seq.cast<Sequence>()->data;")
+      "return runtime::first(seq);")
      ("var iterate" ""
-      "var s = run(seq.cast<Sequence>()->next);
+      "var s = run(runtime::rest(seq));
        if (s.isNil())
          return nil();
-
-       var data = (s.cast<LazySequence>()->seq).cast<Sequence>()->data;
-       var next = (s.cast<LazySequence>()->seq).cast<Sequence>()->next;
-
-       return obj<LazySequence>(data,next);")
+       return s;")
      ("var rest" ""
       "return iterate();")
      ("size_t count" ""
@@ -2036,7 +2030,7 @@ Strings are represented as a linked list of characters.
      "return obj<Boolean>(data.equals(o.cast<String>()->data));")
     (toOutputStream
      "FERRET_ITERATE(data,it){ 
-       char ch = runtime::first(it).cast<Number>()->as<int>();
+       char ch = runtime::first(it).cast<Number>()->as<char>();
        fprintf(FERRET_OUTPUT_STREAM, \"%c\",ch);
       }
       return nil();")

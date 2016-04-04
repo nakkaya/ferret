@@ -1946,11 +1946,16 @@ A lazy list container implementing the seekable interface.
 #+begin_src clojure :tangle no
   (defobject LazySequence
     (interface :ISeekable)
-    (data "var seq;")
+    (data "var seq;"
+          "FERRET_NEW_LOCK(lock)"
+          "var cache;"
+          "bool iterated;")
     (new ("var t"
-          "seq = obj<Sequence>(nullptr,t,0);")
+          "seq = obj<Sequence>(nullptr,t,0);
+           iterated = false;")
          ("var d, var t"
-          "seq = obj<Sequence>(d,t,0);"))
+          "seq = obj<Sequence>(d,t,0);
+           iterated = false;"))
     (equals
      "var itOther = o;
       FERRET_ITERATE(this,it){
@@ -1970,18 +1975,19 @@ A lazy list container implementing the seekable interface.
         }
         fprintf(FERRET_OUTPUT_STREAM, \")\");
         return nil();")
-    
     (fns
      ("var cons" "var x"
       "return obj<LazySequence>(x,runtime::rest(seq));")
-     
      ("var first" ""
       "return runtime::first(seq);")
      ("var iterate" ""
-      "var s = run(runtime::rest(seq));
-       if (s.isNil())
-         return nil();
-       return s;")
+      "FERRET_WITH_LOCK(lock,{
+        if (iterated)
+         return cache;
+        cache = run(runtime::rest(seq));
+        iterated = true;
+       });
+       return cache;")
      ("var rest" ""
       "return iterate();")
      ("size_t count" ""
@@ -3664,7 +3670,17 @@ All tests are compiled using,
                              (print (first (ints-from 10))
                                     (first (rest (ints-from 10)))
                                     (first (rest (rest (ints-from 10))))
-                                    (lazy-countdown 10)))))))
+                                    (lazy-countdown 10))))))
+    (is (= "10 lazy-seq 11"
+           (capture-output '((defn ints-from [n]
+                               (cons n (lazy-seq (print "lazy-seq")
+                                                 (ints-from (inc n)))))
+                             (let [s (ints-from 10)]
+                               (print (first s))
+                               (print " ")
+                               (rest s)
+                               (print " ")
+                               (print (first (rest s)))))))))
 #+end_src
 
 **** String
@@ -4033,8 +4049,6 @@ Create some dummy libs under /test/modules/,
 ** Core
 
   - *MemoryPool* - Enable Locking, make it thread safe.
-  - *Lazy Sequence* - Should cache the result of *rest* and return it
-    on subsequent calls.
   - *Unit Testing*
     - [[http://www.jera.com/techinfo/jtns/jtn002.html][JTN002 - MinUnit -- a minimal unit testing framework for C]]
   - *Pre/Post conditions* for functions.
@@ -4099,6 +4113,8 @@ Create some dummy libs under /test/modules/,
 
 ** The Rearview
 *** Core
+  - *Lazy Sequence* - Should cache the result of *rest* and return it
+    on subsequent calls.
   - *assert* - https://clojuredocs.org/clojure.core/assert
 * Files                                                            :noexport:
 ** project.clj

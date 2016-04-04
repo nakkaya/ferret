@@ -199,9 +199,9 @@ will return *nil*. You can have multiple *on* blocks per *defnative*,
   (defnative sleep [timeout]
     (on "defined GNU_GCC"
         ("unistd.h")
-        "::sleep(ToInt(timeout));")
+        "::sleep(timeout.cast<Number>()->as<int>());")
     (on "defined AVR_GCC"
-        "::delay(ToInt(timeout));"))
+        "::delay(timeout.cast<Number>()->as<int>());"))
 #+end_src
 
 This way a single function can be defined for multiple systems.
@@ -1849,12 +1849,7 @@ Number Object,
     (fns
      ("math::container getNumerator" "" "return numerator;")
      ("math::container getDenominator" "" "return denominator;")
-     ("float floatValue" "" "return (float)numerator/(float)denominator;")
-     ("int intValue" ""
-      "if (denominator == 1)
-          return (int)numerator;
-        else
-          return (int)floatValue();")
+     ("template<typename T> T as" "" "T::unimplemented_function;")
      ("void simplificate" ""
       "int commondivisor = 1;
         for(math::container i=2;i<=runtime::min(runtime::abs(numerator), runtime::abs(denominator));i++)
@@ -1863,8 +1858,14 @@ Number Object,
         numerator /= commondivisor;
         denominator /= commondivisor;")
      ("~Number" "" ""))
-    (post-code "int ToInt(var i) {
-                  return (i.cast<Number>()->intValue());
+    (post-code "template<> float Number::as(){
+                   return (float)numerator/(float)denominator;
+                }
+                template<> int Number::as(){
+                   if (denominator == 1)
+                     return (int)numerator;
+                   else
+                     return (int)as<float>();
                 }"))
 #+end_src
 
@@ -2032,7 +2033,7 @@ Strings are represented as a linked list of characters.
      "return obj<Boolean>(data.equals(o.cast<String>()->data));")
     (toOutputStream
      "FERRET_ITERATE(data,it){ 
-       char ch = runtime::first(it).cast<Number>()->intValue();
+       char ch = runtime::first(it).cast<Number>()->as<int>();
        fprintf(FERRET_OUTPUT_STREAM, \"%c\",ch);
       }
       return nil();")
@@ -2048,7 +2049,7 @@ Strings are represented as a linked list of characters.
      ("ifdef FERRET_STD_LIB"
       "std::string toString" ""
       "std::stringstream ss;
-       FERRET_ITERATE(data,it){ss << (char)runtime::first(it).cast<Number>()->intValue();}
+       FERRET_ITERATE(data,it){ss << (char)runtime::first(it).cast<Number>()->as<int>();}
        return ss.str();"))
     (post-code "#if defined(FERRET_STD_LIB)
                 const char* ToCStr(var s) {
@@ -2192,7 +2193,7 @@ containers.
       }
     
       var nth(var seq, var idx){
-        int index = ToInt(idx);
+        int index = idx.cast<Number>()->as<int>();
 
         if ( index < 0 || seq.cast<ISeekable>()->count() < idx)
           return nil();
@@ -2696,9 +2697,9 @@ examples.
   (defnative sleep [millis]
     (on "defined FERRET_STD_LIB"
         ("unistd.h")
-        "::usleep(ToInt(millis) * 1000L);")
+        "::usleep(millis.cast<Number>()->as<int>() * 1000L);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::delay(ToInt(millis));"))
+        "::delay(millis.cast<Number>()->as<int>());"))
 
   (defnative get-char []
     (on "defined FERRET_STD_LIB"
@@ -2727,7 +2728,7 @@ examples.
          __result = obj<String>(result.c_str());"))
 
   (defn system-exit [code]
-    "std::exit(ToInt(code));")
+    "std::exit(code.cast<Number>()->as<int>());")
 
   (defnative memory-pool-free-pages []
     (on "defined FERRET_MEMORY_POOL_SIZE"
@@ -2878,7 +2879,7 @@ implementation.
   (defmacro dotimes [binding & body]
     (list '_dotimes_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
 
-  (defn _dotimes_ [t f] "for(int i = 0; i < ToInt(t); i++) run(f,obj<Number>(i));")
+  (defn _dotimes_ [t f] "for(int i = 0; i < t.cast<Number>()->as<int>(); i++) run(f,obj<Number>(i));")
 #+end_src
 
 ** Conditionals
@@ -3205,9 +3206,9 @@ implementation.
   (defn zero? [x]
     (= x 0))
 
-  (defn floor [x] "__result = obj<Number>(x.cast<Number>()->intValue());")
+  (defn floor [x] "__result = obj<Number>(x.cast<Number>()->as<int>());")
 
-  (defn mod [num div] "__result = obj<Number>((num.cast<Number>()->intValue() % ToInt(div)));")
+  (defn mod [num div] "__result = obj<Number>((num.cast<Number>()->as<int>() % div.cast<Number>()->as<int>()));")
 #+end_src
 
 #+name: runtime-clojure-math
@@ -3337,15 +3338,15 @@ Some wrappers for the Arduino platform.
 #+begin_src clojure :tangle no
   (defn pin-mode [pin mode]
     "if (mode.equals(obj<Keyword>(618)) == true) // :input
-        pinMode(ToInt(pin), INPUT);
+        pinMode(pin.cast<Number>()->as<int>(), INPUT);
      else
-        pinMode(ToInt(pin), OUTPUT);")
+        pinMode(pin.cast<Number>()->as<int>(), OUTPUT);")
 
   (defn digital-write [pin mode]
     "if (mode.equals(obj<Keyword>(474))  == true) // :high
-        digitalWrite(ToInt(pin), HIGH);
+        digitalWrite(pin.cast<Number>()->as<int>(), HIGH);
      else
-        digitalWrite(ToInt(pin), LOW);")
+        digitalWrite(pin.cast<Number>()->as<int>(), LOW);")
 #+end_src
 
 ** Testing

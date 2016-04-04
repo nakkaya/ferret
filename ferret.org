@@ -1866,6 +1866,9 @@ Number Object,
                      return (int)numerator;
                    else
                      return (int)as<float>();
+                }
+                template<> char Number::as(){
+                   return as<int>();
                 }"))
 #+end_src
 
@@ -2049,13 +2052,11 @@ Strings are represented as a linked list of characters.
      ("ifdef FERRET_STD_LIB"
       "std::string toString" ""
       "std::stringstream ss;
-       FERRET_ITERATE(data,it){ss << (char)runtime::first(it).cast<Number>()->as<int>();}
-       return ss.str();"))
-    (post-code "#if defined(FERRET_STD_LIB)
-                const char* ToCStr(var s) {
-                  return (s.cast<String>()->toString().c_str());
-                }
-                #endif"))
+       FERRET_ITERATE(data,it){ss << runtime::first(it).cast<Number>()->as<char>();}
+       return ss.str();")
+     ("ifdef FERRET_STD_LIB"
+      "const char* toCString" ""
+      "return toString().c_str();")))
 #+end_src
 
 **** Boolean
@@ -2717,7 +2718,7 @@ examples.
   (defnative sh [cmd]
     (on "defined FERRET_STD_LIB"
         ("memory")
-        "std::shared_ptr<FILE> pipe(popen(ToCStr(cmd), \"r\"), pclose);
+        "std::shared_ptr<FILE> pipe(popen(cmd.cast<String>()->toCString(), \"r\"), pclose);
          if (!pipe) 
             __result = nil();
          char buffer[128];

@@ -1760,14 +1760,11 @@ An object to hold a reference to a C++ pointer,
      "return obj<Boolean>(ptr == o.cast<Pointer>()->ptr);")
     (toOutputStream
      "fprintf(FERRET_OUTPUT_STREAM, \"Pointer<%p>\",ptr); return nil();")
-    (post-code "template<typename T>
-                T* ToPointer(var p) {
-                  return ((T *)p.cast<Pointer>()->ptr);
-                }
-                template<typename T>
-                T& ToReference(var p) {
-                  return (*(ToPointer<T>(p)));
-                }"))
+    (fns
+     ("template<typename T> T* pointer" ""
+      "return ((T *)ptr);")
+     ("template<typename T> T& reference" ""
+      "return (*(pointer<T>()));")))
 #+end_src
 
 **** Number

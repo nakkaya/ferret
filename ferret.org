@@ -1757,7 +1757,7 @@ An object to hold a reference to a C++ pointer,
     (data "void* ptr;")
     (new ("void* p" "ptr = p;"))
     (equals
-     "return obj<Boolean>(ptr == o.cast<Pointer>()->ptr);")
+     "return obj<Boolean>(ptr == o.cast<Pointer>()->pointer<void>());")
     (toOutputStream
      "fprintf(FERRET_OUTPUT_STREAM, \"Pointer<%p>\",ptr); return nil();")
     (fns
@@ -1884,9 +1884,12 @@ Each keyword in the program is converted to an /Keyword/ object. A
            for (int i = 0; str[i] != '\\0'; i++){
              id = id + (int)str[i];
            }"))
-    (equals "return obj<Boolean>(id == o.cast<Keyword>()->id);")
+    (equals "return obj<Boolean>(hash() == o.cast<Keyword>()->hash());")
     (toOutputStream
-     "fprintf(FERRET_OUTPUT_STREAM, \"%d\", id); return nil();"))
+     "fprintf(FERRET_OUTPUT_STREAM, \"%d\", id); return nil();")
+    (fns
+     ("int hash" ""
+      "return id;")))
 #+end_src
 
 **** Sequence

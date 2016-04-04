@@ -1133,7 +1133,7 @@ lambda forms.
          }} ;separator=\"\n\"$
 
          $if(object_type)$
-          size_t getType(){ return runtime::type::$type$;}
+          size_t type(){ return runtime::type::$type$;}
          $endif$
 
          $if(equals)$
@@ -1715,7 +1715,7 @@ All our types are derived from the base Object type,
     virtual ~Object() {
     };
     
-    virtual size_t getType() = 0;
+    virtual size_t type() = 0;
     
   #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
     virtual var toOutputStream() = 0;
@@ -1723,11 +1723,11 @@ All our types are derived from the base Object type,
     
     virtual var equals(var o) = 0;
     
-    void addRef() {
+    void incRef() {
       FERRET_INC_REF(this);
     }
     
-    bool subRef() {
+    bool decRef() {
       return FERRET_DEC_REF(this);
     }
     
@@ -2074,7 +2074,7 @@ A boolean object,
     (post-code "var::operator bool() const {
                   if (m_ptr == nullptr)
                     return false;
-                  else if (m_ptr->getType() == runtime::type::Boolean)
+                  else if (m_ptr->type() == runtime::type::Boolean)
                     return static_cast<Boolean*>(m_ptr)->container();
                   else
                     return true;
@@ -2082,7 +2082,7 @@ A boolean object,
                  var var::equals (var rhs){
                    if (get() == rhs.get())
                      return obj<Boolean>(true);
-                   else if (m_ptr->getType() != rhs.cast<Object>()->getType())
+                   else if (m_ptr->type() != rhs.cast<Object>()->type())
                      return obj<Boolean>(false);
                    else
                      return get()->equals(rhs);
@@ -2183,7 +2183,7 @@ containers.
       var cons(var x, var seq){
         if (seq.isNil())
           return obj<Sequence>(x, nil(), 1);
-        if (seq.cast<Object>()->getType() == runtime::type::Sequence
+        if (seq.isType(runtime::type::Sequence)
             && seq.cast<ISeekable>()->count() == 0)
           return obj<Sequence>(x, nil(), 1);
         return seq.cast<ISeekable>()->cons(x);
@@ -2291,13 +2291,13 @@ reaches zero it will automatically free the Object.
 #+begin_src c++ :tangle no
   class var{
   public:
-    var(Object* ptr = nullptr) : m_ptr(ptr) { addRef(); }
+    var(Object* ptr = nullptr) : m_ptr(ptr) { incRef(); }
 
-    var(const var& p) : m_ptr(p.m_ptr) { addRef(); }
+    var(const var& p) : m_ptr(p.m_ptr) { incRef(); }
 
     var(var&& p) : m_ptr(p.m_ptr) { p.m_ptr = nullptr; }
       
-    ~var() { subRef(); }
+    ~var() { decRef(); }
 
     var& operator=(var&& p){
       if (this != &p){
@@ -2313,9 +2313,9 @@ reaches zero it will automatically free the Object.
     
     var& operator= (Object* ptr){
       if (m_ptr != ptr){
-        subRef();
+        decRef();
         m_ptr=ptr;
-        addRef();
+        incRef();
       }
       return *this;
     }
@@ -2339,7 +2339,7 @@ reaches zero it will automatically free the Object.
     T* cast() { return static_cast<T*>(m_ptr); }
 
     bool isType(size_t type) { 
-      return (static_cast<Object*>(m_ptr)->getType() == type);
+      return (static_cast<Object*>(m_ptr)->type() == type);
     }
 
     bool isNil() { 
@@ -2347,16 +2347,16 @@ reaches zero it will automatically free the Object.
     }
 
   private:
-    void addRef(){
+    void incRef(){
       // Only change if non-null
-      if (m_ptr) m_ptr->addRef();
+      if (m_ptr) m_ptr->incRef();
     }
       
-    void subRef(){
+    void decRef(){
       // Only change if non-null
       if (m_ptr){
         // Subtract and test if this was the last pointer.
-        if (m_ptr->subRef()){
+        if (m_ptr->decRef()){
           delete m_ptr;
           m_ptr = nullptr;
         }

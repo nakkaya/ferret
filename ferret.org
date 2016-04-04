@@ -141,9 +141,7 @@ By default page size is =sizeof(long)=. This can be changed using,
 #+END_EXAMPLE
 
 Memory pooling is intended for embedded systems where calling
-malloc/free is not desired. It is *not thread safe* It should not be
-used in systems where better alternatives exists or you have enough
-memory.
+malloc/free is not desired.
 
 Steps for using *tcmalloc* on Mac OS X, install dependencies, 
 
@@ -1566,8 +1564,6 @@ code. (ie. printing on different embedded systems.)
     complete control over the memory and you need deterministic timing
     requirements. Memory pooling also prevents heap fragmentation.
 
-    (This should not be used in a multi threaded program.)
-
     For every page of memory allocated there is overhead of one
     /byte/ and one memory page is used for book keeping.
 
@@ -1595,6 +1591,7 @@ code. (ie. printing on different embedded systems.)
     UsedArrayType used[poolSize];
     PageSize pool[poolSize];
     size_t lastAllocationIndex;
+    FERRET_NEW_LOCK(lock)
     
     inline size_t calculateNeededPages(size_t size){
       size_t d = (size / sizeof(PageSize));
@@ -1647,30 +1644,34 @@ code. (ie. printing on different embedded systems.)
     }
       
     void *allocate(size_t reqSize){
-      size_t length = calculateNeededPages(reqSize);
-      int page = findPage(length,lastAllocationIndex);
+      FERRET_WITH_LOCK(lock,{
+          size_t length = calculateNeededPages(reqSize);
+          int page = findPage(length,lastAllocationIndex);
       
-      if ( page == -1){
-        page = findPage(length,0);
-        if (page == -1 )
-          return nullptr;
-      }
+          if ( page == -1){
+            page = findPage(length,0);
+            if (page == -1 )
+              return nullptr;
+          }
       
-      used[page] = reqSize;
-      for(size_t i = page + 1; i < (page+length); i++)
-        used[i] = 1;
+          used[page] = reqSize;
+          for(size_t i = page + 1; i < (page+length); i++)
+            used[i] = 1;
         
-      lastAllocationIndex = page + length;
-      return &pool[page];
+          lastAllocationIndex = page + length;
+          return &pool[page];
+        });
     }
     
     void free(void *p){
-      PageSize* ptr = static_cast<PageSize*>(p);
-      ptrdiff_t index = (ptr - pool);
-      size_t length = calculateNeededPages(used[index]);
+      FERRET_WITH_LOCK(lock,{
+          PageSize* ptr = static_cast<PageSize*>(p);
+          ptrdiff_t index = (ptr - pool);
+          size_t length = calculateNeededPages(used[index]);
         
-      for(size_t i = index ; i < (index+length); i++)
-        used[i] = 0;
+          for(size_t i = index ; i < (index+length); i++)
+            used[i] = 0;
+        });
     }
   };
 
@@ -4048,7 +4049,6 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
-  - *MemoryPool* - Enable Locking, make it thread safe.
   - *Unit Testing*
     - [[http://www.jera.com/techinfo/jtns/jtn002.html][JTN002 - MinUnit -- a minimal unit testing framework for C]]
   - *Pre/Post conditions* for functions.
@@ -4113,6 +4113,8 @@ Create some dummy libs under /test/modules/,
 
 ** The Rearview
 *** Core
+
+  - *MemoryPool* - Enable Locking, make it thread safe.
   - *Lazy Sequence* - Should cache the result of *rest* and return it
     on subsequent calls.
   - *assert* - https://clojuredocs.org/clojure.core/assert

@@ -2063,19 +2063,21 @@ A boolean object,
   (defobject Boolean
     (data "bool value;")
     (new ("bool b" "value = b;"))
-    (equals "return obj<Boolean>(value == o.cast<Boolean>()->value);")
+    (equals "return obj<Boolean>(value == (bool)o);")
     (toOutputStream
      "if (value)
         fprintf(FERRET_OUTPUT_STREAM, \"true\"); 
       else
       fprintf(FERRET_OUTPUT_STREAM, \"false\"); 
       return nil();")
-    
+    (fns
+     ("bool container" ""
+      "return value;"))
     (post-code "var::operator bool() const {
                   if (m_ptr == nullptr)
                     return false;
                   else if (m_ptr->getType() == runtime::type::Boolean)
-                    return static_cast<Boolean*>(m_ptr)->value;
+                    return static_cast<Boolean*>(m_ptr)->container();
                   else
                     return true;
                  }
@@ -2113,7 +2115,8 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
          args = runtime::cons(data, args);
          data = f.cast<Lambda>()->invoke(args);
        });
-      return data;")))
+      return data;")
+     ("var deref" "" "return data;")))
 #+end_src
 
 Operations on /Atoms/
@@ -2130,7 +2133,7 @@ Operations on /Atoms/
     (swap! a (fn [old curr] curr) newval))
 
   (defn deref [a]
-    "__result = a.cast<Atom>()->data;")
+    "__result = a.cast<Atom>()->deref();")
 #+end_src
 
 *** Interfaces

@@ -2438,13 +2438,16 @@ By default baud rate is *9600 bps*.
   #if defined(__SAM3X8E__)
     # define FERRET_HARDWARE_ARDUINO TRUE
     # define FERRET_HARDWARE_ARDUINO_DUE TRUE
-    # define FERRET_DISABLE_MAIN_FUNCTION true
   #elif defined(__AVR__)
     # define FERRET_HARDWARE_ARDUINO TRUE
     # define FERRET_HARDWARE_ARDUINO_UNO TRUE
-    # define FERRET_DISABLE_MAIN_FUNCTION true
   #else
     # define FERRET_STD_LIB TRUE
+  #endif
+
+  #if defined(FERRET_HARDWARE_ARDUINO)
+    # define FERRET_DISABLE_MAIN_FUNCTION true
+    # define FERRET_SINGLE_THREADED true
   #endif
 #+end_src
 

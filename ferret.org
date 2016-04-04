@@ -2561,7 +2561,7 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
 #+begin_src c++ :tangle no
   #if defined(FERRET_STD_LIB) && !defined(FERRET_SINGLE_THREADED)
    #define FERRET_NEW_LOCK(symbol) std::mutex symbol;
-   #define FERRET_WITH_LOCK(l,code)                            \
+   #define FERRET_WITH_LOCK(lock,code)                         \
      {                                                         \
      std::lock_guard<std::mutex> ferretScopeGuard(lock);       \
      code;                                                     \

@@ -1907,7 +1907,7 @@ Linked list container implementing the seekable interface.
           "next = n; data = d; size = s;"))
 
     (equals
-     "if (size != o.cast<Sequence>()->size)
+     "if (size != o.cast<ISeekable>()->count())
         return obj<Boolean>(false);
 
       var itOther = o;

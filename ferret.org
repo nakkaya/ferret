@@ -2026,8 +2026,7 @@ Strings are represented as a linked list of characters.
            for (int i = --length; i >= 0; i--)
              s = runtime::cons(obj<Number>(str[i]),s);
            data = s;"))
-    (equals
-     "return obj<Boolean>(data.equals(o.cast<String>()->data));")
+    (equals "return obj<Boolean>(container().equals(o.cast<String>()->container()));")
     (toOutputStream
      "FERRET_ITERATE(data,it){ 
        char ch = runtime::first(it).cast<Number>()->as<char>();
@@ -2035,6 +2034,8 @@ Strings are represented as a linked list of characters.
       }
       return nil();")
     (fns
+     ("var container" ""
+      "return data;")
      ("var cons" "var x"
       "return data.cast<ISeekable>()->cons(x);")
      ("var first" ""

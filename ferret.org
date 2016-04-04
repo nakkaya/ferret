@@ -4032,6 +4032,7 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
+  - *MemoryPool* - Enable Locking, make it thread safe.
   - *Lazy Sequence* - Should cache the result of *rest* and return it
     on subsequent calls.
   - *Unit Testing*

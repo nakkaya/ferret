@@ -1947,16 +1947,13 @@ A lazy list container implementing the seekable interface.
 #+begin_src clojure :tangle no
   (defobject LazySequence
     (interface :ISeekable)
-    (data "var seq;"
-          "FERRET_NEW_LOCK(lock)"
-          "var cache;"
-          "bool iterated;")
+    (data "var head;"
+          "var thunk;")
     (new ("var t"
-          "seq = obj<Sequence>(nullptr,t,0);
-           iterated = false;")
+          "thunk = t;")
          ("var d, var t"
-          "seq = obj<Sequence>(d,t,0);
-           iterated = false;"))
+          "head = d;
+           thunk = t;"))
     (equals
      "var itOther = o;
       FERRET_ITERATE(this,it){
@@ -1967,37 +1964,23 @@ A lazy list container implementing the seekable interface.
       return obj<Boolean>(true);")
     (toOutputStream
      "fprintf(FERRET_OUTPUT_STREAM, \"(\");
-        if (!seq.isNil()){ 
-          runtime::first(seq).toOutputStream();
-          FERRET_ITERATE(runtime::rest(var(this)),it){
-            fprintf(FERRET_OUTPUT_STREAM, \" \");
-            runtime::first(it).toOutputStream();
-          }
-        }
-        fprintf(FERRET_OUTPUT_STREAM, \")\");
-        return nil();")
+      head.toOutputStream();
+      FERRET_ITERATE(runtime::rest(this),it){
+        fprintf(FERRET_OUTPUT_STREAM, \" \");
+        runtime::first(it).toOutputStream();
+      }
+      fprintf(FERRET_OUTPUT_STREAM, \")\");
+      return nil();")
     (fns
      ("var cons" "var x"
-      "return obj<LazySequence>(x,runtime::rest(seq));")
+      "return obj<LazySequence>(x,thunk);")
      ("var first" ""
-      "return runtime::first(seq);")
-     ("var iterate" ""
-      "FERRET_WITH_LOCK(lock,{
-        if (iterated)
-         return cache;
-        cache = run(runtime::rest(seq));
-        iterated = true;
-       });
-       return cache;")
+      "return head;")
      ("var rest" ""
-      "return iterate();")
+      "return run(thunk);")
      ("size_t count" ""
-      "size_t acc = 1;
-       var s = iterate();
-       while(!s.isNil()){ 
-        s = runtime::rest(s);
-        acc++;
-       }
+      "size_t acc = 0;
+       FERRET_ITERATE(this,it){ acc++; }
        return acc;")))
 #+end_src
 
@@ -2301,18 +2284,8 @@ reaches zero it will automatically free the Object.
     var(Object* ptr = nullptr) : m_ptr(ptr) { incRef(); }
 
     var(const var& p) : m_ptr(p.m_ptr) { incRef(); }
-
-    var(var&& p) : m_ptr(p.m_ptr) { p.m_ptr = nullptr; }
       
     ~var() { decRef(); }
-
-    var& operator=(var&& p){
-      if (this != &p){
-        m_ptr = p.m_ptr;
-        p.m_ptr = nullptr;
-      }
-      return *this;
-    }
     
     var& operator= (const var& p){
       return *this = p.m_ptr;
@@ -3671,17 +3644,7 @@ All tests are compiled using,
                              (print (first (ints-from 10))
                                     (first (rest (ints-from 10)))
                                     (first (rest (rest (ints-from 10))))
-                                    (lazy-countdown 10))))))
-    (is (= "10 lazy-seq 11"
-           (capture-output '((defn ints-from [n]
-                               (cons n (lazy-seq (print "lazy-seq")
-                                                 (ints-from (inc n)))))
-                             (let [s (ints-from 10)]
-                               (print (first s))
-                               (print " ")
-                               (rest s)
-                               (print " ")
-                               (print (first (rest s)))))))))
+                                    (lazy-countdown 10)))))))
 #+end_src
 
 **** String
@@ -4115,6 +4078,7 @@ Create some dummy libs under /test/modules/,
 *** Core
 
   - *MemoryPool* - Enable Locking, make it thread safe.
+    - Removed - Wasted to much memory.
   - *Lazy Sequence* - Should cache the result of *rest* and return it
     on subsequent calls.
   - *assert* - https://clojuredocs.org/clojure.core/assert

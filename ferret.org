@@ -275,7 +275,7 @@ All Ferret objects derive from a [[Base]] class.
 Interfaces,
 
  - [[Lambda]] - Provides *invoke* for callable objects.
- - [[Seekable]] - Provides *first*, *rest*, *cons*, *count* for [[Seekable]] containers.
+ - [[Seekable]] - Provides *first*, *rest*, *cons* for [[Seekable]] containers.
 
 * Compiler
 
@@ -1065,7 +1065,7 @@ lambda forms.
                 return " (new-lambda-stack
                           (->> nil-dispatch first second)) ".invoke(nil());")
          "")
-       "switch(" args-symbol ".cast<ISeekable>()->count()) {"
+       "switch(runtime::count(" args-symbol ")) {"
        (->> fns
             (map (fn [[count fn]]
                    (if (= count 'true)
@@ -1906,16 +1906,17 @@ Linked list container implementing the seekable interface.
           "next = n; data = d; size = s;"))
 
     (equals
-     "if (size != o.cast<ISeekable>()->count())
-        return obj<Boolean>(false);
-
-      var itOther = o;
+     "var itOther = o;
       FERRET_ITERATE(this,it){
         if (itOther.isNil() || runtime::first(it).equals(runtime::first(itOther))  == false)
           return obj<Boolean>(false);
         itOther = runtime::rest(itOther);
       }
-      return obj<Boolean>(true);")
+
+      if (itOther.isNil())
+        return obj<Boolean>(true);
+      else
+        return obj<Boolean>(false);")
     
     (toOutputStream
      "fprintf(FERRET_OUTPUT_STREAM, \"(\");
@@ -1934,9 +1935,7 @@ Linked list container implementing the seekable interface.
      ("var first" ""
       "return data;")
      ("var rest" ""
-      "return next;")
-     ("size_t count" ""
-      "return size;"))
+      "return next;"))
     (post-code "namespace runtime {
                  var list() { 
                    return obj<Sequence>();
@@ -1991,11 +1990,7 @@ A lazy list container implementing the seekable interface.
      ("var first" ""
       "return head;")
      ("var rest" ""
-      "return run(thunk);")
-     ("size_t count" ""
-      "size_t acc = 0;
-       FERRET_ITERATE(this,it){ acc++; }
-       return acc;")))
+      "return run(thunk);")))
 #+end_src
 
 #+name: runtime-clojure-sequence-object
@@ -2044,8 +2039,6 @@ Strings are represented as a linked list of characters.
       "return runtime::first(data);")
      ("var rest" ""
       "return runtime::rest(data);")
-     ("size_t count" ""
-      "return data.cast<ISeekable>()->count();")
      ("ifdef FERRET_STD_LIB"
       "std::string toString" ""
       "std::stringstream ss;
@@ -2084,6 +2077,10 @@ A boolean object,
                     return true;
                  }
                  var var::equals (var rhs){
+                   if (get() == nullptr && rhs.get() != nullptr)
+                     return obj<Boolean>(false);
+                   if (get() != nullptr && rhs.get() == nullptr)
+                     return obj<Boolean>(false);
                    if (get() == rhs.get())
                      return obj<Boolean>(true);
                    else if (m_ptr->type() != rhs.cast<Object>()->type())
@@ -2149,8 +2146,7 @@ containers.
   (defobject ISeekable
     (interfaces "var cons(var x)"
                 "var first()"
-                "var rest()"
-                "size_t count()")
+                "var rest()")
     (fns ("virtual ~ISeekable" "" "")))
 #+end_src
 
@@ -2162,6 +2158,7 @@ containers.
       var rest(var coll);
       var cons(var x, var seq);
       var nth(var seq, var index);
+      size_t count(var seq);
     }
   }
 #+end_src
@@ -2188,21 +2185,27 @@ containers.
         if (seq.isNil())
           return runtime::list(x);
         if (seq.isType(runtime::type::Sequence)
-            && seq.cast<ISeekable>()->count() == 0)
+            && seq.equals(obj<Sequence>()) == true)
           return runtime::list(x);
         return seq.cast<ISeekable>()->cons(x);
       }
     
       var nth(var seq, var idx){
         int index = idx.cast<Number>()->as<int>();
+        int itIdx = 0;
+        
+        FERRET_ITERATE(seq,it){
+          if (index == itIdx)
+            return runtime::first(it);
+          itIdx++;
+        }
+        return nil();
+      }
 
-        if ( index < 0 || seq.cast<ISeekable>()->count() < idx)
-          return nil();
-      
-        var head = seq;
-        for(int i=0; i < index; i++)
-          head = runtime::rest(head);
-        return runtime::first(head);
+      size_t count(var seq){
+        size_t acc = 0;
+        FERRET_ITERATE(seq,it){ acc++; }
+        return acc;
       }
     }
   }
@@ -2994,9 +2997,10 @@ implementation.
 #+name: runtime-clojure-sequence-count
 #+begin_src clojure :tangle no
   (defn count [s]
-    "if (s.isNil())
-       return obj<Number>(0);
-     __result = obj<Number>((math::container)s.cast<ISeekable>()->count());")
+    (if (or (nil? s)
+            (empty? s))
+      0
+      (reduce inc 0 s)))
 #+end_src
 
 ** Logical Operators
@@ -3573,8 +3577,9 @@ All tests are compiled using,
 
 #+begin_src clojure :tangle no
   (deftest native-core-sequences
-    (is (= "false false true false false"
+    (is (= "false false false true false false"
            (capture-output '((print (= (list ) (list 1 2 3))
+                                    (= (list 1 2 3) (list 1 2))
                                     (= (list 1 2) (list 1 2 3))
                                     (= (list 1 2 3) (list 1 2 3))
                                     (= (list 1 2 3) (list 1 2 4))
@@ -3712,6 +3717,10 @@ All tests are compiled using,
 
 #+begin_src clojure
   (deftest clojure-core-conditionals
+    (is (= "false false true"
+           (capture-output '((print (= nil 1)
+                                    (= 1 nil)
+                                    (= nil nil))))))
     (is (= "2 1 -1 2 2 2 1 2 nil 5"
            (capture-output '((print (if 1 2)
                                     (if (zero? 0) 1 -1)

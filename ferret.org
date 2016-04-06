@@ -2189,7 +2189,7 @@ containers.
         if (seq.isNil())
           return runtime::list(x);
         if (seq.isType(runtime::type::Sequence)
-            && seq.equals(obj<Sequence>()) == true)
+            && seq.equals(runtime::list()) == true)
           return runtime::list(x);
         return seq.cast<ISeekable>()->cons(x);
       }

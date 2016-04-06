@@ -1931,7 +1931,7 @@ Linked list container implementing the seekable interface.
       return nil();")
     (fns
      ("var cons" "var x"
-      "return var(new Sequence(x, this, (size + 1)));")
+      "return obj<Sequence>(x, this, (size + 1));")
      ("var first" ""
       "return data;")
      ("var rest" ""

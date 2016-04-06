@@ -1974,7 +1974,11 @@ A lazy list container implementing the seekable interface.
           return obj<Boolean>(false);
         itOther = runtime::rest(itOther);
       }
-      return obj<Boolean>(true);")
+
+      if (itOther.isNil())
+        return obj<Boolean>(true);
+      else
+        return obj<Boolean>(false);")
     (toOutputStream
      "fprintf(FERRET_OUTPUT_STREAM, \"(\");
       head.toOutputStream();
@@ -3638,6 +3642,10 @@ All tests are compiled using,
 
 #+begin_src clojure
   (deftest native-core-lazy-sequence
+    (is (= "false false true"
+           (capture-output '((print (= (range 10) (range 15))
+                                    (= (range 15) (range 10))
+                                    (= (range 10) (range 10)))))))
     (is (= "10 11 12 (10 9 8 7 6 5 4 3 2 1 0)"
            (capture-output '((let [a 1]
                                (defn lazy-countdown [n]

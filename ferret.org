@@ -1900,10 +1900,9 @@ Linked list container implementing the seekable interface.
   (defobject Sequence
     (interface :ISeekable)
     (data "var next;"
-          "var data;"
-          "size_t size;")
-    (new ("var d = nullptr, var n = nullptr, size_t s = 0"
-          "next = n; data = d; size = s;"))
+          "var data;")
+    (new ("var d = nullptr, var n = nullptr"
+          "next = n; data = d;"))
 
     (equals
      "var itOther = o;
@@ -1920,7 +1919,7 @@ Linked list container implementing the seekable interface.
     
     (toOutputStream
      "fprintf(FERRET_OUTPUT_STREAM, \"(\");
-      if (size != 0){ 
+      if (equals(obj<Sequence>()) == false){ 
         data.toOutputStream();
         FERRET_ITERATE(next,it){
           fprintf(FERRET_OUTPUT_STREAM, \" \");
@@ -1931,7 +1930,7 @@ Linked list container implementing the seekable interface.
       return nil();")
     (fns
      ("var cons" "var x"
-      "return var(new Sequence(x, this, (size + 1)));")
+      "return var(new Sequence(x, this));")
      ("var first" ""
       "return data;")
      ("var rest" ""
@@ -1942,12 +1941,12 @@ Linked list container implementing the seekable interface.
                  }
 
                 var list(var v) { 
-                   return obj<Sequence>(v,nil(),1);
+                   return obj<Sequence>(v,nil());
                  }
         
                  template <typename... Args>
                  var list(var first, Args... args) { 
-                   return obj<Sequence>(first, list(args...), ((sizeof...(args)) + 1));
+                   return obj<Sequence>(first, list(args...));
                  }
                }"))
 #+end_src

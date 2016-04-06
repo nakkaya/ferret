@@ -1307,7 +1307,7 @@ lambda forms.
           using namespace ferret;
 
         #if defined(FERRET_STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS)
-          _star_command_line_args_star_ = obj<Sequence>();
+          _star_command_line_args_star_ = runtime::list();
           for (int i = argc - 1; i > -1 ; i--)
             runtime::cons(obj<String>(argv[i]),_star_command_line_args_star_);
         #endif
@@ -1936,7 +1936,21 @@ Linked list container implementing the seekable interface.
      ("var rest" ""
       "return next;")
      ("size_t count" ""
-      "return size;")))
+      "return size;"))
+    (post-code "namespace runtime {
+                 var list() { 
+                   return obj<Sequence>();
+                 }
+
+                var list(var v) { 
+                   return obj<Sequence>(v,nil(),1);
+                 }
+        
+                 template <typename... Args>
+                 var list(var first, Args... args) { 
+                   return obj<Sequence>(first, list(args...), ((sizeof...(args)) + 1));
+                 }
+               }"))
 #+end_src
 
 **** Lazy Sequence
@@ -2010,7 +2024,7 @@ Strings are represented as a linked list of characters.
           "int length = 0;
            for (length = 0; str[length] != '\\0'; length++);
            length--;
-           var s = runtime::cons(obj<Number>(str[length]),obj<Sequence>());
+           var s = runtime::list(obj<Number>(str[length]));
            for (int i = --length; i >= 0; i--)
              s = runtime::cons(obj<Number>(str[i]),s);
            data = s;"))
@@ -2165,17 +2179,17 @@ containers.
 
       var rest(var coll){
         if (coll.isNil())
-          return obj<Sequence>();
+          return runtime::list();
         else
           return coll.cast<ISeekable>()->rest();
       }
 
       var cons(var x, var seq){
         if (seq.isNil())
-          return obj<Sequence>(x, nil(), 1);
+          return runtime::list(x);
         if (seq.isType(runtime::type::Sequence)
             && seq.cast<ISeekable>()->count() == 0)
-          return obj<Sequence>(x, nil(), 1);
+          return runtime::list(x);
         return seq.cast<ISeekable>()->cons(x);
       }
     
@@ -2235,22 +2249,9 @@ Function invocation,
 #+name: function-invocation-api
 #+begin_src c++ :tangle no
   namespace ferret{
-    var runArgs() { 
-      return nil(); 
-    }
-    
-    var runArgs(var v) { 
-      return obj<Sequence>(v,nil(),1);
-    }
-    
-    template <typename... Args>
-    var runArgs(var first, Args... args) { 
-      return obj<Sequence>(first, runArgs(args...), ((sizeof...(args)) + 1)); 
-    }
-    
     template<typename T, typename... Args>
     var run(T fn, Args... args) {
-      return fn.invoke(runArgs(args...));
+      return fn.invoke(runtime::list(args...));
     }
 
     template<typename T>
@@ -2265,7 +2266,7 @@ Function invocation,
 
     template<typename... Args>
     var run(var fn, Args... args) {
-      return fn.cast<Lambda>()->invoke(runArgs(args...));
+      return fn.cast<Lambda>()->invoke(runtime::list(args...));
     }
   }
 #+end_src
@@ -2962,7 +2963,7 @@ implementation.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn list [& xs] "if (xs.isNil())
-                       __result = obj<Sequence>();
+                       __result = runtime::list();
                      else
                        __result = xs;")
 
@@ -2973,7 +2974,7 @@ implementation.
 
   (defn rest [x] "var r = runtime::rest(x);
                   if (r.isNil())
-                    return obj<Sequence>();
+                    return runtime::list();
                   else 
                     __result = r;")
 

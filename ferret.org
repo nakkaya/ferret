@@ -235,10 +235,37 @@ This is a literate program, inspired by Donald Knuth (Knuth, Donald
 intended to be read like a novel from cover to cover. The ideas are
 expressed clearly but they are grounded in the actual source code.
 
+** Building From Sources
+
 The code in this document is the executable source. Use the *build*
 script in the source distribution to extract source code.
 
 The latest sources are available at the Ferret [[https://git.nakkaya.com/nakkaya/ferret][git repo]].
+
+Dependencies,
+
+ - Java
+ - Emacs >= 24.5
+ - Clojure
+ - Leiningen
+
+Assuming all of the above is in your path just run,
+
+#+BEGIN_EXAMPLE
+  ./build
+#+END_EXAMPLE
+
+This will extract the source from this file to *src/* directory and
+build the *jar* and *executable* distributions. *build* script assumes
+it is running on a **NIX* based system if not, open this file using
+*emacs* and run,
+
+#+BEGIN_EXAMPLE
+  M-x org-babel-tangle
+#+END_EXAMPLE
+
+that will extract the source code then you can threat it as any other
+Clojure/Lein project.
 
 ** Implementation Notes
 

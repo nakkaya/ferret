@@ -2756,20 +2756,13 @@ examples.
   (defn system-exit [code]
     "std::exit(code.cast<Number>()->as<int>());")
 
-  (defnative memory-pool-free-pages []
+  (defnative memory-pool-free-space []
     (on "defined FERRET_MEMORY_POOL_SIZE"
         "int count = 0;
          for(int i = 0; i < FERRET_MEMORY_POOL_SIZE; i++)
            if(ProgramMemory.used[i] == false)
              count++;
-         __result = obj<Number>(count);"))
-
-  (defnative memory-pool-print-snapshot []
-    (on "defined FERRET_MEMORY_POOL_SIZE"
-        "for(int i = 0; i < FERRET_MEMORY_POOL_SIZE; i++)
-           fprintf(FERRET_OUTPUT_STREAM, \"%d\",ProgramMemory.used.get(i));
-        fprintf(FERRET_OUTPUT_STREAM, \"\\n\");
-         __result = nil();"))
+         __result = obj<Number>((math::container)(count*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
 
   (defn memory-sizeof-ferret-objects []
     (println "var:" ((fn [] "__result = obj<Number>((math::container)sizeof(var));")))
@@ -2778,6 +2771,7 @@ examples.
     (println "Number:" ((fn [] "__result = obj<Number>((math::container)sizeof(Number));")))
     (println "Keyword:" ((fn [] "__result = obj<Number>((math::container)sizeof(Keyword));")))
     (println "Sequence:" ((fn [] "__result = obj<Number>((math::container)sizeof(Sequence));")))
+    (println "LazySequence:" ((fn [] "__result = obj<Number>((math::container)sizeof(LazySequence));")))
     (println "String:" ((fn [] "__result = obj<Number>((math::container)sizeof(String));")))
     (println "Boolean:" ((fn [] "__result = obj<Number>((math::container)sizeof(Boolean));")))
     (println "Lambda:" ((fn [] "__result = obj<Number>((math::container)sizeof(Lambda));")))
@@ -3599,7 +3593,17 @@ All tests are compiled using,
               ((fn [] "std::cout << (nullptr != mem.allocate(sizeof(size_t)*6)) << \" \";"))
               ((fn [] "std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";"))
               ((fn [] "std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";"))
-              ((fn [] "std::cout << (nullptr == mem.allocate(sizeof(size_t)*10)) << \" \";")))))))
+              ((fn [] "std::cout << (nullptr == mem.allocate(sizeof(size_t)*10)) << \" \";"))))))
+    (is (= "496  304"
+           (capture-output
+            '((configure-runtime! FERRET_MEMORY_POOL_SIZE 512
+                                  FERRET_MEMORY_POOL_PAGE_TYPE char
+                                  MEMORY_POOL_USED_ARRAY_TYPE int
+                                  FERRET_DISABLE_COMMAND_LINE_ARGUMENTS true)
+              (print (memory-pool-free-space))
+              (let [a 1
+                    b 2]
+                (print " " (memory-pool-free-space))))))))
 #+end_src
 
 *** Object System
@@ -4071,7 +4075,6 @@ Create some dummy libs under /test/modules/,
 
   - *Pointer* - Ability to call cleanup function before *GC*
   - *Debugging* - Add some debugging macros, native side.
-  - *Memory Pool* - Functions report in bytes.
   - *Unit Testing*
     - [[http://www.jera.com/techinfo/jtns/jtn002.html][JTN002 - MinUnit -- a minimal unit testing framework for C]]
   - *Shared Library* - Ability to be run as a shared lib.
@@ -4139,6 +4142,7 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Memory Pool* - Functions report in bytes.
   - *Sequence* - Remove size from object.
   - *MemoryPool* - Enable Locking, make it thread safe.
     - Removed - Wasted to much memory.

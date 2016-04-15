@@ -1897,13 +1897,28 @@ Linked list container implementing the seekable interface.
 
 #+name: runtime-clojure-sequence-object
 #+begin_src clojure :tangle no
+  (defobject EmptySequence
+    (interface :ISeekable)
+    (equals "(void)o; 
+             return obj<Boolean>(true);")
+    (toOutputStream
+     "fprintf(FERRET_OUTPUT_STREAM, \"()\");
+      return nil();")
+    (fns
+     ("var cons" "var"
+      "return this;")
+     ("var first" ""
+      "return nil();")
+     ("var rest" ""
+      "return nil();"))
+    (force-type))
+
   (defobject Sequence
     (interface :ISeekable)
     (data "var next;"
-          "var data;"
-          "size_t size;")
-    (new ("var d = nullptr, var n = nullptr, size_t s = 0"
-          "next = n; data = d; size = s;"))
+          "var data;")
+    (new ("var d = nullptr, var n = nullptr"
+          "next = n; data = d;"))
 
     (equals
      "var itOther = o;
@@ -1920,34 +1935,31 @@ Linked list container implementing the seekable interface.
     
     (toOutputStream
      "fprintf(FERRET_OUTPUT_STREAM, \"(\");
-      if (size != 0){ 
         data.toOutputStream();
         FERRET_ITERATE(next,it){
           fprintf(FERRET_OUTPUT_STREAM, \" \");
           runtime::first(it).toOutputStream();
         }
-      }
       fprintf(FERRET_OUTPUT_STREAM, \")\");
       return nil();")
     (fns
      ("var cons" "var x"
-      "return obj<Sequence>(x, this, (size + 1));")
+      "return obj<Sequence>(x, this);")
      ("var first" ""
       "return data;")
      ("var rest" ""
       "return next;"))
     (post-code "namespace runtime {
                  var list() { 
-                   return obj<Sequence>();
+                   return obj<EmptySequence>();
                  }
-
-                var list(var v) { 
-                   return obj<Sequence>(v,nil(),1);
+                 var list(var v) { 
+                   return obj<Sequence>(v,nil());
                  }
         
                  template <typename... Args>
                  var list(var first, Args... args) { 
-                   return obj<Sequence>(first, list(args...), ((sizeof...(args)) + 1));
+                   return obj<Sequence>(first, list(args...));
                  }
                }"))
 #+end_src
@@ -2188,8 +2200,7 @@ containers.
       var cons(var x, var seq){
         if (seq.isNil())
           return runtime::list(x);
-        if (seq.isType(runtime::type::Sequence)
-            && seq.equals(runtime::list()) == true)
+        if (seq.equals(runtime::list()) == true)
           return runtime::list(x);
         return seq.cast<ISeekable>()->cons(x);
       }
@@ -3581,8 +3592,9 @@ All tests are compiled using,
 
 #+begin_src clojure :tangle no
   (deftest native-core-sequences
-    (is (= "false false false true false false"
+    (is (= "false false false false true false false"
            (capture-output '((print (= (list ) (list 1 2 3))
+                                    (= (list ) (list nil))
                                     (= (list 1 2 3) (list 1 2))
                                     (= (list 1 2) (list 1 2 3))
                                     (= (list 1 2 3) (list 1 2 3))

@@ -4073,6 +4073,7 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
+  - *Build Configuration* - Download files (header, source) from URL.
   - *Pointer* - Ability to call cleanup function before *GC*
   - *Debugging* - Add some debugging macros, native side.
   - *Unit Testing*

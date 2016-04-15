@@ -4069,6 +4069,7 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
+  - *Pointer* - Ability to call cleanup function before *GC*
   - *Debugging* - Add some debugging macros, native side.
   - *Memory Pool* - Functions report in bytes.
   - *Unit Testing*

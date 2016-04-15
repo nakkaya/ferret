@@ -3292,9 +3292,9 @@ Takes a function and returns the number of millis took.
 
 #+name: runtime-clojure-misc
 #+begin_src clojure :tangle no
-  (defn benchmark [f times]
-    (let [values (map (fn [_] (time-fn f)) (range times))]
-      (/ (apply + values) (count values))))
+  (defn benchmark [f n]
+    (let [values (map (fn [_] (time-fn f)) (range n))]
+      (floor (/ (apply + values) n))))
 #+end_src
 
 ** State Machines

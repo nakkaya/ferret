@@ -4069,7 +4069,6 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
-  - *Sequence* - Remove size from object.
   - *Debugging* - Add some debugging macros, native side.
   - *Memory Pool* - Functions report in bytes.
   - *Unit Testing*
@@ -4139,6 +4138,7 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Sequence* - Remove size from object.
   - *MemoryPool* - Enable Locking, make it thread safe.
     - Removed - Wasted to much memory.
   - *Lazy Sequence* - Should cache the result of *rest* and return it

@@ -194,12 +194,13 @@ return the result of *getchar* as a *Number* , on ANY other system it
 will return *nil*. You can have multiple *on* blocks per *defnative*,
 
 #+begin_src clojure
-  (defnative sleep [timeout]
-    (on "defined GNU_GCC"
-        ("unistd.h")
-        "::sleep(timeout.cast<Number>()->as<int>());")
-    (on "defined AVR_GCC"
-        "::delay(timeout.cast<Number>()->as<int>());"))
+  (defnative sleep [t]
+    (on "defined FERRET_STD_LIB"
+        ("chrono" "thread")
+        "auto duration = std::chrono::milliseconds(t.cast<Number>()->as<int>());
+         std::this_thread::sleep_for(duration);")
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "::delay(millis.cast<Number>()->as<int>());"))
 #+end_src
 
 This way a single function can be defined for multiple systems.
@@ -2720,13 +2721,6 @@ examples.
 #+begin_src clojure :tangle no
   (defn identity [x] x)
 
-  (defnative sleep [millis]
-    (on "defined FERRET_STD_LIB"
-        ("unistd.h")
-        "::usleep(millis.cast<Number>()->as<int>() * 1000L);")
-    (on "defined FERRET_HARDWARE_ARDUINO"
-        "::delay(millis.cast<Number>()->as<int>());"))
-
   (defnative get-char []
     (on "defined FERRET_STD_LIB"
         "__result = obj<Number>(getchar());"))
@@ -2776,27 +2770,6 @@ examples.
     (println "Boolean:" ((fn [] "__result = obj<Number>((math::container)sizeof(Boolean));")))
     (println "Lambda:" ((fn [] "__result = obj<Number>((math::container)sizeof(Lambda));")))
     (println "Atom:" ((fn [] "__result = obj<Number>((math::container)sizeof(Atom));"))))
-#+end_src
-
-Takes a function and returns the number of millis took.
-
-#+name: runtime-clojure-misc
-#+begin_src clojure :tangle no
-  (defnative time [f]
-    (on "defined FERRET_STD_LIB"
-        ("sys/time.h")
-        "struct timeval  te;
-         gettimeofday(&te, NULL);
-         unsigned long begin = (int)(te.tv_sec*1000LL + te.tv_usec/1000); 
-         run(f);
-         gettimeofday(&te, NULL);
-         unsigned long end = (int)(te.tv_sec*1000LL + te.tv_usec/1000); 
-         __result = obj<Number>((math::container)(end - begin));")
-    (on "defined FERRET_HARDWARE_ARDUINO"
-        "unsigned long begin = millis();
-         run(f);
-         unsigned long end = millis();
-         __result = obj<Number>((math::container)(end - begin));"))
 #+end_src
 
 Threads the expr through the forms. Inserts x as the
@@ -3278,6 +3251,50 @@ Runs the given lambda in a thread,
         "std::thread t([f](){return run(f);});
          t.detach();
          __result = nil();"))
+#+end_src
+
+** Timing
+
+Return current time in milliseconds,
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no
+  (defnative millis [f]
+    (on "defined FERRET_STD_LIB"
+        "auto now = std::chrono::system_clock::now();
+         auto epoch = now.time_since_epoch();
+         auto time = std::chrono::duration_cast<std::chrono::milliseconds>(epoch).count();
+         __result = obj<Number>((math::container) time);")
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "__result = obj<Number>((math::container)millis());"))
+#+end_src
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no
+  (defnative sleep [t]
+    (on "defined FERRET_STD_LIB"
+        ("chrono" "thread")
+        "auto duration = std::chrono::milliseconds(t.cast<Number>()->as<int>());
+         std::this_thread::sleep_for(duration);")
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "::delay(millis.cast<Number>()->as<int>());"))
+#+end_src
+
+Takes a function and returns the number of millis took.
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no
+  (defn time-fn [f]
+    (let [start (millis)]
+      (f)
+      (- (millis) start)))
+#+end_src
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no
+  (defn benchmark [f times]
+    (let [values (map (fn [_] (time-fn f)) (range times))]
+      (/ (apply + values) (count values))))
 #+end_src
 
 ** State Machines
@@ -3997,6 +4014,24 @@ Create some dummy libs under /test/modules/,
                              (thread (print-some 0 "Thread-1"))
                              (thread (print-some 1 "Thread-2"))
                              (sleep 3))))))
+#+end_src
+
+#+begin_src clojure :tangle no
+  (deftest timing-operations-test
+    (is (= "true true true"
+           (capture-output '((let [now (millis)]
+                               (sleep 100)
+                               (print (>= (- (millis) now) 100)))
+                             (print " ")
+                             (print (>= (time-fn (fn []
+                                                   (sleep 100)
+                                                   (+ 1 1)))
+                                        100))
+                             (print " ")
+                             (print (>= (benchmark (fn []
+                                                     (sleep 10)
+                                                     (+ 1 1)) 10)
+                                        10)))))))
 #+end_src
 
 #+begin_src clojure :tangle no

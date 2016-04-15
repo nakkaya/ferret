@@ -4121,6 +4121,11 @@ Create some dummy libs under /test/modules/,
     right, i.e. using exceptions.
   - *MemoryPool* - Out Of Memory should not be fatal.
     - Seperate static critical data structures to a seperate pool.
+  - *MemoryPool* - Ability to run functions on different Memory Pools.
+    - Will improve Safety by fixing the above issue.
+    - Will improve data locality.
+    - Optionally disable GC for the Memory Pool to improve performance since
+      whole Memory Pool can be GC ed when done.
   - *Ranged Numbers* - This type is an int but can only be 1-12.
   - *Safety when used in ISR*.
   - *Escape Analysis* for other types. Escape analysis is only used

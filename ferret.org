@@ -4108,7 +4108,6 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
-  - *Benchmarking* - Add a benchmarking function.
   - *Build Configuration* - Download files (header, source) from URL.
   - *Pointer* - Ability to call cleanup function before *GC*
   - *Debugging* - Add some debugging macros, native side.
@@ -4184,6 +4183,7 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Benchmarking* - Add a benchmarking function.
   - *Memory Pool* - Functions report in bytes.
   - *Sequence* - Remove size from object.
   - *MemoryPool* - Enable Locking, make it thread safe.

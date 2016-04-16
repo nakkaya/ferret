@@ -3259,7 +3259,7 @@ Return current time in milliseconds,
 
 #+name: runtime-clojure-misc
 #+begin_src clojure :tangle no
-  (defnative millis [f]
+  (defnative millis []
     (on "defined FERRET_STD_LIB"
         "auto now = std::chrono::system_clock::now();
          auto epoch = now.time_since_epoch();
@@ -3268,6 +3268,8 @@ Return current time in milliseconds,
     (on "defined FERRET_HARDWARE_ARDUINO"
         "__result = obj<Number>((math::container)millis());"))
 #+end_src
+
+Sleep current thread for *t* seconds,
 
 #+name: runtime-clojure-misc
 #+begin_src clojure :tangle no
@@ -3280,7 +3282,8 @@ Return current time in milliseconds,
         "::delay(millis.cast<Number>()->as<int>());"))
 #+end_src
 
-Takes a function and returns the number of millis took.
+Takes a function *f* and returns the number of milliseconds it takes
+to run,
 
 #+name: runtime-clojure-misc
 #+begin_src clojure :tangle no
@@ -3289,6 +3292,9 @@ Takes a function and returns the number of millis took.
       (f)
       (- (millis) start)))
 #+end_src
+
+Runs the function *f* *n* times and return the average time it takes
+function *f* to run in milliseconds,
 
 #+name: runtime-clojure-misc
 #+begin_src clojure :tangle no

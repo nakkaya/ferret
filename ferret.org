@@ -2915,6 +2915,7 @@ implementation.
 #+end_src
 
 ** Sequence
+*** map
 
 #+name: runtime-clojure-sequence-lazy
 #+begin_src clojure :tangle no
@@ -2923,6 +2924,8 @@ implementation.
       (cons (f (first col))
             (lazy-seq (map f (rest col))))))
 #+end_src
+
+*** range
 
 #+name: runtime-clojure-sequence-lazy
 #+begin_src clojure :tangle no
@@ -2935,6 +2938,8 @@ implementation.
                   (range (inc low) high))))))
 #+end_src
 
+*** take
+
 #+name: runtime-clojure-sequence-lazy
 #+begin_src clojure :tangle no
   (defn take [n coll]
@@ -2943,6 +2948,8 @@ implementation.
         (cons (first coll)
               (lazy-seq (take (- n 1) (rest coll)))))))
 #+end_src
+
+*** concat
 
 #+name: runtime-clojure-sequence-lazy
 #+begin_src clojure :tangle no
@@ -2955,6 +2962,8 @@ implementation.
        (cons (first x) (lazy-seq (concat (rest x) y)))
        (concat y))))
 #+end_src
+
+*** reduce
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
@@ -2972,36 +2981,80 @@ implementation.
       return acc;"))
 #+end_src
 
+*** list
+
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn list [& xs] "if (xs.isNil())
                        __result = runtime::list();
                      else
                        __result = xs;")
+#+end_src
 
+*** list?
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
   (defn list? [x] "__result = obj<Boolean>(x.isType(runtime::type::Sequence));")
+#+end_src
 
+*** empty?
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
   (defn empty? [x]
     (= (list ) x))
+#+end_src
 
+*** rest
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
   (defn rest [x] "var r = runtime::rest(x);
                   if (r.isNil())
                     return runtime::list();
                   else 
                     __result = r;")
+#+end_src
 
+*** nth
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
   (defn nth [coll index] "__result = runtime::nth(coll,index);")
+#+end_src
 
+*** cons
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
   (defn cons [x seq] "__result = runtime::cons(x, seq);")
+#+end_src
 
+*** apply
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
   (defn apply [f args] "__result = f.cast<Lambda>()->invoke(args);")
+#+end_src
 
+*** conj
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
   (defn conj [coll & xs]
     (reduce (fn[h v] (cons v h)) (if (nil? coll) (list) coll) xs))
+#+end_src
 
+*** reverse
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
   (defn reverse [s]
     (reduce conj (list) s))
 #+end_src
+
+*** count
 
 #+name: runtime-clojure-sequence-count
 #+begin_src clojure :tangle no

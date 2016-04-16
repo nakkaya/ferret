@@ -2688,7 +2688,7 @@ Embed compilations options, (build command, extra source files etc.)
 
 ** Native Functions
 
-Allows a function to be defined for multiple platforms see [[FFI]] for
+Allows a function to be defined for multiple platforms see [[Accessing C,C++ Libraries]] for
 examples.
 
 #+name: runtime-clojure-defn

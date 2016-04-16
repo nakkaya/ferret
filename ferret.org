@@ -3173,6 +3173,16 @@ implementation.
     "if (x)
        return obj<Boolean>(false);
      return obj<Boolean>(true);")
+
+  (defn true? [x]
+    "if (x)
+       return obj<Boolean>(true);
+     return obj<Boolean>(false);")
+
+  (defn false? [x]
+    "if (!x)
+       return obj<Boolean>(true);
+     return obj<Boolean>(false);")
 #+end_src
 
 ** Math
@@ -3882,7 +3892,10 @@ All tests are compiled using,
                                     (if-let [a nil]
                                       a)
                                     (if-let [a 5]
-                                      a)))))))
+                                      a))))))
+    (is (= "true false false true"
+           (capture-output '((print (true? true) (true? false)
+                                    (false? true) (false? false)))))))
 #+end_src
 
 *** Logical Operators

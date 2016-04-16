@@ -3269,7 +3269,7 @@ Return current time in milliseconds,
         "__result = obj<Number>((math::container)millis());"))
 #+end_src
 
-Sleep current thread for *t* seconds,
+Sleep current thread for *t* milliseconds,
 
 #+name: runtime-clojure-misc
 #+begin_src clojure :tangle no

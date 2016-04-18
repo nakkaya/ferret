@@ -3014,7 +3014,9 @@ implementation.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn empty? [x]
-    (= (list ) x))
+    (if (nil? x)
+      true
+      (= (list ) x)))
 #+end_src
 
 *** rest
@@ -3074,6 +3076,19 @@ implementation.
             (empty? s))
       0
       (reduce inc 0 s)))
+#+end_src
+
+*** filter
+
+#+name: runtime-clojure-sequence-lazy
+#+begin_src clojure :tangle no
+  (defn filter [pred coll]
+    (if (not (empty? coll))
+      (let [[f & r] coll]
+        (if (pred f)
+          (cons f (filter pred r))
+          (filter pred r)))
+      coll))
 #+end_src
 
 ** Logical Operators
@@ -3782,7 +3797,12 @@ All tests are compiled using,
                                     (drop 1 (list 1 2 3 4))
                                     (drop 2 (list 1 2 3 4))
                                     (drop 4 (list 1 2 3 4))
-                                    (drop 5 (list 1 2 3 4))))))))
+                                    (drop 5 (list 1 2 3 4)))))))
+    (is (= "(true true) (false false) (false false false) (true true)"
+           (capture-output '((print (filter true? (list true false true false))
+                                    (filter false? (list true false true false))
+                                    (filter false? (list true false true false false))
+                                    (filter (fn [x] (not (false? x))) (list true false true false false))))))))
 #+end_src
 
 **** Lazy Sequence

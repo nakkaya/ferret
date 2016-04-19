@@ -2678,146 +2678,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
     (list 'def name (cons 'fn `~body)))
 #+end_src
 
-** Native Declarations
-
-Include native headers, (*.h* files)
-
-#+name: runtime-clojure-defn
-#+begin_src clojure :tangle no
-  (defmacro native-header [& body]
-    (cons 'native-declare
-          (->> (map #(if (symbol? %)
-                       (str "#include \"" (str %) ".h\"\n")
-                       (str "#include \"" (str %) "\"\n"))
-                    body)
-               (apply str)
-               (list))))
-#+end_src
-
-Configure Ferret Runtime options, (memory pooling, math containers etc.)
-
-#+name: runtime-clojure-defn
-#+begin_src clojure :tangle no
-  (defmacro configure-runtime! [& body]
-    (cons 'native-define
-          (->> (partition 2 body)
-               (map #(str "#define " (first %) " " (second %) "\n"))
-               (list))))
-#+end_src
-
-Embed compilations options, (build command, extra source files etc.)
-
-#+name: runtime-clojure-defn
-#+begin_src clojure :tangle no
-  (defmacro configure-ferret! [& body]
-    (list 'native-define (str "// Ferret Build Configuration Begin\n"
-                              "//" (str (apply hash-map body)) "\n"
-                              "// Ferret Build Configuration End\n")))
-#+end_src
-
-** Native Functions
-
-Allows a function to be defined for multiple platforms see [[Accessing C,C++ Libraries]] for
-examples.
-
-#+name: runtime-clojure-defn
-#+begin_src clojure :tangle no
-  (defmacro defnative [name args & form]
-    (let [includes (->> (filter #(seq? (nth % 2)) form)
-                        (map #(cons (nth % 1) (apply list (nth % 2))))
-                        (map (fn [form]
-                               (let [[guard & headers] form]
-                                 (str "\n#if " guard " \n"
-                                      (apply str (map #(str "#include \"" % "\"\n") headers))
-                                      "#endif\n"))))
-                        (map #(list 'native-declare %)))
-          body (->> (map #(vector (second %) (last %)) form)
-                    (map #(str "\n#if " (first %) " \n"
-                               (second %)
-                               "\n#endif\n"))
-                    (apply str))
-          pre-ample (->> (map #(vector (second %) (drop-last (drop 3 %))) form)
-                         (map #(str "\n#if " (first %) " \n"
-                                    (apply str (map (fn [line] (str line "\n")) (second %)))
-                                    "\n#endif\n"))
-                         (map #(list 'native-declare %)))]
-      (list 'def name (cons 'fn* `( ~args ~@includes ~@pre-ample  ~body)))))
-#+end_src
-
-** Misc
-
-#+name: runtime-clojure-misc
-#+begin_src clojure :tangle no
-  (defn identity [x] x)
-
-  (defnative get-char []
-    (on "defined FERRET_STD_LIB"
-        "__result = obj<Number>(getchar());"))
-
-  (defmacro defcallback [callback out in & pass-vars]
-    (list 'do
-          (list 'native-declare
-                `~(str "\n" out " " (symbol-conversion callback) "_callack" "(" in "){\n"
-                       "run(" (str (symbol-conversion callback) "_callback_fn")
-                       (str \, (apply str (interpose " , " (reverse pass-vars)))) ");"
-                       "\n}\n"))
-          (list 'def `~(symbol (str callback "-callback-fn")) `~callback)))
-
-  (defnative sh [cmd]
-    (on "defined FERRET_STD_LIB"
-        ("memory")
-        "std::shared_ptr<FILE> pipe(popen(cmd.cast<String>()->toCString(), \"r\"), pclose);
-         if (!pipe) 
-            __result = nil();
-         char buffer[128];
-         std::string result = \"\";
-         while (!feof(pipe.get()))
-          if (fgets(buffer, 128, pipe.get()) != NULL)
-           result += buffer;
-         __result = obj<String>(result.c_str());"))
-
-  (defn system-exit [code]
-    "std::exit(code.cast<Number>()->as<int>());")
-
-  (defnative memory-pool-free-space []
-    (on "defined FERRET_MEMORY_POOL_SIZE"
-        "int count = 0;
-         for(int i = 0; i < FERRET_MEMORY_POOL_SIZE; i++)
-           if(ProgramMemory.used[i] == false)
-             count++;
-         __result = obj<Number>((math::container)(count*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
-
-  (defn memory-sizeof-ferret-objects []
-    (println "var:" ((fn [] "__result = obj<Number>((math::container)sizeof(var));")))
-    (println "Object:" ((fn [] "__result = obj<Number>((math::container)sizeof(Object));")))
-    (println "Pointer:" ((fn [] "__result = obj<Number>((math::container)sizeof(Pointer));")))
-    (println "Number:" ((fn [] "__result = obj<Number>((math::container)sizeof(Number));")))
-    (println "Keyword:" ((fn [] "__result = obj<Number>((math::container)sizeof(Keyword));")))
-    (println "Sequence:" ((fn [] "__result = obj<Number>((math::container)sizeof(Sequence));")))
-    (println "LazySequence:" ((fn [] "__result = obj<Number>((math::container)sizeof(LazySequence));")))
-    (println "String:" ((fn [] "__result = obj<Number>((math::container)sizeof(String));")))
-    (println "Boolean:" ((fn [] "__result = obj<Number>((math::container)sizeof(Boolean));")))
-    (println "Lambda:" ((fn [] "__result = obj<Number>((math::container)sizeof(Lambda));")))
-    (println "Atom:" ((fn [] "__result = obj<Number>((math::container)sizeof(Atom));"))))
-#+end_src
-
-Threads the expr through the forms. Inserts x as the
-last item in the first form, making a list of it if it is not a
-list already. If there are more forms, inserts the first form as the
-last item in second form, etc.
-
-#+name: runtime-clojure-misc-thread-macro
-#+begin_src clojure :tangle no
-  (defmacro ->> [x & forms]
-    (loop [x x, forms forms]
-      (if forms
-        (let [form (first forms)
-              threaded (if (seq? form)
-                         `(~(first form) ~@(next form)  ~x)
-                         (list form x))]
-          (recur threaded (next forms)))
-        x)))
-#+end_src
+** Functions
 
 Multi arity functions are handled by the /fn/ macro. There are two
 ways to define a function. For single arity functions it accepts the
@@ -2841,7 +2702,7 @@ A multi arity function is a function that counts the number of its
 arguments and then dispatches on the number of arguments to each
 implementation.
 
-#+name: runtime-clojure-misc-thread-macro
+#+name: runtime-clojure-fn-macro
 #+begin_src clojure :tangle no
   (defmacro fn [& body]
     (if (vector? (first body))
@@ -2900,6 +2761,41 @@ implementation.
   <<runtime-clojure-println>>
 #+end_src
 
+*** get-char
+
+#+name: runtime-clojure-console-io
+#+begin_src clojure :tangle no
+  (defnative get-char []
+    (on "defined FERRET_STD_LIB"
+        "__result = obj<Number>(getchar());"))
+#+end_src
+
+*** sh
+
+#+name: runtime-clojure-console-io
+#+begin_src clojure :tangle no
+  (defnative sh [cmd]
+    (on "defined FERRET_STD_LIB"
+        ("memory")
+        "std::shared_ptr<FILE> pipe(popen(cmd.cast<String>()->toCString(), \"r\"), pclose);
+         if (!pipe) 
+            __result = nil();
+         char buffer[128];
+         std::string result = \"\";
+         while (!feof(pipe.get()))
+          if (fgets(buffer, 128, pipe.get()) != NULL)
+           result += buffer;
+         __result = obj<String>(result.c_str());"))
+#+end_src
+
+*** system-exit
+
+#+name: runtime-clojure-console-io
+#+begin_src clojure :tangle no
+  (defn system-exit [code]
+    "std::exit(code.cast<Number>()->as<int>());")
+#+end_src
+
 ** Looping
 *** doseq
 
@@ -2922,12 +2818,18 @@ implementation.
 #+end_src
 
 ** Conditionals
+*** when
 
 #+name: runtime-clojure-conditionals
 #+begin_src clojure :tangle no
   (defmacro when [test & body]
     (list 'if test (cons 'do body)))
+#+end_src
 
+*** cond
+
+#+name: runtime-clojure-conditionals
+#+begin_src clojure :tangle no
   (defmacro cond
     [& clauses]
     (when clauses
@@ -2937,17 +2839,32 @@ implementation.
               (throw (IllegalArgumentException.
                       "cond requires an even number of forms")))
             (cons 'cond (next (next clauses))))))
+#+end_src
 
-  (defmacro while [test & body]
-    (list '_while_ (list 'fn* [] test) (cons 'fn* `( [] ~@body))))
+*** while
 
+#+name: runtime-clojure-conditionals
+#+begin_src clojure :tangle no
   (defn _while_ [pred fn]
     "while(run(pred))
        run(fn);")
 
+  (defmacro while [test & body]
+    (list '_while_ (list 'fn* [] test) (cons 'fn* `( [] ~@body))))
+#+end_src
+
+*** forever
+
+#+name: runtime-clojure-conditionals
+#+begin_src clojure :tangle no
   (defmacro forever [& body]
     (cons 'while `(true  ~@body)))
+#+end_src
 
+*** if-let
+
+#+name: runtime-clojure-conditionals
+#+begin_src clojure :tangle no
   (defmacro if-let
     ([bindings then]
      `(if-let ~bindings ~then nil))
@@ -2958,6 +2875,166 @@ implementation.
             (let [~form temp#]
               ~then)
             ~else)))))
+#+end_src
+
+** Logical Operators
+*** =
+
+#+name: runtime-clojure-logical-operators
+#+begin_src clojure :tangle no
+  (defn = [& args]
+    "var curr = runtime::first(args);
+     FERRET_ITERATE(runtime::rest(args),it){
+      var first = runtime::first(it);
+      if (curr.equals(first) == false)
+        return obj<Boolean>(false);
+      curr = first;
+     }
+     return obj<Boolean>(true);")
+#+end_src
+
+*** not=
+
+#+name: runtime-clojure-logical-operators
+#+begin_src clojure :tangle no
+  (defmacro not= [& test]
+    (list 'not (cons '= `( ~@test))))
+#+end_src
+
+*** <
+
+#+name: runtime-clojure-logical-operators
+#+begin_src clojure :tangle no
+  (defn <
+    ([] true)
+    ([x] true)
+    ([a b]
+     "math::container an = a.cast<Number>()->getNumerator();
+      math::container adn = a.cast<Number>()->getDenominator();
+
+      math::container bn = b.cast<Number>()->getNumerator();
+      math::container bdn = b.cast<Number>()->getDenominator();
+
+      __result = obj<Boolean>((an * bdn) < (bn * adn));")
+    ([a b & more]
+     (if (< a b)
+       (apply < (cons b more))
+       false)))
+#+end_src
+
+*** >
+
+#+name: runtime-clojure-logical-operators
+#+begin_src clojure :tangle no
+  (defn >
+    ([] true)
+    ([x] true)
+    ([a b]
+     "math::container an = a.cast<Number>()->getNumerator();
+      math::container adn = a.cast<Number>()->getDenominator();
+
+      math::container bn = b.cast<Number>()->getNumerator();
+      math::container bdn = b.cast<Number>()->getDenominator();
+
+      __result = obj<Boolean>((an * bdn) > (bn * adn));")
+    ([a b & more]
+     (if (> a b)
+       (apply > (cons b more))
+       false)))
+#+end_src
+
+*** >=
+
+#+name: runtime-clojure-logical-operators
+#+begin_src clojure :tangle no
+  (defn >=
+    ([] true)
+    ([x] true)
+    ([a b]
+     "math::container an = a.cast<Number>()->getNumerator();
+      math::container adn = a.cast<Number>()->getDenominator();
+
+      math::container bn = b.cast<Number>()->getNumerator();
+      math::container bdn = b.cast<Number>()->getDenominator();
+
+      __result = obj<Boolean>((an * bdn) >= (bn * adn));")
+    ([a b & more]
+     (if (>= a b)
+       (apply >= (cons b more))
+       false)))
+#+end_src
+
+*** <=
+
+#+name: runtime-clojure-logical-operators
+#+begin_src clojure :tangle no
+  (defn <=
+    ([] true)
+    ([x] true)
+    ([a b]
+     "math::container an = a.cast<Number>()->getNumerator();
+      math::container adn = a.cast<Number>()->getDenominator();
+
+      math::container bn = b.cast<Number>()->getNumerator();
+      math::container bdn = b.cast<Number>()->getDenominator();
+
+      __result = obj<Boolean>((an * bdn) <= (bn * adn));")
+    ([a b & more]
+     (if (<= a b)
+       (apply <= (cons b more))
+       false)))
+#+end_src
+
+*** and
+
+#+name: runtime-clojure-logical-operators
+#+begin_src clojure :tangle no
+  (defmacro and
+    ([] true)
+    ([x] x)
+    ([x & next]
+     (list 'if x `(and ~@next) false)))
+#+end_src
+
+*** or
+
+#+name: runtime-clojure-logical-operators
+#+begin_src clojure :tangle no
+  (defmacro or
+    ([] nil)
+    ([x] x)
+    ([x & next]
+     (list 'if x x `(or ~@next))))
+#+end_src
+
+*** not
+
+#+name: runtime-clojure-logical-operators
+#+begin_src clojure :tangle no
+  (defn not [x]
+    "if (x)
+       return obj<Boolean>(false);
+     return obj<Boolean>(true);")
+#+end_src
+
+*** true?
+
+#+name: runtime-clojure-logical-operators
+#+begin_src clojure :tangle no
+  (defn true? [x]
+    "if (x)
+       return obj<Boolean>(true);
+     return obj<Boolean>(false);")
+#+end_src
+
+*** false?
+
+#+name: runtime-clojure-logical-operators
+#+begin_src clojure :tangle no
+  (defn false? [x]
+    "if (!x)
+       return obj<Boolean>(true);
+     return obj<Boolean>(false);")
 #+end_src
 
 ** Sequence
@@ -3135,115 +3212,6 @@ implementation.
           (cons f (filter pred r))
           (filter pred r)))
       coll))
-#+end_src
-
-** Logical Operators
-
-#+name: runtime-clojure-logical-operators
-#+begin_src clojure :tangle no
-  (defn = [& args]
-    "var curr = runtime::first(args);
-     FERRET_ITERATE(runtime::rest(args),it){
-      var first = runtime::first(it);
-      if (curr.equals(first) == false)
-        return obj<Boolean>(false);
-      curr = first;
-     }
-     return obj<Boolean>(true);")
-
-  (defmacro not= [& test]
-    (list 'not (cons '= `( ~@test))))
-
-  (defn <
-    ([] true)
-    ([x] true)
-    ([a b]
-     "math::container an = a.cast<Number>()->getNumerator();
-      math::container adn = a.cast<Number>()->getDenominator();
-
-      math::container bn = b.cast<Number>()->getNumerator();
-      math::container bdn = b.cast<Number>()->getDenominator();
-
-      __result = obj<Boolean>((an * bdn) < (bn * adn));")
-    ([a b & more]
-     (if (< a b)
-       (apply < (cons b more))
-       false)))
-
-  (defn >
-    ([] true)
-    ([x] true)
-    ([a b]
-     "math::container an = a.cast<Number>()->getNumerator();
-      math::container adn = a.cast<Number>()->getDenominator();
-
-      math::container bn = b.cast<Number>()->getNumerator();
-      math::container bdn = b.cast<Number>()->getDenominator();
-
-      __result = obj<Boolean>((an * bdn) > (bn * adn));")
-    ([a b & more]
-     (if (> a b)
-       (apply > (cons b more))
-       false)))
-
-  (defn >=
-    ([] true)
-    ([x] true)
-    ([a b]
-     "math::container an = a.cast<Number>()->getNumerator();
-      math::container adn = a.cast<Number>()->getDenominator();
-
-      math::container bn = b.cast<Number>()->getNumerator();
-      math::container bdn = b.cast<Number>()->getDenominator();
-
-      __result = obj<Boolean>((an * bdn) >= (bn * adn));")
-    ([a b & more]
-     (if (>= a b)
-       (apply >= (cons b more))
-       false)))
-
-  (defn <=
-    ([] true)
-    ([x] true)
-    ([a b]
-     "math::container an = a.cast<Number>()->getNumerator();
-      math::container adn = a.cast<Number>()->getDenominator();
-
-      math::container bn = b.cast<Number>()->getNumerator();
-      math::container bdn = b.cast<Number>()->getDenominator();
-
-      __result = obj<Boolean>((an * bdn) <= (bn * adn));")
-    ([a b & more]
-     (if (<= a b)
-       (apply <= (cons b more))
-       false)))
-
-  (defmacro and
-    ([] true)
-    ([x] x)
-    ([x & next]
-     (list 'if x `(and ~@next) false)))
-
-  (defmacro or
-    ([] nil)
-    ([x] x)
-    ([x & next]
-     (list 'if x x `(or ~@next))))
-
-  (defn not [x]
-    "if (x)
-       return obj<Boolean>(false);
-     return obj<Boolean>(true);")
-
-  (defn true? [x]
-    "if (x)
-       return obj<Boolean>(true);
-     return obj<Boolean>(false);")
-
-  (defn false? [x]
-    "if (!x)
-       return obj<Boolean>(true);
-     return obj<Boolean>(false);")
 #+end_src
 
 ** Math
@@ -3552,6 +3520,34 @@ function *f* to run in milliseconds,
       (floor (/ (apply + values) n))))
 #+end_src
 
+** Misc
+*** identity
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no
+  (defn identity [x] x)
+#+end_src
+
+*** ->>
+
+Threads the expr through the forms. Inserts x as the
+last item in the first form, making a list of it if it is not a
+list already. If there are more forms, inserts the first form as the
+last item in second form, etc.
+
+#+name: runtime-clojure-thread-macro
+#+begin_src clojure :tangle no
+  (defmacro ->> [x & forms]
+    (loop [x x, forms forms]
+      (if forms
+        (let [form (first forms)
+              threaded (if (seq? form)
+                         `(~(first form) ~@(next form)  ~x)
+                         (list form x))]
+          (recur threaded (next forms)))
+        x)))
+#+end_src
+
 ** State Machines
 
 This macro allows users to define state machines using the following
@@ -3671,6 +3667,123 @@ returns true returns the next state.
     ([exp callback]
      (list 'assert-aux-callback
            (cons 'fn `( [] ~exp)) (cons 'fn `( [] ~callback)))))
+#+end_src
+
+** Native
+*** defnative
+
+Allows a function to be defined for multiple platforms see [[Accessing C,C++ Libraries]] for
+examples.
+
+#+name: runtime-clojure-defn
+#+begin_src clojure :tangle no
+  (defmacro defnative [name args & form]
+    (let [includes (->> (filter #(seq? (nth % 2)) form)
+                        (map #(cons (nth % 1) (apply list (nth % 2))))
+                        (map (fn [form]
+                               (let [[guard & headers] form]
+                                 (str "\n#if " guard " \n"
+                                      (apply str (map #(str "#include \"" % "\"\n") headers))
+                                      "#endif\n"))))
+                        (map #(list 'native-declare %)))
+          body (->> (map #(vector (second %) (last %)) form)
+                    (map #(str "\n#if " (first %) " \n"
+                               (second %)
+                               "\n#endif\n"))
+                    (apply str))
+          pre-ample (->> (map #(vector (second %) (drop-last (drop 3 %))) form)
+                         (map #(str "\n#if " (first %) " \n"
+                                    (apply str (map (fn [line] (str line "\n")) (second %)))
+                                    "\n#endif\n"))
+                         (map #(list 'native-declare %)))]
+      (list 'def name (cons 'fn* `( ~args ~@includes ~@pre-ample  ~body)))))
+#+end_src
+
+*** native-header
+
+Include native headers, (*.h* files)
+
+#+name: runtime-clojure-defn
+#+begin_src clojure :tangle no
+  (defmacro native-header [& body]
+    (cons 'native-declare
+          (->> (map #(if (symbol? %)
+                       (str "#include \"" (str %) ".h\"\n")
+                       (str "#include \"" (str %) "\"\n"))
+                    body)
+               (apply str)
+               (list))))
+#+end_src
+
+*** memory-sizeof-ferret-objects
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no
+  (defn memory-sizeof-ferret-objects []
+    (println "var:" ((fn [] "__result = obj<Number>((math::container)sizeof(var));")))
+    (println "Object:" ((fn [] "__result = obj<Number>((math::container)sizeof(Object));")))
+    (println "Pointer:" ((fn [] "__result = obj<Number>((math::container)sizeof(Pointer));")))
+    (println "Number:" ((fn [] "__result = obj<Number>((math::container)sizeof(Number));")))
+    (println "Keyword:" ((fn [] "__result = obj<Number>((math::container)sizeof(Keyword));")))
+    (println "Sequence:" ((fn [] "__result = obj<Number>((math::container)sizeof(Sequence));")))
+    (println "LazySequence:" ((fn [] "__result = obj<Number>((math::container)sizeof(LazySequence));")))
+    (println "String:" ((fn [] "__result = obj<Number>((math::container)sizeof(String));")))
+    (println "Boolean:" ((fn [] "__result = obj<Number>((math::container)sizeof(Boolean));")))
+    (println "Lambda:" ((fn [] "__result = obj<Number>((math::container)sizeof(Lambda));")))
+    (println "Atom:" ((fn [] "__result = obj<Number>((math::container)sizeof(Atom));"))))
+#+end_src
+
+*** memory-pool-free-space
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no
+  (defnative memory-pool-free-space []
+    (on "defined FERRET_MEMORY_POOL_SIZE"
+        "int count = 0;
+         for(int i = 0; i < FERRET_MEMORY_POOL_SIZE; i++)
+           if(ProgramMemory.used[i] == false)
+             count++;
+         __result = obj<Number>((math::container)(count*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
+#+end_src
+
+*** defcallback
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no
+  (defmacro defcallback [callback out in & pass-vars]
+    (list 'do
+          (list 'native-declare
+                `~(str "\n" out " " (symbol-conversion callback) "_callack" "(" in "){\n"
+                       "run(" (str (symbol-conversion callback) "_callback_fn")
+                       (str \, (apply str (interpose " , " (reverse pass-vars)))) ");"
+                       "\n}\n"))
+          (list 'def `~(symbol (str callback "-callback-fn")) `~callback)))
+#+end_src
+
+** Compiler
+*** configure-runtime!
+
+Configure Ferret Runtime options, (memory pooling, math containers etc.)
+
+#+name: runtime-clojure-defn
+#+begin_src clojure :tangle no
+  (defmacro configure-runtime! [& body]
+    (cons 'native-define
+          (->> (partition 2 body)
+               (map #(str "#define " (first %) " " (second %) "\n"))
+               (list))))
+#+end_src
+
+*** configure-ferret!
+
+Embed compilations options, (build command, extra source files etc.)
+
+#+name: runtime-clojure-defn
+#+begin_src clojure :tangle no
+  (defmacro configure-ferret! [& body]
+    (list 'native-define (str "// Ferret Build Configuration Begin\n"
+                              "//" (str (apply hash-map body)) "\n"
+                              "// Ferret Build Configuration End\n")))
 #+end_src
 
 * Tests
@@ -4689,7 +4802,8 @@ Create some dummy libs under /test/modules/,
 ** resources/runtime.clj
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/resources/runtime.clj
-  <<runtime-clojure-misc-thread-macro>>
+  <<runtime-clojure-thread-macro>>
+  <<runtime-clojure-fn-macro>>
   <<runtime-clojure-boolean-object>>
   <<runtime-clojure-pointer-object>>
   <<runtime-clojure-number-object>>

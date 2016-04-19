@@ -2207,6 +2207,35 @@ containers.
   }
 #+end_src
 
+#+name: runtime-native-iseekable-headers
+#+begin_src c++ :tangle no
+  namespace ferret{
+    namespace runtime {
+      struct range{
+        var p;
+
+        range(var v){p = v;}
+        range begin() const { return p; }
+        range end() const { return var(); }
+
+        bool operator!=(const range& other){
+          return (p != other.p);
+        }
+
+        const range& operator++(){
+          p = runtime::rest(p);
+          return *this;
+        }
+
+        var operator*(){
+          return runtime::first(p);
+        }
+
+      };
+    }
+  }
+#+end_src
+
 #+name: runtime-native-iseekable-functions
 #+begin_src c++ :tangle no
   namespace ferret{
@@ -3802,7 +3831,14 @@ All tests are compiled using,
            (capture-output '((print (filter true? (list true false true false))
                                     (filter false? (list true false true false))
                                     (filter false? (list true false true false false))
-                                    (filter (fn [x] (not (false? x))) (list true false true false false))))))))
+                                    (filter (fn [x] (not (false? x))) (list true false true false false)))))))
+    (is (= "1234 (1 2 3 4)(1 2 3 4)"
+           (capture-output '((def print-list
+                               (fn [t] "for(auto c : runtime::range(t))
+                                        c.toOutputStream();"))
+                             (print-list (list 1 2 3 4))
+                             (print " ")
+                             (print-list (list (list 1 2 3 4) (list 1 2 3 4))))))))
 #+end_src
 
 **** Lazy Sequence
@@ -4293,6 +4329,7 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - Implement *Range-based for loop* for seekable containers.
   - *Benchmarking* - Add a benchmarking function.
   - *Memory Pool* - Functions report in bytes.
   - *Sequence* - Remove size from object.

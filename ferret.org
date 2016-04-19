@@ -2866,7 +2866,8 @@ implementation.
                     (cons 'fir-dispatch-lambda))))))
 #+end_src
 
-** Console I/O
+** I/O
+*** print
 
 #+name: runtime-clojure-console-io
 #+begin_src clojure :tangle no
@@ -2881,15 +2882,26 @@ implementation.
           fprintf(FERRET_OUTPUT_STREAM, \" \");
           runtime::first(it).toOutputStream();
          }"))
+#+end_src
 
+*** newline
+
+#+name: runtime-clojure-console-io
+#+begin_src clojure :tangle no
   (defnative newline [& more]
     (on "!defined(FERRET_DISABLE_OUTPUT_STREAM)"
         "fprintf(FERRET_OUTPUT_STREAM, \"\\n\");"))
+#+end_src
 
+*** println
+
+#+name: runtime-clojure-console-io
+#+begin_src clojure :tangle no
   <<runtime-clojure-println>>
 #+end_src
 
 ** Looping
+*** doseq
 
 #+name: runtime-clojure-looping
 #+begin_src clojure :tangle no
@@ -2897,7 +2909,12 @@ implementation.
     (list '_doseq_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
 
   (defn _doseq_ [seq f] "FERRET_ITERATE(seq,it){run(f,runtime::first(it));}")
+#+end_src
 
+*** dotimes
+
+#+name: runtime-clojure-looping
+#+begin_src clojure :tangle no
   (defmacro dotimes [binding & body]
     (list '_dotimes_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
 
@@ -3230,15 +3247,50 @@ implementation.
 #+end_src
 
 ** Math
+*** float?
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn float? [x] "__result = obj<Boolean>(x.isType(runtime::type::Number) &&
+                                           (x.cast<Number>()->getDenominator() != 1));")
+#+end_src
+
+*** integer?
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn integer? [x] "__result = obj<Boolean>(x.isType(runtime::type::Number) &&
                                              (x.cast<Number>()->getDenominator() == 1));")
+#+end_src
 
-  (defn float? [x] "__result = obj<Boolean>(x.isType(runtime::type::Number) &&
-                                           (x.cast<Number>()->getDenominator() != 1));")
+*** zero?
 
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn zero? [x]
+    (= x 0))
+#+end_src
+
+*** pos?
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn pos? [x]
+    (> x 0))
+#+end_src
+
+*** neg?
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn neg? [x]
+    (< x 0))
+#+end_src
+
+*** +
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
   (defn +
     ([] 0)
     ([x] x)
@@ -3254,28 +3306,12 @@ implementation.
       __result = obj<Number>(((hn * vdn) + (vn * hdn)),ndn);")
     ([x y & more]
      (reduce + (+ x y) more)))
+#+end_src
 
-  (defn inc [x]
-    (+ x 1))
+*** -
 
-  <<runtime-clojure-sequence-count>>
-
-  (defn *
-    ([] 1)
-    ([x] x)
-    ([h v]
-     "math::container hn = h.cast<Number>()->getNumerator();
-      math::container hdn = h.cast<Number>()->getDenominator();
-
-      math::container vn = v.cast<Number>()->getNumerator();
-      math::container vdn = v.cast<Number>()->getDenominator();
-
-      math::container ndn = (hdn * vdn);
-
-      __result = obj<Number>(((hn * vdn) * (vn * hdn)),ndn);")
-    ([x y & more]
-     (reduce * (* x y) more)))
-
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
   (defn -
     ([x]
      (* -1 x))
@@ -3291,7 +3327,33 @@ implementation.
       __result = obj<Number>(((hn * vdn) - (vn * hdn)),ndn);")
     ([x y & more]
      (reduce - (- x y) more)))
+#+end_src
 
+*** *
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn *
+    ([] 1)
+    ([x] x)
+    ([h v]
+     "math::container hn = h.cast<Number>()->getNumerator();
+      math::container hdn = h.cast<Number>()->getDenominator();
+
+      math::container vn = v.cast<Number>()->getNumerator();
+      math::container vdn = v.cast<Number>()->getDenominator();
+
+      math::container ndn = (hdn * vdn);
+
+      __result = obj<Number>(((hn * vdn) * (vn * hdn)),ndn);")
+    ([x y & more]
+     (reduce * (* x y) more)))
+#+end_src
+
+*** /
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
   (defn /
     ([x]
      (apply / (list 1 x)))
@@ -3305,29 +3367,57 @@ implementation.
       __result = obj<Number>((hn * vdn),(vn * hdn));")
     ([x y & more]
      (reduce / (/ x y) more)))
+#+end_src
 
+*** inc
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn inc [x]
+    (+ x 1))
+#+end_src
+
+*** dec
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
   (defn dec [x]
     (- x 1))
+#+end_src
 
-  (defn pos? [x]
-    (> x 0))
+*** count
 
-  (defn neg? [x]
-    (< x 0))
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  <<runtime-clojure-sequence-count>>
+#+end_src
 
-  (defn zero? [x]
-    (= x 0))
+*** mod
 
-  (defn floor [x] "__result = obj<Number>(x.cast<Number>()->as<int>());")
-
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
   (defn mod [num div] "__result = obj<Number>((num.cast<Number>()->as<int>() % div.cast<Number>()->as<int>()));")
 #+end_src
+
+*** floor
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn floor [x] "__result = obj<Number>(x.cast<Number>()->as<int>());")
+#+end_src
+
+*** scale
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn scale [x in-min in-max out-min out-max]
     (+ (/ (* (- x in-min) (- out-max out-min)) (- in-max in-min)) out-min))
+#+end_src
 
+*** clamp
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
   (defn clamp [x min max]
     (cond
       (> x max) max
@@ -3335,29 +3425,63 @@ implementation.
       true x))
 #+end_src
 
-** Bit Operations
+*** bit-and
 
-#+name: runtime-clojure-bit-operations
-#+begin_src clojure :tangle no
-  (defn bit-not [x] "__result = obj<Number>(~x.cast<Number>()->getNumerator());")
-
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
   (defn bit-and [x y] "__result = obj<Number>((x.cast<Number>()->getNumerator() &
                                                y.cast<Number>()->getNumerator()));")
+#+end_src
 
+*** bit-not
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn bit-not [x] "__result = obj<Number>(~x.cast<Number>()->getNumerator());")
+#+end_src
+
+*** bit-or
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
   (defn bit-or [x y] "__result = obj<Number>((x.cast<Number>()->getNumerator() |
                                               y.cast<Number>()->getNumerator()));")
+#+end_src
 
+*** bit-xor
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
   (defn bit-xor [x y] "__result = obj<Number>((x.cast<Number>()->getNumerator() ^
                                                y.cast<Number>()->getNumerator()));")
+#+end_src
 
+*** bit-shift-left
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
   (defn bit-shift-left [x n] "__result = obj<Number>((x.cast<Number>()->getNumerator() <<
                                                       n.cast<Number>()->getNumerator()));")
+#+end_src
 
+*** bit-shift-left
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn bit-shift-left [x n] "__result = obj<Number>((x.cast<Number>()->getNumerator() <<
+                                                      n.cast<Number>()->getNumerator()));")
+#+end_src
+
+*** bit-shift-right
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
   (defn bit-shift-right [x n] "__result = obj<Number>((x.cast<Number>()->getNumerator() >>
                                                        n.cast<Number>()->getNumerator()));")
 #+end_src
 
 ** Concurrency
+*** thread
 
 Runs the given lambda in a thread,
 
@@ -3372,6 +3496,7 @@ Runs the given lambda in a thread,
 #+end_src
 
 ** Timing
+*** millis
 
 Return current time in milliseconds,
 
@@ -3387,6 +3512,8 @@ Return current time in milliseconds,
         "__result = obj<Number>((math::container)millis());"))
 #+end_src
 
+*** sleep
+
 Sleep current thread for *t* milliseconds,
 
 #+name: runtime-clojure-misc
@@ -3400,6 +3527,8 @@ Sleep current thread for *t* milliseconds,
         "::delay(millis.cast<Number>()->as<int>());"))
 #+end_src
 
+*** time-fn
+
 Takes a function *f* and returns the number of milliseconds it takes
 to run,
 
@@ -3410,6 +3539,8 @@ to run,
       (f)
       (- (millis) start)))
 #+end_src
+
+*** benchmark
 
 Runs the function *f* *n* times and return the average time it takes
 function *f* to run in milliseconds,
@@ -3492,11 +3623,10 @@ returns true returns the next state.
       (list 'def name (cons func state-symbols))))
 #+end_src
 
-** Arduino
+** GPIO
+*** pin-mode
 
-Some wrappers for the Arduino platform.
-
-#+name: runtime-clojure-arduino
+#+name: runtime-clojure-gpio
 #+begin_src clojure :tangle no
   (defn pin-mode [pin mode]
     "if (mode.equals(obj<Keyword>(618)) == true) // :input
@@ -3511,8 +3641,19 @@ Some wrappers for the Arduino platform.
         digitalWrite(pin.cast<Number>()->as<int>(), LOW);")
 #+end_src
 
-** Testing
+*** digital-write
 
+#+name: runtime-clojure-gpio
+#+begin_src clojure :tangle no
+  (defn digital-write [pin mode]
+    "if (mode.equals(obj<Keyword>(474))  == true) // :high
+        digitalWrite(pin.cast<Number>()->as<int>(), HIGH);
+     else
+        digitalWrite(pin.cast<Number>()->as<int>(), LOW);")
+#+end_src
+
+** Testing
+*** assert
 #+name: runtime-clojure-testing
 #+begin_src clojure :tangle no
   (defn assert-aux [f msg]
@@ -4570,7 +4711,7 @@ Create some dummy libs under /test/modules/,
   <<runtime-clojure-console-io>>
   <<runtime-clojure-misc>>
   <<runtime-clojure-state-machine>>
-  <<runtime-clojure-arduino>>
+  <<runtime-clojure-gpio>>
   <<runtime-clojure-testing>>
 #+end_src
 

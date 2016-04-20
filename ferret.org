@@ -17,6 +17,12 @@
 #+HTML_HEAD: <style>#content {max-width:1024px;} </style>
 #+HTML_HEAD: <style>#postamble {max-width:1024px;} </style>
 #+HTML_HEAD: <style>#left-panel-wrapper {display: none;} </style>
+#+HTML_HEAD: <script type="text/javascript"> $( document ).ready(function() {
+#+HTML_HEAD:    $('#outline-container-sec-1 > .hsCollapsible').removeClass( "hsCollapsible" );
+#+HTML_HEAD:    $('#outline-container-sec-2 > .hsCollapsible').removeClass( "hsCollapsible" );
+#+HTML_HEAD:    $('#outline-container-sec-3 > .hsCollapsible').removeClass( "hsCollapsible" );
+#+HTML_HEAD:    $('#outline-container-sec-8 > .hsCollapsible').removeClass( "hsCollapsible" );
+#+HTML_HEAD: });</script>
 #+OPTIONS: H:10
 
 * About

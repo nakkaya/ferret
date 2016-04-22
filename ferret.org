@@ -3554,7 +3554,8 @@ last item in second form, etc.
         x)))
 #+end_src
 
-** State Machines
+** Control
+*** State Machines
 
 This macro allows users to define state machines using the following
 DSL,
@@ -3625,7 +3626,7 @@ returns true returns the next state.
       (list 'def name (cons func state-symbols))))
 #+end_src
 
-** PID Control
+*** PID Control
 
 From Wikipedia: 
 
@@ -4677,6 +4678,7 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
+  - *core* - split core into multiple namespaces.
   - *PIDController* - Implement Unit Tests.
   - *Build Configuration* - Download files (header, source) from URL.
   - *Pointer* - Ability to call cleanup function before *GC*

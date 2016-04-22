@@ -3483,7 +3483,7 @@ Return current time in milliseconds,
          auto time = std::chrono::duration_cast<std::chrono::milliseconds>(epoch).count();
          __result = obj<Number>((math::container) time);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "__result = obj<Number>((math::container)millis());"))
+        "__result = obj<Number>((math::container)::millis());"))
 #+end_src
 
 *** sleep

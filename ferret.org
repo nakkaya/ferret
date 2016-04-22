@@ -206,7 +206,7 @@ will return *nil*. You can have multiple *on* blocks per *defnative*,
         "auto duration = std::chrono::milliseconds(t.cast<Number>()->as<int>());
          std::this_thread::sleep_for(duration);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::delay(millis.cast<Number>()->as<int>());"))
+        "::delay(t.cast<Number>()->as<int>());"))
 #+end_src
 
 This way a single function can be defined for multiple systems.
@@ -3498,7 +3498,7 @@ Sleep current thread for *t* milliseconds,
         "auto duration = std::chrono::milliseconds(t.cast<Number>()->as<int>());
          std::this_thread::sleep_for(duration);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::delay(millis.cast<Number>()->as<int>());"))
+        "::delay(t.cast<Number>()->as<int>());"))
 #+end_src
 
 *** time-fn

@@ -3625,6 +3625,169 @@ returns true returns the next state.
       (list 'def name (cons func state-symbols))))
 #+end_src
 
+** PID Control
+
+From Wikipedia: 
+
+#+BEGIN_QUOTE
+A PID controller calculates an 'error' value as the difference between
+a measured [Input] and a desired setpoint. The controller attempts to
+minimize the error by adjusting [an Output].
+#+END_QUOTE
+
+From [[http://playground.arduino.cc/Code/PIDLibrary][PIDLibrary]],
+
+#+BEGIN_QUOTE
+So, you tell the PID what to measure (the "Input",) Where you want
+that measurement to be (the "Setpoint",) and the variable to adjust
+that can make that happen (the "Output".) The PID then adjusts the
+output trying to make the input equal the setpoint.
+#+END_QUOTE
+
+#+begin_src clojure :tangle no
+  (def p (pid-init :kp 0.5
+                   :ki 0
+                   :kd 0
+                   :set-point 5
+                   ;;in min - in max - out min - out max
+                   :bounds [0 10 0 10]
+                   :continuous false))
+
+  (println "Control" (pid-control p 0))
+#+end_src
+
+Ported from,
+
+#+begin_src java
+  /*
+   ,* *********************************************************
+   ,* Copyright (c) 2009 - 2015, DHBW Mannheim - Tigers Mannheim
+   ,* Project: TIGERS - Sumatra
+   ,* Date: Jun 10, 2015
+   ,* Author(s): Nicolai Ommer <nicolai.ommer@gmail.com>
+   ,* *********************************************************
+   ,*/
+
+  /**
+   ,* @author Nicolai Ommer <nicolai.ommer@gmail.com>
+   */
+#+end_src
+
+#+name: runtime-clojure-pid-controller
+#+begin_src clojure :tangle no
+  (defobject PIDController
+    (template "typename T")
+    (data "T p;"
+          "T i;"
+          "T d;"
+          "T maximumOutput;"
+          "T minimumOutput;"
+          "T maximumInput;"
+          "T minimumInput;"
+          "bool continuous;"
+          "T prevError;"
+          "T totalError;"
+          "T setpoint;"
+          "T error;"
+          "T result;"
+          "T input;")
+    (new ("var kp, var ki, var kd, var inMin, var inMax, var outMin, var outMax, var cont"
+          "p = kp.cast<Number>()->as<T>();
+           i = ki.cast<Number>()->as<T>();
+           d = kd.cast<Number>()->as<T>();
+           maximumOutput = outMax.cast<Number>()->as<T>();
+           minimumOutput = outMin.cast<Number>()->as<T>();
+           maximumInput = inMax.cast<Number>()->as<T>();
+           minimumInput = inMin.cast<Number>()->as<T>();
+           continuous = cont.cast<Boolean>()->container();
+           prevError = 0;
+           totalError = 0;
+           setpoint = 0;
+           error = 0;
+           result = 0;
+           input = 0;"))
+    (equals "return obj<Boolean>(this == o.cast<PIDController>());")
+    (toOutputStream "fprintf(FERRET_OUTPUT_STREAM, \"PIDController\"); return nil();")
+    (fns
+     ("var update" "var in"
+      "input = in.cast<Number>()->as<T>();
+
+       // Calculate the error signal
+       error = setpoint - input;
+
+       // If continuous is set to true allow wrap around
+       if (continuous) {
+          if (runtime::abs(error) > ((maximumInput - minimumInput) / 2)) {
+            if (error > 0) {
+                  error = (error - maximumInput) + minimumInput;
+            } else {
+                  error = (error + maximumInput) - minimumInput;
+            }
+          }
+       }
+       
+       /*
+        ,* Integrate the errors as long as the upcoming integrator does
+        ,* not exceed the minimum and maximum output thresholds
+        ,*/
+       if ((((totalError + error) * i) < maximumOutput) &&
+            (((totalError + error) * i) > minimumOutput)) {
+          totalError += error;
+       }
+       
+       // Perform the primary PID calculation
+       result = ((p * error) + (i * totalError) + (d * (error - prevError)));
+       
+       // Set the current error to the previous error for the next cycle
+       prevError = error;
+       
+       // Make sure the final result is within bounds
+       if (result > maximumOutput) {
+          result = maximumOutput;
+       } else if (result < minimumOutput) {
+          result = minimumOutput;
+       }
+
+       return obj<Number>(result);")
+     
+     ("void setSetpoint" "var p"
+      "T sp = p.cast<Number>()->as<T>();
+       if (maximumInput > minimumInput) {
+          if (sp > maximumInput) {
+            setpoint = maximumInput;
+          } else if (sp < minimumInput) {
+            setpoint = minimumInput;
+          } else {
+            setpoint = sp;
+          }
+       } else {
+          setpoint = sp;
+       }")
+     
+     ("void reset" ""
+      "prevError = 0;
+       totalError = 0;
+       result = 0;")))
+#+end_src
+
+#+name: runtime-clojure-pid-controller
+#+begin_src clojure :tangle no
+  (defn pid-init-aux [set-point kp ki kd in-min in-max out-min out-max continuous]
+    "var p = obj<PIDController<float>>(kp, ki, kd, in_min, in_max, out_min, out_max, continuous);
+     p.cast<PIDController<float>>()->setSetpoint(set_point);
+     return p;")
+
+  (defmacro pid-init [& options]
+    (let [options (apply hash-map options)
+          {:keys [container kp ki kd set-point bounds continuous]} options
+          [in-min in-max out-min out-max] bounds]
+      (cons 'pid-init-aux
+            (list set-point kp ki kd in-min in-max out-min out-max continuous))))
+
+  (defn pid-control [controller input]
+    "__result = controller.cast<PIDController<float>>()->update(input)")
+#+end_src
+
 ** GPIO
 *** pin-mode
 
@@ -4514,6 +4677,7 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
+  - *PIDController* - Implement Unit Tests.
   - *Build Configuration* - Download files (header, source) from URL.
   - *Pointer* - Ability to call cleanup function before *GC*
   - *Debugging* - Add some debugging macros, native side.
@@ -4831,6 +4995,7 @@ Create some dummy libs under /test/modules/,
   <<runtime-clojure-console-io>>
   <<runtime-clojure-misc>>
   <<runtime-clojure-state-machine>>
+  <<runtime-clojure-pid-controller>>
   <<runtime-clojure-gpio>>
   <<runtime-clojure-testing>>
 #+end_src

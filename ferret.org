@@ -3885,22 +3885,27 @@ Include native headers, (*.h* files)
                (list))))
 #+end_src
 
-*** memory-sizeof-ferret-objects
+*** pr-object-sizes
 
 #+name: runtime-clojure-misc
 #+begin_src clojure :tangle no
-  (defn memory-sizeof-ferret-objects []
-    (println "var:" ((fn [] "__result = obj<Number>((math::container)sizeof(var));")))
-    (println "Object:" ((fn [] "__result = obj<Number>((math::container)sizeof(Object));")))
-    (println "Pointer:" ((fn [] "__result = obj<Number>((math::container)sizeof(Pointer));")))
-    (println "Number:" ((fn [] "__result = obj<Number>((math::container)sizeof(Number));")))
-    (println "Keyword:" ((fn [] "__result = obj<Number>((math::container)sizeof(Keyword));")))
-    (println "Sequence:" ((fn [] "__result = obj<Number>((math::container)sizeof(Sequence));")))
-    (println "LazySequence:" ((fn [] "__result = obj<Number>((math::container)sizeof(LazySequence));")))
-    (println "String:" ((fn [] "__result = obj<Number>((math::container)sizeof(String));")))
-    (println "Boolean:" ((fn [] "__result = obj<Number>((math::container)sizeof(Boolean));")))
-    (println "Lambda:" ((fn [] "__result = obj<Number>((math::container)sizeof(Lambda));")))
-    (println "Atom:" ((fn [] "__result = obj<Number>((math::container)sizeof(Atom));"))))
+  (defn pr-object-sizes []
+    (println "Object Sizes")
+    (println "\tvar:\t\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(var));")))
+    (println "\tObject:\t\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(Object));")))
+    (println "\tPointer:\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(Pointer));")))
+    (println "\tNumber:\t\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(Number));")))
+    (println "\tKeyword:\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(Keyword));")))
+    (println "\tSequence:\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(Sequence));")))
+    (println "\tLazySequence:\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(LazySequence));")))
+    (println "\tString:\t\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(String));")))
+    (println "\tBoolean:\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(Boolean));")))
+    (println "\tLambda:\t\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(Lambda));")))
+    (println "\tAtom:\t\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(Atom));")))
+    (println "\tPIDController<float>:\t"
+             ((fn [] "__result = obj<Number>((math::container)sizeof(PIDController<float>));")))
+    (println "\tPIDController<int>:\t"
+             ((fn [] "__result = obj<Number>((math::container)sizeof(PIDController<int>));"))))
 #+end_src
 
 *** memory-pool-free-space

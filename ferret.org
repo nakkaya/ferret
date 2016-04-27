@@ -4702,6 +4702,7 @@ Create some dummy libs under /test/modules/,
     embedded systems. Quoted from Wikipedia, for quite small values of
     n it is more efficient in terms of time and space than more
     sophisticated strategies such as hash tables.
+    - D-Lists - https://news.ycombinator.com/item?id=11575540
   - *Unbounded Precision Integers*
     - [[https://web.archive.org/web/20101208222557/http://www.mactech.com/articles/mactech/Vol.08/08.03/BigNums/index.html][Arbitrarily Large Bignums]]
     From p.11: PICOBIT: A Compact Scheme System for Microcontrollers

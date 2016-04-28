@@ -1,0 +1,14 @@
+language: generic
+git:
+  depth: 1
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq emacs24 build-essential leiningen
+script:
+  - ./build
+  - cd src/
+  - lein test
+notifications:
+  email:
+    on_success: never
+    on_failure: always

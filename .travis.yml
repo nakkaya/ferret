@@ -11,8 +11,8 @@ before_install:
   - ./configure
   - make
   - sudo make install
+  - cd ../
 script:
-  - cd
   - ./build
   - cd src/
   - lein test

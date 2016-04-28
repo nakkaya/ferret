@@ -2,8 +2,9 @@ language: generic
 git:
   depth: 1
 before_install:
+  - sudo add-apt-repository ppa:ubuntu-toolchain-r/test
   - sudo apt-get update -qq
-  - sudo apt-get install -qq build-essential leiningen
+  - sudo apt-get install -qq g++-4.8 leiningen
   - sudo apt-get build-dep emacs
   - wget http://ftp.gnu.org/gnu/emacs/emacs-24.5.tar.gz
   - tar xf emacs-24.5.tar.gz

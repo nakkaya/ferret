@@ -3976,7 +3976,6 @@ All tests are compiled using,
  - *-Wextra*
  - *-Woverloaded-virtual*
  - *-Wuninitialized*
- - *-Wmissing-declarations*
  - *-Winit-self*
 
 ** Compiler
@@ -4949,7 +4948,7 @@ Create some dummy libs under /test/modules/,
                     ["-std=c++11" "-pedantic"
                      "-Werror" "-Wall" "-Wextra"
                      "-Woverloaded-virtual" "-Wuninitialized"
-                     "-Wmissing-declarations" "-Winit-self"]})]
+                     "-Winit-self"]})]
       (compile->cpp form options)
       (compile->binary options [])
       (with-sh-dir "./"

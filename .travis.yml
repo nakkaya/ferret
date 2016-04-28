@@ -12,8 +12,8 @@ before_install:
   - make
   - sudo make install
   - cd ../
-  - sudo apt-get install -qq g++-6 leiningen
-  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 50
+  - sudo apt-get install -qq g++-5 leiningen
+  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 50
 script:
   - ./build
   - cd src/

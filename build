@@ -47,9 +47,9 @@ lein uberjar
 cd ../
 
 if [ ! -f src/target/ferret.jar ]; then
-    cat src/resources/bash_executable_stub.sh src/target/ferret.jar > ferret && chmod +x ferret
-else
     cat src/resources/bash_executable_stub.sh src/ferret.jar > ferret && chmod +x ferret
+else
+    cat src/resources/bash_executable_stub.sh src/target/ferret.jar > ferret && chmod +x ferret
 fi
 
 

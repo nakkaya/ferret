@@ -14,10 +14,24 @@ before_install:
   - cd ../
   - sudo apt-get install -qq g++-5 leiningen
   - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 50
-script:
   - ./build
+script:
   - cd src/
   - lein test
+  - cd ../
+  - mkdir build
+  - mv ferret build/
+  - mv src/ferret.jar build/
+deploy:
+  provider: s3
+  access_key_id: $S3_ACCESS_KEY_ID
+  secret_access_key: $S3_SECRET_KEY
+  bucket: dropbox.nakkaya.com
+  skip_cleanup: true
+  upload-dir: builds
+  local-dir: build
+  acl: public_read
+  detect_encoding: true
 notifications:
   email:
     on_success: never

@@ -4678,11 +4678,45 @@ Create some dummy libs under /test/modules/,
                                (assert (= a b) (print "CB"))))))))
 #+end_src
 
+*** Control
+
+#+begin_src clojure :tangle no
+  (deftest pid-controller-test
+    (is (= "5 5 10 15 20 20 10 5"
+           (capture-output '((def p1 (pid-init :kp 1
+                                               :ki 0
+                                               :kd 0
+                                               :set-point 5
+                                               :bounds [0 10 0 10]
+                                               :continuous false))
+                             (print (pid-control p1 0)
+                                    (pid-control p1 0))
+                             (print " ")
+                             (def p2 (pid-init :kp 1
+                                               :ki 1
+                                               :kd 0
+                                               :set-point 5
+                                               :bounds [0 10 0 20]
+                                               :continuous false))
+                             (print (pid-control p2 0)
+                                    (pid-control p2 0)
+                                    (pid-control p2 0)
+                                    (pid-control p2 0))
+                             (print " ")
+                             (def p3 (pid-init :kp 1
+                                               :ki 0
+                                               :kd 1
+                                               :set-point 5
+                                               :bounds [0 10 0 20]
+                                               :continuous false))
+                             (print (pid-control p3 0)
+                                    (pid-control p3 0)))))))
+#+end_src
+
 * Roadmap
 ** Core
 
   - *core* - split core into multiple namespaces.
-  - *PIDController* - Implement Unit Tests.
   - *Build Configuration* - Download files (header, source) from URL.
   - *Pointer* - Ability to call cleanup function before *GC*
   - *Debugging* - Add some debugging macros, native side.
@@ -4759,6 +4793,7 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *PIDController* - Implement Unit Tests.
   - *Continuous Integration* - Setup Travis CI, automate testing and
     deployment.
   - Implement *Range-based for loop* for seekable containers.

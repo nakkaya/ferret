@@ -4759,6 +4759,8 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Continuous Integration* - Setup Travis CI, automate testing and
+    deployment.
   - Implement *Range-based for loop* for seekable containers.
   - *Benchmarking* - Add a benchmarking function.
   - *Memory Pool* - Functions report in bytes.

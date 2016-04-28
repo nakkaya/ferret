@@ -4164,17 +4164,7 @@ All tests are compiled using,
               ((fn [] "std::cout << (nullptr != mem.allocate(sizeof(size_t)*6)) << \" \";"))
               ((fn [] "std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";"))
               ((fn [] "std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";"))
-              ((fn [] "std::cout << (nullptr == mem.allocate(sizeof(size_t)*10)) << \" \";"))))))
-    (is (= "496  304"
-           (capture-output
-            '((configure-runtime! FERRET_MEMORY_POOL_SIZE 512
-                                  FERRET_MEMORY_POOL_PAGE_TYPE char
-                                  MEMORY_POOL_USED_ARRAY_TYPE int
-                                  FERRET_DISABLE_COMMAND_LINE_ARGUMENTS true)
-              (print (memory-pool-free-space))
-              (let [a 1
-                    b 2]
-                (print " " (memory-pool-free-space))))))))
+              ((fn [] "std::cout << (nullptr == mem.allocate(sizeof(size_t)*10)) << \" \";")))))))
 #+end_src
 
 *** Object System

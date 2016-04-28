@@ -19,9 +19,9 @@ script:
   - cd src/
   - lein test
   - cd ../
-  - mkdir build
-  - mv ferret build/
-  - mv src/ferret.jar build/
+  - mkdir release
+  - mv ferret release/
+  - mv src/ferret.jar release/
 deploy:
   provider: s3
   access_key_id: $S3_ACCESS_KEY_ID
@@ -29,7 +29,7 @@ deploy:
   bucket: dropbox.nakkaya.com
   skip_cleanup: true
   upload-dir: builds
-  local-dir: build
+  local-dir: release
   acl: public_read
   detect_encoding: true
 notifications:

@@ -10,7 +10,7 @@ before_install:
   - cd emacs-24.5
   - ./configure
   - make
-  - sudo checkinstall
+  - sudo make install
 script:
   - ./build
   - cd src/

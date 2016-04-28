@@ -2656,6 +2656,21 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
   #define FERRET_DEC_REF(this) (--refCount <= 0);
 #+end_src
 
+** Debugging Macros
+
+Helper macros, to be used when debugging on the native side.
+
+#+name: runtime-native-memory-management-macros
+#+begin_src c++ :tangle no
+  #define FERRET_PRT_MSG(msg)                     \
+    fprintf(FERRET_OUTPUT_STREAM, msg);           \
+    fprintf(FERRET_OUTPUT_STREAM, "\n");
+
+  #define FERRET_PRT_OBJ(o)                       \
+    o.toOutputStream();                           \
+    fprintf(FERRET_OUTPUT_STREAM, "\n");
+#+end_src
+
 * Clojure Core
 
 Once our object system is in place we can define rest of the runtime
@@ -4719,7 +4734,6 @@ Create some dummy libs under /test/modules/,
   - *core* - split core into multiple namespaces.
   - *Build Configuration* - Download files (header, source) from URL.
   - *Pointer* - Ability to call cleanup function before *GC*
-  - *Debugging* - Add some debugging macros, native side.
   - *Unit Testing*
     - [[http://www.jera.com/techinfo/jtns/jtn002.html][JTN002 - MinUnit -- a minimal unit testing framework for C]]
   - *Shared Library* - Ability to be run as a shared lib.
@@ -4793,6 +4807,7 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Debugging* - Add some debugging macros, native side.
   - *PIDController* - Implement Unit Tests.
   - *Continuous Integration* - Setup Travis CI, automate testing and
     deployment.

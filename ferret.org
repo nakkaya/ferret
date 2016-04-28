@@ -4946,9 +4946,8 @@ Create some dummy libs under /test/modules/,
     (let [options (compile-options
                    {:compiler-options
                     ["-std=c++11" "-pedantic"
-                     "-Werror" "-Wall" "-Wextra"
-                     "-Woverloaded-virtual" "-Wuninitialized"
-                     "-Winit-self"]})]
+                     "-Werror" "-Wall" "-Wextra" "-Woverloaded-virtual" "-Wuninitialized" "-Winit-self"
+                     "-pthread"]})]
       (compile->cpp form options)
       (compile->binary options [])
       (with-sh-dir "./"

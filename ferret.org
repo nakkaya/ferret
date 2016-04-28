@@ -2618,6 +2618,7 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
 #+name: runtime-native-macros
 #+begin_src c++ :tangle no
   #if defined(FERRET_STD_LIB) && !defined(FERRET_SINGLE_THREADED)
+   #include <mutex>
    #define FERRET_NEW_LOCK(symbol) std::mutex symbol;
    #define FERRET_WITH_LOCK(lock,code)                         \
      {                                                         \

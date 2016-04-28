@@ -45,7 +45,13 @@ emacs -nw -Q --batch --eval "
 cd src/
 lein uberjar
 cd ../
-cat src/resources/bash_executable_stub.sh src/target/ferret.jar > ferret && chmod +x ferret
+
+if [ ! -f src/target/ferret.jar ]; then
+    cat src/resources/bash_executable_stub.sh src/target/ferret.jar > ferret && chmod +x ferret
+else
+    cat src/resources/bash_executable_stub.sh src/ferret.jar > ferret && chmod +x ferret
+fi
+
 
 if [[ $@ == **deploy** ]]
 then

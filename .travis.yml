@@ -22,6 +22,7 @@ script:
   - mkdir release
   - mv ferret release/
   - mv src/ferret.jar release/
+  - mv ferret-manual.html release/
 deploy:
   provider: s3
   access_key_id: $S3_ACCESS_KEY_ID

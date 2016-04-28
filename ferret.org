@@ -4238,7 +4238,6 @@ All tests are compiled using,
                                     (reduce (fn [h v]
                                               (conj h (dec v))) (list) (list 1 2 3 4 5))
                                     (= (list ) (list )))))))
-
     (is (= "(1 2 3 4 5 6) (7 6 5 4 3 2) (1 7 6 5 4 3 2) true"
            (capture-output '((let [l1 (list 1 2 3 4 5 6)
                                    l2 (reduce (fn[h v] (conj h (inc v))) (list) l1)
@@ -4280,7 +4279,9 @@ All tests are compiled using,
                                         c.toOutputStream();"))
                              (print-list (list 1 2 3 4))
                              (print " ")
-                             (print-list (list (list 1 2 3 4) (list 1 2 3 4))))))))
+                             (print-list (list (list 1 2 3 4) (list 1 2 3 4)))))))
+    (is (= "1 nil 2 nil nil nil"
+           (capture-output '((print (print 1) (print " ") (print 2) (print " ")))))))
 #+end_src
 
 **** Lazy Sequence

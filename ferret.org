@@ -4279,9 +4279,7 @@ All tests are compiled using,
                                         c.toOutputStream();"))
                              (print-list (list 1 2 3 4))
                              (print " ")
-                             (print-list (list (list 1 2 3 4) (list 1 2 3 4)))))))
-    (is (= "1 nil 2 nil nil nil"
-           (capture-output '((print (print 1) (print " ") (print 2) (print " ")))))))
+                             (print-list (list (list 1 2 3 4) (list 1 2 3 4))))))))
 #+end_src
 
 **** Lazy Sequence

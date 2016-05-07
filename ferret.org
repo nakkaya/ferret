@@ -104,7 +104,7 @@ We can compile this program using *ferret*, creating an executable named
 
 Output will be placed in a a file called *lazy-sum.cpp*, passing the
 *-c* flag will cause this file to be automatically compiled using GNU
-C++. (Other compilers are supprted see [[Overview]]).
+C++. (Other compilers are supprted see [[Implementation Notes]]).
 
 Following shows a blink example for Arduino.
 
@@ -286,6 +286,11 @@ Clojure/Lein project.
 Ferret is a functional, lazy language. All functions should mimic
 their Clojure counter parts. If they don't it is considered a bug. (or
 not possible to implement with the current implementation.)
+
+The generated code is self contained *ISO C++11*, it is not tied to
+any one compiler, generated code should be portable between any
+Operating System / Microcontroller that support a *C++11* compliant
+compiler.
 
 The compiler and the C++ runtime needed is split into three sections.
 

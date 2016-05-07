@@ -1993,15 +1993,15 @@ Linked list container implementing the seekable interface.
      ("var rest" ""
       "return next;"))
     (post-code "namespace runtime {
-                 var list() { 
+                 inline var list() { 
                    return obj<EmptySequence>();
                  }
-                 var list(var v) { 
+                 inline var list(var v) { 
                    return obj<Sequence>(v,nil());
                  }
         
                  template <typename... Args>
-                 var list(var first, Args... args) { 
+                 inline var list(var first, Args... args) { 
                    return obj<Sequence>(first, list(args...));
                  }
                }"))
@@ -2326,13 +2326,13 @@ Function invocation,
 #+begin_src c++ :tangle no
   namespace ferret{
     template<typename T, typename... Args>
-    var run(T fn, Args... args);
+    inline var run(T fn, Args... args);
         
     template<typename T>
-    var run(T fn);
+    inline var run(T fn);
 
     template<>
-    var run(var);
+    inline var run(var);
   }
 #+end_src
 
@@ -2340,22 +2340,22 @@ Function invocation,
 #+begin_src c++ :tangle no
   namespace ferret{
     template<typename T, typename... Args>
-    var run(T fn, Args... args) {
+    inline var run(T fn, Args... args) {
       return fn.invoke(runtime::list(args...));
     }
 
     template<typename T>
-    var run(T fn) {
+    inline var run(T fn) {
       return fn.invoke(nil());
     }
 
     template<>
-    var run(var fn) {
+    inline var run(var fn) {
       return fn.cast<Lambda>()->invoke(nil());
     }
 
     template<typename... Args>
-    var run(var fn, Args... args) {
+    inline var run(var fn, Args... args) {
       return fn.cast<Lambda>()->invoke(runtime::list(args...));
     }
   }

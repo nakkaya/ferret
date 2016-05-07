@@ -302,22 +302,6 @@ support Ferret such as [[Object System]], [[Memory Pool][ Memory Pooling]], [[Re
 Collection]]. It is written in a mixture of C++ and Ferret DSL. *[[Clojure
 Core]]* corresponds to *clojure.core*, contains all functions.
 
-All Ferret objects derive from a [[Base]] class.
-
- - [[Pointer]] - For Holding references to native objects.
- - [[Number]] - All numbers are kept as ratios (two ints).
- - [[Keyword]] 
- - [[Sequence]]
- - [[Lazy Sequence]]
- - [[String]] - As [[Sequence]] of [[Number]]s
- - [[Boolean]]
- - [[Atom]] - Mimics Clojure atoms.
-
-Interfaces,
-
- - [[Lambda]] - Provides *invoke* for callable objects.
- - [[Seekable]] - Provides *first*, *rest*, *cons* for [[Seekable]] containers.
-
 * Compiler
 
 Compilation happens by taking the /form/ and running it through several
@@ -1738,6 +1722,24 @@ Dispatch correct memory allocation/deallocation implementation,
 #+end_src
 
 ** Object System
+
+All Ferret objects derive from a [[Base]] class.
+
+ - [[Pointer]] - For Holding references to native objects.
+ - [[Number]] - All numbers are kept as ratios (two ints).
+ - [[Keyword]] 
+ - [[Sequence]]
+ - [[Lazy Sequence]]
+ - [[String]] - As [[Sequence]] of [[Number]]s
+ - [[Boolean]]
+ - [[Atom]] - Mimics Clojure atoms.
+
+Interfaces,
+
+ - [[Lambda]] - Provides *invoke* for callable objects.
+ - [[Seekable]] - Provides *first*, *rest*, *cons* for [[Seekable]]
+   containers.
+
 *** Base
 
 All our types are derived from the base Object type,

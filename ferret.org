@@ -1,5 +1,4 @@
 #+title: Ferret User's Guide
-#+tags: clojure c++ arduino avr-gcc gcc
 #+STARTUP: hidestars
 #+TAGS: noexport(e)
 #+EXPORT_EXCLUDE_TAGS: noexport
@@ -23,6 +22,11 @@
 #+HTML_HEAD:    $('#outline-container-sec-3 > .hsCollapsible').removeClass( "hsCollapsible" );
 #+HTML_HEAD:    $('#outline-container-sec-8 > .hsCollapsible').removeClass( "hsCollapsible" );
 #+HTML_HEAD: });</script>
+#+HTML_HEAD: <meta name="author" content="Nurullah Akkaya">
+#+HTML_HEAD: <meta name="description" content="Clojure to C++ Compiler">
+#+HTML_HEAD: <meta name="keywords" content="clojure,lisp,c++,compiler,embedded,systems,microcontroller,real-time">
+#+HTML_HEAD: <link href="/images/favicon.ico" rel="icon" type="image/x-icon">
+#+HTML_HEAD: <link href="/images/favicon.ico" rel="shortcut icon" type="image/x-icon">
 #+OPTIONS: H:10
 
 * About

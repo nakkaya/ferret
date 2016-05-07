@@ -37,12 +37,17 @@ functional minimum viable lisp that runs on embedded systems with
 deterministic behaviour by compiling a subset of Clojure to C++.
 
 Generated code is self contained *ISO C++11* with no
-dependencies. Which allows it to run on embedded systems with as
-little as 2KB of RAM. (Arduino Uno / Atmega328 with 32kb Flash)
+dependencies. Which allows Ferret to be used on any platform that has
+a C++11 compliant compiler, from embedded systems with as little as
+2KB of RAM to a general pupose computer running Linux/Mac OS
+X/Windows.
 
-Ferret is not trying to be a 1 to 1 Clojure to C++ compiler. Projects
-eventual aim is to create Clojure flavored lisp with ideas from Ada
-that makes it suitable for embedded programming.
+Ferret has been verified to run on following architectures,
+
+ - Arduino Uno / Atmega328
+ - Arduino Due / AT91SAM3X8E
+ - Clang on Mac OS X
+ - GCC on Linux
 
 ** Features
 

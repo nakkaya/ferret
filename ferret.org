@@ -38,11 +38,15 @@ deterministic behaviour by compiling a subset of Clojure to C++.
 
 Generated code is self contained *ISO C++11* with no
 dependencies. Which allows Ferret to be used on any platform that has
-a C++11 compliant compiler, from embedded systems with as little as
-2KB of RAM to a general pupose computer running Linux/Mac OS
-X/Windows.
+a C++11 compliant compiler.
 
-Ferret has been verified to run on following architectures,
+Ferret is not an attempt to make a better or faster Clojure. Although
+for certain work loads it is possible to beat JVM. (i.e math
+heavy code using Blitz)
+
+Ferret has been verified to run on architectures ranging from embedded
+systems with as little as 2KB of RAM to general pupose computers
+running Linux/Mac OS X/Windows.
 
  - Arduino Uno / Atmega328
  - Arduino Due / AT91SAM3X8E
@@ -51,13 +55,17 @@ Ferret has been verified to run on following architectures,
 
 ** Features
 
+What sets Ferret apart from other lisp implementations.
+
  - Very small foot print.
  - Functional
  - Macros
  - Destructuring
  - Easy FFI (Inline C,C++)
- - Memory Pooling
+ - Memory Pooling (Ability to *run without heap*.)
  - Module System
+ - Easily Embeddable (Ferret *fn*s are just C++ *functors*.)
+ - Generated code is actually readable.
 
 ** License
 

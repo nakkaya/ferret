@@ -341,7 +341,7 @@ code generation phase.
   (defn compile [form options]
     (->> (import-modules-all form)
          (process-reader-macros)
-         (add-built-in)
+         (embed-ferret-core)
          (expand-macros-all)
          (let->fn)
          (do->fn)
@@ -364,7 +364,7 @@ Compiler will look for a file under current working directory called,
 front of the current form with symbols renamed to /some-fn/ =>
 /io/some-function/.
 
-#+name: core-compilation-add-built-in
+#+name: core-compilation-embed-ferret-core
 #+begin_src clojure :tangle no
   (defn import-modules-select-require [form]
     (->> (select-form form (is-form? 'require))
@@ -379,7 +379,7 @@ front of the current form with symbols renamed to /some-fn/ =>
 Extract the list of packages and aliases from the form. Returns a map
 of mod -> aliases pairs.
 
-#+name: core-compilation-add-built-in
+#+name: core-compilation-embed-ferret-core
 #+begin_src clojure :tangle no
   (defn import-modules-load-modules [package-list]
     (reduce (fn[h [m aliases]]
@@ -406,7 +406,7 @@ all its symbols are replaced with its module name except /core/
 functions. Module names acts as namespaces. Returns a form that the is
 concatenation of all modules listed in form.
 
-#+name: core-compilation-add-built-in
+#+name: core-compilation-embed-ferret-core
 #+begin_src clojure :tangle no
   (defn import-modules-convert-alias-to-module [package-list form]
     (let [alias-to-mod (reduce (fn[h [mod aliases]]
@@ -426,7 +426,7 @@ Convert all aliased symbols in the form to their fully qualified
 modules names. So =helper-a= defined in module =util.db= becomes
 =util_db_helper-a=.
 
-#+name: core-compilation-add-built-in
+#+name: core-compilation-embed-ferret-core
 #+begin_src clojure :tangle no
   (defn import-modules [form]
     (let [package-list (import-modules-select-require form)
@@ -462,13 +462,13 @@ Process some supported reader macros, /@/ and /#(some-fn)/ forms.
 /resources/core.clj/ contains the ferret core runtime when
 tangled.
 
-#+name: core-compilation-add-built-in
+#+name: core-compilation-embed-ferret-core
 #+begin_src clojure :tangle no
-  (defn add-built-in
+  (defn embed-ferret-core
     ([form]
-     (let [runtime (-> (read-string (str \( (read-from-url "core.clj") \)))
-                       (remove-form (is-form? 'defmacro)))]
-       (shake-concat runtime form))))
+     (shake-concat (-> (read-string (str \( (read-from-url "core.clj") \)))
+                       (remove-form (is-form? 'defmacro)))
+                   form)))
 #+end_src
 
 *** Expand Macros
@@ -4889,7 +4889,7 @@ Create some dummy libs under /test/modules/,
   <<core-compilation-reader-macros>>
   <<core-compilation-expand-macros>>
   <<core-compilation-shake-concat>>
-  <<core-compilation-add-built-in>>
+  <<core-compilation-embed-ferret-core>>
   <<core-compilation-closure-conversion>>
   <<core-compilation-symbol-conversion>>
   <<core-compilation-do-fn>>

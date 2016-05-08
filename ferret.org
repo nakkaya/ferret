@@ -152,7 +152,7 @@ Ferret is designed to be used on embedded systems which means,
  - Can't have unpredictable GC pauses when running.
 
 So the default memory management is done using reference
-counting. Unlike other lisp implementations Ferret supports various
+counting. Unlike other lisp implementations, Ferret supports various
 memory management schemes,
 
  - Reference counting using,

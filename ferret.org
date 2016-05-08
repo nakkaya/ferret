@@ -62,9 +62,9 @@ What sets Ferret apart from other lisp implementations.
  - Macros
  - Destructuring
  - Easy FFI (Inline C,C++)
- - Memory Pooling (Ability to *run without heap*.)
+ - Memory Pooling (Ability to run without heap.)
  - Module System
- - Easily Embeddable (Ferret *fn*s are just C++ *functors*.)
+ - Easily Embeddable (i.e Ferret fns are just C++ functors.)
  - Generated code is actually readable.
 
 ** License

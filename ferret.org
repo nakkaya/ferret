@@ -146,9 +146,26 @@ Then upload as usual.
 
 ** Memory Management
 
-Memory management is done using reference counting. On memory
-constraint systems such as microcontrollers Ferret can use a memory
-pool to avoid heap fragmentation and calling malloc/free.
+Ferret is designed to be used on embedded systems which means,
+
+ - Latency is more important then through put.
+ - Can't have unpredictable GC pauses when running.
+
+So the default memory management is done using reference
+counting. Unlike other lisp implementations Ferret supports various
+memory management schemes,
+
+ - Reference counting using,
+   - *malloc/free* - Allocations are handled by the system
+     implementation. (Default memory management.)
+   - *Memory Pooling* - On memory constraint systems such as
+     microcontrollers Ferret can use a memory pool to avoid heap
+     fragmentation and calling malloc/free. Effectively running with
+     no heap, allocating all memory at compile time on the stack.
+   - *Third party allocators* (i.e tcmalloc)
+ - *Third party garbage collectors* (i.e Boehm GC)
+
+To enable memory pooling,
 
 #+BEGIN_EXAMPLE
   (configure-runtime! FERRET_MEMORY_POOL_SIZE 256)

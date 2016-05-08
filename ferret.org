@@ -459,21 +459,21 @@ Process some supported reader macros, /@/ and /#(some-fn)/ forms.
 
 *** Add Runtime
 
-/resources/runtime.clj/ contains the ferret core runtime when
+/resources/core.clj/ contains the ferret core runtime when
 tangled.
 
 #+name: core-compilation-add-built-in
 #+begin_src clojure :tangle no
   (defn add-built-in
     ([form]
-     (let [runtime (-> (read-string (str \( (read-from-url "runtime.clj") \)))
+     (let [runtime (-> (read-string (str \( (read-from-url "core.clj") \)))
                        (remove-form (is-form? 'defmacro)))]
        (shake-concat runtime form))))
 #+end_src
 
 *** Expand Macros
 
-First we read all the macros present in /resources/runtime.clj/ then
+First we read all the macros present in /resources/core.clj/ then
 add to that  user defined macros, they are evaluated in a temporary
 namespace, using /morph-form/ we iterate all the macros used in the
 code that we are compiling and expand them in the temporary namespace
@@ -484,7 +484,7 @@ then the node is replaced with its expanded form.
   (declare expand-macros-all)
 
   (defn expand-macros [form]
-    (let [build-in-macros (->> (read-string (str \( (read-from-url "runtime.clj") \)))
+    (let [build-in-macros (->> (read-string (str \( (read-from-url "core.clj") \)))
                                (filter (is-form? 'defmacro)))
           build-in-macro-symbols (into #{} (map second build-in-macros))
           form-macros (->> (filter (is-form? 'defmacro) form)
@@ -1389,7 +1389,7 @@ lambda forms.
           #endif
         }
       #endif\n")]
-      (fill-view! view "object_interface" (read-from-url "Object.cpp"))
+      (fill-view! view "object_interface" (read-from-url "ferret.h"))
       (fill-view! view "body" (filter #(not (empty? %)) body))
       (fill-view! view "lambda_classes" (declare-lambda-classes lambdas))
       (fill-view! view "lambda_bodies" (declare-lambda-bodies lambdas))
@@ -5039,9 +5039,9 @@ Create some dummy libs under /test/modules/,
     <<ferret-unit-tests>>
 #+end_src 
 
-** resources/Object.cpp
+** resources/ferret.h
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/resources/Object.cpp
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/resources/ferret.h
   <<runtime-native-math-config-macros>>
 
   <<runtime-native-program-header>>
@@ -5056,9 +5056,9 @@ Create some dummy libs under /test/modules/,
   }
 #+end_src 
 
-** resources/runtime.clj
+** resources/core.clj
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/resources/runtime.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/resources/core.clj
   <<runtime-clojure-thread-macro>>
   <<runtime-clojure-fn-macro>>
   <<runtime-clojure-boolean-object>>

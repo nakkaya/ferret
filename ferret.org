@@ -1373,7 +1373,7 @@ lambda forms.
         #if defined(FERRET_STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS)
           _star_command_line_args_star_ = runtime::list();
           for (int i = argc - 1; i > -1 ; i--)
-            runtime::cons(obj<String>(argv[i]),_star_command_line_args_star_);
+            _star_command_line_args_star_ = runtime::cons(obj<String>(argv[i]),_star_command_line_args_star_);
         #endif
 
           ProgramRun();
@@ -4406,6 +4406,16 @@ All tests are compiled using,
 #+end_src
 
 ** Clojure Core
+*** Command Line Arguments
+
+#+begin_src clojure
+  (deftest command-line-arguments-test
+    (is (= "(./a.out)"
+           (capture-output '((print *command-line-args*)))))
+    (is (= "(./a.out 1 2 3)"
+           (capture-output '((print *command-line-args*)) ["1" "2" "3"]))))
+#+end_src
+
 *** Conditionals
 
 #+begin_src clojure
@@ -5039,7 +5049,7 @@ Create some dummy libs under /test/modules/,
       (:use [clojure.test]
             [clojure.java.shell]))
 
-  (defn capture-output [form]
+  (defn capture-output [form & [cmd-args]]
     (let [options (compile-options
                    {:compiler-options
                     ["-std=c++11" "-pedantic"
@@ -5048,7 +5058,9 @@ Create some dummy libs under /test/modules/,
       (compile->cpp form options)
       (compile->binary options [])
       (with-sh-dir "./"
-        (let [r (sh "./a.out")]
+        (let [r (if cmd-args
+                  (apply sh (cons "./a.out" cmd-args))
+                  (sh "./a.out"))]
           (sh "rm" "-f" "a.out")
           (sh "rm" "-f" "solution.cpp")
           (:out r)))))

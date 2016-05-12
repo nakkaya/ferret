@@ -3711,15 +3711,15 @@ output trying to make the input equal the setpoint.
 #+END_QUOTE
 
 #+begin_src clojure :tangle no
-  (def p (pid-init :kp 0.5
-                   :ki 0
-                   :kd 0
-                   :set-point 5
-                   ;;in min - in max - out min - out max
-                   :bounds [0 10 0 10]
-                   :continuous false))
+  (def controller (pid-controller :kp 0.5
+                                  :ki 0
+                                  :kd 0
+                                  :set-point 5
+                                  ;;in min - in max - out min - out max
+                                  :bounds [0 10 0 10]
+                                  :continuous false))
 
-  (println "Control" (pid-control p 0))
+  (println "Control" (controller 0))
 #+end_src
 
 Ported from,
@@ -3838,20 +3838,24 @@ Ported from,
 
 #+name: runtime-clojure-pid-controller
 #+begin_src clojure :tangle no
-  (defn pid-init-aux [set-point kp ki kd in-min in-max out-min out-max continuous]
+  (defn pid-controller-create [set-point kp ki kd in-min in-max out-min out-max continuous]
     "var p = obj<PIDController<float>>(kp, ki, kd, in_min, in_max, out_min, out_max, continuous);
      p.cast<PIDController<float>>()->setSetpoint(set_point);
      return p;")
 
-  (defmacro pid-init [& options]
+  (defn pid-controller-run [controller input]
+    "__result = controller.cast<PIDController<float>>()->update(input)")
+
+  (defmacro pid-controller [& options]
     (let [options (apply hash-map options)
           {:keys [container kp ki kd set-point bounds continuous]} options
-          [in-min in-max out-min out-max] bounds]
-      (cons 'pid-init-aux
-            (list set-point kp ki kd in-min in-max out-min out-max continuous))))
-
-  (defn pid-control [controller input]
-    "__result = controller.cast<PIDController<float>>()->update(input)")
+          [in-min in-max out-min out-max] bounds
+          controller-sym (gensym)]
+      `(~'let [~controller-sym
+               ~(cons 'pid-controller-create
+                      (list set-point kp ki kd in-min in-max out-min out-max continuous))]
+         (~'fn [~'input]
+           (~'pid-controller-run ~controller-sym ~'input)))))
 #+end_src
 
 ** GPIO
@@ -4748,38 +4752,38 @@ Create some dummy libs under /test/modules/,
 #+begin_src clojure :tangle no
   (deftest pid-controller-test
     (is (= "5 5 10 15 20 20 10 5"
-           (capture-output '((let [controller (pid-init :kp 1
-                                                        :ki 0
-                                                        :kd 0
-                                                        :set-point 5
-                                                        :bounds [0 10 0 10]
-                                                        :continuous false)
-                                   resp1 (pid-control controller 0)
-                                   resp2 (pid-control controller 0)]
+           (capture-output '((let [controller (pid-controller :kp 1
+                                                              :ki 0
+                                                              :kd 0
+                                                              :set-point 5
+                                                              :bounds [0 10 0 10]
+                                                              :continuous false)
+                                   resp1 (controller 0)
+                                   resp2 (controller 0)]
                                (print resp1 resp2))
                              
-                             (let [controller (pid-init :kp 1
-                                                        :ki 1
-                                                        :kd 0
-                                                        :set-point 5
-                                                        :bounds [0 10 0 20]
-                                                        :continuous false)
-                                   resp1 (pid-control controller 0)
-                                   resp2 (pid-control controller 0)
-                                   resp3 (pid-control controller 0)
-                                   resp4 (pid-control controller 0)]
+                             (let [controller (pid-controller :kp 1
+                                                              :ki 1
+                                                              :kd 0
+                                                              :set-point 5
+                                                              :bounds [0 10 0 20]
+                                                              :continuous false)
+                                   resp1 (controller 0)
+                                   resp2 (controller 0)
+                                   resp3 (controller 0)
+                                   resp4 (controller 0)]
                                (print " ")
                                (print resp1 resp2 resp3 resp4))
 
 
-                             (let [controller (pid-init :kp 1
-                                                        :ki 0
-                                                        :kd 1
-                                                        :set-point 5
-                                                        :bounds [0 10 0 20]
-                                                        :continuous false)
-                                   resp1 (pid-control controller 0)
-                                   resp2 (pid-control controller 0)]
+                             (let [controller (pid-controller :kp 1
+                                                              :ki 0
+                                                              :kd 1
+                                                              :set-point 5
+                                                              :bounds [0 10 0 20]
+                                                              :continuous false)
+                                   resp1 (controller 0)
+                                   resp2 (controller 0)]
                                (print " ")
                                (print resp1 resp2)))))))
 #+end_src

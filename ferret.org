@@ -3853,30 +3853,86 @@ Ported from,
 ** GPIO
 *** pin-mode
 
+Configures the specified pin to behave either as an input or an
+output.
+
 #+name: runtime-clojure-gpio
 #+begin_src clojure :tangle no
-  (defn pin-mode [pin mode]
-    "if (mode.equals(obj<Keyword>(618)) == true) // :input
-        pinMode(pin.cast<Number>()->as<int>(), INPUT);
-     else
-        pinMode(pin.cast<Number>()->as<int>(), OUTPUT);")
-
-  (defn digital-write [pin mode]
-    "if (mode.equals(obj<Keyword>(474))  == true) // :high
-        digitalWrite(pin.cast<Number>()->as<int>(), HIGH);
-     else
-        digitalWrite(pin.cast<Number>()->as<int>(), LOW);")
+  (defnative pin-mode [pin mode]
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "if (mode.equals(obj<Keyword>(618)) == true) // :input
+           pinMode(pin.cast<Number>()->as<int>(), INPUT);
+         else
+           pinMode(pin.cast<Number>()->as<int>(), OUTPUT);"))
 #+end_src
 
 *** digital-write
 
+Write a HIGH or a LOW value to a digital pin.
+
 #+name: runtime-clojure-gpio
 #+begin_src clojure :tangle no
-  (defn digital-write [pin mode]
-    "if (mode.equals(obj<Keyword>(474))  == true) // :high
-        digitalWrite(pin.cast<Number>()->as<int>(), HIGH);
-     else
-        digitalWrite(pin.cast<Number>()->as<int>(), LOW);")
+  (defnative digital-write [pin mode]
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "if (mode.equals(obj<Keyword>(474))  == true) // :high
+           digitalWrite(pin.cast<Number>()->as<int>(), HIGH);
+         else
+           digitalWrite(pin.cast<Number>()->as<int>(), LOW);"))
+#+end_src
+
+*** digital-read
+
+Reads the value from a specified digital pin, either HIGH or LOW.
+
+#+name: runtime-clojure-gpio
+#+begin_src clojure :tangle no
+  (defnative digital-read [pin]
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "digitalRead(pin.cast<Number>()->as<int>());"))
+#+end_src
+
+*** analog-write
+
+Writes an analog value (PWM wave) to a pin.
+
+#+name: runtime-clojure-gpio
+#+begin_src clojure :tangle no
+  (defnative analog-write [pin val]
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "analogWrite(pin.cast<Number>()->as<int>(),val.cast<Number>()->as<int>());"))
+#+end_src
+
+*** analog-read
+
+Reads the value from the specified analog pin.
+
+#+name: runtime-clojure-gpio
+#+begin_src clojure :tangle no
+  (defnative analog-read [pin]
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "analogRead(pin.cast<Number>()->as<int>());"))
+#+end_src
+
+*** analog-write-resolution
+
+Sets the resolution of the *analog-write*
+
+#+name: runtime-clojure-gpio
+#+begin_src clojure :tangle no
+  (defnative analog-write-resolution [bit]
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "analogWriteResolution(bit.cast<Number>()->as<int>());"))
+#+end_src
+
+*** analog-read-resolution
+
+Sets the size (in bits) of the value returned by *analog-read*.
+
+#+name: runtime-clojure-gpio
+#+begin_src clojure :tangle no
+  (defnative analog-read-resolution [bit]
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "analogReadResolution(bit.cast<Number>()->as<int>());"))
 #+end_src
 
 ** Testing

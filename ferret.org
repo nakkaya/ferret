@@ -4410,16 +4410,6 @@ All tests are compiled using,
 #+end_src
 
 ** Clojure Core
-*** Command Line Arguments
-
-#+begin_src clojure
-  (deftest command-line-arguments-test
-    (is (= "(./a.out)"
-           (capture-output '((print *command-line-args*)))))
-    (is (= "(./a.out 1 2 3)"
-           (capture-output '((print *command-line-args*)) ["1" "2" "3"]))))
-#+end_src
-
 *** Conditionals
 
 #+begin_src clojure
@@ -4628,6 +4618,14 @@ Create some dummy libs under /test/modules/,
 #+end_src 
 
 *** Misc
+
+#+begin_src clojure
+  (deftest command-line-arguments-test
+    (is (= "(./a.out)"
+           (capture-output '((print *command-line-args*)))))
+    (is (= "(./a.out 1 2 3)"
+           (capture-output '((print *command-line-args*)) ["1" "2" "3"]))))
+#+end_src
 
 #+begin_src clojure :tangle no
   (deftest bit-operations-test

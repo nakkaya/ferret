@@ -1519,8 +1519,13 @@ lambda forms.
               (println "[+] Link:")
               (doseq [link (:link options)]
                 (println "           " link))
-              (let [ret (with-sh-dir (:output-path options)
-                          (apply sh command))]
+              (let [ret (try
+                          (with-sh-dir (:output-path options)
+                            (apply sh command))
+                          (catch Exception e
+                            (println (str "[+] Error Executing C++ Compiler."))
+                            (println (str "[+] " (.getMessage e)))
+                            (System/exit 1)))]
                 (if (not= 0 (:exit ret))
                   (do (println "[+] Build Error")
                       (println (:err ret))

@@ -4799,7 +4799,6 @@ Create some dummy libs under /test/modules/,
 ** Core
 
   - *Variadic Templates* - GCC evaluates arguments in reverse order.
-  - *core* - split core into multiple namespaces.
   - *Build Configuration* - Download files (header, source) from URL.
   - *Pointer* - Ability to call cleanup function before *GC*
   - *Unit Testing*

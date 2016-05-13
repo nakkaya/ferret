@@ -1520,7 +1520,9 @@ lambda forms.
               (doseq [link (:link options)]
                 (println "           " link))
               (let [ret (try
-                          (with-sh-dir (:output-path options)
+                          (with-sh-dir (if (not (empty? (:output-path options)))
+                                         (:output-path options)
+                                         "./")
                             (apply sh command))
                           (catch Exception e
                             (println (str "[+] Error Executing C++ Compiler."))

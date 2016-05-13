@@ -2,7 +2,7 @@
 #+STARTUP: hidestars
 #+TAGS: noexport(e)
 #+EXPORT_EXCLUDE_TAGS: noexport
-#+SETUPFILE: org-mode.setup
+#+SETUPFILE: org-mode-assets/org-mode.setup
 #+OPTIONS: H:10
 
 * About

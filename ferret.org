@@ -90,14 +90,24 @@ We can compile this program using *ferret*, creating an executable named
 *a.out*.
 
 #+BEGIN_EXAMPLE
+  $ ./ferret -i lazy-sum.clj
+  $ g++ -std=c++11 lazy-sum.cpp
+  $ ./a.out
+  15
+#+END_EXAMPLE
+
+Output will be placed in a a file called *lazy-sum.cpp*. When *-c*
+flag is used ferret will call *g++* on the resulting *cpp*
+file. (Other compilers are supported see [[Implementation Notes]]).
+
+#+BEGIN_EXAMPLE
   $ ./ferret -i lazy-sum.clj -c
   $ ./a.out
   15
 #+END_EXAMPLE
 
-Output will be placed in a a file called *lazy-sum.cpp*, passing the
-*-c* flag will cause this file to be automatically compiled using GNU
-C++. (Other compilers are supprted see [[Implementation Notes]]).
+Passing the *-c* flag will cause this file to be automatically
+compiled using GNU C++. 
 
 Following shows a blink example for Arduino.
 

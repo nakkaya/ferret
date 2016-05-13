@@ -3626,16 +3626,16 @@ This macro allows users to define state machines using the following
 DSL,
 
 #+begin_src clojure :tangle no
-  (defmachine two-state-machine
-    (states
-     (off (println "Off"))
-     (on (println "On")))
-    (transitions
-     (off
-      (fn [] true) on)
-     (on
-      (fn [] true) off)))
-
+  (def two-state-machine
+    (state-machine 
+     (states
+      (off (println "Off"))
+      (on (println "On")))
+     (transitions
+      (off
+       (fn [] true) on)
+      (on
+       (fn [] true) off))))
 
   (dotimes [i 10]
     (two-state-machine))
@@ -3646,7 +3646,7 @@ returns true returns the next state.
 
 #+name: runtime-clojure-state-machine
 #+begin_src clojure :tangle no
-  (defmacro defmachine [name states transitions]
+  (defmacro state-machine [states transitions]
     (let [transitions
           (->> transitions
                rest
@@ -3679,16 +3679,16 @@ returns true returns the next state.
                              (map second))
           func (list 'fn (into [] state-names)
                      (list
-                      (list 'fn [(symbol (str name "-state"))]
+                      (list 'fn ['ferret-machine-state]
                             `~(list 'fn* []
                                     (list
                                      (list 'fn* []
-                                           `~(list 'swap! (symbol (str name "-state"))
+                                           `~(list 'swap! 'ferret-machine-state
                                                    (list 'fn* ['state]
                                                          (list 'state)
                                                          `(~@transitions)))))))
                       (list 'atom start-state)))]
-      (list 'def name (cons func state-symbols))))
+      (cons func state-symbols)))
 #+end_src
 
 *** PID Control
@@ -4680,41 +4680,48 @@ Create some dummy libs under /test/modules/,
   (deftest state-machine-test
     (is (= "10 0 10"
            (capture-output '((def state (atom 0))
-                             (defmachine two-state-machine
-                               (states
-                                (off (swap! state inc))
-                                (on (swap! state inc)))
-                               (transitions
-                                (off
-                                 (fn [] true) on)
-                                (on
-                                 (fn [] true) off)))
+                             
+                             (def two-state-machine
+                               (state-machine
+                                (states
+                                 (off (swap! state inc))
+                                 (on (swap! state inc)))
+                                (transitions
+                                 (off
+                                  (fn [] true) on)
+                                 (on
+                                  (fn [] true) off))))
+                             
                              (dotimes [_ 10]
                                (two-state-machine))
+                             
                              (print (deref state))
                              (print " ")
                              (reset! state 0)
                              (print (deref state))
 
-                             (defmachine three-state-machine
-                               (states
-                                (a (swap! state inc))
-                                (b (swap! state inc))
-                                (c (swap! state inc))
-                                (no-op (swap! state inc)))
-                               (transitions
-                                (a
-                                 (fn [] false) no-op
-                                 (fn [] true) b)
-                                (b
-                                 (fn [] true) c)
-                                (c
-                                 (fn [] false) no-op
-                                 (fn [] false) no-op
-                                 (fn [] true) a
-                                 (fn [] false) no-op)))
+                             (def three-state-machine
+                               (state-machine
+                                (states
+                                 (a (swap! state inc))
+                                 (b (swap! state inc))
+                                 (c (swap! state inc))
+                                 (no-op (swap! state inc)))
+                                (transitions
+                                 (a
+                                  (fn [] false) no-op
+                                  (fn [] true) b)
+                                 (b
+                                  (fn [] true) c)
+                                 (c
+                                  (fn [] false) no-op
+                                  (fn [] false) no-op
+                                  (fn [] true) a
+                                  (fn [] false) no-op))))
+                             
                              (dotimes [_ 10]
                                (three-state-machine))
+                             
                              (print " ")
                              (print (deref state)))))))
 #+end_src

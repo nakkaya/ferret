@@ -21,5 +21,5 @@
 #+HTML_HEAD: <meta name="author" content="Nurullah Akkaya">
 #+HTML_HEAD: <meta name="description" content="Clojure to C++ Compiler">
 #+HTML_HEAD: <meta name="keywords" content="clojure,lisp,c++,compiler,embedded,systems,microcontroller,real-time">
-#+HTML_HEAD: <link href="http://nakkaya.com/images/favicon.ico" rel="icon" type="image/x-icon">
-#+HTML_HEAD: <link href="http://nakkaya.com/images/favicon.ico" rel="shortcut icon" type="image/x-icon">
+#+HTML_HEAD: <link href="http://dropbox.nakkaya.com/builds/ferret-styles/favicon.ico" rel="icon" type="image/x-icon">
+#+HTML_HEAD: <link href="http://dropbox.nakkaya.com/builds/ferret-styles/favicon.ico" rel="shortcut icon" type="image/x-icon">

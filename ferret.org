@@ -2238,6 +2238,8 @@ containers.
     (fns ("virtual ~ISeekable" "" "")))
 #+end_src
 
+C++ API for the interface,
+
 #+name: runtime-native-iseekable-headers
 #+begin_src c++ :tangle no
   namespace ferret{
@@ -2250,6 +2252,8 @@ containers.
     }
   }
 #+end_src
+
+Range-based for loop support for seekable containers.
 
 #+name: runtime-native-iseekable-headers
 #+begin_src c++ :tangle no

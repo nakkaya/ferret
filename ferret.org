@@ -1618,15 +1618,11 @@ code. (ie. printing on different embedded systems.)
     complete control over the memory and you need deterministic timing
     requirements.
 
-    For every page of memory allocated there is overhead of one
-    /byte/ and one memory page is used for book keeping.
-
     When /allocate/ is called the pool will scan the memory pool using
     the /used/ array to find a block of memory big enough to
     satisfy the request. If found, it will the mark the region as used and
     return a pointer from /pool/ array to the user which points to
-    the memory block. First page of the memory block is used for book
-    keeping information, it holds the amount of memory allocated.
+    the memory block.
 
     When a free request is received, we resolve the pointer in to the
     memory pool read the book keeping information on how much memory

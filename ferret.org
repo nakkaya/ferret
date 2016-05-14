@@ -1616,7 +1616,7 @@ code. (ie. printing on different embedded systems.)
     happens in this memory pool useful when working with very limited
     amount of memory, such as micro controllers where you want
     complete control over the memory and you need deterministic timing
-    requirements. Memory pooling also prevents heap fragmentation.
+    requirements.
 
     For every page of memory allocated there is overhead of one
     /byte/ and one memory page is used for book keeping.

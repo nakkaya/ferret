@@ -933,6 +933,12 @@ suggests and removes the node when predicate returns true.
                          (string? form) :string
                          (or (true? form) (false? form)) :boolean
                          (seq? form) :sequence)))
+
+  (defn emit-ast
+    [ast state]
+    (reduce (fn[h v]
+              (conj h (emit v state)))
+            [] ast))
 #+end_src
 
 Without preprocessing following forms,
@@ -961,18 +967,17 @@ C++ skeleton.
 
 #+name: core-code-generation-misc
 #+begin_src clojure :tangle no
-    (defn append-to! [r ks v]
-      (dosync 
-       (let [cv (reduce (fn[h v] (v h)) @r ks)]
-         (alter r assoc-in ks (conj cv v)))))
+  (defn append-to! [r ks v]
+    (let [cv (reduce (fn[h v] (v h)) @r ks)]
+      (swap! r assoc-in ks (conj cv v))))
 #+end_src
 
 #+name: core-code-generation-emit-source
 #+begin_src clojure :tangle no
   (defn emit-source [form options]
-    (let [state (ref {:lambdas [] :symbol-table #{} :native-declarations [] :native-defines []})
+    (let [state (atom {:lambdas [] :symbol-table #{} :native-declarations [] :native-defines []})
           ast (compile form options)
-          body (doall (map #(emit % state) ast))]
+          body (emit-ast ast state)]
       (when (:ast options)
         (pprint/pprint ast))
       (assoc @state :body body)))
@@ -1005,11 +1010,11 @@ C++ skeleton.
         (str "obj<Number>(" number ")"))))
 
   (defmethod emit :sequence [[fn & args] state]
-    (invoke-lambda (emit fn state) (doall (map #(emit % state) args))))
+    (invoke-lambda (emit fn state) (emit-ast args state)))
 
   (defmethod emit 'fir_invoke_lambda_stack [[_ lambda & args] state]
     (invoke-lambda (new-lambda-stack lambda)
-                   (doall (map #(emit % state) args))))
+                   (emit-ast args state)))
 
   (defmethod emit 'fir_define_var [[_ name form] state]
     (str "var " name " = " (emit form state)))
@@ -1080,7 +1085,9 @@ lambda forms.
                         (if (neg? (.indexOf body "__result"))
                           [body "nil();"]
                           ["var __result;" body "__result;"]))
-                      :default (doall (map #(str (emit % state) \;) body)))
+                      :default (reduce (fn[h v]
+                                         (conj h (str v \;)))
+                                       [] (emit-ast body state)))
           env (->> env
                    (flatten)
                    (filter #(and (not (= '& %))
@@ -1139,7 +1146,7 @@ lambda forms.
 
   (defmethod emit 'def [[_ name & form] state]
     (append-to! state [:symbol-table] name)
-    (str "(" name " = " (apply str (doall (map #(emit % state) form))) ")"))
+    (str "(" name " = " (apply str (emit-ast form state)) ")"))
 #+end_src
 
 *** Code Templates

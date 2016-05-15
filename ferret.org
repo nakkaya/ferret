@@ -482,6 +482,7 @@ then the node is replaced with its expanded form.
 #+name: core-compilation-expand-macros
 #+begin_src clojure :tangle no
   (declare expand-macros-all)
+  (declare localize-fn-args)
 
   (defn expand-macros [form]
     (let [build-in-macros (->> (read-string (str \( (read-from-url "core.clj") \)))
@@ -496,7 +497,7 @@ then the node is replaced with its expanded form.
       (create-ns temp-ns)
       (binding [*ns* (the-ns temp-ns)]
         (refer 'clojure.core :exclude (concat build-in-macro-symbols form-macro-symbols ['fn 'def]))
-        (use '[ferret.core :only [symbol-conversion]])
+        (use '[ferret.core :only [symbol-conversion localize-fn-args]])
         
         (doseq [m build-in-macros]
           (eval m))
@@ -525,6 +526,43 @@ then the node is replaced with its expanded form.
         (if (= f expanded)
           expanded
           (recur expanded)))))
+#+end_src
+
+Takes a *fn* form and converts all argument symbols with their unique
+replacements,
+
+#+begin_src clojure
+  (fn [a b] (list a b))
+  ;;becomes
+  (fn [a__1510 b__1511] (list a__1510 b__1511))
+#+end_src
+
+#+name: core-compilation-expand-macros
+#+begin_src clojure :tangle no
+  (defn localize-fn-args [form]
+    (let [valid-symbol? (fn [s] (and (not= s '&) (not= s '_)))
+          [args & body] form]
+      (if (string? (first body))
+        (cons 'fn* `(~args ~@body))
+        (let [unique-args (->> args
+                               flatten
+                               (filter valid-symbol?)
+                               (map #(symbol (str % (gensym "__")))))
+              replace? (->> (interleave (->> args
+                                             flatten
+                                             (filter valid-symbol?))
+                                        unique-args)
+                            (apply hash-map))
+              unique-body (walk/prewalk
+                           (fn [x]
+                             (if (and (symbol? x)
+                                      (replace? x))
+                               (replace? x)
+                               x)) body)
+              args (->> (morph-form args #(replace? %)
+                                    (fn [f] (replace? f)))
+                        (into []))]
+          (cons 'fn* `(~args ~@unique-body))))))
 #+end_src
 
 *** let->fn
@@ -2774,11 +2812,10 @@ implementation.
 #+begin_src clojure :tangle no
   (defmacro fn [& body]
     (if (vector? (first body))
-      (let [[args & body] body]
-        (cons 'fn* `(~args ~@body)))
+      (localize-fn-args body)
       (let [count-symbol (gensym)
             fn-arg-symbol (gensym)
-            fns (map #(cons 'fn* %) body)
+            fns (map #(localize-fn-args %) body)
             conds (->> (map first body)
                        (map (fn* [args] (filter #(not (= % '&)) args)))
                        (map #(count %)))
@@ -4140,7 +4177,6 @@ All tests are compiled using,
                     expand-macros-all
                     closure-conversion)]
       (is (= (first (second form)) 'fir-define-lambda))
-      (is (= (last (second form)) '(+ x n)))
       (is (= (second (first form)) 'make-adder))
       (is (= (first (first form)) 'def))))
 #+end_src

@@ -3429,6 +3429,27 @@ A simple macro for calling inline C++,
   <<runtime-clojure-sequence-count>>
 #+end_src
 
+*** min / max
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn min
+    ([x] x)
+    ([x & r]
+     (reduce (fn[h v]
+               (if (< h v)
+                 h v))
+             x r)))
+
+  (defn max
+    ([x] x)
+    ([x & r]
+     (reduce (fn[h v]
+               (if (> h v)
+                 h v))
+             x r)))
+#+end_src
+
 *** mod
 
 #+name: runtime-clojure-math
@@ -4595,6 +4616,13 @@ All tests are compiled using,
 
 #+begin_src clojure :tangle no
   (deftest clojure-core-math
+    (is (= "1 1 1 1 2 7"
+           (capture-output '((print (min 1)
+                                    (min 2 1)
+                                    (min 3 5 7 1)
+                                    (max 1)
+                                    (max 2 1)
+                                    (max 3 5 7 1))))))
     (is (= "100 50 0 5 10 0 -10"
            (capture-output '((print (scale 10 0 10 0 100)
                                     (scale 5 0 10 0 100)

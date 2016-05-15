@@ -3655,6 +3655,25 @@ function *f* to run in milliseconds,
 #+end_src
 
 ** Misc
+*** rand
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no
+  (defnative rand-aux []
+    (on "defined FERRET_STD_LIB"
+        ("random")
+        "std::random_device ferret_random_device;
+         std::mt19937_64 ferret_random_generator(ferret_random_device());
+         std::uniform_real_distribution<float> ferret_random_distribution(0.0,1.0);"
+        "__result = obj<Number>(ferret_random_distribution(ferret_random_generator));"))
+
+  (defn rand
+    ([]
+     (rand-aux))
+    ([x]
+     (* x (rand-aux))))
+#+end_src
+
 *** identity
 
 #+name: runtime-clojure-misc
@@ -4750,6 +4769,15 @@ Create some dummy libs under /test/modules/,
            (capture-output '((print *command-line-args*)))))
     (is (= "(./a.out 1 2 3)"
            (capture-output '((print *command-line-args*)) ["1" "2" "3"]))))
+#+end_src
+
+#+begin_src clojure
+  (deftest random-numbers-test
+    (is (= "true true true true"
+           (capture-output '((print (not (nil? (rand)))
+                                    (not (nil? (rand 15)))
+                                    (pos? (rand))
+                                    (pos? (rand 10))))))))
 #+end_src
 
 #+begin_src clojure :tangle no

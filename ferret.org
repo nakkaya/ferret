@@ -2788,6 +2788,14 @@ implementation.
                     (cons 'fir-dispatch-lambda))))))
 #+end_src
 
+A simple macro for calling inline C++,
+
+#+name: runtime-clojure-fn-macro
+#+begin_src clojure :tangle no
+  (defmacro cxx [str]
+    `((~'fn [] ~str)))
+#+end_src
+
 ** I/O
 *** print
 
@@ -3940,7 +3948,7 @@ Sets the size (in bits) of the value returned by *analog-read*.
   (defn assert-aux [f msg]
     (when (not (f))
       (println "Assertion Failed ==>" msg)
-      ((fn [] "std::abort();"))))
+      (cxx "std::abort();")))
 
   (defn assert-aux-callback [f callback]
     (when (not (f)) (callback)))
@@ -4006,21 +4014,21 @@ Include native headers, (*.h* files)
 #+begin_src clojure :tangle no
   (defn pr-object-sizes []
     (println "Object Sizes")
-    (println "\tvar:\t\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(var));")))
-    (println "\tObject:\t\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(Object));")))
-    (println "\tPointer:\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(Pointer));")))
-    (println "\tNumber:\t\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(Number));")))
-    (println "\tKeyword:\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(Keyword));")))
-    (println "\tSequence:\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(Sequence));")))
-    (println "\tLazySequence:\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(LazySequence));")))
-    (println "\tString:\t\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(String));")))
-    (println "\tBoolean:\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(Boolean));")))
-    (println "\tLambda:\t\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(Lambda));")))
-    (println "\tAtom:\t\t\t" ((fn [] "__result = obj<Number>((math::container)sizeof(Atom));")))
+    (println "\tvar:\t\t\t" (cxx "__result = obj<Number>((math::container)sizeof(var));"))
+    (println "\tObject:\t\t\t" (cxx "__result = obj<Number>((math::container)sizeof(Object));"))
+    (println "\tPointer:\t\t" (cxx "__result = obj<Number>((math::container)sizeof(Pointer));"))
+    (println "\tNumber:\t\t\t" (cxx "__result = obj<Number>((math::container)sizeof(Number));"))
+    (println "\tKeyword:\t\t" (cxx "__result = obj<Number>((math::container)sizeof(Keyword));"))
+    (println "\tSequence:\t\t" (cxx "__result = obj<Number>((math::container)sizeof(Sequence));"))
+    (println "\tLazySequence:\t\t" (cxx "__result = obj<Number>((math::container)sizeof(LazySequence));"))
+    (println "\tString:\t\t\t" (cxx "__result = obj<Number>((math::container)sizeof(String));"))
+    (println "\tBoolean:\t\t" (cxx "__result = obj<Number>((math::container)sizeof(Boolean));"))
+    (println "\tLambda:\t\t\t" (cxx "__result = obj<Number>((math::container)sizeof(Lambda));"))
+    (println "\tAtom:\t\t\t" (cxx "__result = obj<Number>((math::container)sizeof(Atom));"))
     (println "\tPIDController<float>:\t"
-             ((fn [] "__result = obj<Number>((math::container)sizeof(PIDController<float>));")))
+             (cxx "__result = obj<Number>((math::container)sizeof(PIDController<float>));"))
     (println "\tPIDController<int>:\t"
-             ((fn [] "__result = obj<Number>((math::container)sizeof(PIDController<int>));"))))
+             (cxx "__result = obj<Number>((math::container)sizeof(PIDController<int>));")))
 #+end_src
 
 *** memory-pool-free-space
@@ -4266,18 +4274,18 @@ All tests are compiled using,
             '((native-define "#define FERRET_MEMORY_POOL_SIZE 2048")
               (native-declare "ferret::MemoryPool<size_t,10,size_t> mem;")
               (native-declare "void* ptr;")
-              ((fn [] "std::cout << mem.nextAvaliblePage(0) << \" \";"))
-              ((fn [] "mem.allocate(sizeof(size_t)*2);"))
-              ((fn [] "std::cout << mem.nextAvaliblePage(0) << \" \";"))
-              ((fn [] "ptr = mem.allocate(sizeof(size_t)*4);"))
-              ((fn [] "std::cout << mem.nextAvaliblePage(2) << \" \";"))
-              ((fn [] "mem.free(ptr);"))
-              ((fn [] "std::cout << mem.nextAvaliblePage(2) << \" \";"))
-              ((fn [] "std::cout << (nullptr == mem.allocate(sizeof(size_t)*40)) << \" \";"))
-              ((fn [] "std::cout << (nullptr != mem.allocate(sizeof(size_t)*6)) << \" \";"))
-              ((fn [] "std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";"))
-              ((fn [] "std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";"))
-              ((fn [] "std::cout << (nullptr == mem.allocate(sizeof(size_t)*10)) << \" \";")))))))
+              (cxx "std::cout << mem.nextAvaliblePage(0) << \" \";")
+              (cxx "mem.allocate(sizeof(size_t)*2);")
+              (cxx "std::cout << mem.nextAvaliblePage(0) << \" \";")
+              (cxx "ptr = mem.allocate(sizeof(size_t)*4);")
+              (cxx "std::cout << mem.nextAvaliblePage(2) << \" \";")
+              (cxx "mem.free(ptr);")
+              (cxx "std::cout << mem.nextAvaliblePage(2) << \" \";")
+              (cxx "std::cout << (nullptr == mem.allocate(sizeof(size_t)*40)) << \" \";")
+              (cxx "std::cout << (nullptr != mem.allocate(sizeof(size_t)*6)) << \" \";")
+              (cxx "std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";")
+              (cxx "std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";")
+              (cxx "std::cout << (nullptr == mem.allocate(sizeof(size_t)*10)) << \" \";"))))))
 #+end_src
 
 *** Object System

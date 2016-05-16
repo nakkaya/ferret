@@ -105,9 +105,6 @@ file. (Other compilers are supported see [[Implementation Notes]]).
   15
 #+END_EXAMPLE
 
-Passing the *-c* flag will cause this file to be automatically
-compiled using GNU C++. 
-
 Following shows a blink example for Arduino.
 
 #+begin_src clojure

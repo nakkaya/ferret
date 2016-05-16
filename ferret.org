@@ -2178,10 +2178,7 @@ Strings are represented as a linked list of characters.
       "std::string toString" ""
       "std::stringstream ss;
        FERRET_ITERATE(data,it){ss << runtime::first(it).cast<Number>()->as<char>();}
-       return ss.str();")
-     ("ifdef FERRET_STD_LIB"
-      "const char* toCString" ""
-      "return toString().c_str();")))
+       return ss.str();")))
 #+end_src
 
 **** Boolean
@@ -2896,7 +2893,7 @@ A simple macro for calling inline C++,
   (defnative sh [cmd]
     (on "defined FERRET_STD_LIB"
         ("memory")
-        "std::shared_ptr<FILE> pipe(popen(cmd.cast<String>()->toCString(), \"r\"), pclose);
+        "std::shared_ptr<FILE> pipe(popen(cmd.cast<String>()->toString().c_str(), \"r\"), pclose);
          if (!pipe) 
             __result = nil();
          char buffer[128];

@@ -199,6 +199,15 @@ code. You can then use it like any other ferret function.
     (print 1))
 #+end_src
 
+Another option is to use the *cxx* macro,
+
+#+begin_src clojure
+  (let [msg "Hello World!"]
+    (cxx "std::cout << msg.cast<String>()->toString() << std::endl;"))
+
+  (def dac-0 (cxx "__result =  obj<Number>(DAC0);"))
+#+end_src
+
 In addition to *defn* form there is also a *defnative* form which
 allows you to define different function bodies for different *#define*
 directives,

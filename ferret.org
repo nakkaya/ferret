@@ -232,7 +232,26 @@ will return *nil*. You can have multiple *on* blocks per *defnative*,
         "::delay(t.cast<Number>()->as<int>());"))
 #+end_src
 
-This way a single function can be defined for multiple systems.
+This way a single function can be defined for multiple
+systems. Reverse is also possible, since all built in data structures
+are immutable you can freely call Ferret code from C++,
+
+#+begin_src c++
+  var alist = runtime::list(obj<Number>(1),obj<Number>(2),obj<Number>(3));
+
+  int sum = 0;
+  for(auto it : runtime::range(alist)){
+    sum += it.cast<Number>()->as<int>();
+   }
+
+  std::cout << sum << std::endl;
+
+  //or
+
+  var res = _plus_().invoke(alist);
+  res.toOutputStream();
+  std::cout << std::endl;
+#+end_src
 
 ** Wrapping Third Party C,C++ Libraries
 

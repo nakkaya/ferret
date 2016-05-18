@@ -5007,6 +5007,8 @@ Create some dummy libs under /test/modules/,
     n it is more efficient in terms of time and space than more
     sophisticated strategies such as hash tables.
     - D-Lists - https://news.ycombinator.com/item?id=11575540
+    - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/PersistentHashMap.java
+    - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/APersistentMap.java
   - *Unbounded Precision Integers*
     - [[https://web.archive.org/web/20101208222557/http://www.mactech.com/articles/mactech/Vol.08/08.03/BigNums/index.html][Arbitrarily Large Bignums]]
     From p.11: PICOBIT: A Compact Scheme System for Microcontrollers

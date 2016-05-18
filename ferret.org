@@ -4047,6 +4047,25 @@ Sets the size (in bits) of the value returned by *analog-read*.
         "analogReadResolution(bit.cast<Number>()->as<int>());"))
 #+end_src
 
+*** tone/noTone
+
+Generates a square wave of the specified frequency (and 50% duty
+cycle) on a pin.
+
+#+name: runtime-clojure-gpio
+#+begin_src clojure :tangle no
+  (defnative tone [pin freq]
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "tone(pin.cast<Number>()->as<int>(),freq.cast<Number>()->as<int>());"))
+#+end_src
+
+#+name: runtime-clojure-gpio
+#+begin_src clojure :tangle no
+  (defnative no-tone [pin]
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "noTone(pin.cast<Number>()->as<int>());"))
+#+end_src
+
 ** Testing
 *** assert
 #+name: runtime-clojure-testing

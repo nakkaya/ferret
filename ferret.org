@@ -4971,7 +4971,6 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
-  - *Variadic Templates* - GCC evaluates arguments in reverse order.
   - *Build Configuration* - Download files (header, source) from URL.
   - *Pointer* - Ability to call cleanup function before *GC*
   - *Unit Testing*
@@ -5033,6 +5032,9 @@ Create some dummy libs under /test/modules/,
   - *Readbility* - Add context to auto generated symbols in compiled
     code.
   - *Core.typed* - Attach type information to the program.
+  - *Variadic Templates* - GCC evaluates arguments in reverse order.
+    - [[http://stackoverflow.com/questions/14060264/order-of-evaluation-of-elements-in-list-initialization][Order of evaluation of elements in list-initialization]]
+    - [[https://blogs.msdn.microsoft.com/vcblog/2016/02/11/compiler-improvements-in-vs-2015-update-2/][Compiler improvements in VS 2015 Update 2]]
 
 *** Libraries
 

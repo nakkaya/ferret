@@ -8,20 +8,15 @@
 * About
 ** What Is Ferret
 
-Ferret is a Clojure to C++ compiler, projects aim is to create a
-functional minimum viable lisp that runs on embedded systems with
-deterministic behaviour by compiling a subset of Clojure to
-C++. Generated code is self contained *ISO C++11* with no
-dependencies.
+Ferret is a free software Clojure implementation, it compiles a
+restricted subset of the Clojure language to self contained *ISO
+C++11* which allows for the use of Clojure in real time embedded
+control systems. 
 
-Ferret is not an attempt to make a better or faster Clojure. Although
-for certain work loads it is possible to beat JVM. (i.e math
-heavy code using Blitz)
-
-Ferret can be used on any platform that has a *C++11* compliant
-compiler. it has been verified to run on architectures ranging from
-embedded systems with as little as 2KB of RAM to general purpose
-computers running Linux/Mac OS X/Windows.
+Generated code can be used on any platform that has a *C++11*
+compliant compiler. it has been verified to run on architectures
+ranging from embedded systems with as little as 2KB of RAM to general
+purpose computers running Linux/Mac OS X/Windows.
 
  - Arduino Uno / Atmega328
  - Arduino Due / AT91SAM3X8E
@@ -30,14 +25,14 @@ computers running Linux/Mac OS X/Windows.
 
 ** Features
 
-What sets Ferret apart from other lisp implementations.
-
- - Memory Pooling (Ability to run without heap.)
+ - Tailored for Real Time Control Applications.
+ - Deterministic Garbage Collection
  - Immutable Data Structures
  - Functional
  - Macros
  - Easy FFI (Inline C,C++)
  - Easily Embeddable (i.e Ferret fns are just C++ functors.)
+ - Memory Pooling (Ability to run without heap.)
  - Destructuring
  - Module System
  - Generated code is actually readable.

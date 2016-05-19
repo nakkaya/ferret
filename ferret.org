@@ -2730,7 +2730,7 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
 
   #define FERRET_INIT_REF() refCount = 0;
   #define FERRET_INC_REF(this) refCount++;
-  #define FERRET_DEC_REF(this) (--refCount <= 0);
+  #define FERRET_DEC_REF(this) (--refCount == 0);
 #+end_src
 
 ** Debugging Macros

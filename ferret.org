@@ -963,7 +963,7 @@ suggests and removes the node when predicate returns true.
     (try
       (read-string (str \( (FileUtils/readFileToString (file f)) \)))
       (catch Exception e
-        (println "Error Reading," f)
+        (warn "Error Reading," f)
         (System/exit 1))))
 
   (defn is-special-form? [s f]
@@ -1538,16 +1538,16 @@ lambda forms.
     (defn compile->cpp [form options]
       (let [file-name (cpp-file-name options)
             source (emit-source form options)]
-        (println "[+] Compiling")
+        (info "Compiling")
         (FileUtils/writeStringToFile (file file-name) (solution-template source))
         (let [formatted-source (try (with-sh-dir "./"
                                       (sh "clang-format" "-style" "{Standard: Cpp11}" file-name))
                                     (catch Exception e nil))]
           (when (:fomat-code options)
             (if formatted-source
-              (do (println "[+] Formatting Code") 
+              (do (info "Formatting Code") 
                   (spit file-name (:out formatted-source)))
-              (println "[+] Install clang-format for Formatted Output (Optional)"))))))
+              (info "Install clang-format for Formatted Output (Optional)"))))))
   #+end_src
 
 *** Compile to Binary
@@ -1571,46 +1571,46 @@ lambda forms.
                               ["-x" "c++"]
                               (str (:base-name options) "." (:source-extension options))])]
 
-        (println "[+] Building Binary")
+        (info "Building Binary")
         (if (:build-command options)
-          (do (println "[+] Build Command" (:build-command options))
+          (do (info "Build Command" (:build-command options))
               (let [ret (with-sh-dir (:output-path options)
                           (apply sh (flatten ["bash" "-c" (:build-command options)])))]
                 (if (not= 0 (:exit ret))
-                  (do (println "[+] Build Error")
-                      (println (:err ret))
+                  (do (warn "Build Error")
+                      (warn (:err ret))
                       (System/exit 1))
-                  (println (:out ret)))))
-          (do (println "[+] Compiler:" (:compiler options))
-              (println "[+] Options:")
+                  (info (:out ret)))))
+          (do (info "Compiler:" (:compiler options))
+              (info "Options:")
               (doseq [option (:compiler-options options)]
-                (println "           " option))
-              (println "[+] Include Path:")
+                (info "           " option))
+              (info "Include Path:")
               (doseq [path (:include-path options)]
-                (println "           " path))
-              (println "[+] Library Path:")
+                (info "           " path))
+              (info "Library Path:")
               (doseq [path (:library-path options)]
-                (println "           " path))
-              (println "[+] Link:")
+                (info "           " path))
+              (info "Link:")
               (doseq [link (:link options)]
-                (println "           " link))
+                (info "           " link))
               (let [ret (try
                           (with-sh-dir (if (not (empty? (:output-path options)))
                                          (:output-path options)
                                          "./")
                             (apply sh command))
                           (catch Exception e
-                            (println (str "[+] Error Executing C++ Compiler."))
-                            (println (str "[+] " (.getMessage e)))
+                            (warn (str "Error Executing C++ Compiler."))
+                            (warn (str "" (.getMessage e)))
                             (System/exit 1)))]
                 (if (not= 0 (:exit ret))
-                  (do (println "[+] Build Error")
-                      (println (:err ret))
+                  (do (warn "Build Error")
+                      (warn (:err ret))
                       (System/exit 1))
                   (do (when (:name options)
                         (with-sh-dir (:output-path options)
                           (sh "mv" "a.out" (str "./" (:name options)))))
-                      (println "[+] Done")
+                      (info "Done")
                       true)))))))
   #+end_src
 
@@ -1639,7 +1639,7 @@ lambda forms.
         (let [input (if (and (->> args :options :input)
                              (.exists (file (->> args :options :input))))
                       (->> args :options :input)
-                      (do (println "No Input File.")
+                      (do (warn "No Input File.")
                           (System/exit 1)))
               input-base-name (org.apache.commons.io.FilenameUtils/getBaseName input)
               input-path (str (org.apache.commons.io.FilenameUtils/getPrefix input)
@@ -1671,6 +1671,53 @@ lambda forms.
                                  (watcher/on-change (fn [_] (build-fn))))
                 @(promise)))
           (shutdown-agents))))
+  #+end_src
+
+*** Logging
+
+  #+name: core-logging
+  #+begin_src clojure
+    (def log-formatter (proxy [java.util.logging.Formatter] []
+                         (format
+                           [^java.util.logging.LogRecord record]
+                           (let [level (-> record .getLevel .toString)]
+                             (str (if (= level "WARNING")
+                                    (color/red level)
+                                    (color/green level))
+                                  ": "
+                                  (.getMessage record) "\n")))))
+
+    (def log-handler (proxy [java.util.logging.Handler] []
+                       (publish [^java.util.logging.LogRecord record]
+                         (when (and (.isLoggable ^java.util.logging.Handler this record)
+                                    (instance? java.io.PrintWriter *out*))
+                           (.print ^java.io.PrintWriter *out* 
+                                   (.format ^java.util.logging.Formatter log-formatter record))))
+                       (flush [] (.flush ^java.io.PrintWriter *out*))
+                       (close [] 
+                         ;;(.close *out*)
+                         )))
+
+    (.addHandler (java.util.logging.Logger/getLogger "") log-handler)
+
+    (let [^java.util.logging.LogManager$RootLogger logger (java.util.logging.Logger/getLogger "")]
+      (doseq [^java.util.logging.Handler handler (.getHandlers logger)]
+        (. handler setFormatter log-formatter)))
+
+    (defn set-log-level! [& [level]]
+      (let [^java.util.logging.LogManager$RootLogger logger
+            (java.util.logging.Logger/getLogger "")
+            level (cond (nil? level) java.util.logging.Level/ALL
+                        (= level :trace) java.util.logging.Level/FINEST
+                        (= level :debug) java.util.logging.Level/FINE
+                        (= level :info) java.util.logging.Level/INFO
+                        (= level :warn) java.util.logging.Level/WARNING)]
+        
+        (.setLevel logger level)
+        (doseq [^java.util.logging.Handler handler (.getHandlers logger)]
+          (. handler setLevel level))))
+
+    (set-log-level! :info)
   #+end_src
 
 * Native Core
@@ -5097,7 +5144,9 @@ Create some dummy libs under /test/modules/,
                    [org.clojure/tools.cli "0.3.3"]
                    [org.bituf/clj-stringtemplate "0.2"]
                    [org.clojars.amit/commons-io "1.4.0"]
-                   [watchtower "0.1.1"]]
+                   [watchtower "0.1.1"]
+                   [org.clojure/tools.logging "0.2.3"]
+                   [clojure-term-colors "0.1.0-SNAPSHOT"]]
     :repl-options {:host "0.0.0.0"
                    :port 7888
                    :init-ns ferret.core}
@@ -5117,12 +5166,15 @@ Create some dummy libs under /test/modules/,
               [clojure.walk :as walk]
               [clojure.pprint :as pprint]
               [clojure.tools.cli :refer [parse-opts]]
-              [watchtower.core :as watcher])
+              [watchtower.core :as watcher]
+              [clojure.term.colors :as color])
     (:use [ferret.string-template]
           [ferret.template]
-          [clojure.java.shell])
+          [clojure.java.shell]
+          [clojure.tools [logging :only [log warn info]]])
     (:import (org.apache.commons.io FileUtils)))
 
+  <<core-logging>>
   <<core-code-generation-misc>>
   <<core-compilation-form-fns>>
   <<core-compilation-reader-macros>>
@@ -5260,6 +5312,8 @@ Create some dummy libs under /test/modules/,
       (:use [ferret.core] :reload)
       (:use [clojure.test]
             [clojure.java.shell]))
+
+  (set-log-level! :warn)
 
   (defn capture-output [form & [cmd-args]]
     (let [options (compile-options

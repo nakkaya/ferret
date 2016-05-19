@@ -2657,47 +2657,26 @@ Setup [[https://en.wikipedia.org/wiki/Universal_asynchronous_receiver/transmitte
 
 #+name: runtime-native-program-header
 #+begin_src c++ :tangle no
-#if defined(FERRET_HARDWARE_ARDUINO_UNO) && !defined(FERRET_DISABLE_OUTPUT_STREAM)
-  static FILE uartout = {0};
+  #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
+   #if defined(FERRET_HARDWARE_ARDUINO_UNO)
+    static FILE uartout = {0};
 
-  static int uart_putchar (char c, FILE *stream){
-    Serial.write(c);
-    return 0 ;
-  }
+    static int uart_putchar (char c, FILE *stream){
+      Serial.write(c);
+      return 0 ;
+    }
 
-  #define FERRET_OUTPUT_STREAM &uartout
-#endif
-#+end_src
-
-#+name: runtime-native-program-header
-#+begin_src c++ :tangle no
-  #ifdef FERRET_HARDWARE_ARDUINO_UNO
-   #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
-   #define FERRET_INIT_OUTPUT_STREAM                                          \
-      Serial.begin(FERRET_UART_RATE);                                                     \
-      fdev_setup_stream (&uartout, uart_putchar, NULL, _FDEV_SETUP_WRITE);
-   #else
-    #define FERRET_INIT_OUTPUT_STREAM ;
+    #define FERRET_OUTPUT_STREAM &uartout
+    #define FERRET_INIT_OUTPUT_STREAM                                       \
+       Serial.begin(FERRET_UART_RATE);                                       \
+       fdev_setup_stream (&uartout, uart_putchar, NULL, _FDEV_SETUP_WRITE);
+   #elif defined(FERRET_HARDWARE_ARDUINO_DUE)
+    #define FERRET_OUTPUT_STREAM stdout
+    #define FERRET_INIT_OUTPUT_STREAM Serial.begin(FERRET_UART_RATE);
    #endif
+  #else
+    #define FERRET_INIT_OUTPUT_STREAM ;
   #endif
-#+end_src
-
-#+name: runtime-native-program-header
-#+begin_src c++ :tangle no
-#if defined(FERRET_HARDWARE_ARDUINO_DUE) && !defined(FERRET_DISABLE_OUTPUT_STREAM)
- #define FERRET_OUTPUT_STREAM stdout
-#endif
-#+end_src
-
-#+name: runtime-native-program-header
-#+begin_src c++ :tangle no
-#ifdef FERRET_HARDWARE_ARDUINO_DUE
- #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
-  #define FERRET_INIT_OUTPUT_STREAM Serial.begin(FERRET_UART_RATE);
- #else
-  #define FERRET_INIT_OUTPUT_STREAM ;
- #endif
-#endif
 #+end_src
 
 **** General purpose computing

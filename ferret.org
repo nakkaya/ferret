@@ -1547,7 +1547,7 @@ lambda forms.
             (if formatted-source
               (do (info "Formatting Code") 
                   (spit file-name (:out formatted-source)))
-              (info "Install clang-format for Formatted Output (Optional)"))))))
+              (trace "Install clang-format for Formatted Output (Optional)"))))))
   #+end_src
 
 *** Compile to Binary
@@ -5171,7 +5171,7 @@ Create some dummy libs under /test/modules/,
     (:use [ferret.string-template]
           [ferret.template]
           [clojure.java.shell]
-          [clojure.tools [logging :only [log warn info]]])
+          [clojure.tools [logging :only [log warn info trace]]])
     (:import (org.apache.commons.io FileUtils)))
 
   <<core-logging>>

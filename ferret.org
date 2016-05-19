@@ -3010,7 +3010,7 @@ A simple macro for calling inline C++,
         return obj<Boolean>(false);
       curr = first;
      }
-     return obj<Boolean>(true);")
+     __result = obj<Boolean>(true);")
 #+end_src
 
 *** not=
@@ -3134,7 +3134,7 @@ A simple macro for calling inline C++,
   (defn not [x]
     "if (x)
        return obj<Boolean>(false);
-     return obj<Boolean>(true);")
+     __result = obj<Boolean>(true);")
 #+end_src
 
 *** true?
@@ -3144,7 +3144,7 @@ A simple macro for calling inline C++,
   (defn true? [x]
     "if (x)
        return obj<Boolean>(true);
-     return obj<Boolean>(false);")
+     __result = obj<Boolean>(false);")
 #+end_src
 
 *** false?
@@ -3154,7 +3154,7 @@ A simple macro for calling inline C++,
   (defn false? [x]
     "if (!x)
        return obj<Boolean>(true);
-     return obj<Boolean>(false);")
+     __result = obj<Boolean>(false);")
 #+end_src
 
 ** Sequence
@@ -3930,7 +3930,7 @@ Ported from,
   (defn pid-controller-create [set-point kp ki kd in-min in-max out-min out-max continuous]
     "var p = obj<PIDController<float>>(kp, ki, kd, in_min, in_max, out_min, out_max, continuous);
      p.cast<PIDController<float>>()->setSetpoint(set_point);
-     return p;")
+     __result = p;")
 
   (defn pid-controller-run [controller input]
     "__result = controller.cast<PIDController<float>>()->update(input)")

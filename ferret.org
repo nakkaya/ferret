@@ -1261,6 +1261,8 @@ lambda forms.
   #endif
          $endif$
 
+         $raw_fns:{it | $it$ } ;separator=\"\n\"$
+
          $fns:{it | $first(it)$($first(rest(it))$){
            $first(rest(rest(it)))$
          }} ;separator=\"\n\"$
@@ -1287,7 +1289,11 @@ lambda forms.
       (fill-view! view "equals" (first (specs 'equals)))
       (fill-view! view "toOutputStream" (first (specs 'toOutputStream)))
       (fill-view! view "interfaces" (specs 'interfaces))
-      (fill-view! view "fns" (filter #(= 3 (count %)) (specs 'fns)))
+      (let [fns (specs 'fns)
+            raw-fns (filter #(= 1 (count %)) fns)
+            fns (filter #(= 3 (count %)) fns)]
+        (fill-view! view "fns" fns)
+        (fill-view! view "raw_fns" raw-fns))
       (fill-view! view "ifdef_fns" (filter #(= 4 (count %)) (specs 'fns)))
       (fill-view! view "post_code" (first (specs 'post_code)))
       (render-view view)))
@@ -1885,16 +1891,17 @@ An object to hold a reference to a C++ pointer,
 #+begin_src clojure :tangle no
   (defobject Pointer
     (data "void* ptr;")
-    (new ("void* p" "ptr = p;"))
     (equals
      "return obj<Boolean>(ptr == o.cast<Pointer>()->pointer<void>());")
     (toOutputStream
      "fprintf(FERRET_OUTPUT_STREAM, \"Pointer<%p>\",ptr); return nil();")
     (fns
+     ("explicit Pointer(void* p) : ptr(p) {}")
      ("template<typename T> T* pointer" ""
       "return ((T *)ptr);")
      ("template<typename T> T& reference" ""
-      "return (*(pointer<T>()));")))
+      "return (*(pointer<T>()));"))
+    (force-type))
 #+end_src
 
 **** Number
@@ -1946,16 +1953,6 @@ Number Object,
   (defobject Number
     (data "math::container numerator;"
           "math::container denominator;")
-    (new ("math::container x"
-          "numerator = x; denominator = 1;")
-         ("math::container n, math::container dn"
-          "numerator = n; denominator = dn; simplificate();")
-         ("float x"
-          "float decimal = (x - (math::container)x) * (float)math::precision;
-           math::container integer = (math::container)x;
-           numerator = decimal + (integer * math::precision);
-           denominator = math::precision;
-           simplificate();"))
     (equals "if (getNumerator() == 0 && o.cast<Number>()->getNumerator() == 0)
                return obj<Boolean>(true);
              else
@@ -1974,6 +1971,17 @@ Number Object,
       return nil();")
     
     (fns
+     ("explicit Number(math::container x) : numerator(x), denominator(1) {}")
+     ("explicit Number(math::container n, math::container dn) : numerator(n), denominator(dn) {
+         simplificate();
+       }")
+     ("explicit Number(float x){
+           float decimal = (x - (math::container)x) * (float)math::precision;
+           math::container integer = (math::container)x;
+           numerator = decimal + (integer * math::precision);
+           denominator = math::precision;
+           simplificate();
+       }")
      ("math::container getNumerator" "" "return numerator;")
      ("math::container getDenominator" "" "return denominator;")
      ("template<typename T> T as" "" "T::unimplemented_function;")
@@ -1996,7 +2004,8 @@ Number Object,
                 }
                 template<> char Number::as(){
                    return as<int>();
-                }"))
+                }")
+    (force-type))
 #+end_src
 
 **** Keyword
@@ -2008,18 +2017,20 @@ Each keyword in the program is converted to an /Keyword/ object. A
 #+begin_src clojure :tangle no
   (defobject Keyword
     (data "int id;")
-    (new ("int b" "id=b;")
-         ("const char * str"
-          "id = 0;
-           for (int i = 0; str[i] != '\\0'; i++){
-             id = id + (int)str[i];
-           }"))
-    (equals "return obj<Boolean>(hash() == o.cast<Keyword>()->hash());")
+    (equals "return obj<Boolean>(id == o.cast<Keyword>()->container());")
     (toOutputStream
      "fprintf(FERRET_OUTPUT_STREAM, \"%d\", id); return nil();")
     (fns
-     ("int hash" ""
-      "return id;")))
+     ("explicit Keyword(int id) : id(id) {}")
+     ("explicit Keyword(const char * str){
+           id = 0;
+           for (int i = 0; str[i] != '\\0'; i++){
+             id = id + (int)str[i];
+           }
+       }")
+     ("int container" ""
+      "return id;"))
+    (force-type))
 #+end_src
 
 **** Sequence
@@ -2046,11 +2057,8 @@ Linked list container implementing the seekable interface.
 
   (defobject Sequence
     (interface :ISeekable)
-    (data "var next;"
-          "var data;")
-    (new ("var d = nullptr, var n = nullptr"
-          "next = n; data = d;"))
-
+    (data "var data;"
+          "var next;")
     (equals
      "var itOther = o;
       FERRET_ITERATE(this,it){
@@ -2074,6 +2082,7 @@ Linked list container implementing the seekable interface.
       fprintf(FERRET_OUTPUT_STREAM, \")\");
       return nil();")
     (fns
+     ("explicit Sequence(var d = nullptr, var n = nullptr) : data(d), next(n) {}")
      ("var cons" "var x"
       "return obj<Sequence>(x, this);")
      ("var first" ""
@@ -2092,7 +2101,8 @@ Linked list container implementing the seekable interface.
                  inline var list(var first, Args... args) { 
                    return obj<Sequence>(first, list(args...));
                  }
-               }"))
+               }")
+    (force-type))
 #+end_src
 
 **** Lazy Sequence
@@ -2105,11 +2115,6 @@ A lazy list container implementing the seekable interface.
     (interface :ISeekable)
     (data "var head;"
           "var thunk;")
-    (new ("var t"
-          "thunk = t;")
-         ("var d, var t"
-          "head = d;
-           thunk = t;"))
     (equals
      "var itOther = o;
       FERRET_ITERATE(this,it){
@@ -2132,12 +2137,15 @@ A lazy list container implementing the seekable interface.
       fprintf(FERRET_OUTPUT_STREAM, \")\");
       return nil();")
     (fns
+     ("explicit LazySequence(var t) : thunk(t) {}")
+     ("explicit LazySequence(var h, var t) : head(h), thunk(t) {}")
      ("var cons" "var x"
       "return obj<LazySequence>(x,thunk);")
      ("var first" ""
       "return head;")
      ("var rest" ""
-      "return run(thunk);")))
+      "return run(thunk);"))
+    (force-type))
 #+end_src
 
 #+name: runtime-clojure-sequence-object
@@ -2158,18 +2166,6 @@ Strings are represented as a linked list of characters.
   (defobject String
     (interface :ISeekable)
     (data "var data;")
-    (new (""
-          "data = nullptr;")
-         ("var s"
-          "data = s;")
-         ("const char * str"
-          "int length = 0;
-           for (length = 0; str[length] != '\\0'; length++);
-           length--;
-           var s = runtime::list(obj<Number>(str[length]));
-           for (int i = --length; i >= 0; i--)
-             s = runtime::cons(obj<Number>(str[i]),s);
-           data = s;"))
     (equals "return obj<Boolean>(container().equals(o.cast<String>()->container()));")
     (toOutputStream
      "FERRET_ITERATE(data,it){ 
@@ -2178,6 +2174,17 @@ Strings are represented as a linked list of characters.
       }
       return nil();")
     (fns
+     ("explicit String() : data(nullptr) {}")
+     ("explicit String(var s) : data(s) {}")
+     ("explicit String(const char * str) {
+           int length = 0;
+           for (length = 0; str[length] != '\\0'; length++);
+           length--;
+           var s = runtime::list(obj<Number>(str[length]));
+           for (int i = --length; i >= 0; i--)
+             s = runtime::cons(obj<Number>(str[i]),s);
+           data = s;
+       }")
      ("var container" ""
       "return data;")
      ("var cons" "var x"
@@ -2190,7 +2197,8 @@ Strings are represented as a linked list of characters.
       "std::string toString" ""
       "std::stringstream ss;
        FERRET_ITERATE(data,it){ss << runtime::first(it).cast<Number>()->as<char>();}
-       return ss.str();")))
+       return ss.str();"))
+    (force-type))
 #+end_src
 
 **** Boolean
@@ -2201,7 +2209,6 @@ A boolean object,
 #+begin_src clojure :tangle no
   (defobject Boolean
     (data "bool value;")
-    (new ("bool b" "value = b;"))
     (equals "return obj<Boolean>(value == (bool)o);")
     (toOutputStream
      "if (value)
@@ -2210,6 +2217,7 @@ A boolean object,
       fprintf(FERRET_OUTPUT_STREAM, \"false\"); 
       return nil();")
     (fns
+     ("explicit Boolean(bool b) : value(b) {}")
      ("bool container" ""
       "return value;"))
     (post-code "var::operator bool() const {
@@ -2231,7 +2239,8 @@ A boolean object,
                      return obj<Boolean>(false);
                    else
                      return get()->equals(rhs);
-                  }"))
+                  }")
+    (force-type))
 #+end_src
 
 **** Atom
@@ -2244,8 +2253,6 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
   (defobject Atom
     (data "var data;"
           "FERRET_NEW_LOCK(lock)")
-    (new ("var d"
-          "data = d;"))
     (equals "return obj<Boolean>(this == o.cast<Atom>());")
     (toOutputStream
      "fprintf(FERRET_OUTPUT_STREAM, \"atom <\");
@@ -2253,13 +2260,15 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
       fprintf(FERRET_OUTPUT_STREAM, \">\");
       return nil();")
     (fns
+     ("explicit Atom(var d) : data(d) {}")
      ("var swap" "var f,var args"
       "FERRET_WITH_LOCK(lock,{
          args = runtime::cons(data, args);
          data = f.cast<Lambda>()->invoke(args);
        });
       return data;")
-     ("var deref" "" "return data;")))
+     ("var deref" "" "return data;"))
+    (force-type))
 #+end_src
 
 Operations on /Atoms/
@@ -2318,9 +2327,9 @@ Range-based for loop support for seekable containers.
       struct range{
         var p;
 
-        range(var v) : p(v) { }
-        range begin() const { return p; }
-        range end() const { return var(); }
+        explicit range(var v) : p(v) { }
+        range begin() const { return range(p); }
+        range end() const { return range(var()); }
 
         bool operator!=(const range& other){
           return (p != other.p);
@@ -3218,12 +3227,12 @@ A simple macro for calling inline C++,
       FERRET_ITERATE(runtime::rest(sr),it){
         acc = run(f, acc, runtime::first(it));
       }
-      return acc;")
+      __result = acc;")
     ([f acc coll]
      "FERRET_ITERATE(coll,it){
        acc = run(f, acc, runtime::first(it));
       }
-      return acc;"))
+      __result = acc;"))
 #+end_src
 
 *** list

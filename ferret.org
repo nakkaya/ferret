@@ -3949,12 +3949,18 @@ output.
 
 #+name: runtime-clojure-gpio
 #+begin_src clojure :tangle no
-  (defnative pin-mode [pin mode]
+  (defnative pin-mode-input [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "if (mode.equals(obj<Keyword>(618)) == true) // :input
-           pinMode(pin.cast<Number>()->as<int>(), INPUT);
-         else
-           pinMode(pin.cast<Number>()->as<int>(), OUTPUT);"))
+        "pinMode(pin.cast<Number>()->as<int>(), INPUT);"))
+
+  (defnative pin-mode-output [pin]
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "pinMode(pin.cast<Number>()->as<int>(), OUTPUT);"))
+
+  (defmacro pin-mode [pin mode]
+    (if (= mode :input)
+      (list 'pin-mode-input pin)
+      (list 'pin-mode-output pin)))
 #+end_src
 
 *** digital-write
@@ -3963,12 +3969,18 @@ Write a HIGH or a LOW value to a digital pin.
 
 #+name: runtime-clojure-gpio
 #+begin_src clojure :tangle no
-  (defnative digital-write [pin mode]
+  (defnative digital-write-high [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "if (mode.equals(obj<Keyword>(474))  == true) // :high
-           digitalWrite(pin.cast<Number>()->as<int>(), HIGH);
-         else
-           digitalWrite(pin.cast<Number>()->as<int>(), LOW);"))
+        "digitalWrite(pin.cast<Number>()->as<int>(), HIGH);"))
+
+  (defnative digital-write-low [pin]
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "digitalWrite(pin.cast<Number>()->as<int>(), LOW);"))
+
+  (defmacro digital-write [pin mode]
+    (if (= mode :high)
+      (list 'digital-write-high pin)
+      (list 'digital-write-low pin)))
 #+end_src
 
 *** digital-read

@@ -2319,7 +2319,7 @@ Range-based for loop support for seekable containers.
       struct range{
         var p;
 
-        range(var v){p = v;}
+        range(var v) : p(v) { }
         range begin() const { return p; }
         range end() const { return var(); }
 

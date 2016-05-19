@@ -1348,7 +1348,7 @@ lambda forms.
         public:
 
         $if(lambda.env)$
-          $lambda.name$ ($lambda.env:{var $it$} ;separator=\",\"$) :
+          explicit $lambda.name$ ($lambda.env:{var $it$} ;separator=\",\"$) :
             $lambda.env:{$it$($it$)} ;separator=\",\"$ { }
         $endif$
 

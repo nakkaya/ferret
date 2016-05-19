@@ -1342,9 +1342,8 @@ lambda forms.
         public:
 
         $if(lambda.env)$
-          $lambda.name$ ($lambda.env:{var $it$} ;separator=\",\"$){ 
-             $lambda.env:{this->$it$ = $it$;} ;separator=\"\n\"$
-          }
+          $lambda.name$ ($lambda.env:{var $it$} ;separator=\",\"$) :
+            $lambda.env:{$it$($it$)} ;separator=\",\"$ { }
         $endif$
 
         $if(lambda.args)$

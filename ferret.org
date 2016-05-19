@@ -269,6 +269,12 @@ View results using,
   qcachegrind callgrind.out.XXX
 #+END_EXAMPLE
 
+For static checking the generated code you can use /cppcheck/,
+
+#+BEGIN_EXAMPLE
+  cppcheck -q --template=gcc --enable=portability,performance,style,warning generated_source.cpp
+#+END_EXAMPLE
+
 * Overview
 ** Getting Ferret
 

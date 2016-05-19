@@ -4969,7 +4969,6 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
-  - *Build Configuration* - Download files (header, source) from URL.
   - *Pointer* - Ability to call cleanup function before *GC*
   - *Unit Testing*
     - [[http://www.jera.com/techinfo/jtns/jtn002.html][JTN002 - MinUnit -- a minimal unit testing framework for C]]

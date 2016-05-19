@@ -5311,7 +5311,8 @@ Create some dummy libs under /test/modules/,
       (:refer-clojure :exclude [compile])
       (:use [ferret.core] :reload)
       (:use [clojure.test]
-            [clojure.java.shell]))
+            [clojure.java.shell]
+            [clojure.tools [logging :only [log warn info]]]))
 
   (set-log-level! :warn)
 
@@ -5331,8 +5332,19 @@ Create some dummy libs under /test/modules/,
           (sh "rm" "-f" "solution.cpp")
           (:out r)))))
 
+  (defn report-test-failure [event]
+    (let [actual (with-out-str
+                   (clojure.pprint/pprint (:actual event)))
+          expected (with-out-str
+                     (clojure.pprint/pprint (:expected event)))]
+      (let [type (-> event :type)]
+        (inc-report-counter type)
+        (when (= type :fail)
+          (warn (str "Test Failure" \newline \newline actual \newline expected))))))
+
   (defmacro compare-output [res & body]
-    `(is (= ~res (capture-output (quote ~body)))))
+    `(binding [clojure.test/report report-test-failure]
+       (is (= ~res (capture-output (quote ~body))))))
 
     <<ferret-unit-tests>>
 #+end_src 

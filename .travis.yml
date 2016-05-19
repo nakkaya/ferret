@@ -8,11 +8,11 @@ before_install:
   - wget -q http://ftp.gnu.org/gnu/emacs/emacs-24.5.tar.gz
   - tar xf emacs-24.5.tar.gz
   - cd emacs-24.5
-  - ./configure > /dev/null
-  - make > /dev/null
-  - sudo make install > /dev/null
+  - ./configure > /dev/null 2>&1
+  - make > /dev/null 2>&1
+  - sudo make install > /dev/null 2>&1
   - cd ../
-  - sudo apt-get install -y -qq g++-5 leiningen
+  - sudo apt-get install -y -qq g++-5 leiningen > /dev/null
   - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 50
   - ./build
 script:

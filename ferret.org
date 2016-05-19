@@ -1839,9 +1839,7 @@ All our types are derived from the base Object type,
 #+begin_src c++ :tangle no
   class Object{
   public:
-    Object(){
-      FERRET_INIT_REF();
-    }
+    Object() : FERRET_REF(0) { }
 
     Object(const Object& other){
       FERRET_COPY_REF(other);
@@ -2728,7 +2726,7 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
     #define FERRET_COPY_REF(other) refCount.exchange(other.refCount);
   #endif
 
-  #define FERRET_INIT_REF() refCount = 0;
+  #define FERRET_REF refCount
   #define FERRET_INC_REF(this) refCount++;
   #define FERRET_DEC_REF(this) (--refCount == 0);
 #+end_src

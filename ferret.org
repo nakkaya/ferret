@@ -3387,6 +3387,15 @@ A simple macro for calling inline C++,
       coll))
 #+end_src
 
+*** repeatedly
+
+#+name: runtime-clojure-sequence-lazy
+#+begin_src clojure :tangle no
+  (defn repeatedly
+    ([f] (cons (f) (lazy-seq (repeatedly f))))
+    ([n f] (take n (repeatedly f))))
+#+end_src
+
 ** Math
 *** float?
 
@@ -4909,6 +4918,16 @@ Create some dummy libs under /test/modules/,
             (drop 2 (list 1 2 3 4))
             (drop 4 (list 1 2 3 4))
             (drop 5 (list 1 2 3 4))))
+
+    (compare-output
+     "(1 1 1) (2 2 2) (2 2 2)"
+     (print (repeatedly 3 (fn [] 1))
+            (->> (repeatedly 3 (fn [] 1))
+                 (map inc))
+            (->> (repeatedly (fn [] 1))
+                 (take 3)
+                 (map inc)
+                 reverse)))
     
     (compare-output
      "(true true) (false false) (false false false) (true true)"

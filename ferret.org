@@ -3360,7 +3360,7 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn reverse [s]
-    (reduce conj (list) s))
+    (reduce (fn[h v] (cons v h)) (list) s))
 #+end_src
 
 *** count

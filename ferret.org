@@ -2969,6 +2969,52 @@ A simple macro for calling inline C++,
     "std::exit(code.cast<Number>()->as<int>());")
 #+end_src
 
+*** xor-stream-encoder/decoder
+
+#+name: runtime-clojure-console-io
+#+begin_src clojure :tangle no
+  (defn xor-stream-encoder [write]
+    (fn [seq]
+      (let [length (count seq)
+            checksum (reduce bit-xor length seq)]
+        (write 0X06)
+        (write 0X85)
+        (write length)
+        (doseq [s seq] 
+          (write s))
+        (write checksum))))
+#+end_src
+
+#+name: runtime-clojure-console-io
+#+begin_src clojure :tangle no
+  (defn xor-stream-header-ready [read in-waiting]
+    (and (>= (in-waiting) 3) (= (read) 0X06) (= (read) 0X85)))
+
+  (defn xor-stream-payload-ready [payload-size in-waiting]
+    (>= (in-waiting) (inc (deref payload-size))))
+
+  (defn xor-stream-decoder-goto [] true)
+
+  (defn xor-stream-decoder [read in-waiting handler]
+    (let [payload-size (atom nil)]
+      (state-machine 
+       (states
+        (sync-header)
+        (reset-payload    (reset! payload-size (read)))
+        (wait-payload)
+        (handle-payload   (let [payload (atom (list))]
+                            (dotimes [_ (deref payload-size)]
+                              (swap! payload conj (read)))
+                            (when (= (read) (reduce bit-xor (deref payload-size) (deref payload)))
+                              (swap! payload reverse)
+                              (handler (deref payload))))))
+       (transitions
+        (sync-header     #(xor-stream-header-ready read in-waiting)           reset-payload)
+        (reset-payload   xor-stream-decoder-goto                              wait-payload)
+        (wait-payload    #(xor-stream-payload-ready payload-size in-waiting)  handle-payload)
+        (handle-payload  xor-stream-decoder-goto                              sync-header)))))
+#+end_src
+
 ** Looping
 *** doseq
 
@@ -4613,6 +4659,48 @@ Following options are passed to the compiler during testing,
      
      (print " ")
      (print (deref state))))
+#+end_src
+
+#+begin_src clojure :tangle no
+  (deftest xor-stream-test
+    (compare-output
+     "(1 2 3 4)(1 2 3 4)(1 2 3 4)"
+     (defn xor-sample-read-stream [buf]
+       (let [buffer (atom buf)]
+         (list
+          (fn []
+            (let [f (first (deref buffer))]
+              (swap! buffer rest)
+              f))
+          (fn []
+            (count (deref buffer)))
+          (fn [vals]
+            (print vals)))))
+
+     (defn xor-sample-write-stream []
+       (let [buffer (atom (list))]
+         (list
+          (fn [v]
+            (swap! buffer conj v))
+          (fn []
+            (reverse (deref buffer))))))
+
+     (defn xor-run-decoder [buffer]
+       (let [[read in-waiting handler] (xor-sample-read-stream buffer)
+             decoder (xor-stream-decoder read in-waiting handler)]
+         (dotimes [i 10]
+           (decoder))))
+
+     (let [[writer get-buffer] (xor-sample-write-stream)
+           encoder (xor-stream-encoder writer)
+           data (list (list 1 2 3 4)
+                      (list 1 2 3 4))]
+       (doseq [d data] 
+         (encoder d))
+
+       (xor-run-decoder (get-buffer))
+       (xor-run-decoder (drop 3 (get-buffer)))
+       (xor-run-decoder (list)))))
 #+end_src
 
 *** Testing

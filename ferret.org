@@ -1813,17 +1813,17 @@ code. (ie. printing on different embedded systems.)
 #+name: runtime-native-memory-pool
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_POOL_SIZE
-  template<typename PageSize, size_t poolSize, typename UsedArrayType>
+  template<typename page_size, size_t pool_size, typename used_array_type>
   class MemoryPool{
   public:
-    UsedArrayType used[poolSize];
-    PageSize pool[poolSize];
-    size_t lastAllocationIndex;
+    used_array_type used[pool_size];
+    page_size pool[pool_size];
+    size_t last_allocation_index;
     FERRET_NEW_LOCK(lock)
     
-    inline size_t calculateNeededPages(size_t size){
-      size_t d = (size / sizeof(PageSize));
-      size_t f = (size % sizeof(PageSize));
+    inline size_t calculate_needed_pages(size_t size){
+      size_t d = (size / sizeof(page_size));
+      size_t f = (size % sizeof(page_size));
 
       if (f == 0)
         return d;
@@ -1832,70 +1832,70 @@ code. (ie. printing on different embedded systems.)
     }
       
     MemoryPool(){
-      lastAllocationIndex = 0;
-      for(size_t i = 0; i < poolSize; i++){
+      last_allocation_index = 0;
+      for(size_t i = 0; i < pool_size; i++){
         pool[i] = 0;
         used[i] = 0;
       }
     }
     
-    inline bool isPageRangeUsable(size_t begin,size_t end){
+    inline bool is_page_range_usable(size_t begin,size_t end){
       for(size_t i=begin; i < end; i++)
         if (used[i] != 0)
           return false;
       return true;
     }
     
-    inline size_t nextAvaliblePage(size_t offset){
-      for(size_t i=offset; i < poolSize; i++)
+    inline size_t next_avalible_page(size_t offset){
+      for(size_t i=offset; i < pool_size; i++)
         if (used[i] == 0)
           return i;
-      return poolSize;
+      return pool_size;
     }
       
-    inline int findPage(size_t pagesNeeded, size_t os = 0){
+    inline int find_page(size_t pages_needed, size_t os = 0){
       size_t offset = os;
     
       for(;;){
-        int page = nextAvaliblePage(offset);
+        int page = next_avalible_page(offset);
     
-        if ((page + pagesNeeded) > poolSize)
+        if ((page + pages_needed) > pool_size)
           break;
           
-        if (isPageRangeUsable(page,(page + pagesNeeded)) == true)
+        if (is_page_range_usable(page,(page + pages_needed)) == true)
           return page;
 
-        offset = (page + pagesNeeded);
+        offset = (page + pages_needed);
       }
         
       return -1;
     }
       
-    void *allocate(size_t reqSize){
+    void *allocate(size_t req_size){
       FERRET_WITH_LOCK(lock,{
-          size_t length = calculateNeededPages(reqSize);
-          int page = findPage(length,lastAllocationIndex);
+          size_t length = calculate_needed_pages(req_size);
+          int page = find_page(length,last_allocation_index);
       
           if ( page == -1){
-            page = findPage(length,0);
+            page = find_page(length,0);
             if (page == -1 )
               return nullptr;
           }
       
-          used[page] = reqSize;
+          used[page] = req_size;
           for(size_t i = page + 1; i < (page+length); i++)
             used[i] = 1;
         
-          lastAllocationIndex = page + length;
+          last_allocation_index = page + length;
           return &pool[page];
         });
     }
     
     void free(void *p){
       FERRET_WITH_LOCK(lock,{
-          PageSize* ptr = static_cast<PageSize*>(p);
+          page_size* ptr = static_cast<page_size*>(p);
           ptrdiff_t index = (ptr - pool);
-          size_t length = calculateNeededPages(used[index]);
+          size_t length = calculate_needed_pages(used[index]);
         
           for(size_t i = index ; i < (index+length); i++)
             used[i] = 0;
@@ -5173,13 +5173,13 @@ Create some dummy libs under /test/modules/,
      (native-define "#define FERRET_MEMORY_POOL_SIZE 2048")
      (native-declare "ferret::MemoryPool<size_t,10,size_t> mem;")
      (native-declare "void* ptr;")
-     (cxx "::std::cout << mem.nextAvaliblePage(0) << \" \";")
+     (cxx "::std::cout << mem.next_avalible_page(0) << \" \";")
      (cxx "mem.allocate(sizeof(size_t)*2);")
-     (cxx "::std::cout << mem.nextAvaliblePage(0) << \" \";")
+     (cxx "::std::cout << mem.next_avalible_page(0) << \" \";")
      (cxx "ptr = mem.allocate(sizeof(size_t)*4);")
-     (cxx "::std::cout << mem.nextAvaliblePage(2) << \" \";")
+     (cxx "::std::cout << mem.next_avalible_page(2) << \" \";")
      (cxx "mem.free(ptr);")
-     (cxx "::std::cout << mem.nextAvaliblePage(2) << \" \";")
+     (cxx "::std::cout << mem.next_avalible_page(2) << \" \";")
      (cxx "::std::cout << (nullptr == mem.allocate(sizeof(size_t)*40)) << \" \";")
      (cxx "::std::cout << (nullptr != mem.allocate(sizeof(size_t)*6)) << \" \";")
      (cxx "::std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";")

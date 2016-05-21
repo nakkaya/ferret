@@ -199,7 +199,7 @@ Another option is to use the *cxx* macro,
 
 #+begin_src clojure
   (let [msg "Hello World!"]
-    (cxx "::std::cout << msg.cast<String>()->toString() << ::std::endl;"))
+    (cxx "::std::cout << msg.cast<String>()->to_string() << ::std::endl;"))
 
   (def dac-0 (cxx "__result =  obj<Number>(DAC0);"))
 #+end_src
@@ -245,7 +245,7 @@ are immutable you can freely call Ferret code from C++,
   //or
 
   var res = _plus_().invoke(alist);
-  res.toOutputStream();
+  res.stream_console();
   ::std::cout << ::std::endl;
 #+end_src
 
@@ -1212,7 +1212,7 @@ lambda forms.
           nil-dispatch (filter #(= (first %) 0) fns)]
       (str
        (if (not (empty? nil-dispatch))
-         (str "if (" args-symbol ".isNil())
+         (str "if (" args-symbol ".is_nil())
                 return " (new-lambda-stack
                           (->> nil-dispatch first second)) ".invoke(nil());")
          "")
@@ -1288,10 +1288,10 @@ lambda forms.
           }
          $endif$
 
-         $if(toOutputStream)$
+         $if(stream_console)$
   #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
-          var toOutputStream(){
-           $toOutputStream$
+          var stream_console(){
+           $stream_console$
           }
   #endif
          $endif$
@@ -1321,7 +1321,7 @@ lambda forms.
       (fill-view! view "data" (specs 'data))
       (fill-view! view "new" (specs 'new))
       (fill-view! view "equals" (first (specs 'equals)))
-      (fill-view! view "toOutputStream" (first (specs 'toOutputStream)))
+      (fill-view! view "stream_console" (first (specs 'stream_console)))
       (fill-view! view "interfaces" (specs 'interfaces))
       (let [fns (specs 'fns)
             raw-fns (filter #(= 1 (count %)) fns)
@@ -1469,7 +1469,7 @@ lambda forms.
 
         // Program Run
         namespace ferret{
-          void ProgramRun(){
+          void program_run(){
            $body:{$it$;} ;separator=\"\n\"$ 
           }
         }
@@ -1486,7 +1486,7 @@ lambda forms.
                 runtime::cons(obj<String>(argv[i]),_star_command_line_args_star_);
         #endif
 
-          ProgramRun();
+          program_run();
 
           #if defined(FERRET_PROGRAM_MAIN)
             run(FERRET_PROGRAM_MAIN);
@@ -1504,13 +1504,13 @@ lambda forms.
 
           using namespace ferret;
           #if defined(FERRET_PROGRAM_MAIN)
-            ProgramRun();
+            program_run();
           #endif
         }
         void loop(){
           using namespace ferret;
           #if !defined(FERRET_PROGRAM_MAIN)
-            ProgramRun();
+            program_run();
           #endif          
 
           #if defined(FERRET_PROGRAM_MAIN)
@@ -1904,9 +1904,9 @@ code. (ie. printing on different embedded systems.)
   };
 
    #if !defined(FERRET_MEMORY_POOL_PAGE_TYPE)
-    MemoryPool<long,(FERRET_MEMORY_POOL_SIZE/sizeof(long)),unsigned char> ProgramMemory;
+    MemoryPool<long,(FERRET_MEMORY_POOL_SIZE/sizeof(long)),unsigned char> program_memory;
    #else
-    MemoryPool<FERRET_MEMORY_POOL_PAGE_TYPE,FERRET_MEMORY_POOL_SIZE,MEMORY_POOL_USED_ARRAY_TYPE> ProgramMemory;
+    MemoryPool<FERRET_MEMORY_POOL_PAGE_TYPE,FERRET_MEMORY_POOL_SIZE,MEMORY_POOL_USED_ARRAY_TYPE> program_memory;
    #endif
   #endif
 #+end_src
@@ -1916,8 +1916,8 @@ Dispatch correct memory allocation/deallocation implementation,
 #+name: runtime-native-memory-management-macros
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_POOL_SIZE
-    #define FERRET_ALLOCATE(size) ProgramMemory.allocate(size)
-    #define FERRET_FREE(pre) ProgramMemory.free(ptr)
+    #define FERRET_ALLOCATE(size) program_memory.allocate(size)
+    #define FERRET_FREE(pre) program_memory.free(ptr)
   #else
     #define FERRET_ALLOCATE(size) malloc(size)
     #define FERRET_FREE(ptr) free(ptr)
@@ -1963,16 +1963,16 @@ All our types are derived from the base Object type,
     virtual size_t type() = 0;
     
   #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
-    virtual var toOutputStream() = 0;
+    virtual var stream_console() = 0;
   #endif
     
     virtual var equals(var o) = 0;
     
-    void incRef() {
+    void inc_ref() {
       FERRET_INC_REF(this);
     }
     
-    bool decRef() {
+    bool dec_ref() {
       return FERRET_DEC_REF(this);
     }
     
@@ -2000,7 +2000,7 @@ An object to hold a reference to a C++ pointer,
     (data "void* ptr;")
     (equals
      "return obj<Boolean>(ptr == o.cast<Pointer>()->pointer<void>());")
-    (toOutputStream
+    (stream_console
      "fprintf(FERRET_OUTPUT_STREAM, \"Pointer<%p>\",ptr); return nil();")
     (fns
      ("explicit Pointer(void* p) : ptr(p) {}")
@@ -2076,7 +2076,7 @@ Number Object,
              else
                return obj<Boolean>((getNumerator() == o.cast<Number>()->getNumerator()) &&
                                    (getDenominator() == o.cast<Number>()->getDenominator()));")
-    (toOutputStream
+    (stream_console
      "if (denominator == 1)
         fprintf(FERRET_OUTPUT_STREAM, math::format, numerator);
       else if (numerator == 0)
@@ -2136,7 +2136,7 @@ Each keyword in the program is converted to an /Keyword/ object. A
   (defobject Keyword
     (data "int id;")
     (equals "return obj<Boolean>(id == o.cast<Keyword>()->container());")
-    (toOutputStream
+    (stream_console
      "fprintf(FERRET_OUTPUT_STREAM, \"%d\", id); return nil();")
     (fns
      ("explicit Keyword(int id) : id(id) {}")
@@ -2161,7 +2161,7 @@ Linked list container implementing the seekable interface.
     (interface :ISeekable)
     (equals "(void)o; 
              return obj<Boolean>(true);")
-    (toOutputStream
+    (stream_console
      "fprintf(FERRET_OUTPUT_STREAM, \"()\");
       return nil();")
     (fns
@@ -2180,22 +2180,22 @@ Linked list container implementing the seekable interface.
     (equals
      "var itOther = o;
       FERRET_ITERATE(this,it){
-        if (itOther.isNil() || runtime::first(it).equals(runtime::first(itOther))  == false)
+        if (itOther.is_nil() || runtime::first(it).equals(runtime::first(itOther))  == false)
           return obj<Boolean>(false);
         itOther = runtime::rest(itOther);
       }
 
-      if (itOther.isNil())
+      if (itOther.is_nil())
         return obj<Boolean>(true);
       else
         return obj<Boolean>(false);")
     
-    (toOutputStream
+    (stream_console
      "fprintf(FERRET_OUTPUT_STREAM, \"(\");
-        data.toOutputStream();
+        data.stream_console();
         FERRET_ITERATE(next,it){
           fprintf(FERRET_OUTPUT_STREAM, \" \");
-          runtime::first(it).toOutputStream();
+          runtime::first(it).stream_console();
         }
       fprintf(FERRET_OUTPUT_STREAM, \")\");
       return nil();")
@@ -2236,21 +2236,21 @@ A lazy list container implementing the seekable interface.
     (equals
      "var itOther = o;
       FERRET_ITERATE(this,it){
-        if (itOther.isNil() || runtime::first(it).equals(runtime::first(itOther))  == false)
+        if (itOther.is_nil() || runtime::first(it).equals(runtime::first(itOther))  == false)
           return obj<Boolean>(false);
         itOther = runtime::rest(itOther);
       }
 
-      if (itOther.isNil())
+      if (itOther.is_nil())
         return obj<Boolean>(true);
       else
         return obj<Boolean>(false);")
-    (toOutputStream
+    (stream_console
      "fprintf(FERRET_OUTPUT_STREAM, \"(\");
-      head.toOutputStream();
+      head.stream_console();
       FERRET_ITERATE(runtime::rest(this),it){
         fprintf(FERRET_OUTPUT_STREAM, \" \");
-        runtime::first(it).toOutputStream();
+        runtime::first(it).stream_console();
       }
       fprintf(FERRET_OUTPUT_STREAM, \")\");
       return nil();")
@@ -2285,7 +2285,7 @@ Strings are represented as a linked list of characters.
     (interface :ISeekable)
     (data "var data;")
     (equals "return obj<Boolean>(container().equals(o.cast<String>()->container()));")
-    (toOutputStream
+    (stream_console
      "FERRET_ITERATE(data,it){ 
        char ch = runtime::first(it).cast<Number>()->as<char>();
        fprintf(FERRET_OUTPUT_STREAM, \"%c\",ch);
@@ -2312,7 +2312,7 @@ Strings are represented as a linked list of characters.
      ("var rest" ""
       "return runtime::rest(data);")
      ("ifdef FERRET_STD_LIB"
-      "::std::string toString" ""
+      "::std::string to_string" ""
       "::std::stringstream ss;
        FERRET_ITERATE(data,it){ss << runtime::first(it).cast<Number>()->as<char>();}
        return ss.str();"))
@@ -2328,7 +2328,7 @@ A boolean object,
   (defobject Boolean
     (data "bool value;")
     (equals "return obj<Boolean>(value == (bool)o);")
-    (toOutputStream
+    (stream_console
      "if (value)
         fprintf(FERRET_OUTPUT_STREAM, \"true\"); 
       else
@@ -2372,9 +2372,9 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
     (data "var data;"
           "FERRET_NEW_LOCK(lock)")
     (equals "return obj<Boolean>(this == o.cast<Atom>());")
-    (toOutputStream
+    (stream_console
      "fprintf(FERRET_OUTPUT_STREAM, \"atom <\");
-      data.toOutputStream();
+      data.stream_console();
       fprintf(FERRET_OUTPUT_STREAM, \">\");
       return nil();")
     (fns
@@ -2470,21 +2470,21 @@ Range-based for loop support for seekable containers.
 #+begin_src c++ :tangle no
   namespace runtime{
     var first(var coll){
-      if (coll.isNil())
+      if (coll.is_nil())
         return nil();
       else
         return coll.cast<ISeekable>()->first();
     }
 
     var rest(var coll){
-      if (coll.isNil())
+      if (coll.is_nil())
         return runtime::list();
       else
         return coll.cast<ISeekable>()->rest();
     }
 
     var cons(var x, var seq){
-      if (seq.isNil())
+      if (seq.is_nil())
         return runtime::list(x);
       if (seq.equals(runtime::list()) == true)
         return runtime::list(x);
@@ -2513,7 +2513,7 @@ Range-based for loop support for seekable containers.
 
 #+name: runtime-native-iterate-macro
 #+begin_src c++ :tangle no
-  #define FERRET_ITERATE(c,i) for(var i = c; !i.isNil(); i = runtime::rest(i))
+  #define FERRET_ITERATE(c,i) for(var i = c; !i.is_nil(); i = runtime::rest(i))
 #+end_src
 
 **** Lambda
@@ -2528,7 +2528,7 @@ uniform fashion.
   (defobject Lambda
     (interfaces "var invoke(var args)")
     (equals "return obj<Boolean>(this == o.cast<Lambda>());")
-    (toOutputStream
+    (stream_console
      "fprintf(FERRET_OUTPUT_STREAM, \"lambda\"); return nil();")
     (force-type true))
 #+end_src
@@ -2581,11 +2581,11 @@ reaches zero it will automatically free the Object.
 #+begin_src c++ :tangle no
   class var{
   public:
-    var(Object* ptr = nullptr) : m_ptr(ptr) { incRef(); }
+    var(Object* ptr = nullptr) : m_ptr(ptr) { inc_ref(); }
 
-    var(const var& p) : m_ptr(p.m_ptr) { incRef(); }
+    var(const var& p) : m_ptr(p.m_ptr) { inc_ref(); }
       
-    ~var() { decRef(); }
+    ~var() { dec_ref(); }
     
     var& operator= (const var& p){
       return *this = p.m_ptr;
@@ -2593,9 +2593,9 @@ reaches zero it will automatically free the Object.
     
     var& operator= (Object* ptr){
       if (m_ptr != ptr){
-        decRef();
+        dec_ref();
         m_ptr=ptr;
-        incRef();
+        inc_ref();
       }
       return *this;
     }
@@ -2605,9 +2605,9 @@ reaches zero it will automatically free the Object.
     operator bool() const;
 
   #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
-    var toOutputStream() {
+    var stream_console() {
       if (m_ptr != nullptr )
-        m_ptr->toOutputStream();
+        m_ptr->stream_console();
       else
         fprintf(FERRET_OUTPUT_STREAM, "nil");
       return var();
@@ -2618,25 +2618,25 @@ reaches zero it will automatically free the Object.
     template<typename T>
     T* cast() { return static_cast<T*>(m_ptr); }
 
-    bool isType(size_t type) { 
+    bool is_type(size_t type) { 
       return (static_cast<Object*>(m_ptr)->type() == type);
     }
 
-    bool isNil() { 
+    bool is_nil() { 
       return (m_ptr == nullptr);
     }
 
   private:
-    void incRef(){
+    void inc_ref(){
       // Only change if non-null
-      if (m_ptr) m_ptr->incRef();
+      if (m_ptr) m_ptr->inc_ref();
     }
       
-    void decRef(){
+    void dec_ref(){
       // Only change if non-null
       if (m_ptr){
         // Subtract and test if this was the last pointer.
-        if (m_ptr->decRef()){
+        if (m_ptr->dec_ref()){
           delete m_ptr;
           m_ptr = nullptr;
         }
@@ -2675,7 +2675,7 @@ To disable main use,
   (configure-runtime! FERRET_DISABLE_MAIN_FUNCTION true)
 #+END_EXAMPLE
 
-main won't be defined you need to call /ferret::ProgramRun()/ manually
+main won't be defined you need to call /ferret::program_run()/ manually
 to start the program.
 
 When
@@ -2685,7 +2685,7 @@ When
 #+END_EXAMPLE
 
 is defined defined lambda will be invoked after
-/ferret::ProgramRun()/, acts as the programs main\//-main/ function.
+/ferret::program_run()/, acts as the programs main\//-main/ function.
 
 When 
 
@@ -2782,7 +2782,7 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
    #define FERRET_NEW_LOCK(symbol) ::std::mutex symbol;
    #define FERRET_WITH_LOCK(lock,code)                         \
      {                                                         \
-     ::std::lock_guard<::std::mutex> ferretScopeGuard(lock);       \
+     ::std::lock_guard<::std::mutex> ferret_scope_guard(lock); \
      code;                                                     \
      }
   #else
@@ -2796,16 +2796,16 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
 #+name: runtime-native-memory-reference-counting-macros
 #+begin_src c++ :tangle no
   #if defined(FERRET_SINGLE_THREADED)
-    #define FERRET_NEW_REF() size_t refCount;
-    #define FERRET_COPY_REF(other) refCount = other.refCount;
+    #define FERRET_NEW_REF() size_t ref_count;
+    #define FERRET_COPY_REF(other) ref_count = other.ref_count;
   #else
-    #define FERRET_NEW_REF() ::std::atomic<size_t> refCount;
-    #define FERRET_COPY_REF(other) refCount.exchange(other.refCount);
+    #define FERRET_NEW_REF() ::std::atomic<size_t> ref_count;
+    #define FERRET_COPY_REF(other) ref_count.exchange(other.ref_count);
   #endif
 
-  #define FERRET_REF refCount
-  #define FERRET_INC_REF(this) refCount++;
-  #define FERRET_DEC_REF(this) (--refCount == 0);
+  #define FERRET_REF ref_count
+  #define FERRET_INC_REF(this) ref_count++;
+  #define FERRET_DEC_REF(this) (--ref_count == 0);
 #+end_src
 
 ** Debugging Macros
@@ -2819,7 +2819,7 @@ Helper macros, to be used when debugging on the native side.
     fprintf(FERRET_OUTPUT_STREAM, "\n");
 
   #define FERRET_PRT_OBJ(o)                       \
-    o.toOutputStream();                           \
+    o.stream_console();                           \
     fprintf(FERRET_OUTPUT_STREAM, "\n");
 #+end_src
 
@@ -2833,7 +2833,7 @@ Once our object system is in place we can define rest of the runtime
   (defn first [x]
     "__result = runtime::first(x);")
 
-  (defn nil? [x] "__result = obj<Boolean>(x.isNil())")
+  (defn nil? [x] "__result = obj<Boolean>(x.is_nil())")
 #+end_src
 
 We can embed C++ code into our functions, which is how most of the
@@ -2923,14 +2923,14 @@ A simple macro for calling inline C++,
 #+begin_src clojure :tangle no
   (defnative print [& more]
     (on "!defined(FERRET_DISABLE_OUTPUT_STREAM)"
-        "if (more.isNil())
+        "if (more.is_nil())
            return nil();
          var f = more.cast<ISeekable>()->first();
-         f.toOutputStream();
+         f.stream_console();
          var r = more.cast<ISeekable>()->rest();
          FERRET_ITERATE(r,it){
           fprintf(FERRET_OUTPUT_STREAM, \" \");
-          runtime::first(it).toOutputStream();
+          runtime::first(it).stream_console();
          }"))
 #+end_src
 
@@ -2966,7 +2966,7 @@ A simple macro for calling inline C++,
   (defnative sh [cmd]
     (on "defined FERRET_STD_LIB"
         ("memory")
-        "::std::shared_ptr<FILE> pipe(popen(cmd.cast<String>()->toString().c_str(), \"r\"), pclose);
+        "::std::shared_ptr<FILE> pipe(popen(cmd.cast<String>()->to_string().c_str(), \"r\"), pclose);
          if (!pipe) 
             __result = nil();
          char buffer[128];
@@ -3362,7 +3362,7 @@ A simple macro for calling inline C++,
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn list [& xs] "if (xs.isNil())
+  (defn list [& xs] "if (xs.is_nil())
                        __result = runtime::list();
                      else
                        __result = xs;")
@@ -3372,7 +3372,7 @@ A simple macro for calling inline C++,
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn list? [x] "__result = obj<Boolean>(x.isType(runtime::type::Sequence));")
+  (defn list? [x] "__result = obj<Boolean>(x.is_type(runtime::type::Sequence));")
 #+end_src
 
 *** empty?
@@ -3390,7 +3390,7 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn rest [x] "var r = runtime::rest(x);
-                  if (r.isNil())
+                  if (r.is_nil())
                     return runtime::list();
                   else 
                     __result = r;")
@@ -3471,7 +3471,7 @@ A simple macro for calling inline C++,
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn float? [x] "__result = obj<Boolean>(x.isType(runtime::type::Number) &&
+  (defn float? [x] "__result = obj<Boolean>(x.is_type(runtime::type::Number) &&
                                            (x.cast<Number>()->getDenominator() != 1));")
 #+end_src
 
@@ -3479,7 +3479,7 @@ A simple macro for calling inline C++,
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn integer? [x] "__result = obj<Boolean>(x.isType(runtime::type::Number) &&
+  (defn integer? [x] "__result = obj<Boolean>(x.is_type(runtime::type::Number) &&
                                              (x.cast<Number>()->getDenominator() == 1));")
 #+end_src
 
@@ -3994,7 +3994,7 @@ Ported from,
            result = 0;
            input = 0;"))
     (equals "return obj<Boolean>(this == o.cast<PIDController>());")
-    (toOutputStream "fprintf(FERRET_OUTPUT_STREAM, \"PIDController\"); return nil();")
+    (stream_console "fprintf(FERRET_OUTPUT_STREAM, \"PIDController\"); return nil();")
     (fns
      ("var update" "var in"
       "input = in.cast<Number>()->as<T>();
@@ -4037,7 +4037,7 @@ Ported from,
 
        return obj<Number>(result);")
      
-     ("void setSetpoint" "var p"
+     ("void set_set_point" "var p"
       "T sp = p.cast<Number>()->as<T>();
        if (maximumInput > minimumInput) {
           if (sp > maximumInput) {
@@ -4061,7 +4061,7 @@ Ported from,
 #+begin_src clojure :tangle no
   (defn pid-controller-create [set-point kp ki kd in-min in-max out-min out-max continuous]
     "var p = obj<PIDController<float>>(kp, ki, kd, in_min, in_max, out_min, out_max, continuous);
-     p.cast<PIDController<float>>()->setSetpoint(set_point);
+     p.cast<PIDController<float>>()->set_set_point(set_point);
      __result = p;")
 
   (defn pid-controller-run [controller input]
@@ -4293,7 +4293,7 @@ Include native headers, (*.h* files)
     (on "defined FERRET_MEMORY_POOL_SIZE"
         "int count = 0;
          for(int i = 0; i < FERRET_MEMORY_POOL_SIZE; i++)
-           if(ProgramMemory.used[i] == false)
+           if(program_memory.used[i] == false)
              count++;
          __result = obj<Number>((math::container)(count*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
 #+end_src
@@ -5052,7 +5052,7 @@ Create some dummy libs under /test/modules/,
      "1234 (1 2 3 4)(1 2 3 4)"
      (def print-list
        (fn [t] "for(auto c : runtime::range(t))
-                 c.toOutputStream();"))
+                 c.stream_console();"))
      (print-list (list 1 2 3 4))
      (print " ")
      (print-list (list (list 1 2 3 4) (list 1 2 3 4)))))
@@ -5134,7 +5134,7 @@ Create some dummy libs under /test/modules/,
             (= "Some String" "Other String")
             (= "Some String" "Some String")
             (= "Some String" 1)
-            ((fn [s] "__result = obj<Boolean>((s.cast<String>()->toString() == \"String\"))")
+            ((fn [s] "__result = obj<Boolean>((s.cast<String>()->to_string() == \"String\"))")
              "String"))))
 #+end_src
 

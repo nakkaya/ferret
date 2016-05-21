@@ -5078,6 +5078,7 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
+  - *Implement Que*
   - *Pointer* - Ability to call cleanup function before *GC*
   - *Unit Testing*
     - [[https://github.com/aw/picolisp-unit][Unit Testing framework for PicoLisp]]

@@ -2069,54 +2069,54 @@ Number Object,
 #+name: runtime-clojure-number-object
 #+begin_src clojure :tangle no
   (defobject Number
-    (data "math::container numerator;"
-          "math::container denominator;")
-    (equals "if (getNumerator() == 0 && o.cast<Number>()->getNumerator() == 0)
+    (data "math::container _numerator;"
+          "math::container _denominator;")
+    (equals "if (numerator() == 0 && o.cast<Number>()->numerator() == 0)
                return obj<Boolean>(true);
              else
-               return obj<Boolean>((getNumerator() == o.cast<Number>()->getNumerator()) &&
-                                   (getDenominator() == o.cast<Number>()->getDenominator()));")
+               return obj<Boolean>((numerator() == o.cast<Number>()->numerator()) &&
+                                   (denominator() == o.cast<Number>()->denominator()));")
     (stream_console
-     "if (denominator == 1)
-        fprintf(FERRET_OUTPUT_STREAM, math::format, numerator);
-      else if (numerator == 0)
+     "if (_denominator == 1)
+        fprintf(FERRET_OUTPUT_STREAM, math::format, _numerator);
+      else if (_numerator == 0)
         fprintf(FERRET_OUTPUT_STREAM, \"0\");
       else{
-        fprintf(FERRET_OUTPUT_STREAM, math::format,numerator);
+        fprintf(FERRET_OUTPUT_STREAM, math::format,_numerator);
         fprintf(FERRET_OUTPUT_STREAM, \"/\");
-        fprintf(FERRET_OUTPUT_STREAM, math::format,denominator);
+        fprintf(FERRET_OUTPUT_STREAM, math::format,_denominator);
       }
       return nil();")
     
     (fns
-     ("explicit Number(math::container x) : numerator(x), denominator(1) {}")
-     ("explicit Number(math::container n, math::container dn) : numerator(n), denominator(dn) {
+     ("explicit Number(math::container x) : _numerator(x), _denominator(1) {}")
+     ("explicit Number(math::container n, math::container dn) : _numerator(n), _denominator(dn) {
          simplificate();
        }")
      ("explicit Number(float x){
            float decimal = (x - (math::container)x) * (float)math::precision;
            math::container integer = (math::container)x;
-           numerator = decimal + (integer * math::precision);
-           denominator = math::precision;
+           _numerator = decimal + (integer * math::precision);
+           _denominator = math::precision;
            simplificate();
        }")
-     ("math::container getNumerator" "" "return numerator;")
-     ("math::container getDenominator" "" "return denominator;")
+     ("math::container numerator" "" "return _numerator;")
+     ("math::container denominator" "" "return _denominator;")
      ("template<typename T> T as" "" "T::unimplemented_function;")
      ("void simplificate" ""
       "int commondivisor = 1;
-        for(math::container i=2;i<=runtime::min(runtime::abs(numerator), runtime::abs(denominator));i++)
-          if( numerator%i == 0 && denominator%i == 0 )
+        for(math::container i=2;i<=runtime::min(runtime::abs(_numerator), runtime::abs(_denominator));i++)
+          if( _numerator%i == 0 && _denominator%i == 0 )
             commondivisor = i;
-        numerator /= commondivisor;
-        denominator /= commondivisor;")
+        _numerator /= commondivisor;
+        _denominator /= commondivisor;")
      ("~Number" "" ""))
     (post-code "template<> float Number::as(){
-                   return (float)numerator/(float)denominator;
+                   return (float)_numerator/(float)_denominator;
                 }
                 template<> int Number::as(){
-                   if (denominator == 1)
-                     return (int)numerator;
+                   if (_denominator == 1)
+                     return (int)_numerator;
                    else
                      return (int)as<float>();
                 }
@@ -3152,11 +3152,11 @@ A simple macro for calling inline C++,
     ([] true)
     ([x] true)
     ([a b]
-     "math::container an = a.cast<Number>()->getNumerator();
-      math::container adn = a.cast<Number>()->getDenominator();
+     "math::container an = a.cast<Number>()->numerator();
+      math::container adn = a.cast<Number>()->denominator();
 
-      math::container bn = b.cast<Number>()->getNumerator();
-      math::container bdn = b.cast<Number>()->getDenominator();
+      math::container bn = b.cast<Number>()->numerator();
+      math::container bdn = b.cast<Number>()->denominator();
 
       __result = obj<Boolean>((an * bdn) < (bn * adn));")
     ([a b & more]
@@ -3173,11 +3173,11 @@ A simple macro for calling inline C++,
     ([] true)
     ([x] true)
     ([a b]
-     "math::container an = a.cast<Number>()->getNumerator();
-      math::container adn = a.cast<Number>()->getDenominator();
+     "math::container an = a.cast<Number>()->numerator();
+      math::container adn = a.cast<Number>()->denominator();
 
-      math::container bn = b.cast<Number>()->getNumerator();
-      math::container bdn = b.cast<Number>()->getDenominator();
+      math::container bn = b.cast<Number>()->numerator();
+      math::container bdn = b.cast<Number>()->denominator();
 
       __result = obj<Boolean>((an * bdn) > (bn * adn));")
     ([a b & more]
@@ -3194,11 +3194,11 @@ A simple macro for calling inline C++,
     ([] true)
     ([x] true)
     ([a b]
-     "math::container an = a.cast<Number>()->getNumerator();
-      math::container adn = a.cast<Number>()->getDenominator();
+     "math::container an = a.cast<Number>()->numerator();
+      math::container adn = a.cast<Number>()->denominator();
 
-      math::container bn = b.cast<Number>()->getNumerator();
-      math::container bdn = b.cast<Number>()->getDenominator();
+      math::container bn = b.cast<Number>()->numerator();
+      math::container bdn = b.cast<Number>()->denominator();
 
       __result = obj<Boolean>((an * bdn) >= (bn * adn));")
     ([a b & more]
@@ -3215,11 +3215,11 @@ A simple macro for calling inline C++,
     ([] true)
     ([x] true)
     ([a b]
-     "math::container an = a.cast<Number>()->getNumerator();
-      math::container adn = a.cast<Number>()->getDenominator();
+     "math::container an = a.cast<Number>()->numerator();
+      math::container adn = a.cast<Number>()->denominator();
 
-      math::container bn = b.cast<Number>()->getNumerator();
-      math::container bdn = b.cast<Number>()->getDenominator();
+      math::container bn = b.cast<Number>()->numerator();
+      math::container bdn = b.cast<Number>()->denominator();
 
       __result = obj<Boolean>((an * bdn) <= (bn * adn));")
     ([a b & more]
@@ -3472,7 +3472,7 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn float? [x] "__result = obj<Boolean>(x.is_type(runtime::type::Number) &&
-                                           (x.cast<Number>()->getDenominator() != 1));")
+                                           (x.cast<Number>()->denominator() != 1));")
 #+end_src
 
 *** integer?
@@ -3480,7 +3480,7 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn integer? [x] "__result = obj<Boolean>(x.is_type(runtime::type::Number) &&
-                                             (x.cast<Number>()->getDenominator() == 1));")
+                                             (x.cast<Number>()->denominator() == 1));")
 #+end_src
 
 *** zero?
@@ -3515,11 +3515,11 @@ A simple macro for calling inline C++,
     ([] 0)
     ([x] x)
     ([h v]
-     "math::container hn = h.cast<Number>()->getNumerator();
-      math::container hdn = h.cast<Number>()->getDenominator();
+     "math::container hn = h.cast<Number>()->numerator();
+      math::container hdn = h.cast<Number>()->denominator();
 
-      math::container vn = v.cast<Number>()->getNumerator();
-      math::container vdn = v.cast<Number>()->getDenominator();
+      math::container vn = v.cast<Number>()->numerator();
+      math::container vdn = v.cast<Number>()->denominator();
 
       math::container ndn = (hdn * vdn);
 
@@ -3536,11 +3536,11 @@ A simple macro for calling inline C++,
     ([x]
      (* -1 x))
     ([h v]
-     "math::container hn = h.cast<Number>()->getNumerator();
-      math::container hdn = h.cast<Number>()->getDenominator();
+     "math::container hn = h.cast<Number>()->numerator();
+      math::container hdn = h.cast<Number>()->denominator();
 
-      math::container vn = v.cast<Number>()->getNumerator();
-      math::container vdn = v.cast<Number>()->getDenominator();
+      math::container vn = v.cast<Number>()->numerator();
+      math::container vdn = v.cast<Number>()->denominator();
 
       math::container ndn = (hdn * vdn);
 
@@ -3557,11 +3557,11 @@ A simple macro for calling inline C++,
     ([] 1)
     ([x] x)
     ([h v]
-     "math::container hn = h.cast<Number>()->getNumerator();
-      math::container hdn = h.cast<Number>()->getDenominator();
+     "math::container hn = h.cast<Number>()->numerator();
+      math::container hdn = h.cast<Number>()->denominator();
 
-      math::container vn = v.cast<Number>()->getNumerator();
-      math::container vdn = v.cast<Number>()->getDenominator();
+      math::container vn = v.cast<Number>()->numerator();
+      math::container vdn = v.cast<Number>()->denominator();
 
       math::container ndn = (hdn * vdn);
 
@@ -3578,11 +3578,11 @@ A simple macro for calling inline C++,
     ([x]
      (apply / (list 1 x)))
     ([h v]
-     "math::container hn = h.cast<Number>()->getNumerator();
-      math::container hdn = h.cast<Number>()->getDenominator();
+     "math::container hn = h.cast<Number>()->numerator();
+      math::container hdn = h.cast<Number>()->denominator();
 
-      math::container vn = v.cast<Number>()->getNumerator();
-      math::container vdn = v.cast<Number>()->getDenominator();
+      math::container vn = v.cast<Number>()->numerator();
+      math::container vdn = v.cast<Number>()->denominator();
 
       __result = obj<Number>((hn * vdn),(vn * hdn));")
     ([x y & more]
@@ -3670,55 +3670,55 @@ A simple macro for calling inline C++,
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-and [x y] "__result = obj<Number>((x.cast<Number>()->getNumerator() &
-                                               y.cast<Number>()->getNumerator()));")
+  (defn bit-and [x y] "__result = obj<Number>((x.cast<Number>()->numerator() &
+                                               y.cast<Number>()->numerator()));")
 #+end_src
 
 *** bit-not
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-not [x] "__result = obj<Number>(~x.cast<Number>()->getNumerator());")
+  (defn bit-not [x] "__result = obj<Number>(~x.cast<Number>()->numerator());")
 #+end_src
 
 *** bit-or
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-or [x y] "__result = obj<Number>((x.cast<Number>()->getNumerator() |
-                                              y.cast<Number>()->getNumerator()));")
+  (defn bit-or [x y] "__result = obj<Number>((x.cast<Number>()->numerator() |
+                                              y.cast<Number>()->numerator()));")
 #+end_src
 
 *** bit-xor
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-xor [x y] "__result = obj<Number>((x.cast<Number>()->getNumerator() ^
-                                               y.cast<Number>()->getNumerator()));")
+  (defn bit-xor [x y] "__result = obj<Number>((x.cast<Number>()->numerator() ^
+                                               y.cast<Number>()->numerator()));")
 #+end_src
 
 *** bit-shift-left
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-shift-left [x n] "__result = obj<Number>((x.cast<Number>()->getNumerator() <<
-                                                      n.cast<Number>()->getNumerator()));")
+  (defn bit-shift-left [x n] "__result = obj<Number>((x.cast<Number>()->numerator() <<
+                                                      n.cast<Number>()->numerator()));")
 #+end_src
 
 *** bit-shift-left
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-shift-left [x n] "__result = obj<Number>((x.cast<Number>()->getNumerator() <<
-                                                      n.cast<Number>()->getNumerator()));")
+  (defn bit-shift-left [x n] "__result = obj<Number>((x.cast<Number>()->numerator() <<
+                                                      n.cast<Number>()->numerator()));")
 #+end_src
 
 *** bit-shift-right
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-shift-right [x n] "__result = obj<Number>((x.cast<Number>()->getNumerator() >>
-                                                       n.cast<Number>()->getNumerator()));")
+  (defn bit-shift-right [x n] "__result = obj<Number>((x.cast<Number>()->numerator() >>
+                                                       n.cast<Number>()->numerator()));")
 #+end_src
 
 ** Concurrency

@@ -493,7 +493,7 @@ tangled.
 #+begin_src clojure :tangle no
   (defn embed-ferret-core
     ([form]
-     (shake-concat (-> (read-string (str \( (read-from-url "core.clj") \)))
+     (shake-concat (-> (read-clojure-file-from-url "core.clj")
                        (remove-form (is-form? 'defmacro)))
                    form)))
 #+end_src
@@ -512,7 +512,7 @@ then the node is replaced with its expanded form.
   (declare localize-fn-args)
 
   (defn expand-macros [form]
-    (let [build-in-macros (->> (read-string (str \( (read-from-url "core.clj") \)))
+    (let [build-in-macros (->> (read-clojure-file-from-url "core.clj")
                                (filter (is-form? 'defmacro)))
           build-in-macro-symbols (into #{} (map second build-in-macros))
           form-macros (->> (filter (is-form? 'defmacro) form)
@@ -959,9 +959,20 @@ suggests and removes the node when predicate returns true.
 
 #+name: core-code-generation-misc
 #+begin_src clojure :tangle no
+  (declare process-reader-macros)
+
   (defn read-clojure-file [f]
     (try
-      (read-string (str \( (FileUtils/readFileToString (file f)) \)))
+      (->> (read-string (str \( (FileUtils/readFileToString (file f)) \)))
+           (process-reader-macros))
+      (catch Exception e
+        (warn "Error Reading," f)
+        (System/exit 1))))
+
+  (defn read-clojure-file-from-url [f]
+    (try
+      (->> (read-string (str \( (read-from-url f) \)))
+           (process-reader-macros))
       (catch Exception e
         (warn "Error Reading," f)
         (System/exit 1))))

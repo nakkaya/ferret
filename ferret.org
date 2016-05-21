@@ -2330,7 +2330,10 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
          data = f.cast<Lambda>()->invoke(args);
        });
       return data;")
-     ("var deref" "" "return data;"))
+     ("var deref" ""
+      "FERRET_WITH_LOCK(lock,{
+         return data;
+       });"))
     (force-type))
 #+end_src
 

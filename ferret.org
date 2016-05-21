@@ -744,11 +744,10 @@ into legal ones.
                             (str %)
                             {\- \_ \* "_star_" \+ "_plus_" \/ "_slash_"
                              \< "_lt_" \> "_gt_" \= "_eq_" \? "_QMARK_"
-                             \! "_BANG_"}))
+                             \! "_BANG_" \# "_"}))
                   #(cond (= 'not %) '_not_
                          :default %))]
       (morph-form form symbol? c)))
-
 #+end_src
 
 *** Optimizations

@@ -1474,7 +1474,9 @@ lambda forms.
 
       #if defined(FERRET_HARDWARE_ARDUINO)
         void setup(){
-          FERRET_INIT_OUTPUT_STREAM
+          #if defined(FERRET_INIT_OUTPUT_STREAM)
+             FERRET_INIT_OUTPUT_STREAM
+          #endif
 
           using namespace ferret;
           #if defined(FERRET_PROGRAM_MAIN)
@@ -1562,10 +1564,11 @@ lambda forms.
   #+name: core-code-compile-code
   #+begin_src clojure
     (defn compile->cpp [form options]
+          (info "Compiling")
       (let [file-name (cpp-file-name options)
-            source (emit-source form options)]
-        (info "Compiling")
-        (FileUtils/writeStringToFile (file file-name) (solution-template source))
+            source (emit-source form options)
+            solution (solution-template source)]
+        (FileUtils/writeStringToFile (file file-name) (.trim solution))
         (let [formatted-source (try (with-sh-dir "./"
                                       (sh "clang-format" "-style" "{Standard: Cpp11}" file-name))
                                     (catch Exception e nil))]
@@ -2681,31 +2684,50 @@ By default baud rate is *9600 bps*.
 ** Initialization
 *** Detect Hardware
 
-#+name: runtime-native-program-header
+#+name: runtime-native-detect-hardware
 #+begin_src c++ :tangle no
   #if defined(__SAM3X8E__)
     # define FERRET_HARDWARE_ARDUINO TRUE
     # define FERRET_HARDWARE_ARDUINO_DUE TRUE
+    #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
+      # define FERRET_OUTPUT_STREAM stdout
+      # define FERRET_INIT_OUTPUT_STREAM Serial.begin(FERRET_UART_RATE);
+    #endif
   #elif defined(__AVR__)
     # define FERRET_HARDWARE_ARDUINO TRUE
     # define FERRET_HARDWARE_ARDUINO_UNO TRUE
+    #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
+     static FILE uartout = {0};
+     static int uart_putchar (char c, FILE *stream){
+         Serial.write(c);
+         return 0 ;
+     }
+     #define FERRET_OUTPUT_STREAM &uartout
+     #define FERRET_INIT_OUTPUT_STREAM                                       \
+         Serial.begin(FERRET_UART_RATE);                                     \
+         fdev_setup_stream (&ferret::uartout, ferret::uart_putchar, NULL, _FDEV_SETUP_WRITE);
+    #endif
   #elif defined(_VARIANT_ARDUINO_101_X_)
     # define FERRET_HARDWARE_ARDUINO TRUE
     # define FERRET_HARDWARE_ARDUINO_101 TRUE
     # define FERRET_DISABLE_OUTPUT_STREAM TRUE
   #else
     # define FERRET_STD_LIB TRUE
+    # define FERRET_OUTPUT_STREAM stdout
   #endif
 
   #if defined(FERRET_HARDWARE_ARDUINO)
     # define FERRET_DISABLE_MAIN_FUNCTION true
     # define FERRET_SINGLE_THREADED true
+    #if !defined(FERRET_UART_RATE)
+      # define FERRET_UART_RATE 9600
+    #endif
   #endif
 #+end_src
 
 *** Import libraries
 
-#+name: runtime-native-program-header
+#+name: runtime-native-program-includes
 #+begin_src c++ :tangle no
   #ifdef FERRET_STD_LIB
    #include <iostream>
@@ -2722,67 +2744,6 @@ By default baud rate is *9600 bps*.
    #include <stdio.h>
    #include <stdlib.h>
   #endif
-#+end_src
-
-*** Configure Hardware
-
-Hardware specific initialization code, 
-
-Setup UART rate,
-
-#+name: runtime-native-program-header
-#+begin_src c++ :tangle no
-#if !defined(FERRET_UART_RATE)
- # define FERRET_UART_RATE 9600
-#endif
-#+end_src
-
-**** Arduino
-
-If running on the Arduino platform fix pure virtual functions,
-
-#+name: runtime-native-program-header
-#+begin_src c++ :tangle no
-#ifdef FERRET_HARDWARE_ARDUINO
-  extern "C" void __cxa_pure_virtual(void);
-#endif
-#+end_src
-
-Setup [[https://en.wikipedia.org/wiki/Universal_asynchronous_receiver/transmitter][UART]],
-
-#+name: runtime-native-program-header
-#+begin_src c++ :tangle no
-  #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
-   #if defined(FERRET_HARDWARE_ARDUINO_UNO)
-    static FILE uartout = {0};
-
-    static int uart_putchar (char c, FILE *stream){
-      Serial.write(c);
-      return 0 ;
-    }
-
-    #define FERRET_OUTPUT_STREAM &uartout
-    #define FERRET_INIT_OUTPUT_STREAM                                       \
-       Serial.begin(FERRET_UART_RATE);                                       \
-       fdev_setup_stream (&uartout, uart_putchar, NULL, _FDEV_SETUP_WRITE);
-   #elif defined(FERRET_HARDWARE_ARDUINO_DUE)
-    #define FERRET_OUTPUT_STREAM stdout
-    #define FERRET_INIT_OUTPUT_STREAM Serial.begin(FERRET_UART_RATE);
-   #endif
-  #else
-    #define FERRET_INIT_OUTPUT_STREAM ;
-  #endif
-#+end_src
-
-**** General purpose computing
-
-When C++ Standard Library is present use *stdout* for printing.
-
-#+name: runtime-native-program-header
-#+begin_src c++ :tangle no
-#ifdef FERRET_STD_LIB
- #define FERRET_OUTPUT_STREAM stdout
-#endif
 #+end_src
 
 *** Configure Locking
@@ -5498,6 +5459,12 @@ Create some dummy libs under /test/modules/,
 ** resources/ferret.h
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/resources/ferret.h
+  // Detect Hardware
+  namespace ferret{
+    <<runtime-native-detect-hardware>>
+  }
+
+  <<runtime-native-program-includes>>
   <<runtime-native-program-header>>
 
   <<runtime-native-math-config-macros>>

@@ -351,6 +351,24 @@ support Ferret such as [[Object System]], [[Memory Pool][ Memory Pooling]], [[Re
 Collection]]. It is written in a mixture of C++ and Ferret DSL. *[[Clojure
 Core]]* corresponds to *clojure.core*, contains all functions.
 
+Generated C++ code has the following structure, (All Ferret code is
+defined within *ferret* namespace. All Ferret macros starts with
+*FERRET_*.)
+
+ - Detect Hardware
+ - Include files
+ - Ferret Header (resources/ferret.h)
+ - Ferret Native Runtime Prototypes (runtime::first, runtime::rest
+   etc.)
+ - Native Declarations
+ - Object Definitions
+ - Symbol Definitions
+ - Native Runtime Implementations
+ - Lambda Prototypes
+ - Lambda Implementations
+ - Ferret Main
+ - Hardware Dependent Main Functions
+
 * Compiler
 
 Compilation happens by taking the /form/ and running it through several

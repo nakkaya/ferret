@@ -1229,7 +1229,6 @@ lambda forms.
 #+end_src
 
 *** Code Templates
-
 **** Objects
 
 #+name: code-templates

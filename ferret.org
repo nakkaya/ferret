@@ -1405,15 +1405,13 @@ lambda forms.
           view (create-view "
         $native_defines:{$it$} ;separator=\"\n\"$
 
-        $object_interface$
+        $ferret_header$
 
-        <<runtime-native-program-misc>>
-        <<runtime-native-iseekable-headers>>
-        <<function-invocation-api-headers>>
-
-        #if defined(FERRET_STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS) && !defined(FERRET_DISABLE_MAIN_FUNCTION)
-          ferret::var _star_command_line_args_star_;
-        #endif
+        // Runtime Prototypes
+        namespace ferret{
+         <<runtime-native-prototypes>>
+         <<runtime-native-iterate-macro>>
+        }
 
         namespace ferret{
          $symbols:{var $it$;} ;separator=\"\n\"$
@@ -1421,15 +1419,28 @@ lambda forms.
 
         $native_declarations:{$it$} ;separator=\"\n\"$      
 
-        <<function-invocation-api>>
-  
+        // Runtime Implementations
+        namespace ferret{
+         <<runtime-native-math-misc>>
+         <<runtime-native-implementations>>
+         <<runtime-native-ranged-for>>
+        }
+
+        // Lambda Prototypes
         namespace ferret{
           $lambda_classes:{$it$} ;separator=\"\n\"$
+        }
+
+        #if defined(FERRET_STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS) && !defined(FERRET_DISABLE_MAIN_FUNCTION)
+          ferret::var _star_command_line_args_star_;
+        #endif
+
+        // Lambda Implementations
+        namespace ferret{
           $lambda_bodies:{$it$} ;separator=\"\n\"$
         }
 
-        <<runtime-native-iseekable-functions>>
-
+        // Program Run
         namespace ferret{
           void ProgramRun(){
            $body:{$it$;} ;separator=\"\n\"$ 
@@ -1476,7 +1487,7 @@ lambda forms.
           #endif
         }
       #endif\n")]
-      (fill-view! view "object_interface" (read-from-url "ferret.h"))
+      (fill-view! view "ferret_header" (read-from-url "ferret.h"))
       (fill-view! view "body" (filter #(not (empty? %)) body))
       (fill-view! view "lambda_classes" (declare-lambda-classes lambdas))
       (fill-view! view "lambda_bodies" (declare-lambda-bodies lambdas))
@@ -1977,6 +1988,7 @@ Math configuration,
 
 #+name: runtime-native-math-config-macros
 #+begin_src c++ :tangle no
+  // Math Configuration
   namespace ferret{
     namespace math{
       const int precision = 1000; //used when reading floats.
@@ -1990,21 +2002,31 @@ Math configuration,
 
 Helper functions,
 
-#+name: runtime-native-program-misc
+#+name: runtime-native-prototypes
 #+begin_src c++ :tangle no
-  namespace ferret{
-    namespace runtime{
-      #undef min
-      #undef abs
-      template<typename T>
-        T min(T a, T b){
-        return ((a)<(b)?(a):(b));
-      }
+  namespace runtime{
+    #undef min
+    #undef abs
 
-      template<typename T>
-        T abs(T a){
-        return ((a)<0 ? -(a) : (a));
-      }
+    template<typename T>
+    T min(T a, T b);
+
+    template<typename T>
+    T abs(T a);
+  }
+#+end_src
+
+#+name: runtime-native-math-misc
+#+begin_src c++ :tangle no
+  namespace runtime{
+    template<typename T>
+    T min(T a, T b){
+      return ((a)<(b)?(a):(b));
+    }
+
+    template<typename T>
+    T abs(T a){
+      return ((a)<0 ? -(a) : (a));
     }
   }
 #+end_src
@@ -2371,98 +2393,92 @@ containers.
 
 C++ API for the interface,
 
-#+name: runtime-native-iseekable-headers
+#+name: runtime-native-prototypes
 #+begin_src c++ :tangle no
-  namespace ferret{
-    namespace runtime {
-      var first(var coll);
-      var rest(var coll);
-      var cons(var x, var seq);
-      var nth(var seq, var index);
-      size_t count(var seq);
-    }
+  namespace runtime {
+    var first(var coll);
+    var rest(var coll);
+    var cons(var x, var seq);
+    var nth(var seq, var index);
+    size_t count(var seq);
   }
 #+end_src
 
 Range-based for loop support for seekable containers.
 
-#+name: runtime-native-iseekable-headers
+#+name: runtime-native-ranged-for
 #+begin_src c++ :tangle no
-  namespace ferret{
-    namespace runtime {
-      struct range{
-        var p;
+  namespace runtime {
+    struct range{
+      var p;
 
-        explicit range(var v) : p(v) { }
-        range begin() const { return range(p); }
-        range end() const { return range(var()); }
+      explicit range(var v) : p(v) { }
+      range begin() const { return range(p); }
+      range end() const { return range(var()); }
 
-        bool operator!=(const range& other){
-          return (p != other.p);
-        }
+      bool operator!=(const range& other){
+        return (p != other.p);
+      }
 
-        const range& operator++(){
-          p = runtime::rest(p);
-          return *this;
-        }
+      const range& operator++(){
+        p = runtime::rest(p);
+        return *this;
+      }
 
-        var operator*(){
-          return runtime::first(p);
-        }
+      var operator*(){
+        return runtime::first(p);
+      }
 
-      };
-    }
+    };
   }
 #+end_src
 
-#+name: runtime-native-iseekable-functions
+#+name: runtime-native-implementations
 #+begin_src c++ :tangle no
-  namespace ferret{
-    namespace runtime{
-      var first(var coll){
-        if (coll.isNil())
-          return nil();
-        else
-          return coll.cast<ISeekable>()->first();
-      }
-
-      var rest(var coll){
-        if (coll.isNil())
-          return runtime::list();
-        else
-          return coll.cast<ISeekable>()->rest();
-      }
-
-      var cons(var x, var seq){
-        if (seq.isNil())
-          return runtime::list(x);
-        if (seq.equals(runtime::list()) == true)
-          return runtime::list(x);
-        return seq.cast<ISeekable>()->cons(x);
-      }
-    
-      var nth(var seq, var idx){
-        int index = idx.cast<Number>()->as<int>();
-        int itIdx = 0;
-        
-        FERRET_ITERATE(seq,it){
-          if (index == itIdx)
-            return runtime::first(it);
-          itIdx++;
-        }
+  namespace runtime{
+    var first(var coll){
+      if (coll.isNil())
         return nil();
-      }
+      else
+        return coll.cast<ISeekable>()->first();
+    }
 
-      size_t count(var seq){
-        size_t acc = 0;
-        FERRET_ITERATE(seq,it){ acc++; }
-        return acc;
+    var rest(var coll){
+      if (coll.isNil())
+        return runtime::list();
+      else
+        return coll.cast<ISeekable>()->rest();
+    }
+
+    var cons(var x, var seq){
+      if (seq.isNil())
+        return runtime::list(x);
+      if (seq.equals(runtime::list()) == true)
+        return runtime::list(x);
+      return seq.cast<ISeekable>()->cons(x);
+    }
+    
+    var nth(var seq, var idx){
+      int index = idx.cast<Number>()->as<int>();
+      int itIdx = 0;
+        
+      FERRET_ITERATE(seq,it){
+        if (index == itIdx)
+          return runtime::first(it);
+        itIdx++;
       }
+      return nil();
+    }
+
+    size_t count(var seq){
+      size_t acc = 0;
+      FERRET_ITERATE(seq,it){ acc++; }
+      return acc;
     }
   }
 #+end_src
 
-#+name: runtime-native-macros
+#+name: runtime-native-iterate-macro
 #+begin_src c++ :tangle no
   #define FERRET_ITERATE(c,i) for(var i = c; !i.isNil(); i = runtime::rest(i))
 #+end_src
@@ -2486,42 +2502,38 @@ uniform fashion.
 
 Function invocation,
 
-#+name: function-invocation-api-headers
+#+name: runtime-native-prototypes
 #+begin_src c++ :tangle no
-  namespace ferret{
-    template<typename T, typename... Args>
-    inline var run(T fn, Args... args);
+  template<typename T, typename... Args>
+  inline var run(T fn, Args... args);
         
-    template<typename T>
-    inline var run(T fn);
+  template<typename T>
+  inline var run(T fn);
 
-    template<>
-    inline var run(var);
-  }
+  template<>
+  inline var run(var);
 #+end_src
 
-#+name: function-invocation-api
+#+name: runtime-native-implementations
 #+begin_src c++ :tangle no
-  namespace ferret{
-    template<typename T, typename... Args>
-    inline var run(T fn, Args... args) {
-      return fn.invoke(runtime::list(args...));
-    }
+  template<typename T, typename... Args>
+  inline var run(T fn, Args... args) {
+    return fn.invoke(runtime::list(args...));
+  }
 
-    template<typename T>
-    inline var run(T fn) {
-      return fn.invoke(nil());
-    }
+  template<typename T>
+  inline var run(T fn) {
+    return fn.invoke(nil());
+  }
 
-    template<>
-    inline var run(var fn) {
-      return fn.cast<Lambda>()->invoke(nil());
-    }
+  template<>
+  inline var run(var fn) {
+    return fn.cast<Lambda>()->invoke(nil());
+  }
 
-    template<typename... Args>
-    inline var run(var fn, Args... args) {
-      return fn.cast<Lambda>()->invoke(runtime::list(args...));
-    }
+  template<typename... Args>
+  inline var run(var fn, Args... args) {
+    return fn.cast<Lambda>()->invoke(runtime::list(args...));
   }
 #+end_src
 
@@ -2772,7 +2784,7 @@ When C++ Standard Library is present use *stdout* for printing.
 Locking macros. They are disabled when running single threaded or on
 an embedded platform. (=FERRET_STD_LIB= not defined.)
 
-#+name: runtime-native-macros
+#+name: runtime-native-locking-macros
 #+begin_src c++ :tangle no
   #if defined(FERRET_STD_LIB) && !defined(FERRET_SINGLE_THREADED)
    #include <mutex>
@@ -2790,7 +2802,7 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
 
 *** Configure Reference Counting
 
-#+name: runtime-native-memory-management-macros
+#+name: runtime-native-memory-reference-counting-macros
 #+begin_src c++ :tangle no
   #if defined(FERRET_SINGLE_THREADED)
     #define FERRET_NEW_REF() size_t refCount;
@@ -2809,7 +2821,7 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
 
 Helper macros, to be used when debugging on the native side.
 
-#+name: runtime-native-memory-management-macros
+#+name: runtime-native-debugging-macros
 #+begin_src c++ :tangle no
   #define FERRET_PRT_MSG(msg)                     \
     fprintf(FERRET_OUTPUT_STREAM, msg);           \
@@ -5481,17 +5493,28 @@ Create some dummy libs under /test/modules/,
 ** resources/ferret.h
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/resources/ferret.h
+  <<runtime-native-program-header>>
+
   <<runtime-native-math-config-macros>>
 
-  <<runtime-native-program-header>>
-  <<runtime-native-memory-management-macros>>
-  <<runtime-native-macros>>
+  // Locking Macros
+  namespace ferret{
+    <<runtime-native-locking-macros>>
+  }
 
+  // Memory Pool
+  namespace ferret{
+    <<runtime-native-memory-pool>>
+    <<runtime-native-memory-management-macros>>
+  }
+
+  // Object System Base
   namespace ferret{
     class var;
-    <<runtime-native-memory-pool>>
+    <<runtime-native-memory-reference-counting-macros>>
     <<runtime-native-object>>
     <<runtime-native-var>>
+    <<runtime-native-debugging-macros>>
   }
 #+end_src 
 

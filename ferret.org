@@ -2969,6 +2969,14 @@ A simple macro for calling inline C++,
     "std::exit(code.cast<Number>()->as<int>());")
 #+end_src
 
+*** system-abort
+
+#+name: runtime-clojure-console-io
+#+begin_src clojure :tangle no
+  (defn system-abort [code]
+    "std::abort();")
+#+end_src
+
 *** xor-stream-encoder/decoder
 
 #+name: runtime-clojure-console-io
@@ -4178,7 +4186,7 @@ cycle) on a pin.
   (defn assert-aux [f msg]
     (when (not (f))
       (println "Assertion Failed ==>" msg)
-      (cxx "std::abort();")))
+      (system-abort)))
 
   (defn assert-aux-callback [f callback]
     (when (not (f)) (callback)))

@@ -1417,7 +1417,7 @@ lambda forms.
          $symbols:{var $it$;} ;separator=\"\n\"$
         }
 
-        $native_declarations:{$it$} ;separator=\"\n\"$      
+        $native_declarations:{$it$} ;separator=\"\n\"$
 
         // Runtime Implementations
         namespace ferret{
@@ -1431,7 +1431,10 @@ lambda forms.
           $lambda_classes:{$it$} ;separator=\"\n\"$
         }
 
-        #if defined(FERRET_STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS) && !defined(FERRET_DISABLE_MAIN_FUNCTION)
+        // Command Line Arguments
+        #if defined(FERRET_STD_LIB) &&                    \\
+            !defined(DISABLE_COMMAND_LINE_ARGUMENTS) &&   \\
+            !defined(FERRET_DISABLE_MAIN_FUNCTION)
           ferret::var _star_command_line_args_star_;
         #endif
 
@@ -1451,10 +1454,12 @@ lambda forms.
         int main(int argc, char* argv[]){
           using namespace ferret;
 
-        #if defined(FERRET_STD_LIB) && !defined(DISABLE_COMMAND_LINE_ARGUMENTS)
+        #if defined(FERRET_STD_LIB) &&               \\
+            !defined(DISABLE_COMMAND_LINE_ARGUMENTS)
           _star_command_line_args_star_ = runtime::list();
           for (int i = argc - 1; i > -1 ; i--)
-            _star_command_line_args_star_ = runtime::cons(obj<String>(argv[i]),_star_command_line_args_star_);
+            _star_command_line_args_star_ = 
+                runtime::cons(obj<String>(argv[i]),_star_command_line_args_star_);
         #endif
 
           ProgramRun();

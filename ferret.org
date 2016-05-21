@@ -86,7 +86,7 @@ We can compile this program using *ferret*, creating an executable named
 
 #+BEGIN_EXAMPLE
   $ ./ferret -i lazy-sum.clj
-  $ g++ -std=c++11 lazy-sum.cpp
+  $ g++ -std=c++11 -pthread lazy-sum.cpp
   $ ./a.out
   15
 #+END_EXAMPLE

@@ -199,7 +199,7 @@ Another option is to use the *cxx* macro,
 
 #+begin_src clojure
   (let [msg "Hello World!"]
-    (cxx "std::cout << msg.cast<String>()->toString() << std::endl;"))
+    (cxx "::std::cout << msg.cast<String>()->toString() << ::std::endl;"))
 
   (def dac-0 (cxx "__result =  obj<Number>(DAC0);"))
 #+end_src
@@ -222,8 +222,8 @@ will return *nil*. You can have multiple *on* blocks per *defnative*,
   (defnative sleep [t]
     (on "defined FERRET_STD_LIB"
         ("chrono" "thread")
-        "auto duration = std::chrono::milliseconds(t.cast<Number>()->as<int>());
-         std::this_thread::sleep_for(duration);")
+        "auto duration = ::std::chrono::milliseconds(t.cast<Number>()->as<int>());
+         ::std::this_thread::sleep_for(duration);")
     (on "defined FERRET_HARDWARE_ARDUINO"
         "::delay(t.cast<Number>()->as<int>());"))
 #+end_src
@@ -240,13 +240,13 @@ are immutable you can freely call Ferret code from C++,
     sum += it.cast<Number>()->as<int>();
    }
 
-  std::cout << sum << std::endl;
+  ::std::cout << sum << ::std::endl;
 
   //or
 
   var res = _plus_().invoke(alist);
   res.toOutputStream();
-  std::cout << std::endl;
+  ::std::cout << ::std::endl;
 #+end_src
 
 ** Wrapping Third Party C,C++ Libraries
@@ -2279,8 +2279,8 @@ Strings are represented as a linked list of characters.
      ("var rest" ""
       "return runtime::rest(data);")
      ("ifdef FERRET_STD_LIB"
-      "std::string toString" ""
-      "std::stringstream ss;
+      "::std::string toString" ""
+      "::std::stringstream ss;
        FERRET_ITERATE(data,it){ss << runtime::first(it).cast<Number>()->as<char>();}
        return ss.str();"))
     (force-type))
@@ -2709,6 +2709,7 @@ By default baud rate is *9600 bps*.
    #include <cstdlib>
    #include <cstddef>
    #include <atomic>
+   #include <mutex>
   #endif
 
   #ifdef FERRET_HARDWARE_ARDUINO
@@ -2787,11 +2788,10 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
 #+name: runtime-native-locking-macros
 #+begin_src c++ :tangle no
   #if defined(FERRET_STD_LIB) && !defined(FERRET_SINGLE_THREADED)
-   #include <mutex>
-   #define FERRET_NEW_LOCK(symbol) std::mutex symbol;
+   #define FERRET_NEW_LOCK(symbol) ::std::mutex symbol;
    #define FERRET_WITH_LOCK(lock,code)                         \
      {                                                         \
-     std::lock_guard<std::mutex> ferretScopeGuard(lock);       \
+     ::std::lock_guard<::std::mutex> ferretScopeGuard(lock);       \
      code;                                                     \
      }
   #else
@@ -2808,7 +2808,7 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
     #define FERRET_NEW_REF() size_t refCount;
     #define FERRET_COPY_REF(other) refCount = other.refCount;
   #else
-    #define FERRET_NEW_REF() std::atomic<size_t> refCount;
+    #define FERRET_NEW_REF() ::std::atomic<size_t> refCount;
     #define FERRET_COPY_REF(other) refCount.exchange(other.refCount);
   #endif
 
@@ -2975,11 +2975,11 @@ A simple macro for calling inline C++,
   (defnative sh [cmd]
     (on "defined FERRET_STD_LIB"
         ("memory")
-        "std::shared_ptr<FILE> pipe(popen(cmd.cast<String>()->toString().c_str(), \"r\"), pclose);
+        "::std::shared_ptr<FILE> pipe(popen(cmd.cast<String>()->toString().c_str(), \"r\"), pclose);
          if (!pipe) 
             __result = nil();
          char buffer[128];
-         std::string result = \"\";
+         ::std::string result = \"\";
          while (!feof(pipe.get()))
           if (fgets(buffer, 128, pipe.get()) != NULL)
            result += buffer;
@@ -2991,7 +2991,7 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-console-io
 #+begin_src clojure :tangle no
   (defn system-exit [code]
-    "std::exit(code.cast<Number>()->as<int>());")
+    "::std::exit(code.cast<Number>()->as<int>());")
 #+end_src
 
 *** system-abort
@@ -2999,7 +2999,7 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-console-io
 #+begin_src clojure :tangle no
   (defn system-abort [code]
-    "std::abort();")
+    "::std::abort();")
 #+end_src
 
 *** xor-stream-encoder/decoder
@@ -3740,7 +3740,7 @@ Runs the given lambda in a thread,
   (defnative thread [f]
     (on "defined FERRET_STD_LIB"
         ("thread")
-        "std::thread t([f](){return run(f);});
+        "::std::thread t([f](){return run(f);});
          t.detach();
          __result = nil();"))
 #+end_src
@@ -3754,9 +3754,9 @@ Return current time in milliseconds,
 #+begin_src clojure :tangle no
   (defnative millis []
     (on "defined FERRET_STD_LIB"
-        "auto now = std::chrono::system_clock::now();
+        "auto now = ::std::chrono::system_clock::now();
          auto epoch = now.time_since_epoch();
-         auto time = std::chrono::duration_cast<std::chrono::milliseconds>(epoch).count();
+         auto time = ::std::chrono::duration_cast<::std::chrono::milliseconds>(epoch).count();
          __result = obj<Number>((math::container) time);")
     (on "defined FERRET_HARDWARE_ARDUINO"
         "__result = obj<Number>((math::container)::millis());"))
@@ -3771,8 +3771,8 @@ Sleep current thread for *t* milliseconds,
   (defnative sleep [t]
     (on "defined FERRET_STD_LIB"
         ("chrono" "thread")
-        "auto duration = std::chrono::milliseconds(t.cast<Number>()->as<int>());
-         std::this_thread::sleep_for(duration);")
+        "auto duration = ::std::chrono::milliseconds(t.cast<Number>()->as<int>());
+         ::std::this_thread::sleep_for(duration);")
     (on "defined FERRET_HARDWARE_ARDUINO"
         "::delay(t.cast<Number>()->as<int>());"))
 #+end_src
@@ -3810,9 +3810,9 @@ function *f* to run in milliseconds,
   (defnative rand-aux []
     (on "defined FERRET_STD_LIB"
         ("random")
-        "std::random_device ferret_random_device;
-         std::mt19937_64 ferret_random_generator(ferret_random_device());
-         std::uniform_real_distribution<float> ferret_random_distribution(0.0,1.0);"
+        "::std::random_device ferret_random_device;
+         ::std::mt19937_64 ferret_random_generator(ferret_random_device());
+         ::std::uniform_real_distribution<float> ferret_random_distribution(0.0,1.0);"
         "__result = obj<Number>(ferret_random_distribution(ferret_random_generator));"))
 
   (defn rand
@@ -5182,18 +5182,18 @@ Create some dummy libs under /test/modules/,
      (native-define "#define FERRET_MEMORY_POOL_SIZE 2048")
      (native-declare "ferret::MemoryPool<size_t,10,size_t> mem;")
      (native-declare "void* ptr;")
-     (cxx "std::cout << mem.nextAvaliblePage(0) << \" \";")
+     (cxx "::std::cout << mem.nextAvaliblePage(0) << \" \";")
      (cxx "mem.allocate(sizeof(size_t)*2);")
-     (cxx "std::cout << mem.nextAvaliblePage(0) << \" \";")
+     (cxx "::std::cout << mem.nextAvaliblePage(0) << \" \";")
      (cxx "ptr = mem.allocate(sizeof(size_t)*4);")
-     (cxx "std::cout << mem.nextAvaliblePage(2) << \" \";")
+     (cxx "::std::cout << mem.nextAvaliblePage(2) << \" \";")
      (cxx "mem.free(ptr);")
-     (cxx "std::cout << mem.nextAvaliblePage(2) << \" \";")
-     (cxx "std::cout << (nullptr == mem.allocate(sizeof(size_t)*40)) << \" \";")
-     (cxx "std::cout << (nullptr != mem.allocate(sizeof(size_t)*6)) << \" \";")
-     (cxx "std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";")
-     (cxx "std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";")
-     (cxx "std::cout << (nullptr == mem.allocate(sizeof(size_t)*10)) << \" \";")))
+     (cxx "::std::cout << mem.nextAvaliblePage(2) << \" \";")
+     (cxx "::std::cout << (nullptr == mem.allocate(sizeof(size_t)*40)) << \" \";")
+     (cxx "::std::cout << (nullptr != mem.allocate(sizeof(size_t)*6)) << \" \";")
+     (cxx "::std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";")
+     (cxx "::std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";")
+     (cxx "::std::cout << (nullptr == mem.allocate(sizeof(size_t)*10)) << \" \";")))
 #+end_src
 
 * Roadmap

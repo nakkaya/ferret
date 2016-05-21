@@ -1050,7 +1050,11 @@ C++ skeleton.
 #+name: core-code-generation-emit-source
 #+begin_src clojure :tangle no
   (defn emit-source [form options]
-    (let [state (atom {:lambdas [] :symbol-table #{} :native-declarations [] :native-defines []})
+    (let [state (atom {:native-declarations []
+                       :objects []
+                       :symbol-table #{}
+                       :lambdas []
+                       :native-defines []})
           ast (compile form options)
           body (emit-ast ast state)]
       (when (:ast options)
@@ -1210,7 +1214,7 @@ lambda forms.
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
   (defmethod emit 'defobject [[_ name & spec] state]
-    (append-to! state [:native-declarations] (declare-object name spec))
+    (append-to! state [:objects] (declare-object name spec))
     "")
 
   (defmethod emit 'if [[_ cond t f] state]
@@ -1239,8 +1243,6 @@ lambda forms.
                                (empty? (specs 'new)) true
                                :defaul false)
           view (create-view "
-      namespace ferret{
-
        $if(object_type)$
          namespace runtime {
           namespace type {
@@ -1289,8 +1291,7 @@ lambda forms.
          }
        #endif} ;separator=\"\n\"$
        };
-       $post_code$
-      }")]
+       $post_code$")]
       (fill-view! view "name" name)
       (fill-view! view "template" (specs 'template))
       (fill-view! view "interface" interface)
@@ -1401,7 +1402,7 @@ lambda forms.
 #+name: code-templates
 #+begin_src clojure :tangle no :noweb yes
   (defn solution-template [source]
-    (let [{:keys [body lambdas symbol-table native-declarations native-defines]} source
+    (let [{:keys [body lambdas symbol-table native-declarations native-defines objects]} source
           view (create-view "
         $native_defines:{$it$} ;separator=\"\n\"$
 
@@ -1413,11 +1414,17 @@ lambda forms.
          <<runtime-native-iterate-macro>>
         }
 
+        $native_declarations:{$it$} ;separator=\"\n\"$
+
+        // Objects
+        namespace ferret{
+         $objects:{$it$} ;separator=\"\n\"$
+        }
+
+        // Symbols
         namespace ferret{
          $symbols:{var $it$;} ;separator=\"\n\"$
         }
-
-        $native_declarations:{$it$} ;separator=\"\n\"$
 
         // Runtime Implementations
         namespace ferret{
@@ -1500,6 +1507,7 @@ lambda forms.
       (fill-view! view "lambda_bodies" (declare-lambda-bodies lambdas))
       (fill-view! view "symbols" symbol-table)
       (fill-view! view "native_declarations" native-declarations)
+      (fill-view! view "objects" objects)
       (fill-view! view "native_defines" native-defines)
       (render-view view)))
 #+end_src

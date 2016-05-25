@@ -13,13 +13,13 @@ before_install:
   - make > /dev/null 2>&1
   - sudo make install > /dev/null 2>&1
   - cd ../
-  - sudo apt-get install --allow-unauthenticated -y -qq g++-5 clang-3.6 leiningen
+  - sudo apt-get install --allow-unauthenticated -y -qq g++-5 clang-3.4 leiningen
   - ./build > /dev/null
 script:
   - cd src/
   - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 50
   - lein test
-  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/clang++-3.6 60
+  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/clang++-3.4 60
   - lein test
   - cd ../
   - mkdir release

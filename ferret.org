@@ -4347,6 +4347,11 @@ Unit testing of the implementation is done by compiling forms using
 Ferret then comparing the their runtime output to the expected
 output.
 
+Tests are run by the CI system for the following compilers,
+
+ - GCC 5
+ - Clang 3.6
+
 Following options are passed to the compiler during testing,
 
  - *-std=c++11*

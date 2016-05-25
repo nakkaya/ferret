@@ -13,7 +13,7 @@ before_install:
   - make > /dev/null 2>&1
   - sudo make install > /dev/null 2>&1
   - cd ../
-  - sudo apt-get install -y -qq g++-5 clang-3.6 leiningen > /dev/null 2>&1
+  - sudo apt-get install --allow-unauthenticated -y -qq g++-5 clang-3.6 leiningen
   - ./build > /dev/null
 script:
   - cd src/

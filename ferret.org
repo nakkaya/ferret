@@ -4350,7 +4350,7 @@ output.
 Tests are run by the CI system for the following compilers,
 
  - GCC 5
- - Clang 3.6
+ - Clang 3.4
 
 Following options are passed to the compiler during testing,
 

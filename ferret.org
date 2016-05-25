@@ -2166,7 +2166,7 @@ Linked list container implementing the seekable interface.
       return nil();")
     (fns
      ("var cons" "var"
-      "return this;")
+      "return var(this);")
      ("var first" ""
       "return nil();")
      ("var rest" ""
@@ -2179,7 +2179,7 @@ Linked list container implementing the seekable interface.
           "var next;")
     (equals
      "var itOther = o;
-      FERRET_ITERATE(this,it){
+      FERRET_ITERATE(var(this),it){
         if (itOther.is_nil() || runtime::first(it).equals(runtime::first(itOther))  == false)
           return obj<Boolean>(false);
         itOther = runtime::rest(itOther);
@@ -2200,9 +2200,9 @@ Linked list container implementing the seekable interface.
       fprintf(FERRET_OUTPUT_STREAM, \")\");
       return nil();")
     (fns
-     ("explicit Sequence(var d = nullptr, var n = nullptr) : data(d), next(n) {}")
+     ("explicit Sequence(var d = var(), var n = var()) : data(d), next(n) {}")
      ("var cons" "var x"
-      "return obj<Sequence>(x, this);")
+      "return obj<Sequence>(x, var(this));")
      ("var first" ""
       "return data;")
      ("var rest" ""
@@ -2235,7 +2235,7 @@ A lazy list container implementing the seekable interface.
           "var thunk;")
     (equals
      "var itOther = o;
-      FERRET_ITERATE(this,it){
+      FERRET_ITERATE(var(this),it){
         if (itOther.is_nil() || runtime::first(it).equals(runtime::first(itOther))  == false)
           return obj<Boolean>(false);
         itOther = runtime::rest(itOther);
@@ -2248,7 +2248,7 @@ A lazy list container implementing the seekable interface.
     (stream_console
      "fprintf(FERRET_OUTPUT_STREAM, \"(\");
       head.stream_console();
-      FERRET_ITERATE(runtime::rest(this),it){
+      FERRET_ITERATE(runtime::rest(var(this)),it){
         fprintf(FERRET_OUTPUT_STREAM, \" \");
         runtime::first(it).stream_console();
       }
@@ -2581,7 +2581,7 @@ reaches zero it will automatically free the Object.
 #+begin_src c++ :tangle no
   class var{
   public:
-    var(Object* ptr = nullptr) : m_ptr(ptr) { inc_ref(); }
+    explicit var(Object* ptr = nullptr) : m_ptr(ptr) { inc_ref(); }
 
     var(const var& p) : m_ptr(p.m_ptr) { inc_ref(); }
       

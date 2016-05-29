@@ -269,12 +269,6 @@ View results using,
   qcachegrind callgrind.out.XXX
 #+END_EXAMPLE
 
-For static checking the generated code you can use /cppcheck/,
-
-#+BEGIN_EXAMPLE
-  cppcheck -q --template=gcc --enable=portability,performance,style,warning generated_source.cpp
-#+END_EXAMPLE
-
 * Overview
 ** Getting Ferret
 
@@ -4344,7 +4338,7 @@ Embed compilations options, (build command, extra source files etc.)
   :END:
 
 Unit testing of the implementation is done by compiling forms using
-Ferret then comparing the their runtime output to the expected
+Ferret then comparing the their runtime output to their expected
 output.
 
 Tests are run by the CI system for the following compilers,
@@ -4362,6 +4356,14 @@ Following options are passed to the compiler during testing,
  - *-Woverloaded-virtual*
  - *-Wuninitialized*
  - *-Winit-self*
+
+Generated code for each test is also run through /cppcheck/ with
+following options,
+
+ - *--std=c++11*
+ - *--template=gcc*
+ - *--enable=all*
+ - *--error-exitcode=1*
 
 ** Core
 *** Special Forms
@@ -5455,6 +5457,17 @@ Create some dummy libs under /test/modules/,
 
   (set-log-level! :warn)
 
+  (defn run-cppcheck [file]
+    (let [options ["cppcheck" "-q" "--std=c++11" "--template=gcc"
+                   "--enable=all"
+                   "--error-exitcode=1" file]
+          ret (with-sh-dir "./"
+                (apply sh options))]
+      (if (not= 0 (:exit ret))
+        (do (warn "Static Analysis Error")
+            (warn (:err ret))
+            (System/exit 1)))))
+
   (defn capture-output [form & [cmd-args]]
     (let [options (compile-options
                    {:compiler-options
@@ -5462,6 +5475,7 @@ Create some dummy libs under /test/modules/,
                      "-Werror" "-Wall" "-Wextra" "-Woverloaded-virtual" "-Wuninitialized" "-Winit-self"
                      "-pthread"]})]
       (compile->cpp form options)
+      (run-cppcheck "solution.cpp")
       (compile->binary options [])
       (with-sh-dir "./"
         (let [r (if cmd-args

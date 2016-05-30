@@ -5208,6 +5208,9 @@ Create some dummy libs under /test/modules/,
     - D-Lists - https://news.ycombinator.com/item?id=11575540
     - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/PersistentHashMap.java
     - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/APersistentMap.java
+  - *Co-Operative Multitasking* - For Embedded Systems.
+    - https://forum.pjrc.com/threads/25628-Lightweight-Teensy3-x-Fibers-Library-%28C-%29-Available
+    - https://github.com/ve3wwg/teensy3_fibers/blob/1ba0c1e79a423f097e12e6c4176b40cf9d4f44e4/fibers.cpp
   - *Pluggable Numbers* - Ability to change the default number type at
     compile time.
   - *Unbounded Precision Integers*

@@ -269,12 +269,6 @@ View results using,
   qcachegrind callgrind.out.XXX
 #+END_EXAMPLE
 
-For static checking the generated code you can use /cppcheck/,
-
-#+BEGIN_EXAMPLE
-  cppcheck -q --template=gcc --enable=portability,performance,style,warning generated_source.cpp
-#+END_EXAMPLE
-
 * Overview
 ** Getting Ferret
 
@@ -2166,7 +2160,7 @@ Linked list container implementing the seekable interface.
       return nil();")
     (fns
      ("var cons" "var"
-      "return this;")
+      "return var(this);")
      ("var first" ""
       "return nil();")
      ("var rest" ""
@@ -2179,7 +2173,7 @@ Linked list container implementing the seekable interface.
           "var next;")
     (equals
      "var itOther = o;
-      FERRET_ITERATE(this,it){
+      FERRET_ITERATE(var(this),it){
         if (itOther.is_nil() || runtime::first(it).equals(runtime::first(itOther))  == false)
           return obj<Boolean>(false);
         itOther = runtime::rest(itOther);
@@ -2200,9 +2194,9 @@ Linked list container implementing the seekable interface.
       fprintf(FERRET_OUTPUT_STREAM, \")\");
       return nil();")
     (fns
-     ("explicit Sequence(var d = nullptr, var n = nullptr) : data(d), next(n) {}")
+     ("explicit Sequence(var d = var(), var n = var()) : data(d), next(n) {}")
      ("var cons" "var x"
-      "return obj<Sequence>(x, this);")
+      "return obj<Sequence>(x, var(this));")
      ("var first" ""
       "return data;")
      ("var rest" ""
@@ -2235,7 +2229,7 @@ A lazy list container implementing the seekable interface.
           "var thunk;")
     (equals
      "var itOther = o;
-      FERRET_ITERATE(this,it){
+      FERRET_ITERATE(var(this),it){
         if (itOther.is_nil() || runtime::first(it).equals(runtime::first(itOther))  == false)
           return obj<Boolean>(false);
         itOther = runtime::rest(itOther);
@@ -2248,7 +2242,7 @@ A lazy list container implementing the seekable interface.
     (stream_console
      "fprintf(FERRET_OUTPUT_STREAM, \"(\");
       head.stream_console();
-      FERRET_ITERATE(runtime::rest(this),it){
+      FERRET_ITERATE(runtime::rest(var(this)),it){
         fprintf(FERRET_OUTPUT_STREAM, \" \");
         runtime::first(it).stream_console();
       }
@@ -2581,7 +2575,7 @@ reaches zero it will automatically free the Object.
 #+begin_src c++ :tangle no
   class var{
   public:
-    var(Object* ptr = nullptr) : m_ptr(ptr) { inc_ref(); }
+    explicit var(Object* ptr = nullptr) : m_ptr(ptr) { inc_ref(); }
 
     var(const var& p) : m_ptr(p.m_ptr) { inc_ref(); }
       
@@ -4344,8 +4338,13 @@ Embed compilations options, (build command, extra source files etc.)
   :END:
 
 Unit testing of the implementation is done by compiling forms using
-Ferret then comparing the their runtime output to the expected
+Ferret then comparing the their runtime output to their expected
 output.
+
+Tests are run by the CI system for the following compilers,
+
+ - GCC 5
+ - Clang 3.4
 
 Following options are passed to the compiler during testing,
 
@@ -4357,6 +4356,14 @@ Following options are passed to the compiler during testing,
  - *-Woverloaded-virtual*
  - *-Wuninitialized*
  - *-Winit-self*
+
+Generated code for each test is also run through /cppcheck/ with
+following options,
+
+ - *--std=c++11*
+ - *--template=gcc*
+ - *--enable=all*
+ - *--error-exitcode=1*
 
 ** Core
 *** Special Forms
@@ -5453,6 +5460,17 @@ Create some dummy libs under /test/modules/,
 
   (set-log-level! :warn)
 
+  (defn run-cppcheck [file]
+    (let [options ["cppcheck" "-q" "--std=c++11" "--template=gcc"
+                   "--enable=all"
+                   "--error-exitcode=1" file]
+          ret (with-sh-dir "./"
+                (apply sh options))]
+      (if (not= 0 (:exit ret))
+        (do (warn "Static Analysis Error")
+            (warn (:err ret))
+            (System/exit 1)))))
+
   (defn capture-output [form & [cmd-args]]
     (let [options (compile-options
                    {:compiler-options
@@ -5460,6 +5478,7 @@ Create some dummy libs under /test/modules/,
                      "-Werror" "-Wall" "-Wextra" "-Woverloaded-virtual" "-Wuninitialized" "-Winit-self"
                      "-pthread"]})]
       (compile->cpp form options)
+      (run-cppcheck "solution.cpp")
       (compile->binary options [])
       (with-sh-dir "./"
         (let [r (if cmd-args

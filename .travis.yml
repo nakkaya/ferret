@@ -3,6 +3,7 @@ git:
   depth: 1
 before_install:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test > /dev/null 2>&1
+  - sudo add-apt-repository -y ppa:h-rayflood/llvm > /dev/null 2>&1
   - sudo apt-get update -qq
   - sudo apt-get -qq -y build-dep emacs > /dev/null 2>&1
   - wget -q http://ftp.gnu.org/gnu/emacs/emacs-24.5.tar.gz
@@ -12,11 +13,13 @@ before_install:
   - make > /dev/null 2>&1
   - sudo make install > /dev/null 2>&1
   - cd ../
-  - sudo apt-get install -y -qq g++-5 leiningen > /dev/null 2>&1
-  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 50
+  - sudo apt-get install --allow-unauthenticated -y -qq g++-5 clang-3.4 leiningen cppcheck  > /dev/null 2>&1
   - ./build > /dev/null
 script:
   - cd src/
+  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 50
+  - lein test
+  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/clang++-3.4 60
   - lein test
   - cd ../
   - mkdir release

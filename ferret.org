@@ -2427,6 +2427,7 @@ C++ API for the interface,
     var rest(var coll);
     var cons(var x, var seq);
     var nth(var seq, var index);
+    var nth(var seq, int index);
     size_t count(var seq);
   }
 #+end_src
@@ -2484,11 +2485,9 @@ Range-based for loop support for seekable containers.
         return runtime::list(x);
       return seq.cast<ISeekable>()->cons(x);
     }
-    
-    var nth(var seq, var idx){
-      int index = idx.cast<Number>()->as<int>();
+
+    var nth(var seq, int index){
       int itIdx = 0;
-        
       FERRET_ITERATE(seq,it){
         if (index == itIdx)
           return runtime::first(it);
@@ -2496,7 +2495,11 @@ Range-based for loop support for seekable containers.
       }
       return nil();
     }
-
+    
+    var nth(var seq, var idx){
+      return nth(seq,idx.cast<Number>()->as<int>());
+    }
+    
     size_t count(var seq){
       size_t acc = 0;
       FERRET_ITERATE(seq,it){ acc++; }
@@ -3715,6 +3718,37 @@ A simple macro for calling inline C++,
                                                        n.cast<Number>()->numerator()));")
 #+end_src
 
+*** number-split
+
+Split a number into bytes.
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn number-split [n]
+    "math::container val = n.cast<Number>()->as<math::container>();
+     unsigned char *p = (unsigned char*)&val;
+     __result = runtime::list();
+     for(size_t i = 0; i < sizeof(math::container); i++)
+       __result = runtime::cons(obj<Number>(p[i]),__result);")
+#+end_src
+
+*** number-combine
+
+Combine a list of bytes to a number.
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn number-combine [s]
+    "math::container res = 0;
+     for(size_t i = 0; i < sizeof(math::container); i++){
+      int idx = (sizeof(math::container) - i - 1);
+      var obj = runtime::nth(s,idx);
+      math::container val = obj.cast<Number>()->as<math::container>();
+      res |= val << (i * 8);
+     }
+     __result = obj<Number>(res);")
+#+end_src
+
 ** Concurrency
 *** thread
 
@@ -4565,7 +4599,15 @@ following options,
             (clamp 10 0 5)
             (clamp 10 0 20)
             (clamp 10 -10 0)
-            (clamp -100 -10 0))))
+            (clamp -100 -10 0)))
+
+    (compare-output
+     "0 512 1024 2048 32000"
+     (print (number-combine (number-split 0))
+            (number-combine (number-split 512))
+            (number-combine (number-split 1024))
+            (number-combine (number-split 2048))
+            (number-combine (number-split 32000)))))
 #+end_src
 
 *** Misc

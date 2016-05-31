@@ -2005,6 +2005,22 @@ An object to hold a reference to a C++ pointer,
     (force-type))
 #+end_src
 
+#+name: runtime-clojure-heavy-pointer-object
+#+begin_src clojure :tangle no
+  (defobject HeavyPointer
+    (data "var pointer;"
+          "var gc_fn;")
+    (equals
+     "return pointer.equals(o.cast<HeavyPointer>()->container());")
+    (stream_console
+     "return pointer.cast<Pointer>()->stream_console();")
+    (fns
+     ("explicit HeavyPointer(var p, var gc) : pointer(p), gc_fn(gc) {}")
+     ("~HeavyPointer" "" "run(gc_fn);")
+     ("var container" "" "return pointer;"))
+    (force-type))
+#+end_src
+
 **** Number
 
 There is only one number type in ferret. All numbers are kept as
@@ -5131,6 +5147,26 @@ Create some dummy libs under /test/modules/,
               (m-func 1 2 (list 3 3) 4)))))
 #+end_src
 
+*** Pointer
+
+#+begin_src clojure
+  (deftest native-core-pointer
+    (compare-output
+     "true false true false false true Clean Up"
+     (let [a-gc-fn (fn [] (print " Clean Up"))
+           a-ptr (cxx "__result = obj<Pointer>(nullptr);")
+           a-heavy-ptr (cxx "__result = obj<HeavyPointer>(a_ptr,a_gc_fn);")
+           b-ptr (cxx "__result = obj<Pointer>(new int);")
+           b-gc-fn (fn [] "delete b_ptr.cast<Pointer>()->pointer<int>();")
+           b-heavy-ptr (cxx "__result = obj<HeavyPointer>(b_ptr,b_gc_fn);")]
+       (print (= a-ptr a-ptr)
+              (= a-ptr b-ptr)
+              (= a-heavy-ptr a-heavy-ptr)
+              (= a-heavy-ptr b-heavy-ptr)
+              (= b-heavy-ptr a-heavy-ptr)
+              (= b-heavy-ptr b-heavy-ptr)))))
+#+end_src
+
 *** Atom
 
 #+begin_src clojure
@@ -5239,13 +5275,11 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
+  - *assert* - Strip during release build.
   - *Implement Que*
-  - *Pointer* - Ability to call cleanup function before *GC*
   - *Unit Testing*
     - [[https://github.com/aw/picolisp-unit][Unit Testing framework for PicoLisp]]
     - [[http://www.jera.com/techinfo/jtns/jtn002.html][JTN002 - MinUnit -- a minimal unit testing framework for C]]
-  - *Shared Library* - Ability to be run as a shared lib.
-    - Export functions to JNA (C API)
   - *Pre/Post conditions* for functions.
     - By default print error and abort. 
     - Let user define a callback function.
@@ -5287,6 +5321,8 @@ Create some dummy libs under /test/modules/,
     - Improved data locality and safety.
     - Optionally disable reference counting to improve performance since
       whole pool can be garbage collected when done.
+  - *Shared Library* - Ability to be run as a shared lib.
+    - Export functions to JNA (C API)
   - *Safety when used in ISR*.
   - *Readbility* - Add context to auto generated symbols in compiled
     code.
@@ -5309,6 +5345,7 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Pointer* - Ability to call cleanup function before *GC*
   - *Debugging* - Add some debugging macros, native side.
   - *PIDController* - Implement Unit Tests.
   - *Continuous Integration* - Setup Travis CI, automate testing and
@@ -5593,6 +5630,7 @@ Create some dummy libs under /test/modules/,
   <<runtime-clojure-lambda-interface>>
   <<runtime-clojure-keyword-object>>
   <<runtime-clojure-sequence-object>>
+  <<runtime-clojure-heavy-pointer-object>>
   <<runtime-clojure-string-object>>
   <<runtime-clojure-atom-object>>
   <<runtime-clojure-defn>>

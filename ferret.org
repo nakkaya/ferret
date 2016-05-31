@@ -258,26 +258,6 @@ are immutable you can freely call Ferret code from C++,
   ::std::cout << ::std::endl;
 #+end_src
 
-** Wrapping Third Party C,C++ Libraries
-
-   - [[https://git.nakkaya.com/nakkaya/ferret-serial][ferret-serial]] - Boost Asio Serial Port Wrapper For Ferret.
-   - [[https://git.nakkaya.com/nakkaya/ferret-firmata][ferret-firmata]] - Firmata protocol implementation that uses *ferret-serial* and *stl*.
-   - [[https://git.nakkaya.com/nakkaya/ferret-qt][ferret-qt]] - QT Embedded Webkit Wrapper For Ferret.
-
-** Miscellaneous
-
-For profiling you can use Valgrind with the following options
-
-#+BEGIN_EXAMPLE
-  valgrind --tool=callgrind ./(Your binary)
-#+END_EXAMPLE
-
-View results using,
-
-#+BEGIN_EXAMPLE
-  qcachegrind callgrind.out.XXX
-#+END_EXAMPLE
-
 * Overview
 
 This is a literate program, inspired by Donald Knuth (Knuth, Donald

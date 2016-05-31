@@ -92,8 +92,8 @@ We can compile this program using *ferret*, creating an executable named
 #+END_EXAMPLE
 
 Output will be placed in a a file called *lazy-sum.cpp*. When *-c*
-flag is used ferret will call *g++* on the resulting *cpp*
-file. (Other compilers are supported see [[Implementation Notes]]).
+flag is used ferret will call *g++* or if set *CXX* environment
+variable on the resulting *cpp* file.
 
 #+BEGIN_EXAMPLE
   $ ./ferret -i lazy-sum.clj -c
@@ -168,8 +168,9 @@ Steps for using *tcmalloc* on Mac OS X, install dependencies,
 Then from your program you can link to it using,
 
 #+begin_src clojure
-  (configure-ferret! :library-path ["/usr/local/Cellar/gperftools/2.4/lib/"]
-                     :link ["tcmalloc"])
+  (configure-ferret! :compiler-options ["-std=c++11"
+                                        "-L/usr/local/Cellar/gperftools/2.4/lib/"
+                                        "-ltcmalloc"])
 #+end_src
 
 ** Accessing C,C++ Libraries
@@ -1532,9 +1533,6 @@ lambda forms.
   #+begin_src clojure
     (defn compile-options [& [options]]
       (merge {:compiler "g++"
-              :include-path []
-              :library-path []
-              :link []
               :compiler-options ["-std=c++11"]
               :source-extension "cpp"
               :base-name "solution"}
@@ -1605,67 +1603,54 @@ lambda forms.
   #+name: core-code-compile-code
   #+begin_src clojure
     (defn compile->binary [options extra-source-files]
-      (let [compiler (if (System/getenv "CXX")
-                       (System/getenv "CXX")
-                       (:compiler options))
-            compiler-options (concat (map #(str %) (:compiler-options options))
-                                     (if (System/getenv "CXXFLAGS")
-                                       (seq (.split (System/getenv "CXXFLAGS") " "))))
-            command (flatten [compiler
-                              compiler-options
-                              (map #(str "-I" %) (:include-path options))
-                              (map #(str "-L" %) (:library-path options))
-                              (map #(str "-l" %) (:link options))
-                              (map #(let [extension (org.apache.commons.io.FilenameUtils/getExtension %)]
-                                      [(cond (= extension "c") ["-x" "c"]
-                                             (= extension "c++") ["-x" "c++"]
-                                             :default "")
-                                       %])
-                                   extra-source-files)
-                              ["-x" "c++"]
-                              (str (:base-name options) "." (:source-extension options))])]
+      (if (:command options)
+        (do (info "Command" (:command options))
+            (let [ret (with-sh-dir (:output-path options)
+                        (apply sh (flatten ["bash" "-c" (:command options)])))]
+              (if (not= 0 (:exit ret))
+                (do (warn "Build Error")
+                    (warn (:err ret))
+                    (System/exit 1))
+                (info (:out ret)))))
+        (let [compiler (if (System/getenv "CXX")
+                         (System/getenv "CXX")
+                         (:compiler options))
+              compiler-options (concat (map #(str %) (:compiler-options options))
+                                       (if (System/getenv "CXXFLAGS")
+                                         (seq (.split (System/getenv "CXXFLAGS") " "))))
+              command (flatten [compiler
+                                compiler-options
+                                (map #(let [extension (org.apache.commons.io.FilenameUtils/getExtension %)]
+                                        [(cond (= extension "c") ["-x" "c"]
+                                               (= extension "c++") ["-x" "c++"]
+                                               :default "")
+                                         %])
+                                     extra-source-files)
+                                ["-x" "c++"]
+                                (str (:base-name options) "." (:source-extension options))])]
 
-        (info "Building Binary")
-        (if (:build-command options)
-          (do (info "Build Command" (:build-command options))
-              (let [ret (with-sh-dir (:output-path options)
-                          (apply sh (flatten ["bash" "-c" (:build-command options)])))]
-                (if (not= 0 (:exit ret))
-                  (do (warn "Build Error")
-                      (warn (:err ret))
-                      (System/exit 1))
-                  (info (:out ret)))))
-          (do (info "Compiler:" compiler)
-              (info "Options:")
-              (doseq [option compiler-options]
-                (info "           " option))
-              (info "Include Path:")
-              (doseq [path (:include-path options)]
-                (info "           " path))
-              (info "Library Path:")
-              (doseq [path (:library-path options)]
-                (info "           " path))
-              (info "Link:")
-              (doseq [link (:link options)]
-                (info "           " link))
-              (let [ret (try
-                          (with-sh-dir (if (not (empty? (:output-path options)))
-                                         (:output-path options)
-                                         "./")
-                            (apply sh command))
-                          (catch Exception e
-                            (warn (str "Error Executing C++ Compiler."))
-                            (warn (str "" (.getMessage e)))
-                            (System/exit 1)))]
-                (if (not= 0 (:exit ret))
-                  (do (warn "Build Error")
-                      (warn (:err ret))
-                      (System/exit 1))
-                  (do (when (:name options)
-                        (with-sh-dir (:output-path options)
-                          (sh "mv" "a.out" (str "./" (:name options)))))
-                      (info "Done")
-                      true)))))))
+          (info "Building")
+          (info "CXX:" compiler)
+          (info "CXXFLAGS:")
+          (doseq [option compiler-options]
+            (info "\t" option))
+          (let [ret (try
+                      (with-sh-dir (if (not (empty? (:output-path options)))
+                                     (:output-path options)
+                                     "./")
+                        (apply sh command))
+                      (catch Exception e
+                        (warn (str "Error Executing C++ Compiler."))
+                        (warn (str "" (.getMessage e)))
+                        (System/exit 1)))]
+            (if (not= 0 (:exit ret))
+              (do (warn "Build Error")
+                  (warn (:err ret))
+                  (System/exit 1))
+              (do (when (:name options)
+                    (with-sh-dir (:output-path options)
+                      (sh "mv" "a.out" (str "./" (:name options)))))
+                  true))))))
   #+end_src
 
 *** Compiler Main

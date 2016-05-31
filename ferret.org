@@ -1605,8 +1605,14 @@ lambda forms.
   #+name: core-code-compile-code
   #+begin_src clojure
     (defn compile->binary [options extra-source-files]
-      (let [command (flatten [(:compiler options)
-                              (map #(str %) (:compiler-options options))
+      (let [compiler (if (System/getenv "CXX")
+                       (System/getenv "CXX")
+                       (:compiler options))
+            compiler-options (concat (map #(str %) (:compiler-options options))
+                                     (if (System/getenv "CXXFLAGS")
+                                       (seq (.split (System/getenv "CXXFLAGS") " "))))
+            command (flatten [compiler
+                              compiler-options
                               (map #(str "-I" %) (:include-path options))
                               (map #(str "-L" %) (:library-path options))
                               (map #(str "-l" %) (:link options))
@@ -1629,9 +1635,9 @@ lambda forms.
                       (warn (:err ret))
                       (System/exit 1))
                   (info (:out ret)))))
-          (do (info "Compiler:" (:compiler options))
+          (do (info "Compiler:" compiler)
               (info "Options:")
-              (doseq [option (:compiler-options options)]
+              (doseq [option compiler-options]
                 (info "           " option))
               (info "Include Path:")
               (doseq [path (:include-path options)]

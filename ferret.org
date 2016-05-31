@@ -284,8 +284,10 @@ expressed clearly but they are grounded in the actual source code.
 ** Building From Sources
 
 #+BEGIN_HTML
-  <img src="https://badge.fury.io/hooks/github" style="margin-left: 0;">
+<p>
+  <img src="https://badge.fury.io/gh/nakkaya%2Fferret.svg" style="margin-left: 0;">
   <img src="https://travis-ci.org/nakkaya/ferret.svg?branch=master" style="margin-left: 0;">
+</p>
 #+END_HTML
 
 The code in this document is the executable source. Use the *build*

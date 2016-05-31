@@ -60,6 +60,14 @@ along with Foobar. If not, see http://www.gnu.org/licenses/.
 * Getting Started
 ** Download
 
+Ferret is available as prebuilt and source code distributions. See
+[[Building From Sources]] for links to source distribution.
+
+#+BEGIN_HTML
+  <img src="https://badge.fury.io/gh/nakkaya%2Fferret.svg" style="float: left; padding-right: 1cm;">
+  <img src="https://travis-ci.org/nakkaya/ferret.svg?branch=master" style="margin-left: 0;">
+#+END_HTML
+
    - [[http://dropbox.nakkaya.com/builds/ferret][Executable]] (Requires Bash and JVM)
    - [[http://dropbox.nakkaya.com/builds/ferret.jar][Standalone Jar]] (Requires JVM)
 
@@ -281,15 +289,55 @@ This document is not intended to be a full Clojure tutorial. It is a
 specification of the subset of Clojure implemented by Ferret, and
 the particular workings of the Object / Runtime system.
 
+** Language 
+
+Ferret is a functional, lazy language. All functions should mimic
+their Clojure counter parts. If they don't it is considered a bug. (or
+not possible to implement with the current implementation.)
+
+** Structure
+
+The compiler and the C++ runtime needed is split into three sections.
+
+ - [[Compiler]]
+ - [[Native Core]]
+ - [[Clojure Core]]
+
+*[[Compiler]]* section contains the actual compiler written in Clojure. It
+takes the Clojure code and converts it to a Intermediate
+representation by taking the Clojure form and running it [[Compilation][through some
+transformations]]. This IR is then run through [[Code Generation]] module to
+create C++ code. *[[Native Core]]* contains the C++ runtime needed to
+support Ferret such as [[Object System]], [[Memory Pool][ Memory Pooling]], [[Reference Counting][Garbage
+Collection]]. It is written in a mixture of C++ and Ferret DSL. *[[Clojure
+Core]]* corresponds to *clojure.core*, contains all functions.
+
+** Compiled Code
+
+The generated code is self contained *ISO C++11*, it is not tied to
+any one compiler, generated code should be portable between any
+Operating System / Microcontroller that support a *C++11* compliant
+compiler.
+
+Generated C++ code has the following structure, (All Ferret code is
+defined within *ferret* namespace. All Ferret macros starts with
+*FERRET_*.)
+
+ - Detect Hardware
+ - Include files
+ - Ferret Header (resources/ferret.h)
+ - Ferret Native Runtime Prototypes (runtime::first, runtime::rest
+   etc.)
+ - Native Declarations
+ - Object Definitions
+ - Symbol Definitions
+ - Native Runtime Implementations
+ - Lambda Prototypes
+ - Lambda Implementations
+ - Ferret Main
+ - Hardware Dependent Main Functions
+
 ** Building From Sources
-
-Ferret is available as prebuilt and source code distributions. See
-[[Download]] for download links to prebuilt packages.
-
-#+BEGIN_HTML
-  <img src="https://badge.fury.io/gh/nakkaya%2Fferret.svg" style="float: left; padding-right: 1cm;">
-  <img src="https://travis-ci.org/nakkaya/ferret.svg?branch=master" style="margin-left: 0;">
-#+END_HTML
 
 The code in this document is the executable source. Use the *build*
 script in the source distribution to extract source code.
@@ -323,50 +371,6 @@ it is running on a **NIX* based system if not, open this file using
 
 that will extract the source code then you can threat it as any other
 Clojure/Lein project.
-
-** Implementation Notes
-
-Ferret is a functional, lazy language. All functions should mimic
-their Clojure counter parts. If they don't it is considered a bug. (or
-not possible to implement with the current implementation.)
-
-The generated code is self contained *ISO C++11*, it is not tied to
-any one compiler, generated code should be portable between any
-Operating System / Microcontroller that support a *C++11* compliant
-compiler.
-
-The compiler and the C++ runtime needed is split into three sections.
-
- - [[Compiler]]
- - [[Native Core]]
- - [[Clojure Core]]
-
-*[[Compiler]]* section contains the actual compiler written in Clojure. It
-takes the Clojure code and converts it to a Intermediate
-representation by taking the Clojure form and running it [[Compilation][through some
-transformations]]. This IR is then run through [[Code Generation]] module to
-create C++ code. *[[Native Core]]* contains the C++ runtime needed to
-support Ferret such as [[Object System]], [[Memory Pool][ Memory Pooling]], [[Reference Counting][Garbage
-Collection]]. It is written in a mixture of C++ and Ferret DSL. *[[Clojure
-Core]]* corresponds to *clojure.core*, contains all functions.
-
-Generated C++ code has the following structure, (All Ferret code is
-defined within *ferret* namespace. All Ferret macros starts with
-*FERRET_*.)
-
- - Detect Hardware
- - Include files
- - Ferret Header (resources/ferret.h)
- - Ferret Native Runtime Prototypes (runtime::first, runtime::rest
-   etc.)
- - Native Declarations
- - Object Definitions
- - Symbol Definitions
- - Native Runtime Implementations
- - Lambda Prototypes
- - Lambda Implementations
- - Ferret Main
- - Hardware Dependent Main Functions
 
 * Compiler
 

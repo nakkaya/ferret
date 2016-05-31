@@ -271,17 +271,20 @@ View results using,
 #+END_EXAMPLE
 
 * Overview
-** Getting Ferret
-
-Ferret is available as prebuilt and source code distributions. See
-[[Download]] for download links to prebuilt packages.
 
 This is a literate program, inspired by Donald Knuth (Knuth, Donald
 “Literate Programming (1984)” Literate Programming CSLI, p99). It is
 intended to be read like a novel from cover to cover. The ideas are
 expressed clearly but they are grounded in the actual source code.
 
+This document is not intended to be a full Clojure tutorial. It is a
+specification of the subset of Clojure implemented by Ferret, and
+the particular workings of the Object / Runtime system.
+
 ** Building From Sources
+
+Ferret is available as prebuilt and source code distributions. See
+[[Download]] for download links to prebuilt packages.
 
 #+BEGIN_HTML
   <img src="https://badge.fury.io/gh/nakkaya%2Fferret.svg" style="float: left; padding-right: 1cm;">

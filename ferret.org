@@ -284,6 +284,7 @@ expressed clearly but they are grounded in the actual source code.
 ** Building From Sources
 
 #+BEGIN_HTML
+  <img src="https://badge.fury.io/hooks/github" style="margin-left: 0;">
   <img src="https://travis-ci.org/nakkaya/ferret.svg?branch=master" style="margin-left: 0;">
 #+END_HTML
 

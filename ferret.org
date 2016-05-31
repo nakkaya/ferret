@@ -4406,6 +4406,11 @@ following options,
  - *--enable=all*
  - *--error-exitcode=1*
 
+Compiled programs are run through /valgrind/ with following options, 
+
+ - *--leak-check=full*
+ - *--error-exitcode=1*
+
 ** Core
 *** Special Forms
 
@@ -4787,22 +4792,26 @@ following options,
 
 #+begin_src clojure :tangle no
   (deftest testing-test
-    (compare-output "Assertion Failed ==> false\n" (assert true) (assert false))
-    (compare-output "Assertion Failed ==> (= 2 3)\n" (assert (= 2 2)) (assert (= 2 3)))
-    (compare-output
-     "Assertion Failed ==> (= a b)\n"
-     (let [a 1
-           b 2]
-       (assert (= a a))
-       (assert (= a b))))
-    (compare-output "CB" (assert true) (assert false (print "CB")))
-    (compare-output "CB" (assert (= 2 2)) (assert (= 2 3) (print "CB")))
-    (compare-output
-     "CB"
-     (let [a 1
-           b 2]
-       (assert (= a a))
-       (assert (= a b) (print "CB")))))
+    (compare-output "false"
+                    (assert true (print "true"))
+                    (assert false (print "false")))
+    (compare-output "false"
+                    (assert (= 2 2) (print "true"))
+                    (assert (= 2 3) (print "false")))
+    (compare-output "false"
+                    (let [a 1 b 2]
+                      (assert (= a a) (print "true"))
+                      (assert (= a b) (print "false"))))
+    (compare-output "CB"
+                    (assert true (print "true"))
+                    (assert false (print "CB")))
+    (compare-output "CB"
+                    (assert (= 2 2) (print "true"))
+                    (assert (= 2 3) (print "CB")))
+    (compare-output "CB"
+                    (let [a 1 b 2]
+                      (assert (= a a) (print "true"))
+                      (assert (= a b) (print "CB")))))
 #+end_src
 
 *** Control
@@ -5532,14 +5541,27 @@ Create some dummy libs under /test/modules/,
 
   (defn run-cppcheck [file]
     (let [options ["cppcheck" "-q" "--std=c++11" "--template=gcc"
-                   "--enable=all"
-                   "--error-exitcode=1" file]
+                   "--enable=all" "--error-exitcode=1" file]
           ret (with-sh-dir "./"
                 (apply sh options))]
       (if (not= 0 (:exit ret))
         (do (warn "Static Analysis Error")
             (warn (:err ret))
             (System/exit 1)))))
+
+  (defn run-valgrind []
+    (let [options ["valgrind" "--leak-check=full" "--error-exitcode=1" "./a.out"]
+          ret (with-sh-dir "./"
+                (apply sh options))]
+      (if (not= 0 (:exit ret))
+        (do (warn (:err ret))
+            (System/exit 1)))))
+
+  (defn run-program []
+    (let [r (sh "./a.out")]
+      (sh "rm" "-f" "a.out")
+      (sh "rm" "-f" "solution.cpp")
+      (:out r)))
 
   (defn capture-output [form & [cmd-args]]
     (let [options (compile-options
@@ -5550,13 +5572,8 @@ Create some dummy libs under /test/modules/,
       (compile->cpp form options)
       (run-cppcheck "solution.cpp")
       (compile->binary options [])
-      (with-sh-dir "./"
-        (let [r (if cmd-args
-                  (apply sh (cons "./a.out" cmd-args))
-                  (sh "./a.out"))]
-          (sh "rm" "-f" "a.out")
-          (sh "rm" "-f" "solution.cpp")
-          (:out r)))))
+      (run-valgrind)
+      (run-program)))
 
   (defn report-test-failure [event]
     (let [actual (with-out-str

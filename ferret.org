@@ -209,10 +209,10 @@ will return *nil*. You can have multiple *on* blocks per *defnative*,
   (defnative sleep [t]
     (on "defined FERRET_STD_LIB"
         ("chrono" "thread")
-        "auto duration = ::std::chrono::milliseconds(t.cast<Number>()->as<int>());
+        "auto duration = ::std::chrono::milliseconds(t.to<int>());
          ::std::this_thread::sleep_for(duration);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::delay(t.cast<Number>()->as<int>());"))
+        "::delay(t.to<int>());"))
 #+end_src
 
 This way a single function can be defined for multiple
@@ -224,7 +224,7 @@ are immutable you can freely call Ferret code from C++,
 
   int sum = 0;
   for(auto it : runtime::range(alist)){
-    sum += it.cast<Number>()->as<int>();
+    sum += it.to<int>();
    }
 
   ::std::cout << sum << ::std::endl;
@@ -2108,7 +2108,10 @@ Number Object,
                 }
                 template<> char Number::as(){
                    return as<int>();
-                }")
+                }
+                template <> int var::to() { return cast<Number>()->as<int>(); }
+                template <> float var::to() { return cast<Number>()->as<float>(); }
+                template <> char var::to() { return cast<Number>()->as<char>(); }")
     (force-type))
 #+end_src
 
@@ -2273,7 +2276,7 @@ Strings are represented as a linked list of characters.
     (equals "return obj<Boolean>(container().equals(o.cast<String>()->container()));")
     (stream_console
      "FERRET_ITERATE(data,it){ 
-       char ch = runtime::first(it).cast<Number>()->as<char>();
+       char ch = runtime::first(it).to<char>();
        fprintf(FERRET_OUTPUT_STREAM, \"%c\",ch);
       }
       return nil();")
@@ -2300,7 +2303,7 @@ Strings are represented as a linked list of characters.
      ("ifdef FERRET_STD_LIB"
       "::std::string to_string" ""
       "::std::stringstream ss;
-       FERRET_ITERATE(data,it){ss << runtime::first(it).cast<Number>()->as<char>();}
+       FERRET_ITERATE(data,it){ss << runtime::first(it).to<char>();}
        return ss.str();"))
     (force-type))
 #+end_src
@@ -2489,7 +2492,7 @@ Range-based for loop support for seekable containers.
     }
     
     var nth(var seq, var idx){
-      return nth(seq,idx.cast<Number>()->as<int>());
+      return nth(seq,idx.to<int>());
     }
     
     size_t count(var seq){
@@ -2604,8 +2607,12 @@ reaches zero it will automatically free the Object.
   #endif
         
     Object* get() { return m_ptr; }
+    
     template<typename T>
     T* cast() { return static_cast<T*>(m_ptr); }
+
+    template<typename T>
+    T to() { T::unimplemented_function; }
 
     bool is_type(size_t type) { 
       return (static_cast<Object*>(m_ptr)->type() == type);
@@ -2971,7 +2978,7 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-console-io
 #+begin_src clojure :tangle no
   (defn system-exit [code]
-    "::std::exit(code.cast<Number>()->as<int>());")
+    "::std::exit(code.to<int>());")
 #+end_src
 
 *** system-abort
@@ -3046,7 +3053,7 @@ A simple macro for calling inline C++,
   (defmacro dotimes [binding & body]
     (list '_dotimes_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
 
-  (defn _dotimes_ [t f] "for(int i = 0; i < t.cast<Number>()->as<int>(); i++) run(f,obj<Number>(i));")
+  (defn _dotimes_ [t f] "for(int i = 0; i < t.to<int>(); i++) run(f,obj<Number>(i));")
 #+end_src
 
 ** Conditionals
@@ -3626,14 +3633,14 @@ A simple macro for calling inline C++,
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn mod [num div] "__result = obj<Number>((num.cast<Number>()->as<int>() % div.cast<Number>()->as<int>()));")
+  (defn mod [num div] "__result = obj<Number>((num.to<int>() % div.to<int>()));")
 #+end_src
 
 *** floor
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn floor [x] "__result = obj<Number>(x.cast<Number>()->as<int>());")
+  (defn floor [x] "__result = obj<Number>(x.to<int>());")
 #+end_src
 
 *** scale
@@ -3717,7 +3724,7 @@ Split a number into bytes.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn number-split [n]
-    "math::container val = n.cast<Number>()->as<math::container>();
+    "math::container val = n.to<math::container>();
      unsigned char *p = (unsigned char*)&val;
      __result = runtime::list();
      for(size_t i = 0; i < sizeof(math::container); i++)
@@ -3735,7 +3742,7 @@ Combine a list of bytes to a number.
      for(size_t i = 0; i < sizeof(math::container); i++){
       int idx = (sizeof(math::container) - i - 1);
       var obj = runtime::nth(s,idx);
-      math::container val = obj.cast<Number>()->as<math::container>();
+      math::container val = obj.to<math::container>();
       res |= val << (i * 8);
      }
      __result = obj<Number>(res);")
@@ -3782,10 +3789,10 @@ Sleep current thread for *t* milliseconds,
   (defnative sleep [t]
     (on "defined FERRET_STD_LIB"
         ("chrono" "thread")
-        "auto duration = ::std::chrono::milliseconds(t.cast<Number>()->as<int>());
+        "auto duration = ::std::chrono::milliseconds(t.to<int>());
          ::std::this_thread::sleep_for(duration);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::delay(t.cast<Number>()->as<int>());"))
+        "::delay(t.to<int>());"))
 #+end_src
 
 *** time-fn
@@ -3999,13 +4006,13 @@ Ported from,
           "T result;"
           "T input;")
     (new ("var kp, var ki, var kd, var inMin, var inMax, var outMin, var outMax, var cont"
-          "p = kp.cast<Number>()->as<T>();
-           i = ki.cast<Number>()->as<T>();
-           d = kd.cast<Number>()->as<T>();
-           maximumOutput = outMax.cast<Number>()->as<T>();
-           minimumOutput = outMin.cast<Number>()->as<T>();
-           maximumInput = inMax.cast<Number>()->as<T>();
-           minimumInput = inMin.cast<Number>()->as<T>();
+          "p = kp.to<T>();
+           i = ki.to<T>();
+           d = kd.to<T>();
+           maximumOutput = outMax.to<T>();
+           minimumOutput = outMin.to<T>();
+           maximumInput = inMax.to<T>();
+           minimumInput = inMin.to<T>();
            continuous = cont.cast<Boolean>()->container();
            prevError = 0;
            totalError = 0;
@@ -4017,7 +4024,7 @@ Ported from,
     (stream_console "fprintf(FERRET_OUTPUT_STREAM, \"PIDController\"); return nil();")
     (fns
      ("var update" "var in"
-      "input = in.cast<Number>()->as<T>();
+      "input = in.to<T>();
 
        // Calculate the error signal
        error = setpoint - input;
@@ -4058,7 +4065,7 @@ Ported from,
        return obj<Number>(result);")
      
      ("void set_set_point" "var p"
-      "T sp = p.cast<Number>()->as<T>();
+      "T sp = p.to<T>();
        if (maximumInput > minimumInput) {
           if (sp > maximumInput) {
             setpoint = maximumInput;
@@ -4109,11 +4116,11 @@ output.
 #+begin_src clojure :tangle no
   (defnative pin-mode-input [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "pinMode(pin.cast<Number>()->as<int>(), INPUT);"))
+        "pinMode(pin.to<int>(), INPUT);"))
 
   (defnative pin-mode-output [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "pinMode(pin.cast<Number>()->as<int>(), OUTPUT);"))
+        "pinMode(pin.to<int>(), OUTPUT);"))
 
   (defmacro pin-mode [pin mode]
     (if (= mode :input)
@@ -4129,11 +4136,11 @@ Write a HIGH or a LOW value to a digital pin.
 #+begin_src clojure :tangle no
   (defnative digital-write-high [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "digitalWrite(pin.cast<Number>()->as<int>(), HIGH);"))
+        "digitalWrite(pin.to<int>(), HIGH);"))
 
   (defnative digital-write-low [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "digitalWrite(pin.cast<Number>()->as<int>(), LOW);"))
+        "digitalWrite(pin.to<int>(), LOW);"))
 
   (defmacro digital-write [pin mode]
     (if (= mode :high)
@@ -4149,7 +4156,7 @@ Reads the value from a specified digital pin, either HIGH or LOW.
 #+begin_src clojure :tangle no
   (defnative digital-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "digitalRead(pin.cast<Number>()->as<int>());"))
+        "digitalRead(pin.to<int>());"))
 #+end_src
 
 *** analog-write
@@ -4160,7 +4167,7 @@ Writes an analog value (PWM wave) to a pin.
 #+begin_src clojure :tangle no
   (defnative analog-write [pin val]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "analogWrite(pin.cast<Number>()->as<int>(),val.cast<Number>()->as<int>());"))
+        "analogWrite(pin.to<int>(),val.to<int>());"))
 #+end_src
 
 *** analog-read
@@ -4171,7 +4178,7 @@ Reads the value from the specified analog pin.
 #+begin_src clojure :tangle no
   (defnative analog-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "analogRead(pin.cast<Number>()->as<int>());"))
+        "analogRead(pin.to<int>());"))
 #+end_src
 
 *** analog-write-resolution
@@ -4182,7 +4189,7 @@ Sets the resolution of the *analog-write*
 #+begin_src clojure :tangle no
   (defnative analog-write-resolution [bit]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "analogWriteResolution(bit.cast<Number>()->as<int>());"))
+        "analogWriteResolution(bit.to<int>());"))
 #+end_src
 
 *** analog-read-resolution
@@ -4193,7 +4200,7 @@ Sets the size (in bits) of the value returned by *analog-read*.
 #+begin_src clojure :tangle no
   (defnative analog-read-resolution [bit]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "analogReadResolution(bit.cast<Number>()->as<int>());"))
+        "analogReadResolution(bit.to<int>());"))
 #+end_src
 
 *** tone/noTone
@@ -4205,14 +4212,14 @@ cycle) on a pin.
 #+begin_src clojure :tangle no
   (defnative tone [pin freq]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "tone(pin.cast<Number>()->as<int>(),freq.cast<Number>()->as<int>());"))
+        "tone(pin.to<int>(),freq.to<int>());"))
 #+end_src
 
 #+name: runtime-clojure-gpio
 #+begin_src clojure :tangle no
   (defnative no-tone [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "noTone(pin.cast<Number>()->as<int>());"))
+        "noTone(pin.to<int>());"))
 #+end_src
 
 ** Testing

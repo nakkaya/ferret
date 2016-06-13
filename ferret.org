@@ -5316,11 +5316,22 @@ Create some dummy libs under /test/modules/,
     - Improved data locality and safety.
     - Optionally disable reference counting to improve performance since
       whole pool can be garbage collected when done.
+    - Stalin also does very good lifetime analysis to reduce the
+      amount of garbage needing collection. i.e. it will compute good
+      places in the stack to create a heap, then objects that are
+      determined to be born and die within that sub-stack are
+      allocated from that heap. When the stack unwinds past that
+      point, the entire local heap can be released in one fell swoop.
   - *Shared Library* - Ability to be run as a shared lib.
     - Export functions to JNA (C API)
   - *Safety when used in ISR*.
   - *Readbility* - Add context to auto generated symbols in compiled
     code.
+  - Since Ferret does whole-program compilation. Implement
+    optimizations from Stalin Scheme compiler.
+    - https://github.com/barak/stalin
+    - https://news.ycombinator.com/item?id=8214343
+    - https://justindomke.wordpress.com/2009/02/23/the-stalin-compiler/
   - *Escape Analysis* for other types. Currently escape analysis is
     only used for functions.
   - *Variadic Templates* - GCC evaluates arguments in reverse order.

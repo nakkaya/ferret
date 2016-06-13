@@ -5666,8 +5666,8 @@ Create some dummy libs under /test/modules/,
 
 ** resources/bash_executable_stub.sh
 
-#+begin_src sh :mkdirp yes :tangle src/resources/bash_executable_stub.sh
-  #!/bin/sh
+#+begin_src sh :mkdirp yes :tangle src/resources/bash_executable_stub.sh :padline no
+  #!/usr/bin/env sh
   MYSELF=`which "$0" 2>/dev/null`
   [ $? -gt 0 -a -f "$0" ] && MYSELF="./$0"
   java=java

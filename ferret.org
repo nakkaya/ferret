@@ -1,4 +1,4 @@
-#+title: Ferret User's Guide
+#+title: Ferret Programmer's Manual
 #+STARTUP: hidestars
 #+TAGS: noexport(e)
 #+EXPORT_EXCLUDE_TAGS: noexport
@@ -106,7 +106,10 @@ Following shows a blink example for Arduino.
   $ mv blink.cpp blink/blink.ino
 #+END_EXAMPLE
 
-Then upload as usual.
+Then upload as usual. For more embedded usage examples see,
+
+ - [[http://nakkaya.com/2016/06/10/ferret-a-hard-real-time-clojure-for-lisp-machines/][Ferret - A Hard Real-Time Clojure for Lisp Machines]] -
+   Implementation of a line following robot in Ferret.
 
 ** Memory Management
 
@@ -347,7 +350,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 General Public License for more details. 
 
 You should have received a copy of the GNU General Public License
-along with Foobar. If not, see http://www.gnu.org/licenses/.
+along with Ferret. If not, see http://www.gnu.org/licenses/.
 
 * Compiler
 

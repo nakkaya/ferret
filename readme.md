@@ -1,4 +1,4 @@
-## [Ferret User's Guide](http://dropbox.nakkaya.com/builds/ferret-manual.html)
+## [Ferret Programmer's Manual](http://dropbox.nakkaya.com/builds/ferret-manual.html)
 
 Copyright 2015 Nurullah Akkaya
 
@@ -15,4 +15,4 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 General Public License for more details. 
 
 You should have received a copy of the GNU General Public License
-along with Foobar. If not, see http://www.gnu.org/licenses/.
+along with Ferret. If not, see http://www.gnu.org/licenses/.

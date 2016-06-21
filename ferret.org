@@ -370,6 +370,7 @@ code generation phase.
     (->> (import-modules-all form)
          (process-reader-macros)
          (embed-ferret-core)
+         (remove-assertions options)
          (expand-macros-all)
          (let->fn)
          (do->fn)
@@ -749,6 +750,17 @@ into legal ones.
                   #(cond (= 'not %) '_not_
                          :default %))]
       (morph-form form symbol? c)))
+#+end_src
+
+*** Remove Assertions
+
+#+name: core-compilation-remove-assertions
+#+begin_src clojure :tangle no
+  (defn remove-assertions [options form]
+    (if (:release options)
+      (do (info "  - Release Mode")
+          (remove-form form (is-form? 'assert)))
+      form))
 #+end_src
 
 *** Optimizations
@@ -1569,7 +1581,7 @@ lambda forms.
   #+name: core-code-compile-code
   #+begin_src clojure
     (defn compile->cpp [form options]
-          (info "Compiling")
+      (info "Compiling")
       (let [file-name (cpp-file-name options)
             source (emit-source form options)
             solution (solution-template source)]
@@ -1651,8 +1663,9 @@ lambda forms.
                           ["-c" "--compile" "Compile Solution"]
                           ["-f" "--source-files FILE" "Extra Source Files to Pass to GCC"]
                           ["-w" "--watch-input" "Automatically recompile input file on change."]
-                          [nil "--disable-formatting" "Disables solution formatting using clang-format."]
-                          [nil "--global-functions" "Disables replace-fn-call-sites optimization."]
+                          [nil "--release" "Compile in Release Mode. Strip Debug Information."]
+                          [nil "--disable-formatting" "Disables Solution Formatting Using clang-format."]
+                          [nil "--global-functions" "Disables replace-fn-call-sites Optimization."]
                           [nil "--ast" "Print Intermediate AST."]
                           ["-h" "--help" "Print Help"]])
 
@@ -1676,6 +1689,7 @@ lambda forms.
                           (assoc :base-name input-base-name)
                           (assoc :output-path input-path)
                           (assoc :ast (->> args :options :ast))
+                          (assoc :release (->> args :options :release))
                           (assoc :fomat-code (not (->> args :options :disable-formatting)))
                           (assoc :global-functions (->> args :options :global-functions)))
               extra-source-files (cond (not (empty? (:arguments args))) (:arguments args)
@@ -4808,7 +4822,9 @@ Compiled programs are run through /valgrind/ with following options,
     (compare-output "CB"
                     (let [a 1 b 2]
                       (assert (= a a) (print "true"))
-                      (assert (= a b) (print "CB")))))
+                      (assert (= a b) (print "CB"))))
+    (is (= "assert" (capture-output '((assert (= 2 1) (print "assert"))) {:release false})))
+    (is (= "" (capture-output '((assert (= 2 1) (print "assert"))) {:release true}))))
 #+end_src
 
 *** Control
@@ -5274,7 +5290,6 @@ Create some dummy libs under /test/modules/,
 ** Core
 
   - *Memory Pool* - Allow Multiple Implementations.
-  - *assert* - Strip during release build.
   - *Unit Testing*
     - [[https://github.com/aw/picolisp-unit][Unit Testing framework for PicoLisp]]
     - [[http://www.jera.com/techinfo/jtns/jtn002.html][JTN002 - MinUnit -- a minimal unit testing framework for C]]
@@ -5359,6 +5374,8 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *assert* - Strip during release build.
+    - *--release* - CLI option added.
   - *Pointer* - Ability to call cleanup function before *GC*
   - *Debugging* - Add some debugging macros, native side.
   - *PIDController* - Implement Unit Tests.
@@ -5420,6 +5437,7 @@ Create some dummy libs under /test/modules/,
   <<core-compilation-embed-ferret-core>>
   <<core-compilation-closure-conversion>>
   <<core-compilation-symbol-conversion>>
+  <<core-compilation-remove-assertions>>
   <<core-compilation-do-fn>>
   <<core-compilation-let-fn>>
   <<core-compilation-process>>
@@ -5577,12 +5595,13 @@ Create some dummy libs under /test/modules/,
       (sh "rm" "-f" "solution.cpp")
       (:out r)))
 
-  (defn capture-output [form & [cmd-args]]
+  (defn capture-output [form & [opts]]
     (let [options (compile-options
                    {:compiler-options
                     ["-std=c++11" "-pedantic"
                      "-Werror" "-Wall" "-Wextra" "-Woverloaded-virtual" "-Wuninitialized" "-Winit-self"
-                     "-pthread"]})]
+                     "-pthread"]})
+          options (merge options opts)]
       (compile->cpp form options)
       (run-cppcheck "solution.cpp")
       (compile->binary options [])

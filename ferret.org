@@ -2052,21 +2052,18 @@ An object to hold a reference to a C++ pointer,
 
 There is only one number type in ferret. All numbers are kept as
 ratios. Default number size is /int/. A ratio is kept in memory as two
-/math::container/ size members named /numerator/ and /denominator/.
+/number_t/ size members named /_numerator/ and /_denominator/.
 
-Math configuration,
+Default number configuration,
 
-#+name: runtime-native-math-config-macros
+#+name: runtime-native-number-config-macros
 #+begin_src c++ :tangle no
-  // Math Configuration
   namespace ferret{
-    namespace math{
-      const int precision = 1000; //used when reading floats.
-      typedef int container;
+    typedef int   number_t;                   // Number Container.
+    const   int   float_precision = 1000;     // Used When Reading Floats.
   #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
-      const char* format = "%d";
+    const   char* number_format = "%d";       // Number Format String (fprinf)
   #endif
-    }
   }
 #+end_src
 
@@ -2106,8 +2103,8 @@ Number Object,
 #+name: runtime-clojure-number-object
 #+begin_src clojure :tangle no
   (defobject Number
-    (data "math::container _numerator;"
-          "math::container _denominator;")
+    (data "number_t _numerator;"
+          "number_t _denominator;")
     (equals "if (numerator() == 0 && o.cast<Number>()->numerator() == 0)
                return obj<Boolean>(true);
              else
@@ -2115,34 +2112,34 @@ Number Object,
                                    (denominator() == o.cast<Number>()->denominator()));")
     (stream_console
      "if (_denominator == 1)
-        fprintf(FERRET_OUTPUT_STREAM, math::format, _numerator);
+        fprintf(FERRET_OUTPUT_STREAM, number_format, _numerator);
       else if (_numerator == 0)
         fprintf(FERRET_OUTPUT_STREAM, \"0\");
       else{
-        fprintf(FERRET_OUTPUT_STREAM, math::format,_numerator);
+        fprintf(FERRET_OUTPUT_STREAM, number_format,_numerator);
         fprintf(FERRET_OUTPUT_STREAM, \"/\");
-        fprintf(FERRET_OUTPUT_STREAM, math::format,_denominator);
+        fprintf(FERRET_OUTPUT_STREAM, number_format,_denominator);
       }
       return nil();")
     
     (fns
-     ("explicit Number(math::container x) : _numerator(x), _denominator(1) {}")
-     ("explicit Number(math::container n, math::container dn) : _numerator(n), _denominator(dn) {
+     ("explicit Number(number_t x) : _numerator(x), _denominator(1) {}")
+     ("explicit Number(number_t n, number_t dn) : _numerator(n), _denominator(dn) {
          simplificate();
        }")
      ("explicit Number(float x){
-           float decimal = (x - (math::container)x) * (float)math::precision;
-           math::container integer = (math::container)x;
-           _numerator = decimal + (integer * math::precision);
-           _denominator = math::precision;
+           float decimal = (x - (number_t)x) * (float)float_precision;
+           number_t integer = (number_t)x;
+           _numerator = decimal + (integer * float_precision);
+           _denominator = float_precision;
            simplificate();
        }")
-     ("math::container numerator" "" "return _numerator;")
-     ("math::container denominator" "" "return _denominator;")
+     ("number_t numerator" "" "return _numerator;")
+     ("number_t denominator" "" "return _denominator;")
      ("template<typename T> T as" "" "T::unimplemented_function;")
      ("void simplificate" ""
       "int commondivisor = 1;
-        for(math::container i=2;i<=runtime::min(runtime::abs(_numerator), runtime::abs(_denominator));i++)
+        for(number_t i=2;i<=runtime::min(runtime::abs(_numerator), runtime::abs(_denominator));i++)
           if( _numerator%i == 0 && _denominator%i == 0 )
             commondivisor = i;
         _numerator /= commondivisor;
@@ -3199,11 +3196,11 @@ A simple macro for calling inline C++,
     ([] true)
     ([x] true)
     ([a b]
-     "math::container an = a.cast<Number>()->numerator();
-      math::container adn = a.cast<Number>()->denominator();
+     "number_t an = a.cast<Number>()->numerator();
+      number_t adn = a.cast<Number>()->denominator();
 
-      math::container bn = b.cast<Number>()->numerator();
-      math::container bdn = b.cast<Number>()->denominator();
+      number_t bn = b.cast<Number>()->numerator();
+      number_t bdn = b.cast<Number>()->denominator();
 
       __result = obj<Boolean>((an * bdn) < (bn * adn));")
     ([a b & more]
@@ -3220,11 +3217,11 @@ A simple macro for calling inline C++,
     ([] true)
     ([x] true)
     ([a b]
-     "math::container an = a.cast<Number>()->numerator();
-      math::container adn = a.cast<Number>()->denominator();
+     "number_t an = a.cast<Number>()->numerator();
+      number_t adn = a.cast<Number>()->denominator();
 
-      math::container bn = b.cast<Number>()->numerator();
-      math::container bdn = b.cast<Number>()->denominator();
+      number_t bn = b.cast<Number>()->numerator();
+      number_t bdn = b.cast<Number>()->denominator();
 
       __result = obj<Boolean>((an * bdn) > (bn * adn));")
     ([a b & more]
@@ -3241,11 +3238,11 @@ A simple macro for calling inline C++,
     ([] true)
     ([x] true)
     ([a b]
-     "math::container an = a.cast<Number>()->numerator();
-      math::container adn = a.cast<Number>()->denominator();
+     "number_t an = a.cast<Number>()->numerator();
+      number_t adn = a.cast<Number>()->denominator();
 
-      math::container bn = b.cast<Number>()->numerator();
-      math::container bdn = b.cast<Number>()->denominator();
+      number_t bn = b.cast<Number>()->numerator();
+      number_t bdn = b.cast<Number>()->denominator();
 
       __result = obj<Boolean>((an * bdn) >= (bn * adn));")
     ([a b & more]
@@ -3262,11 +3259,11 @@ A simple macro for calling inline C++,
     ([] true)
     ([x] true)
     ([a b]
-     "math::container an = a.cast<Number>()->numerator();
-      math::container adn = a.cast<Number>()->denominator();
+     "number_t an = a.cast<Number>()->numerator();
+      number_t adn = a.cast<Number>()->denominator();
 
-      math::container bn = b.cast<Number>()->numerator();
-      math::container bdn = b.cast<Number>()->denominator();
+      number_t bn = b.cast<Number>()->numerator();
+      number_t bdn = b.cast<Number>()->denominator();
 
       __result = obj<Boolean>((an * bdn) <= (bn * adn));")
     ([a b & more]
@@ -3564,13 +3561,13 @@ A simple macro for calling inline C++,
     ([] 0)
     ([x] x)
     ([h v]
-     "math::container hn = h.cast<Number>()->numerator();
-      math::container hdn = h.cast<Number>()->denominator();
+     "number_t hn = h.cast<Number>()->numerator();
+      number_t hdn = h.cast<Number>()->denominator();
 
-      math::container vn = v.cast<Number>()->numerator();
-      math::container vdn = v.cast<Number>()->denominator();
+      number_t vn = v.cast<Number>()->numerator();
+      number_t vdn = v.cast<Number>()->denominator();
 
-      math::container ndn = (hdn * vdn);
+      number_t ndn = (hdn * vdn);
 
       __result = obj<Number>(((hn * vdn) + (vn * hdn)),ndn);")
     ([x y & more]
@@ -3585,13 +3582,13 @@ A simple macro for calling inline C++,
     ([x]
      (* -1 x))
     ([h v]
-     "math::container hn = h.cast<Number>()->numerator();
-      math::container hdn = h.cast<Number>()->denominator();
+     "number_t hn = h.cast<Number>()->numerator();
+      number_t hdn = h.cast<Number>()->denominator();
 
-      math::container vn = v.cast<Number>()->numerator();
-      math::container vdn = v.cast<Number>()->denominator();
+      number_t vn = v.cast<Number>()->numerator();
+      number_t vdn = v.cast<Number>()->denominator();
 
-      math::container ndn = (hdn * vdn);
+      number_t ndn = (hdn * vdn);
 
       __result = obj<Number>(((hn * vdn) - (vn * hdn)),ndn);")
     ([x y & more]
@@ -3606,13 +3603,13 @@ A simple macro for calling inline C++,
     ([] 1)
     ([x] x)
     ([h v]
-     "math::container hn = h.cast<Number>()->numerator();
-      math::container hdn = h.cast<Number>()->denominator();
+     "number_t hn = h.cast<Number>()->numerator();
+      number_t hdn = h.cast<Number>()->denominator();
 
-      math::container vn = v.cast<Number>()->numerator();
-      math::container vdn = v.cast<Number>()->denominator();
+      number_t vn = v.cast<Number>()->numerator();
+      number_t vdn = v.cast<Number>()->denominator();
 
-      math::container ndn = (hdn * vdn);
+      number_t ndn = (hdn * vdn);
 
       __result = obj<Number>(((hn * vdn) * (vn * hdn)),ndn);")
     ([x y & more]
@@ -3627,11 +3624,11 @@ A simple macro for calling inline C++,
     ([x]
      (apply / (list 1 x)))
     ([h v]
-     "math::container hn = h.cast<Number>()->numerator();
-      math::container hdn = h.cast<Number>()->denominator();
+     "number_t hn = h.cast<Number>()->numerator();
+      number_t hdn = h.cast<Number>()->denominator();
 
-      math::container vn = v.cast<Number>()->numerator();
-      math::container vdn = v.cast<Number>()->denominator();
+      number_t vn = v.cast<Number>()->numerator();
+      number_t vdn = v.cast<Number>()->denominator();
 
       __result = obj<Number>((hn * vdn),(vn * hdn));")
     ([x y & more]
@@ -3777,10 +3774,10 @@ Split a number into bytes.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn number-split [n]
-    "math::container val = n.to<math::container>();
+    "number_t val = n.to<number_t>();
      unsigned char *p = (unsigned char*)&val;
      __result = runtime::list();
-     for(size_t i = 0; i < sizeof(math::container); i++)
+     for(size_t i = 0; i < sizeof(number_t); i++)
        __result = runtime::cons(obj<Number>(p[i]),__result);")
 #+end_src
 
@@ -3791,11 +3788,11 @@ Combine a list of bytes to a number.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn number-combine [s]
-    "math::container res = 0;
-     for(size_t i = 0; i < sizeof(math::container); i++){
-      int idx = (sizeof(math::container) - i - 1);
+    "number_t res = 0;
+     for(size_t i = 0; i < sizeof(number_t); i++){
+      int idx = (sizeof(number_t) - i - 1);
       var obj = runtime::nth(s,idx);
-      math::container val = obj.to<math::container>();
+      number_t val = obj.to<number_t>();
       res |= val << (i * 8);
      }
      __result = obj<Number>(res);")
@@ -3828,9 +3825,9 @@ Return current time in milliseconds,
         "auto now = ::std::chrono::system_clock::now();
          auto epoch = now.time_since_epoch();
          auto time = ::std::chrono::duration_cast<::std::chrono::milliseconds>(epoch).count();
-         __result = obj<Number>((math::container) time);")
+         __result = obj<Number>((number_t) time);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "__result = obj<Number>((math::container)::millis());"))
+        "__result = obj<Number>((number_t)::millis());"))
 #+end_src
 
 *** sleep
@@ -4348,21 +4345,21 @@ Include native headers, (*.h* files)
 #+begin_src clojure :tangle no
   (defn pr-object-sizes []
     (println "Object Sizes")
-    (println "\tvar:\t\t\t" (cxx "__result = obj<Number>((math::container)sizeof(var));"))
-    (println "\tObject:\t\t\t" (cxx "__result = obj<Number>((math::container)sizeof(Object));"))
-    (println "\tPointer:\t\t" (cxx "__result = obj<Number>((math::container)sizeof(Pointer));"))
-    (println "\tNumber:\t\t\t" (cxx "__result = obj<Number>((math::container)sizeof(Number));"))
-    (println "\tKeyword:\t\t" (cxx "__result = obj<Number>((math::container)sizeof(Keyword));"))
-    (println "\tSequence:\t\t" (cxx "__result = obj<Number>((math::container)sizeof(Sequence));"))
-    (println "\tLazySequence:\t\t" (cxx "__result = obj<Number>((math::container)sizeof(LazySequence));"))
-    (println "\tString:\t\t\t" (cxx "__result = obj<Number>((math::container)sizeof(String));"))
-    (println "\tBoolean:\t\t" (cxx "__result = obj<Number>((math::container)sizeof(Boolean));"))
-    (println "\tLambda:\t\t\t" (cxx "__result = obj<Number>((math::container)sizeof(Lambda));"))
-    (println "\tAtom:\t\t\t" (cxx "__result = obj<Number>((math::container)sizeof(Atom));"))
+    (println "\tvar:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(var));"))
+    (println "\tObject:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Object));"))
+    (println "\tPointer:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Pointer));"))
+    (println "\tNumber:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Number));"))
+    (println "\tKeyword:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Keyword));"))
+    (println "\tSequence:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Sequence));"))
+    (println "\tLazySequence:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(LazySequence));"))
+    (println "\tString:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(String));"))
+    (println "\tBoolean:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Boolean));"))
+    (println "\tLambda:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Lambda));"))
+    (println "\tAtom:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Atom));"))
     (println "\tPIDController<float>:\t"
-             (cxx "__result = obj<Number>((math::container)sizeof(PIDController<float>));"))
+             (cxx "__result = obj<Number>((number_t)sizeof(PIDController<float>));"))
     (println "\tPIDController<int>:\t"
-             (cxx "__result = obj<Number>((math::container)sizeof(PIDController<int>));")))
+             (cxx "__result = obj<Number>((number_t)sizeof(PIDController<int>));")))
 #+end_src
 
 *** memory-pool-free-space
@@ -4375,7 +4372,7 @@ Include native headers, (*.h* files)
          for(int i = 0; i < FERRET_MEMORY_POOL_SIZE; i++)
            if(program_memory.used[i] == false)
              count++;
-         __result = obj<Number>((math::container)(count*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
+         __result = obj<Number>((number_t)(count*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
 #+end_src
 
 *** defcallback
@@ -5676,7 +5673,8 @@ Create some dummy libs under /test/modules/,
   <<runtime-native-program-includes>>
   <<runtime-native-program-header>>
 
-  <<runtime-native-math-config-macros>>
+  // Number Configuration
+  <<runtime-native-number-config-macros>>
 
   // Locking Macros
   namespace ferret{

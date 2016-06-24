@@ -377,7 +377,7 @@ code generation phase.
          (closure-conversion)
          (replace-fn-call-sites options)
          (escape-fn-calls)
-         (escape-analysis)
+         (escape-lambdas)
          (symbol-conversion)))
 #+end_src
 
@@ -881,54 +881,52 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
                           (shake-concat f built-in fns))) %))))
 #+end_src
 
-**** Escape Function Calls
-
-     #+name: core-compilation-shake-concat
-     #+begin_src clojure
-       (defn escape-fn-calls [form]
-         (morph-form form
-                     (fn [f]
-                       (and (seq? f)
-                            (is-special-form? 'fir-lambda-object (first f))))
-                     (fn [f]
-                       (let [[fn & args] f
-                             fn (cons 'fir-invoke-lambda-stack (rest fn))]
-                         (cons fn args)))))
-     #+end_src
-
 **** Escape Analysis
 
-Determines that a certain allocation never escapes the local
-function. This means that allocation can be done on the stack.
+
+     Determines that a certain allocation never escapes the local
+     function. This means that allocation can be done on the stack.
+
+***** Escape Function Calls
 
 #+name: core-compilation-shake-concat
 #+begin_src clojure
-  (defn escape-analysis [form]
+  (defn escape-fn-calls [form]
+    (morph-form form
+                (fn [f]
+                  (and (seq? f)
+                       (is-special-form? 'fir-lambda-object (first f))))
+                (fn [f]
+                  (let [[fn & args] f
+                        fn (cons 'fir-invoke-lambda-stack (rest fn))]
+                    (cons fn args)))))
+#+end_src
+
+***** Escape Lambda Classes
+
+#+name: core-compilation-shake-concat
+#+begin_src clojure
+  (defn escape-lambdas [form]
     (let [stack-lambda-pred (fn [f]
                               (and (seq? f)
                                    (is-special-form? 'fir-lambda-object (first f))))
-          ;;espace lambda classes
-          escapeable-lambdas (->> (collect-form
-                                   form
-                                   (fn [f]
-                                     (and (stack-lambda-pred f)
-                                          (let [fn-symbol (-> f first second)
-                                                non-stack-allocations (-> (morph-form form stack-lambda-pred #(rest %))
-                                                                          (select-form symbol?))]
-                                            (->> non-stack-allocations
-                                                 (filter #(= % fn-symbol))
-                                                 rest ;; skip class definition
-                                                 count ;; when pos it is used somewhere else as a symbol
-                                                 zero?))))
-                                   #(-> % first second))
-                                  (into #{}))
-          form (morph-form form
-                           (fn [f]
-                             (and (seq? f)
-                                  (= (first f) 'fir-define-lambda)
-                                  (escapeable-lambdas (second f))))
-                           #(cons 'fir-define-lambda-stack (rest %)))]
-      form))
+          heap-lambdas (->> (select-form form (fn [f]
+                                                (and (seq? f)
+                                                     (is-special-form? 'fir-lambda-object f))))
+                            (map second)
+                            (into #{}))
+          stack-lambdas (->> (select-form form (fn [f]
+                                                 (and (seq? f)
+                                                      (is-special-form? 'fir-invoke-lambda-stack f))))
+                             (map second)
+                             (into #{}))
+          escapeable-lambdas (clojure.set/difference stack-lambdas heap-lambdas)]
+      (morph-form form
+                  (fn [f]
+                    (and (seq? f)
+                         (= (first f) 'fir-define-lambda)
+                         (escapeable-lambdas (second f))))
+                  #(cons 'fir-define-lambda-stack (rest %)))))
 #+end_src
 
 *** Helpers

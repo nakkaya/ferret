@@ -5397,12 +5397,14 @@ Create some dummy libs under /test/modules/,
 
 *** Libraries
 
-  - JSON Encode/Decode
-    - https://github.com/nlohmann/json
   - RPi GPIO
     - http://elinux.org/RPi_Low-level_peripherals
     - http://elinux.org/RPi_GPIO_Code_Samples
-  - Web Framework.
+  - JSON Encode/Decode
+    - https://github.com/nlohmann/json
+  - HTTP & WebSocket Client
+    - https://github.com/vinniefalco/Beast
+  - HTTP Server
     - [[https://github.com/ipkn/crow][crow]]
     - [[http://siliconframework.org/][Silicon]]
   - Sqlite Wrapper.

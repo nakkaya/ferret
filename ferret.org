@@ -376,8 +376,7 @@ code generation phase.
          (do->fn)
          (closure-conversion)
          (replace-fn-call-sites options)
-         (escape-fn-calls)
-         (escape-lambdas)
+         (escape-analysis)
          (symbol-conversion)))
 #+end_src
 
@@ -887,9 +886,16 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
      Determines that a certain allocation never escapes the local
      function. This means that allocation can be done on the stack.
 
+#+name: core-compilation-escape-analysis-post
+#+begin_src clojure
+  (defn escape-analysis [form]
+    (->> (escape-fn-calls form)
+         (escape-lambdas)))
+#+end_src
+
 ***** Escape Function Calls
 
-#+name: core-compilation-shake-concat
+#+name: core-compilation-escape-analysis
 #+begin_src clojure
   (defn escape-fn-calls [form]
     (morph-form form
@@ -904,7 +910,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 
 ***** Escape Lambda Classes
 
-#+name: core-compilation-shake-concat
+#+name: core-compilation-escape-analysis
 #+begin_src clojure
   (defn escape-lambdas [form]
     (let [stack-lambda-pred (fn [f]
@@ -5445,6 +5451,8 @@ Create some dummy libs under /test/modules/,
   <<core-compilation-reader-macros>>
   <<core-compilation-expand-macros>>
   <<core-compilation-shake-concat>>
+  <<core-compilation-escape-analysis>>
+  <<core-compilation-escape-analysis-post>>
   <<core-compilation-embed-ferret-core>>
   <<core-compilation-closure-conversion>>
   <<core-compilation-symbol-conversion>>

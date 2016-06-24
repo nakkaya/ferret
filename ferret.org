@@ -361,7 +361,7 @@ through code generation to produce the C++ file.
 
 ** Compilation
 
-Forms go through nine transformations before they are passed to the
+Forms go through twelve transformations before they are passed to the
 code generation phase.
 
 #+name: core-compilation-process
@@ -376,6 +376,7 @@ code generation phase.
          (do->fn)
          (closure-conversion)
          (replace-fn-call-sites options)
+         (escape-fn-calls)
          (escape-analysis)
          (symbol-conversion)))
 #+end_src
@@ -880,6 +881,21 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
                           (shake-concat f built-in fns))) %))))
 #+end_src
 
+**** Escape Function Calls
+
+     #+name: core-compilation-shake-concat
+     #+begin_src clojure
+       (defn escape-fn-calls [form]
+         (morph-form form
+                     (fn [f]
+                       (and (seq? f)
+                            (is-special-form? 'fir-lambda-object (first f))))
+                     (fn [f]
+                       (let [[fn & args] f
+                             fn (cons 'fir-invoke-lambda-stack (rest fn))]
+                         (cons fn args)))))
+     #+end_src
+
 **** Escape Analysis
 
 Determines that a certain allocation never escapes the local
@@ -911,9 +927,7 @@ function. This means that allocation can be done on the stack.
                              (and (seq? f)
                                   (= (first f) 'fir-define-lambda)
                                   (escapeable-lambdas (second f))))
-                           #(cons 'fir-define-lambda-stack (rest %)))
-          ;;espace lambda objects
-          form (morph-form form stack-lambda-pred (fn [f] (cons 'fir-invoke-lambda-stack f)))]
+                           #(cons 'fir-define-lambda-stack (rest %)))]
       form))
 #+end_src
 
@@ -1104,10 +1118,6 @@ C++ skeleton.
   (defmethod emit :sequence [[fn & args] state]
     (invoke-lambda (emit fn state) (emit-ast args state)))
 
-  (defmethod emit 'fir_invoke_lambda_stack [[_ lambda & args] state]
-    (invoke-lambda (new-lambda-stack lambda)
-                   (emit-ast args state)))
-
   (defmethod emit 'fir_define_var [[_ name form] state]
     (str "var " name " = " (emit form state)))
 
@@ -1154,8 +1164,11 @@ lambda forms.
 
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
-  (defmethod emit 'fir_lambda_object [l state]
-    (new-lambda l))
+  (defmethod emit 'fir_lambda_object [f state]
+    (new-lambda f))
+
+  (defmethod emit 'fir_invoke_lambda_stack [f state]
+    (new-lambda-stack f))
 
   (defn emit-define-lambda-aux [name env args body state]
     (let [native-declarations (filter #(and (seq? %)

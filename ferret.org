@@ -890,6 +890,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 #+begin_src clojure
   (defn escape-analysis [form]
     (->> (escape-fn-calls form)
+         (escape-fn-dispatch)
          (escape-lambdas)))
 #+end_src
 
@@ -906,6 +907,22 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
                   (let [[fn & args] f
                         fn (cons 'fir-invoke-lambda-stack (rest fn))]
                     (cons fn args)))))
+#+end_src
+
+***** Escape Dispatch Functions
+
+#+name: core-compilation-escape-analysis
+#+begin_src clojure
+  (defn escape-fn-dispatch [form]
+    (morph-form form
+                (fn [f]
+                  (is-special-form? 'fir-dispatch-lambda f))
+                (fn [f]
+                  (morph-form f
+                              (fn [f]
+                                (is-special-form? 'fir-lambda-object f))
+                              (fn [f]
+                                (cons 'fir-invoke-lambda-stack (rest f)))))))
 #+end_src
 
 ***** Escape Lambda Classes

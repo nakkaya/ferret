@@ -2709,15 +2709,17 @@ Following options can be configured using /#define/ directives, or using
   (configure-runtime! FERRET_DISABLE_OUTPUT_STREAM true)
 #+END_EXAMPLE
 
-|------------------------------+--------------+-------------------------------------------------------------------|
-| Define                       | Defult Value | Description                                                       |
-|------------------------------+--------------+-------------------------------------------------------------------|
-| FERRET_DISABLE_OUTPUT_STREAM | true         | Disables output stream. (Reduces code size on micro-controllers.) |
-| FERRET_DISABLE_MAIN_FUNCTION | false        | Disables auto execution of /ferret::program_run()/                |
-| FERRET_PROGRAM_MAIN          |              | A function to execute after /ferret::program_run()/               |
-| FERRET_SINGLE_THREADED       | false        | Disable atomic reference counting.                                |
-| FERRET_UART_RATE             | 9600         | Set default UART rate.                                            |
-|------------------------------+--------------+-------------------------------------------------------------------|
+#+BEGIN_EXAMPLE
+  |------------------------------+--------------+-------------------------------------------------------------------|
+  | Define                       | Defult Value | Description                                                       |
+  |------------------------------+--------------+-------------------------------------------------------------------|
+  | FERRET_DISABLE_OUTPUT_STREAM | true         | Disables output stream. (Reduces code size on micro-controllers.) |
+  | FERRET_DISABLE_MAIN_FUNCTION | false        | Disables auto execution of /ferret::program_run()/                |
+  | FERRET_PROGRAM_MAIN          |              | A function to execute after /ferret::program_run()/               |
+  | FERRET_SINGLE_THREADED       | false        | Disable atomic reference counting.                                |
+  | FERRET_UART_RATE             | 9600         | Set default UART rate.                                            |
+  |------------------------------+--------------+-------------------------------------------------------------------|
+#+END_EXAMPLE
 
 ** Initialization
 *** Detect Hardware

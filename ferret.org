@@ -2702,53 +2702,22 @@ reaches zero it will automatically free the Object.
 
 ** Configuration
 
-Some options can be configured using /#define/ directives, these can
-be defined using /native-define/ or /configure-runtime!/ from program
-code.
-
-To disable output stream (usefull on micro controllers to reduce code
-size.) use,
+Following options can be configured using /#define/ directives, or using
+/native-define/ or /configure-runtime!/ from program code.
 
 #+BEGIN_EXAMPLE
   (configure-runtime! FERRET_DISABLE_OUTPUT_STREAM true)
 #+END_EXAMPLE
 
-To disable main use,
-
-#+BEGIN_EXAMPLE
-  (configure-runtime! FERRET_DISABLE_MAIN_FUNCTION true)
-#+END_EXAMPLE
-
-main won't be defined you need to call /ferret::program_run()/ manually
-to start the program.
-
-When
-
-#+BEGIN_EXAMPLE
-  (configure-runtime! FERRET_PROGRAM_MAIN some_func)
-#+END_EXAMPLE
-
-is defined defined lambda will be invoked after
-/ferret::program_run()/, acts as the programs main\//-main/ function.
-
-When 
-
-#+BEGIN_EXAMPLE
-  (configure-runtime! FERRET_SINGLE_THREADED true)
-#+END_EXAMPLE
-
-is used it will disable locking for built in data structures. By
-default when compiling for non embedded platform, Ferret will use /POSIX/
-/mutexes/ for locking /Objects/.
-
-When running on systems with UART (ie. embedded systems) following can
-be used to set baud rate.
-
-#+BEGIN_EXAMPLE
-  (configure-runtime! FERRET_UART_RATE 57600)
-#+END_EXAMPLE
-
-By default baud rate is *9600 bps*.
+|------------------------------+--------------+-------------------------------------------------------------------|
+| Define                       | Defult Value | Description                                                       |
+|------------------------------+--------------+-------------------------------------------------------------------|
+| FERRET_DISABLE_OUTPUT_STREAM | true         | Disables output stream. (Reduces code size on micro-controllers.) |
+| FERRET_DISABLE_MAIN_FUNCTION | false        | Disables auto execution of /ferret::program_run()/                |
+| FERRET_PROGRAM_MAIN          |              | A function to execute after /ferret::program_run()/               |
+| FERRET_SINGLE_THREADED       | false        | Disable atomic reference counting.                                |
+| FERRET_UART_RATE             | 9600         | Set default UART rate.                                            |
+|------------------------------+--------------+-------------------------------------------------------------------|
 
 ** Initialization
 *** Detect Hardware
@@ -4392,7 +4361,7 @@ Include native headers, (*.h* files)
 ** Compiler
 *** configure-runtime!
 
-Configure Ferret Runtime options, (memory pooling, math containers etc.)
+Configure Ferret Runtime options. See table in [[Configuration]] section.
 
 #+name: runtime-clojure-defn
 #+begin_src clojure :tangle no
@@ -4405,7 +4374,7 @@ Configure Ferret Runtime options, (memory pooling, math containers etc.)
 
 *** configure-ferret!
 
-Embed compilations options, (build command, extra source files etc.)
+Embed compilations options.
 
 #+name: runtime-clojure-defn
 #+begin_src clojure :tangle no

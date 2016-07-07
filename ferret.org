@@ -5311,6 +5311,7 @@ Create some dummy libs under /test/modules/,
 
   - *Pointer* - A pointer type to handle shared pointers.
   - *String* - String constructor from std::string.
+  - *Escape Analysis* - Escape known language structures.
   - *Memory Pool* - Allow Multiple Implementations.
   - *Unit Testing*
     - [[https://github.com/aw/picolisp-unit][Unit Testing framework for PicoLisp]]

@@ -5309,6 +5309,8 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
+  - *require* - Should support requiring multiple libraries. Currently
+    one each library import requires a require form.
   - *Pointer* - A pointer type to handle shared pointers.
   - *String* - String constructor from std::string.
   - *Escape Analysis* - Escape known language structures.

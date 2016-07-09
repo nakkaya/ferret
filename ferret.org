@@ -980,8 +980,7 @@ suggests and removes the node when predicate returns true.
       @acc))
 
   (defn remove-form [tree pred]
-    (if (and (= (count tree) 1)
-             (pred (first tree)))
+    (if (every? true? (map #(pred %) tree))
       (list )
       (loop [loc (zip/seq-zip tree)]
         (if (zip/end? loc)
@@ -4949,7 +4948,8 @@ Run import tests.
                              (print ((mod-a/ten-fn))
                                     ((mod-b/eleven-fn))
                                     (mod-a/helper-c)
-                                    (mod-b/macro-call))))
+                                    (mod-b/macro-call))))))
+    (is (= "Module AModule C 10 11 1 42"
            (capture-output '((require '[test.modules.module-a :as mod-a]
                                       '[test.modules.module-b :as mod-b])
                              (mod-a/helper-a)
@@ -4958,7 +4958,10 @@ Run import tests.
                              (print ((mod-a/ten-fn))
                                     ((mod-b/eleven-fn))
                                     (mod-a/helper-c)
-                                    (mod-b/macro-call)))))))
+                                    (mod-b/macro-call))))))
+    (is (= "" (capture-output '((require '[test.modules.module-a :as mod-a])))))
+    (is (= "" (capture-output '((require '[test.modules.module-a :as mod-a])
+                                (require '[test.modules.module-b :as mod-b]))))))
 #+end_src
 
 **** Dummy Modules
@@ -5324,8 +5327,6 @@ Create some dummy libs under /test/modules/,
 ** Core
 
   - *require* - require symbol without alias.
-  - *require* - Only having *require* forms and nothing else causes
-    null pointer exception.
   - *Pointer* - A pointer type to handle shared pointers.
   - *String* - String constructor from std::string.
   - *Escape Analysis* - Escape known language structures.
@@ -5418,8 +5419,10 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *require* - Only having *require* forms and nothing else causes
+    null pointer exception.
   - *require* - Should support requiring multiple libraries. Currently
-    one each library import requires a require form.
+    each library import requires a require form.
   - *assert* - Strip during release build.
     - *--release* - CLI option added.
   - *Pointer* - Ability to call cleanup function before *GC*

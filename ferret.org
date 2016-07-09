@@ -397,7 +397,12 @@ front of the current form with symbols renamed to /some-fn/ =>
 #+begin_src clojure :tangle no
   (defn import-modules-select-require [form]
     (->> (select-form form (is-form? 'require))
-         (map #(->> % rest first rest first))
+         (reduce (fn[h v]
+                   (if (= 2 (count v))
+                     ;; require single module
+                     (conj h (->> v last last))
+                     ;; require multiple modules
+                     (concat h (map #(last %) (rest v))))) [])
          (map (fn [[mod _ as]] [mod as]))
          (reduce (fn[h [mod as]]
                    (if (h mod)
@@ -4944,6 +4949,15 @@ Run import tests.
                              (print ((mod-a/ten-fn))
                                     ((mod-b/eleven-fn))
                                     (mod-a/helper-c)
+                                    (mod-b/macro-call))))
+           (capture-output '((require '[test.modules.module-a :as mod-a]
+                                      '[test.modules.module-b :as mod-b])
+                             (mod-a/helper-a)
+                             (mod-b/helper-b)
+                             (print " ")
+                             (print ((mod-a/ten-fn))
+                                    ((mod-b/eleven-fn))
+                                    (mod-a/helper-c)
                                     (mod-b/macro-call)))))))
 #+end_src
 
@@ -5309,8 +5323,9 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
-  - *require* - Should support requiring multiple libraries. Currently
-    one each library import requires a require form.
+  - *require* - require symbol without alias.
+  - *require* - Only having *require* forms and nothing else causes
+    null pointer exception.
   - *Pointer* - A pointer type to handle shared pointers.
   - *String* - String constructor from std::string.
   - *Escape Analysis* - Escape known language structures.
@@ -5403,6 +5418,8 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *require* - Should support requiring multiple libraries. Currently
+    one each library import requires a require form.
   - *assert* - Strip during release build.
     - *--release* - CLI option added.
   - *Pointer* - Ability to call cleanup function before *GC*

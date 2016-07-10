@@ -2222,12 +2222,13 @@ Strings are represented as a linked list of characters.
      ("explicit String(var s) : data(s) {}")
      ("explicit String(const char * str) {
            int length = 0;
-           for (length = 0; str[length] != '\\0'; length++);
-           length--;
-           var s = runtime::list(obj<Number>(str[length]));
+           for (length = 0; str[length] != '\\0'; ++length);
            for (int i = --length; i >= 0; i--)
-             s = runtime::cons(obj<Number>(str[i]),s);
-           data = s;
+             data = runtime::cons(obj<Number>(str[i]),data);
+       }")
+     ("explicit String(const char * str,int length) {
+           for (int i = --length; i >= 0; i--)
+             data = runtime::cons(obj<Number>(str[i]),data);
        }")
      ("var container" ""
       "return data;")
@@ -2242,6 +2243,12 @@ Strings are represented as a linked list of characters.
       "::std::stringstream ss;
        FERRET_ITERATE(data,it){ss << runtime::first(it).to<char>();}
        return ss.str();"))
+    (post-code "#ifdef FERRET_STD_LIB
+                  template<>
+                  var obj<String>(std::string s) {
+                    return var(new String(s.c_str(), s.size()));
+                  }
+                #endif")
     (force-type))
 #+end_src
 
@@ -5294,13 +5301,16 @@ Create some dummy libs under /test/modules/,
 #+begin_src clojure
   (deftest native-core-string
     (compare-output
-     "Some String false true false true"
+     "Some String false true false true true"
      (print "Some String"
             (= "Some String" "Other String")
             (= "Some String" "Some String")
             (= "Some String" 1)
             ((fn [s] "__result = obj<Boolean>((s.cast<String>()->to_string() == \"String\"))")
-             "String"))))
+             "String")
+            (= (cxx "std::string s = \"std::string\"; 
+                     __result = obj<String>(s);")
+               "std::string"))))
 #+end_src
 
 *** Lazy Sequence
@@ -5356,7 +5366,6 @@ Create some dummy libs under /test/modules/,
 ** Core
 
   - *Pointer* - A pointer type to handle shared pointers.
-  - *String* - String constructor from std::string.
   - *Escape Analysis* - Escape known language structures.
   - *Memory Pool* - Allow Multiple Implementations.
   - *Unit Testing*
@@ -5447,6 +5456,7 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *String* - String constructor from std::string.
   - *require* - require module without alias.
   - *require* - Only having *require* forms and nothing else causes
     null pointer exception.

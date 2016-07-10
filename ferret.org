@@ -385,7 +385,12 @@ code generation phase.
 Import other ferret files using,
 
 #+BEGIN_SRC clojure :tangle no
+  (require 'package.io)
+
   (require '[package.io :as io])
+
+  (require '[package.io :as io]
+           '[package.udp :as udp])
 #+END_SRC
 
 Compiler will look for a file under current working directory called,
@@ -396,18 +401,22 @@ front of the current form with symbols renamed to /some-fn/ =>
 #+name: core-compilation-embed-ferret-core
 #+begin_src clojure :tangle no
   (defn import-modules-select-require [form]
-    (->> (select-form form (is-form? 'require))
-         (reduce (fn[h v]
-                   (if (= 2 (count v))
-                     ;; require single module
-                     (conj h (->> v last last))
-                     ;; require multiple modules
-                     (concat h (map #(last %) (rest v))))) [])
-         (map (fn [[mod _ as]] [mod as]))
-         (reduce (fn[h [mod as]]
-                   (if (h mod)
-                     (assoc h mod (conj (h mod) as))
-                     (assoc h mod [as]))) {})))
+    (let [norm-require (fn [f]
+                         (if (symbol? f)
+                           [f :as f]
+                           f))]
+      (->> (select-form form (is-form? 'require))
+           (reduce (fn[h v]
+                     (if (= 2 (count v))
+                       ;; require single module
+                       (conj h (norm-require (->> v last last)))
+                       ;; require multiple modules
+                       (concat h (map #(norm-require (last %)) (rest v))))) [])
+           (map (fn [[mod _ as]] [mod as]))
+           (reduce (fn[h [mod as]]
+                     (if (h mod)
+                       (assoc h mod (conj (h mod) as))
+                       (assoc h mod [as]))) {}))))
 #+end_src
 
 Extract the list of packages and aliases from the form. Returns a map
@@ -4959,6 +4968,26 @@ Run import tests.
                                     ((mod-b/eleven-fn))
                                     (mod-a/helper-c)
                                     (mod-b/macro-call))))))
+    (is (= "Module AModule C 10 11 1 42"
+           (capture-output '((require 'test.modules.module-a
+                                      'test.modules.module-b)
+                             (test.modules.module-a/helper-a)
+                             (test.modules.module-b/helper-b)
+                             (print " ")
+                             (print ((test.modules.module-a/ten-fn))
+                                    ((test.modules.module-b/eleven-fn))
+                                    (test.modules.module-a/helper-c)
+                                    (test.modules.module-b/macro-call))))))
+    (is (= "Module AModule C 10 11 1 42"
+           (capture-output '((require '[test.modules.module-a :as mod-a]
+                                      'test.modules.module-b)
+                             (mod-a/helper-a)
+                             (test.modules.module-b/helper-b)
+                             (print " ")
+                             (print ((mod-a/ten-fn))
+                                    ((test.modules.module-b/eleven-fn))
+                                    (mod-a/helper-c)
+                                    (test.modules.module-b/macro-call))))))
     (is (= "" (capture-output '((require '[test.modules.module-a :as mod-a])))))
     (is (= "" (capture-output '((require '[test.modules.module-a :as mod-a])
                                 (require '[test.modules.module-b :as mod-b]))))))
@@ -5326,7 +5355,6 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
-  - *require* - require symbol without alias.
   - *Pointer* - A pointer type to handle shared pointers.
   - *String* - String constructor from std::string.
   - *Escape Analysis* - Escape known language structures.
@@ -5419,6 +5447,7 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *require* - require module without alias.
   - *require* - Only having *require* forms and nothing else causes
     null pointer exception.
   - *require* - Should support requiring multiple libraries. Currently

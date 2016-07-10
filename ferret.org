@@ -3027,7 +3027,7 @@ A simple macro for calling inline C++,
          while (!feof(pipe.get()))
           if (fgets(buffer, 128, pipe.get()) != NULL)
            result += buffer;
-         __result = obj<String>(result.c_str());"))
+         __result = obj<String>(result);"))
 #+end_src
 
 *** system-exit

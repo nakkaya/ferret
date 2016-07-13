@@ -1886,10 +1886,6 @@ Base Object,
       return FERRET_DEC_REF(this);
     }
     
-    void* operator new(size_t size){
-      return FERRET_ALLOCATE(size);
-    }
-    
     void  operator delete(void * ptr){
       FERRET_FREE(ptr);
     }
@@ -2603,7 +2599,8 @@ pointing to *nullptr*.
 #+begin_src c++ :tangle no
   template<typename FT, typename... Args>
   var obj(Args... args) {
-    return var(new FT(args...));
+    void * storage = FERRET_ALLOCATE(sizeof(FT));
+    return var(new(storage) FT(args...));
   }
 
   var nil(){
@@ -2746,12 +2743,14 @@ Dispatch correct memory allocation/deallocation implementation,
 
 #+name: runtime-native-memory-management-macros
 #+begin_src c++ :tangle no
-  #ifdef FERRET_MEMORY_POOL_SIZE
-    #define FERRET_ALLOCATE(size) program_memory.allocate(size)
-    #define FERRET_FREE(pre) program_memory.free(ptr)
-  #else
-    #define FERRET_ALLOCATE(size) malloc(size)
-    #define FERRET_FREE(ptr) free(ptr)
+  #if !defined(FERRET_ALLOCATE)
+    #ifdef FERRET_MEMORY_POOL_SIZE
+      #define FERRET_ALLOCATE(size) program_memory.allocate(size)
+      #define FERRET_FREE(pre) program_memory.free(ptr)
+    #else
+      #define FERRET_ALLOCATE(size) std::malloc(size)
+      #define FERRET_FREE(ptr) std::free(ptr)
+    #endif
   #endif
 #+end_src
 
@@ -5365,9 +5364,10 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
+  - *Memory* - Option to disable [[Reference Counting]]. Combined with
+    /FERRET_ALLOCATE/ any third party GC can be supported.
   - *Pointer* - A pointer type to handle shared pointers.
   - *Escape Analysis* - Escape known language structures.
-  - *Memory Pool* - Allow Multiple Implementations.
   - *Unit Testing*
     - [[https://github.com/aw/picolisp-unit][Unit Testing framework for PicoLisp]]
     - [[http://www.jera.com/techinfo/jtns/jtn002.html][JTN002 - MinUnit -- a minimal unit testing framework for C]]
@@ -5456,6 +5456,8 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Memory Pool* - Allow Multiple Implementations.
+    Allow user definable /FERRET_ALLOCATE/ - /FERRET_FREE/
   - *String* - String constructor from std::string.
   - *require* - require module without alias.
   - *require* - Only having *require* forms and nothing else causes

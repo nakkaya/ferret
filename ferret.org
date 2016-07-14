@@ -5663,22 +5663,27 @@ Create some dummy libs under /test/modules/,
 
   (set-log-level! :warn)
 
-  (defn run-cppcheck [file]
+  (defn run-cppcheck [file form]
     (let [options ["cppcheck" "-q" "--std=c++11" "--template=gcc"
                    "--enable=all" "--error-exitcode=1" file]
           ret (with-sh-dir "./"
                 (apply sh options))]
       (if (not= 0 (:exit ret))
-        (do (warn "Static Analysis Error")
+        (do (warn (str "Test Failure - CppCheck"
+                       \newline \newline (with-out-str (clojure.pprint/pprint form))))
+            (warn (:err ret))
+            (warn "")
             (warn (:err ret))
             (System/exit 1)))))
 
-  (defn run-valgrind []
+  (defn run-valgrind [form]
     (let [options ["valgrind" "--leak-check=full" "--error-exitcode=1" "./a.out"]
           ret (with-sh-dir "./"
                 (apply sh options))]
       (if (not= 0 (:exit ret))
-        (do (warn (:err ret))
+        (do (warn (str "Test Failure - Valgrind"
+                       \newline \newline (with-out-str (clojure.pprint/pprint form))))
+            (warn (:err ret))
             (System/exit 1)))))
 
   (defn run-program []
@@ -5695,9 +5700,9 @@ Create some dummy libs under /test/modules/,
                      "-pthread"]})
           options (merge options opts)]
       (compile->cpp form options)
-      (run-cppcheck "solution.cpp")
+      (run-cppcheck "solution.cpp" form)
       (compile->binary options [])
-      (run-valgrind)
+      (run-valgrind form)
       (run-program)))
 
   (defn report-test-failure [event]

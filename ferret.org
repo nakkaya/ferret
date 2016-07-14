@@ -2242,7 +2242,8 @@ Strings are represented as a linked list of characters.
     (post-code "#ifdef FERRET_STD_LIB
                   template<>
                   var obj<String>(std::string s) {
-                    return var(new String(s.c_str(), s.size()));
+                    void * storage = FERRET_ALLOCATE(sizeof(String));
+                    return var(new(storage) String(s.c_str(), s.size()));
                   }
                 #endif")
     (force-type))

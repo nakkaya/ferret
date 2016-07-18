@@ -5367,6 +5367,8 @@ Create some dummy libs under /test/modules/,
 
   - *Memory* - Option to disable [[Reference Counting]]. Combined with
     /FERRET\_ALLOCATE/ any third party GC can be supported.
+    - http://www.ravenbrook.com/project/mps
+    - http://www.hboehm.info/gc/
   - *Pointer* - A pointer type to handle shared pointers.
   - *Escape Analysis* - Escape known language structures.
   - *Unit Testing*

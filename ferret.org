@@ -3618,9 +3618,7 @@ A simple macro for calling inline C++,
       number_t vn = v.cast<Number>()->numerator();
       number_t vdn = v.cast<Number>()->denominator();
 
-      number_t ndn = (hdn * vdn);
-
-      __result = obj<Number>(((hn * vdn) * (vn * hdn)),ndn);")
+      __result = obj<Number>((hn * vn), (hdn * vdn));")
     ([x y & more]
      (reduce * (* x y) more)))
 #+end_src

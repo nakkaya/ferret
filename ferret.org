@@ -3880,6 +3880,9 @@ function *f* to run in milliseconds,
 ** Misc
 *** rand
 
+Returns a random floating point number between 0 (inclusive) and n
+(default 1) (exclusive).
+
 #+name: runtime-clojure-misc
 #+begin_src clojure :tangle no
   (defnative rand-aux []
@@ -3895,6 +3898,17 @@ function *f* to run in milliseconds,
      (rand-aux))
     ([x]
      (* x (rand-aux))))
+#+end_src
+
+*** rand-int
+
+Returns a random integer between 0 (inclusive) and n (exclusive).
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no
+  (defn rand-int
+    [x]
+    (floor (rand x)))
 #+end_src
 
 *** identity
@@ -4687,11 +4701,13 @@ Compiled programs are run through /valgrind/ with following options,
 #+begin_src clojure
   (deftest random-numbers-test
     (compare-output
-     "true true true true"
+     "true true true true true true"
      (print (not (nil? (rand)))
             (not (nil? (rand 15)))
             (pos? (rand))
-            (pos? (rand 10)))))
+            (pos? (rand 10))
+            (integer? (rand-int 10))
+            (pos? (rand-int 10)))))
 #+end_src
 
 #+begin_src clojure :tangle no

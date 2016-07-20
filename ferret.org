@@ -4701,13 +4701,12 @@ Compiled programs are run through /valgrind/ with following options,
 #+begin_src clojure
   (deftest random-numbers-test
     (compare-output
-     "true true true true true true"
+     "true true true true true"
      (print (not (nil? (rand)))
             (not (nil? (rand 15)))
-            (pos? (rand))
-            (pos? (rand 10))
-            (integer? (rand-int 10))
-            (pos? (rand-int 10)))))
+            (float? (rand))
+            (float? (rand 10))
+            (integer? (rand-int 10)))))
 #+end_src
 
 #+begin_src clojure :tangle no

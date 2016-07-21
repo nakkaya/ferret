@@ -1889,6 +1889,10 @@ Base Object,
     void  operator delete(void * ptr){
       FERRET_FREE(ptr);
     }
+
+    void* operator new(size_t, void* ptr){
+      return ptr;
+    }
     
   private:
     FERRET_NEW_REF()

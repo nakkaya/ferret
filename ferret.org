@@ -4231,7 +4231,10 @@ Reads the value from a specified digital pin, either HIGH or LOW.
 #+begin_src clojure :tangle no
   (defnative digital-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "digitalRead(pin.to<int>());"))
+        "if (digitalRead(pin.to<int>()) == HIGH)
+           __result = obj<Boolean>(true);
+         else
+           __result = obj<Boolean>(false);"))
 #+end_src
 
 *** analog-write
@@ -4253,7 +4256,7 @@ Reads the value from the specified analog pin.
 #+begin_src clojure :tangle no
   (defnative analog-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "analogRead(pin.to<int>());"))
+        "__result = obj<Number>((int)analogRead(pin.to<int>()));"))
 #+end_src
 
 *** analog-write-resolution

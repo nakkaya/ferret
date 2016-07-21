@@ -1473,8 +1473,6 @@ lambda forms.
          <<runtime-native-iterate-macro>>
         }
 
-        $native_declarations:{$it$} ;separator=\"\n\"$
-
         // Objects
         namespace ferret{
          $objects:{$it$} ;separator=\"\n\"$
@@ -1484,6 +1482,8 @@ lambda forms.
         namespace ferret{
          $symbols:{var $it$;} ;separator=\"\n\"$
         }
+
+        $native_declarations:{$it$} ;separator=\"\n\"$
 
         // Runtime Implementations
         namespace ferret{

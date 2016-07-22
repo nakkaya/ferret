@@ -4300,6 +4300,44 @@ cycle) on a pin.
         "noTone(pin.to<int>());"))
 #+end_src
 
+*** definterrupt
+
+Registers an interrupt on the /symbol/ for the given pin and mode. See
+[[https://www.arduino.cc/en/Reference/AttachInterrupt][attachInterrupt()]] for more information.
+
+#+BEGIN_EXAMPLE
+  (defn control-light []
+    (if (digital-read input-pin)
+      (digital-write debug-pin :high)
+      (digital-write debug-pin :low)))
+
+  (definterrupt control-light input-pin :change)
+#+END_EXAMPLE
+
+#+name: runtime-clojure-gpio
+#+begin_src clojure :tangle no
+  (defmacro definterrupt [callback pin mode]
+    (let [pin (if (number? pin)
+                pin
+                (str (symbol-conversion pin) ".to<int>()"))
+          mode (cond (= mode :low) "LOW"
+                     (= mode :change) "CHANGE"
+                     (= mode :rising) "RISING"
+                     (= mode :falling) "FALLING"
+                     (= mode :high) "HIGH")
+          callback-cpp  (symbol-conversion callback)
+          callback-clj (symbol (str callback "-callback-fn"))]
+      `(~'do
+         (~'def ~callback-clj ~callback)
+         (~'native-declare
+          ~(str "\n void " callback-cpp "_callack" "(){\n"
+                "run(ferret::" (symbol-conversion callback-clj) ");"
+                "\n}\n"))
+         ((~'fn []
+            ~(str "pinMode(" pin " , INPUT_PULLUP);"
+                  "attachInterrupt(digitalPinToInterrupt(" pin "), " callback-cpp "_callack , " mode ");"))))))
+#+end_src
+
 ** Testing
 *** assert
 #+name: runtime-clojure-testing

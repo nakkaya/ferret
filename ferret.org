@@ -1652,7 +1652,9 @@ lambda forms.
     (defn compile->binary [options extra-source-files]
       (if (:command options)
         (do (info "Command" (:command options))
-            (let [ret (with-sh-dir (:output-path options)
+            (let [ret (with-sh-dir (if (not (empty? (:output-path options)))
+                                     (:output-path options)
+                                     "./")
                         (apply sh (flatten ["/usr/bin/env" "sh" "-c" (:command options)])))]
               (if (not= 0 (:exit ret))
                 (do (warn "Build Error")

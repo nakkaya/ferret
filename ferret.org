@@ -1653,7 +1653,7 @@ lambda forms.
       (if (:command options)
         (do (info "Command" (:command options))
             (let [ret (with-sh-dir (:output-path options)
-                        (apply sh (flatten ["bash" "-c" (:command options)])))]
+                        (apply sh (flatten ["/usr/bin/env" "sh" "-c" (:command options)])))]
               (if (not= 0 (:exit ret))
                 (do (warn "Build Error")
                     (warn (:err ret))

@@ -5431,6 +5431,7 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
+  - *throttled-fn* - Blocking and non blocking versions.
   - *Native Headers* - Expand macro native headers to a
     =native-headers= special form.
   - *Memory* - Option to disable [[Reference Counting]]. Combined with

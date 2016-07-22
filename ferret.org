@@ -1057,6 +1057,7 @@ suggests and removes the node when predicate returns true.
                          (is-special-form? 'fir_invoke_lambda_stack form) 'fir_invoke_lambda_stack
                          (is-special-form? 'fir_define_var form) 'fir_define_var
                          (is-special-form? 'defobject form) 'defobject
+                         (is-special-form? 'native_header form) 'native_header
                          (is-special-form? 'native_declare form) 'native_declare
                          (is-special-form? 'native_define form) 'native_define
                          (is-special-form? 'if form) 'if
@@ -1111,7 +1112,8 @@ C++ skeleton.
 #+name: core-code-generation-emit-source
 #+begin_src clojure :tangle no
   (defn emit-source [form options]
-    (let [state (atom {:native-declarations []
+    (let [state (atom {:native-headers []
+                       :native-declarations []
                        :objects []
                        :symbol-table #{}
                        :lambdas []
@@ -1154,6 +1156,9 @@ C++ skeleton.
 
   (defmethod emit 'fir_define_var [[_ name form] state]
     (str "var " name " = " (emit form state)))
+
+  (defmethod emit 'native_header [[_ & declarations] state]
+    (append-to! state [:native-headers] declarations) "")
 
   (defmethod emit 'native_declare [[_ declaration] state]
     (append-to! state [:native-declarations] declaration) "")
@@ -1461,106 +1466,112 @@ lambda forms.
 #+name: code-templates
 #+begin_src clojure :tangle no :noweb yes
   (defn solution-template [source]
-    (let [{:keys [body lambdas symbol-table native-declarations native-defines objects]} source
+    (let [{:keys [body lambdas symbol-table native-headers native-declarations native-defines objects]} source
+          native-headers (->> native-headers
+                              flatten
+                              (into #{}))
           view (create-view "
-        $native_defines:{$it$} ;separator=\"\n\"$
+          $native_defines:{$it$} ;separator=\"\n\"$
 
-        $ferret_header$
+          $ferret_header$
 
-        // Runtime Prototypes
-        namespace ferret{
-         <<runtime-native-prototypes>>
-         <<runtime-native-iterate-macro>>
-        }
+          $native_headers:{#include \"$it$\"} ;separator=\"\n\"$
 
-        // Objects
-        namespace ferret{
-         $objects:{$it$} ;separator=\"\n\"$
-        }
-
-        // Symbols
-        namespace ferret{
-         $symbols:{var $it$;} ;separator=\"\n\"$
-        }
-
-        $native_declarations:{$it$} ;separator=\"\n\"$
-
-        // Runtime Implementations
-        namespace ferret{
-         <<runtime-native-math-misc>>
-         <<runtime-native-implementations>>
-         <<runtime-native-ranged-for>>
-        }
-
-        // Lambda Prototypes
-        namespace ferret{
-          $lambda_classes:{$it$} ;separator=\"\n\"$
-        }
-
-        // Command Line Arguments
-        #if defined(FERRET_STD_LIB) &&                    \\
-            !defined(DISABLE_COMMAND_LINE_ARGUMENTS) &&   \\
-            !defined(FERRET_DISABLE_MAIN_FUNCTION)
-          ferret::var _star_command_line_args_star_;
-        #endif
-
-        // Lambda Implementations
-        namespace ferret{
-          $lambda_bodies:{$it$} ;separator=\"\n\"$
-        }
-
-        // Program Run
-        namespace ferret{
-          void program_run(){
-           $body:{$it$;} ;separator=\"\n\"$ 
+          // Runtime Prototypes
+          namespace ferret{
+           <<runtime-native-prototypes>>
+           <<runtime-native-iterate-macro>>
           }
-        }
 
-      #if !defined(FERRET_DISABLE_MAIN_FUNCTION)
-        int main(int argc, char* argv[]){
-          using namespace ferret;
+          // Objects
+          namespace ferret{
+           $objects:{$it$} ;separator=\"\n\"$
+          }
 
-        #if defined(FERRET_STD_LIB) &&               \\
-            !defined(DISABLE_COMMAND_LINE_ARGUMENTS)
-          _star_command_line_args_star_ = runtime::list();
-          for (int i = argc - 1; i > -1 ; i--)
-            _star_command_line_args_star_ = 
-                runtime::cons(obj<String>(argv[i]),_star_command_line_args_star_);
+          // Symbols
+          namespace ferret{
+           $symbols:{var $it$;} ;separator=\"\n\"$
+          }
+
+          $native_declarations:{$it$} ;separator=\"\n\"$
+
+          // Runtime Implementations
+          namespace ferret{
+           <<runtime-native-math-misc>>
+           <<runtime-native-implementations>>
+           <<runtime-native-ranged-for>>
+          }
+
+          // Lambda Prototypes
+          namespace ferret{
+            $lambda_classes:{$it$} ;separator=\"\n\"$
+          }
+
+          // Command Line Arguments
+          #if defined(FERRET_STD_LIB) &&                    \\
+              !defined(DISABLE_COMMAND_LINE_ARGUMENTS) &&   \\
+              !defined(FERRET_DISABLE_MAIN_FUNCTION)
+            ferret::var _star_command_line_args_star_;
+          #endif
+
+          // Lambda Implementations
+          namespace ferret{
+            $lambda_bodies:{$it$} ;separator=\"\n\"$
+          }
+
+          // Program Run
+          namespace ferret{
+            void program_run(){
+             $body:{$it$;} ;separator=\"\n\"$ 
+            }
+          }
+
+        #if !defined(FERRET_DISABLE_MAIN_FUNCTION)
+          int main(int argc, char* argv[]){
+            using namespace ferret;
+
+          #if defined(FERRET_STD_LIB) &&               \\
+              !defined(DISABLE_COMMAND_LINE_ARGUMENTS)
+            _star_command_line_args_star_ = runtime::list();
+            for (int i = argc - 1; i > -1 ; i--)
+              _star_command_line_args_star_ = 
+                  runtime::cons(obj<String>(argv[i]),_star_command_line_args_star_);
+          #endif
+
+            program_run();
+
+            #if defined(FERRET_PROGRAM_MAIN)
+              run(FERRET_PROGRAM_MAIN);
+            #endif
+
+            return 0;
+          }
         #endif
 
-          program_run();
+        #if defined(FERRET_HARDWARE_ARDUINO)
+          void setup(){
+            #if defined(FERRET_INIT_OUTPUT_STREAM)
+               FERRET_INIT_OUTPUT_STREAM
+            #endif
 
-          #if defined(FERRET_PROGRAM_MAIN)
-            run(FERRET_PROGRAM_MAIN);
-          #endif
+            using namespace ferret;
+            #if defined(FERRET_PROGRAM_MAIN)
+              program_run();
+            #endif
+          }
+          void loop(){
+            using namespace ferret;
+            #if !defined(FERRET_PROGRAM_MAIN)
+              program_run();
+            #endif          
 
-          return 0;
-        }
-      #endif
-
-      #if defined(FERRET_HARDWARE_ARDUINO)
-        void setup(){
-          #if defined(FERRET_INIT_OUTPUT_STREAM)
-             FERRET_INIT_OUTPUT_STREAM
-          #endif
-
-          using namespace ferret;
-          #if defined(FERRET_PROGRAM_MAIN)
-            program_run();
-          #endif
-        }
-        void loop(){
-          using namespace ferret;
-          #if !defined(FERRET_PROGRAM_MAIN)
-            program_run();
-          #endif          
-
-          #if defined(FERRET_PROGRAM_MAIN)
-            run(FERRET_PROGRAM_MAIN);
-          #endif
-        }
-      #endif\n")]
+            #if defined(FERRET_PROGRAM_MAIN)
+              run(FERRET_PROGRAM_MAIN);
+            #endif
+          }
+        #endif\n")]
       (fill-view! view "ferret_header" (read-from-url "ferret.h"))
+      (fill-view! view "native_headers" native-headers)
       (fill-view! view "body" (filter #(not (empty? %)) body))
       (fill-view! view "lambda_classes" (declare-lambda-classes lambdas))
       (fill-view! view "lambda_bodies" (declare-lambda-bodies lambdas))
@@ -4391,22 +4402,6 @@ examples.
       (list 'def name (cons 'fn* `( ~args ~@includes ~@pre-ample  ~body)))))
 #+end_src
 
-*** native-header
-
-Include native headers, (*.h* files)
-
-#+name: runtime-clojure-defn
-#+begin_src clojure :tangle no
-  (defmacro native-header [& body]
-    (cons 'native-declare
-          (->> (map #(if (symbol? %)
-                       (str "#include \"" (str %) ".h\"\n")
-                       (str "#include \"" (str %) "\"\n"))
-                    body)
-               (apply str)
-               (list))))
-#+end_src
-
 *** pr-object-sizes
 
 #+name: runtime-clojure-misc
@@ -5425,6 +5420,9 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
+  - *require* - Import native declarations and headers.
+  - *Native Headers* - Expand macro native headers to a
+    =native-headers= special form.
   - *Memory* - Option to disable [[Reference Counting]]. Combined with
     =FERRET_ALLOCATE= any third party GC can be supported.
     - http://www.ravenbrook.com/project/mps
@@ -5511,10 +5509,6 @@ Create some dummy libs under /test/modules/,
   - RPi GPIO
     - http://elinux.org/RPi_Low-level_peripherals
     - http://elinux.org/RPi_GPIO_Code_Samples
-  - JSON Encode/Decode
-    - https://github.com/nlohmann/json
-  - HTTP & WebSocket Client
-    - https://github.com/vinniefalco/Beast
   - HTTP Server
     - [[https://github.com/ipkn/crow][crow]]
     - [[http://siliconframework.org/][Silicon]]
@@ -5523,6 +5517,7 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Native Headers* - Make =native-headers= a special form.
   - *Memory Pool* - Allow Multiple Implementations.
     Allow user definable =FERRET_ALLOCATE= - =FERRET_FREE=
   - *String* - String constructor from std::string.
@@ -5547,6 +5542,14 @@ Create some dummy libs under /test/modules/,
   - *Lazy Sequence* - Should cache the result of *rest* and return it
     on subsequent calls.
   - *assert* - https://clojuredocs.org/clojure.core/assert
+
+*** Libraries
+
+  - JSON Encode/Decode
+    - https://git.nakkaya.com/nakkaya/ferret-boost
+  - HTTP & WebSocket Client
+    - https://git.nakkaya.com/nakkaya/ferret-websocket
+
 * Files                                                            :noexport:
 ** project.clj
 #+begin_src clojure :mkdirp yes :tangle src/project.clj

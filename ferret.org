@@ -3896,6 +3896,56 @@ function *f* to run in milliseconds,
       (floor (/ (apply + values) n))))
 #+end_src
 
+*** fn-throttler
+
+    Returns a new function that limits the throughput of the given
+    function. When called faster than ==rate== it can either block or
+    return ==nil== immediately.
+
+#+BEGIN_EXAMPLE
+  (defn ping []
+    (println "Ping!"))
+
+  (def throttled-ping (fn-throttler ping 1 :second :blocking))
+
+  ;; Ping console every second
+  (forever
+   (throttled-ping))
+#+END_EXAMPLE
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no
+  (defn fn-throttler-aux-blocking [f rate-ms t-last-run]
+    (fn [& args]
+      (let [elapsed (- (millis) @t-last-run)
+            left-to-wait (- rate-ms elapsed)]
+        (when (pos? left-to-wait)
+          (sleep left-to-wait)))
+      (let [ret (apply f args)]
+        (reset! t-last-run (millis))
+        ret)))
+
+  (defn fn-throttler-aux-non-blocking [f rate-ms t-last-run]
+    (fn [& args]
+      (let [elapsed (- (millis) @t-last-run)
+            left-to-wait (- rate-ms elapsed)]
+        (when (not (pos? left-to-wait))
+          (let [ret (apply f args)]
+            (reset! t-last-run (millis))
+            ret)))))
+
+  (defmacro fn-throttler [f rate unit policy]
+    (let [unit->ms {:microsecond 0.001 :millisecond 1
+                    :second 1000 :minute 60000
+                    :hour 3600000 :day 86400000
+                    :month 2678400000}
+          rate-ms (/ (unit->ms unit) rate)
+          state '(atom (millis))]
+      (if (= policy :blocking)
+        `(~'fn-throttler-aux-blocking ~f ~rate-ms ~state)
+        `(~'fn-throttler-aux-non-blocking ~f ~rate-ms ~state))))
+#+end_src
+
 ** Misc
 *** rand
 
@@ -4801,6 +4851,32 @@ Compiled programs are run through /valgrind/ with following options,
                              (sleep 10)
                              (+ 1 1)) 10)
                 10))))
+#+end_src
+
+#+begin_src clojure :tangle no
+  (deftest fn-throttler-test
+    (compare-output
+     "true true nil true"
+     (defn ping [] true)
+
+     (let [throttled-ping (fn-throttler ping 1 :second :blocking)
+           begin (millis)]
+       (throttled-ping)
+       (throttled-ping)
+       (throttled-ping)
+       (print (> (- (millis) begin) 2000))
+       (print " ")
+       (print (throttled-ping)))
+
+     (let [throttled-ping (fn-throttler ping 1 :second :non-blocking)
+           begin (millis)]
+       (throttled-ping)
+       (throttled-ping)
+       (throttled-ping)
+       (print " ")
+       (print (throttled-ping))
+       (print " ")
+       (print (< (- (millis) begin) 1000)))))
 #+end_src
 
 #+begin_src clojure :tangle no

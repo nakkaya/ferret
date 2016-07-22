@@ -880,12 +880,14 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
            objects (select-form header (is-form? 'defobject))
            macros (select-form header (is-form? 'defmacro))
            requires (select-form header (is-form? 'require))
+           native-headers (select-form header (is-form? 'native-header))
+           native-declarations (select-form header (is-form? 'native-declare))
            fns (atom {})
            _ (shake-concat (expand-macros-all (concat macros form)) header-fns fns)
            include-fns (->> @fns
                             (sort-by #(.indexOf header-symbols (key %)))
                             (map #(second %)))]
-       (concat requires objects include-fns macros form)))
+       (concat requires native-headers objects native-declarations include-fns macros form)))
     ([form built-in fns]
      (morph-form form symbol?
                  #(do (if-let [f (built-in %)]
@@ -5052,7 +5054,12 @@ Run import tests.
                                     (test.modules.module-b/macro-call))))))
     (is (= "" (capture-output '((require '[test.modules.module-a :as mod-a])))))
     (is (= "" (capture-output '((require '[test.modules.module-a :as mod-a])
-                                (require '[test.modules.module-b :as mod-b]))))))
+                                (require '[test.modules.module-b :as mod-b])))))
+    (is (= "Call" (capture-output '((require '[test.modules.module-c :as mod-c])
+                                    (cxx "__result = obj<Number>((number_t)std::sqrt(100)); 
+                                            std::cout << \"Call\"")))))
+    (is (= "25" (capture-output '((require '[test.modules.module-c :as mod-c])
+                                  (cxx "std::cout << dummy_native_fn();"))))))
 #+end_src
 
 **** Dummy Modules
@@ -5096,6 +5103,10 @@ Create some dummy libs under /test/modules/,
 #+end_src 
 
 #+begin_src clojure :mkdirp yes :tangle src/test/modules/module-c.clj
+  (native-header "cmath")
+
+  (native-declare "int dummy_native_fn(){ return 25; }")
+
   (defn helper-c []
     (print "Module C"))
 
@@ -5420,7 +5431,6 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
-  - *require* - Import native declarations and headers.
   - *Native Headers* - Expand macro native headers to a
     =native-headers= special form.
   - *Memory* - Option to disable [[Reference Counting]]. Combined with
@@ -5517,6 +5527,7 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *require* - Import native declarations and headers.
   - *Native Headers* - Make =native-headers= a special form.
   - *Memory Pool* - Allow Multiple Implementations.
     Allow user definable =FERRET_ALLOCATE= - =FERRET_FREE=

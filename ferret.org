@@ -2675,11 +2675,7 @@ pointing to *nullptr*.
     }
 
   public:
-    BitArray(){
-      for(size_t i = 0; i < poolSize; i++){
-        bits[i] = false;
-      }
-    }
+    BitArray() : bits{ false } { }
 
     inline void set(size_t b){
       bits[index(b)] |= 1 << (offset(b));

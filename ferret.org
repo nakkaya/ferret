@@ -2661,10 +2661,10 @@ pointing to *nullptr*.
 #+name: runtime-native-memory-pool
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_POOL_SIZE
-  template<size_t poolSize>
+  template<size_t pool_size>
   class BitArray {
   private:
-    uint8_t bits[poolSize / 8 + 1];
+    uint8_t bits[pool_size / 8 + 1];
 
     inline size_t index(size_t i){
       return i / 8;

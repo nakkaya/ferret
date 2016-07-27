@@ -1448,9 +1448,9 @@ lambda forms.
     (let [view (create-view
                 "$lambdas: {lambda|
         $if(lambda.args)$
-            var $lambda.name$::invoke (var _args_)
+            inline var $lambda.name$::invoke (var _args_)
         $else$
-            var $lambda.name$::invoke (var)
+            inline var $lambda.name$::invoke (var)
         $endif$
             {
               $lambda.args:{args | $args$; } ;separator=\"\n\"$
@@ -2260,7 +2260,7 @@ Strings are represented as a linked list of characters.
        return ss.str();"))
     (post-code "#ifdef FERRET_STD_LIB
                   template<>
-                  var obj<String>(std::string s) {
+                  inline var obj<String>(std::string s) {
                     void * storage = FERRET_ALLOCATE(sizeof(String));
                     return var(new(storage) String(s.c_str(), s.size()));
                   }
@@ -2618,12 +2618,12 @@ pointing to *nullptr*.
 #+name: runtime-native-var
 #+begin_src c++ :tangle no
   template<typename FT, typename... Args>
-  var obj(Args... args) {
+  inline var obj(Args... args) {
     void * storage = FERRET_ALLOCATE(sizeof(FT));
     return var(new(storage) FT(args...));
   }
 
-  var nil(){
+  inline var nil(){
     return var();
   }
 #+end_src

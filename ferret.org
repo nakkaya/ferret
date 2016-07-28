@@ -3864,9 +3864,7 @@ Runs the given lambda in a thread,
   (defnative thread [f]
     (on "defined FERRET_STD_LIB"
         ("thread")
-        "::std::thread t([f](){return run(f);});
-         t.detach();
-         __result = nil();"))
+        "::std::thread ([f](){return run(f);}).detach();"))
 #+end_src
 
 ** Timing
@@ -4854,14 +4852,14 @@ Compiled programs are run through /valgrind/ with following options,
 #+begin_src clojure :tangle no
   (deftest thread-test
     (compare-output
-     "Thread-1Thread-2"
+     "12"
      (defn print-some [y x]
        (fn []
          (sleep y)
          (print x)))
-     (thread (print-some 0 "Thread-1"))
-     (thread (print-some 1 "Thread-2"))
-     (sleep 3)))
+     (thread (print-some 10 "1"))
+     (thread (print-some 20 "2"))
+     (sleep 50)))
 #+end_src
 
 #+begin_src clojure :tangle no

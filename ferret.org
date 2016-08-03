@@ -2798,8 +2798,8 @@ Dispatch correct memory allocation/deallocation implementation,
       #define FERRET_ALLOCATE(size) program_memory.allocate(size)
       #define FERRET_FREE(pre) program_memory.free(ptr)
     #else
-      #define FERRET_ALLOCATE(size) std::malloc(size)
-      #define FERRET_FREE(ptr) std::free(ptr)
+      #define FERRET_ALLOCATE(size) ::malloc(size)
+      #define FERRET_FREE(ptr) ::free(ptr)
     #endif
   #endif
 #+end_src

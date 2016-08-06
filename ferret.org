@@ -2213,7 +2213,7 @@ A lazy list container implementing the seekable interface.
     "__result = obj<LazySequence>(f);")
 
   (defmacro lazy-seq [& body]
-    (list 'new-lazy-seq (cons 'fn `( [] ~@body))))
+    `(~'new-lazy-seq (~'fn [] ~@body)))
 #+end_src
 
 **** String
@@ -2970,7 +2970,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-defn
 #+begin_src clojure :tangle no
   (defmacro defn [name & body]
-    (list 'def name (cons 'fn `~body)))
+    `(~'def ~name (~'fn ~@body)))
 #+end_src
 
 ** Functions
@@ -3158,7 +3158,8 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-looping
 #+begin_src clojure :tangle no
   (defmacro doseq [binding & body]
-    (list '_doseq_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
+    `(~'_doseq_ ~(second binding)
+                (~'fn [~(first binding)] ~@body)))
 
   (defn _doseq_ [seq f] "FERRET_ITERATE(seq,it){run(f,runtime::first(it));}")
 #+end_src
@@ -3168,7 +3169,8 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-looping
 #+begin_src clojure :tangle no
   (defmacro dotimes [binding & body]
-    (list '_dotimes_ (second binding) (cons 'fn* `( [~(first binding)] ~@body))))
+    `(~'_dotimes_ ~(second binding)
+                  (~'fn [~(first binding)] ~@body)))
 
   (defn _dotimes_ [t f] "for(int i = 0; i < t.to<int>(); i++) run(f,obj<Number>(i));")
 #+end_src
@@ -3179,7 +3181,7 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-conditionals
 #+begin_src clojure :tangle no
   (defmacro when [test & body]
-    (list 'if test (cons 'do body)))
+    `(~'if ~test (~'do ~@body)))
 #+end_src
 
 *** cond
@@ -3206,7 +3208,7 @@ A simple macro for calling inline C++,
        run(fn);")
 
   (defmacro while [test & body]
-    (list '_while_ (list 'fn* [] test) (cons 'fn* `( [] ~@body))))
+    `(~'_while_ (~'fn* [] ~test) (~'fn [] ~@body)))
 #+end_src
 
 *** forever
@@ -3214,7 +3216,7 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-conditionals
 #+begin_src clojure :tangle no
   (defmacro forever [& body]
-    (cons 'while `(true  ~@body)))
+    `(~'while true ~@body))
 #+end_src
 
 *** if-let
@@ -3254,7 +3256,7 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
   (defmacro not= [& test]
-    (list 'not (cons '= `( ~@test))))
+    `(~'not (~'= ~@test)))
 #+end_src
 
 *** <
@@ -3349,7 +3351,7 @@ A simple macro for calling inline C++,
     ([] true)
     ([x] x)
     ([x & next]
-     (list 'if x `(and ~@next) false)))
+     `(~'if ~x (~'and ~@next) false)))
 #+end_src
 
 *** or
@@ -3360,7 +3362,7 @@ A simple macro for calling inline C++,
     ([] nil)
     ([x] x)
     ([x & next]
-     (list 'if x x `(or ~@next))))
+     `(~'if ~x ~x (~'or ~@next))))
 #+end_src
 
 *** not
@@ -4303,8 +4305,8 @@ output.
 
   (defmacro pin-mode [pin mode]
     (if (= mode :input)
-      (list 'pin-mode-input pin)
-      (list 'pin-mode-output pin)))
+      `(~'pin-mode-input  ~pin)
+      `(~'pin-mode-output ~pin)))
 #+end_src
 
 *** digital-write
@@ -4323,8 +4325,8 @@ Write a HIGH or a LOW value to a digital pin.
 
   (defmacro digital-write [pin mode]
     (if (= mode :high)
-      (list 'digital-write-high pin)
-      (list 'digital-write-low pin)))
+      `(~'digital-write-high ~pin)
+      `(~'digital-write-low  ~pin)))
 #+end_src
 
 *** digital-read
@@ -4527,20 +4529,6 @@ examples.
            if(program_memory.used[i] == false)
              count++;
          __result = obj<Number>((number_t)(count*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
-#+end_src
-
-*** defcallback
-
-#+name: runtime-clojure-misc
-#+begin_src clojure :tangle no
-  (defmacro defcallback [callback out in & pass-vars]
-    (list 'do
-          (list 'native-declare
-                `~(str "\n" out " " (symbol-conversion callback) "_callack" "(" in "){\n"
-                       "run(" (str (symbol-conversion callback) "_callback_fn")
-                       (str \, (apply str (interpose " , " (reverse pass-vars)))) ");"
-                       "\n}\n"))
-          (list 'def `~(symbol (str callback "-callback-fn")) `~callback)))
 #+end_src
 
 ** Compiler

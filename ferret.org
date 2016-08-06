@@ -3002,9 +3002,7 @@ implementation.
   (defmacro fn [& body]
     (if (vector? (first body))
       (localize-fn-args body)
-      (let [count-symbol (gensym)
-            fn-arg-symbol (gensym)
-            fns (map #(localize-fn-args %) body)
+      (let [fns (map #(localize-fn-args %) body)
             conds (->> (map first body)
                        (map (fn* [args] (filter #(not (= % '&)) args)))
                        (map #(count %)))
@@ -3014,11 +3012,8 @@ implementation.
                          last (take-last 2 conds)]
                      (concat arg-dispatch [true (second last)]))
                    (interleave conds fns))]
-        
-        `(fn* (& ~(list 'ferret-compiler-no-closure fn-arg-symbol))
-              ~(->> form
-                    (cons fn-arg-symbol)
-                    (cons 'fir-dispatch-lambda))))))
+        `(~'fn* (& (~'ferret-compiler-no-closure fn-arg-symbol#))
+                (~'fir-dispatch-lambda fn-arg-symbol# ~@form)))))
 #+end_src
 
 A simple macro for calling inline C++,

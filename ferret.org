@@ -4492,7 +4492,7 @@ examples.
                                     (apply str (map (fn [line] (str line "\n")) (second %)))
                                     "\n#endif\n"))
                          (map #(list 'native-declare %)))]
-      (list 'def name (cons 'fn* `( ~args ~@includes ~@pre-ample  ~body)))))
+      `(~'def ~name (~'fn* ~args ~@includes ~@pre-ample  ~body))))
 #+end_src
 
 *** pr-object-sizes
@@ -4539,10 +4539,9 @@ Configure Ferret Runtime options. See table in [[Configuration]] section.
 #+name: runtime-clojure-defn
 #+begin_src clojure :tangle no
   (defmacro configure-runtime! [& body]
-    (cons 'native-define
-          (->> (partition 2 body)
-               (map #(str "#define " (first %) " " (second %) "\n"))
-               (list))))
+    `(~'native-define ~(->> (partition 2 body)
+                            (map #(str "#define " (first %) " " (second %) "\n"))
+                            (list))))
 #+end_src
 
 *** configure-ferret!
@@ -4552,9 +4551,9 @@ Embed compilations options.
 #+name: runtime-clojure-defn
 #+begin_src clojure :tangle no
   (defmacro configure-ferret! [& body]
-    (list 'native-define (str "// Ferret Build Configuration Begin\n"
-                              "//" (str (apply hash-map body)) "\n"
-                              "// Ferret Build Configuration End\n")))
+    `(~'native-define ~(str "// Ferret Build Configuration Begin\n"
+                            "//" (str (apply hash-map body)) "\n"
+                            "// Ferret Build Configuration End\n")))
 #+end_src
 
 * Tests
@@ -5073,11 +5072,11 @@ Compiled programs are run through /valgrind/ with following options,
     (compare-output
      "1 1 1 true false true true true (3 3)012343 5"
      (defmacro my-when [test & body]
-       (list 'if test (cons 'do body)))
+       `(~'if ~test (~'do ~@body)))
 
      (defmacro some-list [a]
        (let [a (inc a)]
-         (list 'list a a)))
+         `(~'list a a)))
      
      (print (my-when (< 2 3) 1)
             (when (< 2 3) 1)
@@ -5177,7 +5176,7 @@ Create some dummy libs under /test/modules/,
     (print "Module A"))
 
   (defmacro ten-fn []
-    (list 'fn [] 10))
+    `(~'fn [] 10))
 
   (defmacro helper-b []
     (reduce (fn [a b] (+ a b)) (list 1 2 3))
@@ -5201,8 +5200,7 @@ Create some dummy libs under /test/modules/,
         "__result = obj<Number>(42);"))
 
   (defmacro macro-call []
-    (list 'do
-          (list 'macro-aux)))
+    `(~'do (~'macro-aux)))
 #+end_src 
 
 #+begin_src clojure :mkdirp yes :tangle src/test/modules/module-c.clj
@@ -5214,7 +5212,7 @@ Create some dummy libs under /test/modules/,
     (print "Module C"))
 
   (defmacro eleven-fn []
-    (list 'fn [] 11))
+    `(~'fn [] 11))
 #+end_src 
 
 *** Destructuring

@@ -4460,6 +4460,20 @@ Registers an interrupt on the /symbol/ for the given pin and mode. See
            (cons 'fn `( [] ~exp)) (cons 'fn `( [] ~callback)))))
 #+end_src
 
+*** deftest
+
+#+name: runtime-clojure-testing
+#+begin_src clojure :tangle no
+  (defmacro deftest [name & exprs]
+    (defonce fir-unit-tests (atom []))
+    (swap! fir-unit-tests conj name)
+    (let [exprs (map #(list 'assert %) exprs)]
+      `(def ~name (~'fn [] ~@exprs))))
+
+  (defmacro run-all-tests []
+    `(~'do ~@(map #(list %) @fir-unit-tests)))
+#+end_src
+
 ** Native
 *** defnative
 

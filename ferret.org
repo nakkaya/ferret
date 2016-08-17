@@ -4738,7 +4738,7 @@ Compiled programs are run through /valgrind/ with following options,
 
 *** Control
     :PROPERTIES:
-    :noweb-ref: pid-controller-test
+    :noweb-ref: control-test
     :END:
 
 #+begin_src clojure :tangle no
@@ -4774,149 +4774,110 @@ Compiled programs are run through /valgrind/ with following options,
 
       (is (= 10 (controller 0)))
       (is (= 5 (controller 0)))))
+
+  (deftest state-machine-test
+    (let [state (atom 0)
+          machine (state-machine
+                   (states
+                    (off (swap! state inc))
+                    (on  (swap! state inc)))
+                   (transitions
+                    (off
+                     (fn [] true) on)
+                    (on
+                     (fn [] true) off)))]
+      (dotimes [_ 10]
+        (machine))
+      (is (= 10 (deref state))))
+
+    (let [state (atom 0)
+          machine (state-machine
+                   (states
+                    (a (swap! state inc))
+                    (b (swap! state inc))
+                    (c (swap! state inc))
+                    (no-op (swap! state inc)))
+                   (transitions
+                    (a
+                     (fn [] false) no-op
+                     (fn [] true) b)
+                    (b
+                     (fn [] true) c)
+                    (c
+                     (fn [] false) no-op
+                     (fn [] false) no-op
+                     (fn [] true) a
+                     (fn [] false) no-op)))]
+      (dotimes [_ 10]
+        (machine))
+      (is (= 10 (deref state))))
+
+    (let [state (atom nil)
+          machine (state-machine
+                   (states
+                    (a (swap! state conj 1))
+                    (b (swap! state conj 2))
+                    (c (swap! state conj 3))
+                    (no-op ))
+                   (transitions
+                    (a
+                     (fn [] true) b
+                     (fn [] true) c
+                     (fn [] true) no-op)
+                    (b (fn [] true) no-op)
+                    (c (fn [] true) no-op)
+                    (no-op (fn [] true) no-op)))]
+      (dotimes [_ 50]
+        (machine))
+      (is (= (list 2 1) (deref state)))))
+#+end_src
+
+*** Threading
+    :PROPERTIES:
+    :noweb-ref: threading-test
+    :END:
+
+#+begin_src clojure :tangle no
+  (deftest threading-test
+    (let [state (atom nil)
+          add-wait (fn [time item]
+                     (fn []
+                       (sleep time)
+                       (swap! state conj item)))]
+      (thread (add-wait 10 1))
+      (thread (add-wait 20 2))
+      (sleep 30)
+      (is (= (list 2 1) (deref state)))))
+
+  (deftest timing-test
+    (let [now (millis)]
+      (sleep 100)
+      (is (>= (- (millis) now) 100)))
+    (is (>= (time-fn (fn [] (sleep 100) (+ 1 1))) 100))
+    (is (>= (benchmark (fn [] (sleep 10) (+ 1 1)) 10) 10)))
+
+  (defn ping [] true)
+
+  (deftest fn-throttler-test
+    (let [throttled-ping (fn-throttler ping 1 :second :blocking)
+          begin (millis)]
+      (throttled-ping)
+      (throttled-ping)
+      (throttled-ping)
+      (is (> (- (millis) begin) 2000))
+      (is (throttled-ping)))
+
+
+    (let [throttled-ping (fn-throttler ping 1 :second :non-blocking)
+          begin (millis)]
+      (throttled-ping)
+      (throttled-ping)
+      (throttled-ping)
+      (is (nil? (throttled-ping)))
+      (is (< (- (millis) begin) 1000))))
 #+end_src
 
 *** Misc
-
-#+begin_src clojure
-  (deftest compiler-program-main
-    (compare-output "(./a.out)" (print *command-line-args*))
-    (compare-output
-     "Hello World"
-     (configure-runtime! FERRET_PROGRAM_MAIN greet)
-     (defn hello []
-       (print "Hello World"))
-     (def greet hello)))
-#+end_src
-
-#+begin_src clojure :tangle no
-  (deftest thread-test
-    (compare-output
-     "12"
-     (defn print-some [y x]
-       (fn []
-         (sleep y)
-         (print x)))
-     (thread (print-some 10 "1"))
-     (thread (print-some 20 "2"))
-     (sleep 50)))
-#+end_src
-
-#+begin_src clojure :tangle no
-  (deftest timing-operations-test
-    (compare-output
-     "true true true"
-     (let [now (millis)]
-       (sleep 100)
-       (print (>= (- (millis) now) 100)))
-     (print " ")
-     (print (>= (time-fn (fn []
-                           (sleep 100)
-                           (+ 1 1)))
-                100))
-     (print " ")
-     (print (>= (benchmark (fn []
-                             (sleep 10)
-                             (+ 1 1)) 10)
-                10))))
-#+end_src
-
-#+begin_src clojure :tangle no
-  (deftest fn-throttler-test
-    (compare-output
-     "true true nil true"
-     (defn ping [] true)
-
-     (let [throttled-ping (fn-throttler ping 1 :second :blocking)
-           begin (millis)]
-       (throttled-ping)
-       (throttled-ping)
-       (throttled-ping)
-       (print (> (- (millis) begin) 2000))
-       (print " ")
-       (print (throttled-ping)))
-
-     (let [throttled-ping (fn-throttler ping 1 :second :non-blocking)
-           begin (millis)]
-       (throttled-ping)
-       (throttled-ping)
-       (throttled-ping)
-       (print " ")
-       (print (throttled-ping))
-       (print " ")
-       (print (< (- (millis) begin) 1000)))))
-#+end_src
-
-#+begin_src clojure :tangle no
-  (deftest state-machine-test
-    (compare-output
-     "10 0 10 ab"
-     (def state (atom 0))
-     
-     (def two-state-machine
-       (state-machine
-        (states
-         (off (swap! state inc))
-         (on (swap! state inc)))
-        (transitions
-         (off
-          (fn [] true) on)
-         (on
-          (fn [] true) off))))
-     
-     (dotimes [_ 10]
-       (two-state-machine))
-     
-     (print (deref state))
-     (print " ")
-     (reset! state 0)
-     (print (deref state))
-     
-     (def three-state-machine
-       (state-machine
-        (states
-         (a (swap! state inc))
-         (b (swap! state inc))
-         (c (swap! state inc))
-         (no-op (swap! state inc)))
-        (transitions
-         (a
-          (fn [] false) no-op
-          (fn [] true) b)
-         (b
-          (fn [] true) c)
-         (c
-          (fn [] false) no-op
-          (fn [] false) no-op
-          (fn [] true) a
-          (fn [] false) no-op))))
-     
-     (dotimes [_ 10]
-       (three-state-machine))
-     
-     (print " ")
-     (print (deref state))
-
-     (print " ")
-     (def default-argument-test-state-machine
-       (state-machine
-        (states
-         (a (print "a"))
-         (b (print "b"))
-         (c (print "c"))
-         (no-op ))
-        (transitions
-         (a
-          (fn [] true) b
-          (fn [] true) c
-          (fn [] true) no-op)
-         (b (fn [] true) no-op)
-         (c (fn [] true) no-op)
-         (no-op (fn [] true) no-op))))
-
-     (dotimes [_ 50]
-       (default-argument-test-state-machine))))
-#+end_src
 
 #+begin_src clojure :tangle no
   (deftest xor-stream-test
@@ -4958,12 +4919,20 @@ Compiled programs are run through /valgrind/ with following options,
        (xor-run-decoder (get-buffer))
        (xor-run-decoder (drop 3 (get-buffer)))
        (xor-run-decoder (list)))))
-#+end_src
-
+ #+end_src
+ 
 *** Special Forms
 
 #+begin_src clojure
   (deftest compiler-special-forms
+    (compare-output "1 3" (print @(atom 1)) (print " ") (print (#(+ 1 2))))
+    (compare-output "(./a.out)" (print *command-line-args*))
+    (compare-output
+     "Hello World"
+     (configure-runtime! FERRET_PROGRAM_MAIN greet)
+     (defn hello []
+       (print "Hello World"))
+     (def greet hello))
     (compare-output
      "10 89 11 3 1 5 5 1111111111"
 
@@ -5983,7 +5952,8 @@ Create some dummy libs under /test/modules/,
   <<conditionals-test>>
   <<logical-operators-test>>
   <<math-test>>
-  <<pid-controller-test>>
+  <<control-test>>
+  <<threading-test>>
 
   (run-all-tests)
 #+end_src

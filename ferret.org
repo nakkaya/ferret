@@ -4581,104 +4581,31 @@ Compiled programs are run through /valgrind/ with following options,
  - *--error-exitcode=1*
 
 ** Core
-*** Special Forms
-
-#+begin_src clojure
-  (deftest compiler-special-forms
-    (compare-output
-     "10 89 11 3 1 5 5 1111111111"
-
-     (def make-adder
-       (fn [n]
-         (fn [x] (+ x n))))
-     
-     (def adder
-       (make-adder 1))
-
-     (def fibo
-       (fn [n]
-         (if (< n 2)
-           1
-           (+ (fibo (- n 1))
-              (fibo (- n 2))))))
-
-     (def adder-let
-       (let [a 1
-             b 2]
-         (fn [n]
-           (+ a b n))))
-
-     (def adder-let-2
-       (fn [n]
-         (let [a 1
-               b 2]
-           (+ a b n))))
-
-     (native-declare "int i = 0;")
-     (defn inc-int []
-       "__result =  obj<Number>(i++);")
-     
-     (print (adder 9)
-            (fibo 10)
-            ((fn [n] (+ n 1)) 10)
-            (((fn [n] (fn [n] n)) 3) 3)
-            (if (< 2 3 4 5 6)
-              (do 1)
-              (do 2))
-            (adder-let 2)
-            (adder-let-2 2))
-     
-     (print " ")
-     (while (< (inc-int) 10)
-       (print 1)))
-
-    (compare-output
-     "1 21 21 21 2"
-     (let [a 1
-           b 2]
-       (+ 1 a)
-       (+ b a)
-       (print a b)
-       (* 2 a)
-       (* b a)
-       (print a b)
-       (/ 2 a)
-       (/ b a)
-       (print a b)
-       (- 2 a)
-       (- b a)
-       (print a b)))
-
-    (compare-output
-     "1234 (1 2 3 4)(1 2 3 4)"
-     (def print-list
-       (fn [t] "for(auto c : runtime::range(t))
-                 c.stream_console();"))
-     (print-list (list 1 2 3 4))
-     (print " ")
-     (print-list (list (list 1 2 3 4) (list 1 2 3 4)))))
-#+end_src
-
 *** Conditionals
+    :PROPERTIES:
+    :noweb-ref: conditionals-test
+    :END:
 
 #+begin_src clojure
-  (deftest clojure-core-conditionals
-    (compare-output
-     "2 1 -1 2 2 2 1 2 nil 5"
-     (print (if 1 2)
-            (if (zero? 0) 1 -1)
-            (if (zero? 1) 1 -1)
-            (when true 2)
-            (when (integer? 2) 2)
-            (cond (float? 2.1) 2
-                  (integer? 2) 4
-                  true 1)
-            (cond (float? 2) 2.1
-                  (integer? 2.1) 4
-                  true 1)
-            (if nil 1 2)
-            (if-let [a nil] a)
-            (if-let [a 5] a))))
+  (deftest conditionals-test
+    (is (= 2   (if 1 2)))
+    (is (= 1   (if (zero? 0) 1 -1)))
+    (is (= -1  (if (zero? 1) 1 -1)))
+    (is (= 2   (when true 2)))
+    (is (= 2   (when (integer? 2) 2)))
+    (is (= 2   (cond (float? 2.1) 2 (integer? 2) 4 true 1)))
+    (is (= 1   (cond (float? 2) 2.1 (integer? 2.1) 4 true 1)))
+    (is (= 2   (if nil 1 2)))
+    (is (= nil (if-let [a nil] a)))
+    (is (= 5   (if-let [a 5] a)))
+
+    (is (= 1     (when (< 2 3) 1)))
+    (is (= true  (let [a 1] (and (> a 0) (< a 10)))))
+    (is (= false (let [a 11] (and (> a 0) (< a 10)))))
+    (is (= true  (and true true)))
+    (is (= false (and true false)))
+    (is (= true  (or true false)))
+    (is (= false (or false false))))
 #+end_src
 
 *** Logical Operators
@@ -4807,6 +4734,46 @@ Compiled programs are run through /valgrind/ with following options,
     (is (= 16 (bit-shift-left 4 2)))
     (is (= 2  (bit-shift-right 4 1)))
     (is (= 1  (bit-shift-right 4 2))))
+#+end_src
+
+*** Control
+    :PROPERTIES:
+    :noweb-ref: pid-controller-test
+    :END:
+
+#+begin_src clojure :tangle no
+  (deftest pid-controller-test
+    (let [controller (pid-controller :kp 1
+                                     :ki 0
+                                     :kd 0
+                                     :set-point 5
+                                     :bounds [0 10 0 10]
+                                     :continuous false)]
+
+      (is (= 5 (controller 0)))
+      (is (= 5 (controller 0))))
+
+    (let [controller (pid-controller :kp 1
+                                     :ki 1
+                                     :kd 0
+                                     :set-point 5
+                                     :bounds [0 10 0 20]
+                                     :continuous false)]
+
+      (is (= 10 (controller 0)))
+      (is (= 15 (controller 0)))
+      (is (= 20 (controller 0)))
+      (is (= 20 (controller 0))))
+
+    (let [controller (pid-controller :kp 1
+                                     :ki 0
+                                     :kd 1
+                                     :set-point 5
+                                     :bounds [0 10 0 20]
+                                     :continuous false)]
+
+      (is (= 10 (controller 0)))
+      (is (= 5 (controller 0)))))
 #+end_src
 
 *** Misc
@@ -4993,136 +4960,132 @@ Compiled programs are run through /valgrind/ with following options,
        (xor-run-decoder (list)))))
 #+end_src
 
-*** Testing
-
-#+begin_src clojure :tangle no
-  (deftest testing-assert
-    (compare-output "false"
-                    (assert true (print "true"))
-                    (assert false (print "false")))
-    (compare-output "false"
-                    (assert (= 2 2) (print "true"))
-                    (assert (= 2 3) (print "false")))
-    (compare-output "false"
-                    (let [a 1 b 2]
-                      (assert (= a a) (print "true"))
-                      (assert (= a b) (print "false"))))
-    (compare-output "CB"
-                    (assert true (print "true"))
-                    (assert false (print "CB")))
-    (compare-output "CB"
-                    (assert (= 2 2) (print "true"))
-                    (assert (= 2 3) (print "CB")))
-    (compare-output "CB"
-                    (let [a 1 b 2]
-                      (assert (= a a) (print "true"))
-                      (assert (= a b) (print "CB"))))
-    (is (= "assert" (capture-output '((assert (= 2 1) (print "assert"))) {:release false})))
-    (is (= "" (capture-output '((assert (= 2 1) (print "assert"))) {:release true}))))
-#+end_src
-
-#+begin_src clojure :tangle no
-  (deftest testing-unit-test
-    (compare-output (str "FAIL => (= 2 3)\nFAIL => false\nFAIL => (= 5 (apply + (list 1 2 3)))\n"
-                         "FAIL => (= 3 (some-fn))\n")
-                    (deftest some-test
-                      (is (= 2 3))
-                      (is (= 2 2))
-                      (is false)
-                      (is true))
-
-                    (defn some-fn [] 2)
-                    
-                    (deftest some-other-test
-                      (is (= 5 (apply + (list 1 2 3))))
-                      (is (= 6 (apply + (list 1 2 3))))
-                      (is (= 3 (some-fn)))
-                      (is (= 2 (some-fn))))
-
-                    (run-all-tests)))
-#+end_src
-
-*** Control
-    :PROPERTIES:
-    :noweb-ref: pid-controller-test
-    :END:
-
-#+begin_src clojure :tangle no
-  (deftest pid-controller-test
-    (let [controller (pid-controller :kp 1
-                                     :ki 0
-                                     :kd 0
-                                     :set-point 5
-                                     :bounds [0 10 0 10]
-                                     :continuous false)]
-
-      (is (= 5 (controller 0)))
-      (is (= 5 (controller 0))))
-
-    (let [controller (pid-controller :kp 1
-                                     :ki 1
-                                     :kd 0
-                                     :set-point 5
-                                     :bounds [0 10 0 20]
-                                     :continuous false)]
-
-      (is (= 10 (controller 0)))
-      (is (= 15 (controller 0)))
-      (is (= 20 (controller 0)))
-      (is (= 20 (controller 0))))
-
-    (let [controller (pid-controller :kp 1
-                                     :ki 0
-                                     :kd 1
-                                     :set-point 5
-                                     :bounds [0 10 0 20]
-                                     :continuous false)]
-
-      (is (= 10 (controller 0)))
-      (is (= 5 (controller 0)))))
-#+end_src
-
-*** Macros
+*** Special Forms
 
 #+begin_src clojure
-  (deftest compiler-macro
+  (deftest compiler-special-forms
     (compare-output
-     "1 1 1 true false true true true (3 3)012343 5"
-     (defmacro my-when [test & body]
-       `(~'if ~test (~'do ~@body)))
+     "10 89 11 3 1 5 5 1111111111"
 
-     (defmacro some-list [a]
-       (let [a (inc a)]
-         `(~'list ~a ~a)))
+     (def make-adder
+       (fn [n]
+         (fn [x] (+ x n))))
      
-     (print (my-when (< 2 3) 1)
-            (when (< 2 3) 1)
-            (when (< 2 3) 1)
-            (let [a 1]  (and (> a 0) (< a 10)))
-            (let [a 11] (and (> a 0) (< a 10)))
-            (and true true)
-            (or true false)
-            (let [a 11] (or (> a 0) (< a 10)))
-            (some-list 2))
-     
-     (dotimes [i 5] (print i))
-     (let [a 1]
-       (defn adder [x]
-         (+ a x)))
-     (defn my-inc [x] (+ 1 (adder x)))
-     (print (my-inc 1))
+     (def adder
+       (make-adder 1))
 
+     (def fibo
+       (fn [n]
+         (if (< n 2)
+           1
+           (+ (fibo (- n 1))
+              (fibo (- n 2))))))
+
+     (def adder-let
+       (let [a 1
+             b 2]
+         (fn [n]
+           (+ a b n))))
+
+     (def adder-let-2
+       (fn [n]
+         (let [a 1
+               b 2]
+           (+ a b n))))
+
+     (native-declare "int i = 0;")
+     (defn inc-int []
+       "__result =  obj<Number>(i++);")
+     
+     (print (adder 9)
+            (fibo 10)
+            ((fn [n] (+ n 1)) 10)
+            (((fn [n] (fn [n] n)) 3) 3)
+            (if (< 2 3 4 5 6)
+              (do 1)
+              (do 2))
+            (adder-let 2)
+            (adder-let-2 2))
+     
      (print " ")
-     (let [x 2
-           y (->> x (+ 1) (+ 2))]
-       (print y))))
+     (while (< (inc-int) 10)
+       (print 1)))
+
+    (compare-output
+     "1 21 21 21 2"
+     (let [a 1
+           b 2]
+       (+ 1 a)
+       (+ b a)
+       (print a b)
+       (* 2 a)
+       (* b a)
+       (print a b)
+       (/ 2 a)
+       (/ b a)
+       (print a b)
+       (- 2 a)
+       (- b a)
+       (print a b)))
+
+    (compare-output
+     "1234 (1 2 3 4)(1 2 3 4)"
+     (def print-list
+       (fn [t] "for(auto c : runtime::range(t))
+                 c.stream_console();"))
+     (print-list (list 1 2 3 4))
+     (print " ")
+     (print-list (list (list 1 2 3 4) (list 1 2 3 4)))))
 #+end_src
 
-*** Reader Macros
+*** Destructuring
 
 #+begin_src clojure :tangle no
-  (deftest compiler-reader-macro
-    (compare-output "1 3" (print @(atom 1)) (print " ") (print (#(+ 1 2)))))
+  (deftest compiler-destructure
+    (is (= "(1 2 3) 2 3 ((1 2 3)) 1 2 (3 4) 1 2 4 (5) (3) 1 2 3 3 3 5 1 2 3 nil nil nil"
+           (capture-output '((defn destructure-test-1 [[a b c]]
+                               (list a b c))
+                             (defn destructure-test-2 [[a [b] c]]
+                               b)
+                             (defn destructure-test-3 [[a [_ b] c]]
+                               b)
+                             (defn destructure-test-4 [& a]
+                               a)
+                             (defn destructure-test-5 []
+                               (let [[a b c] (list 1 2 3)]
+                                 (print a b c)))
+                             (defn destructure-test-6 []
+                               (let [[_ _ a] (list 1 2 3)]
+                                 (print a)))
+                             (print (destructure-test-1 (list 1 2 3))
+                                    (destructure-test-2 (list 1 (list 2) 3))
+                                    (destructure-test-3 (list 1 (list 2 3) 3))
+                                    (destructure-test-4 (list 1 2 3)))
+                             (print " ")
+                             (let [a (list 1 2 3 4)
+                                   [b c & r] a]
+
+                               (print b c r))
+                             (let [a 1 b 2
+                                   [c & r] (list 4 5)]
+                               (print " ")
+                               (print a b c r))
+                             (let [[a & r] (list 1 2 3)
+                                   rr (rest r)]
+                               (print " ")
+                               (print rr))
+                             (print " ")
+                             (destructure-test-5)
+                             (print " ")
+                             (destructure-test-6)
+                             (print " ")
+                             (let [[_ _ a] (list 1 2 3)
+                                   [_ b] (list 4 5 6)]
+                               (print a b))
+                             (print " ")
+                             (let [a (list 1 2 3)
+                                   [b c d e f g] a]
+                               (print b c d e f g)))))))
 #+end_src
 
 *** Module System
@@ -5232,54 +5195,53 @@ Create some dummy libs under /test/modules/,
     `(~'fn [] 11))
 #+end_src 
 
-*** Destructuring
+*** Testing
 
 #+begin_src clojure :tangle no
-  (deftest compiler-destructure
-    (is (= "(1 2 3) 2 3 ((1 2 3)) 1 2 (3 4) 1 2 4 (5) (3) 1 2 3 3 3 5 1 2 3 nil nil nil"
-           (capture-output '((defn destructure-test-1 [[a b c]]
-                               (list a b c))
-                             (defn destructure-test-2 [[a [b] c]]
-                               b)
-                             (defn destructure-test-3 [[a [_ b] c]]
-                               b)
-                             (defn destructure-test-4 [& a]
-                               a)
-                             (defn destructure-test-5 []
-                               (let [[a b c] (list 1 2 3)]
-                                 (print a b c)))
-                             (defn destructure-test-6 []
-                               (let [[_ _ a] (list 1 2 3)]
-                                 (print a)))
-                             (print (destructure-test-1 (list 1 2 3))
-                                    (destructure-test-2 (list 1 (list 2) 3))
-                                    (destructure-test-3 (list 1 (list 2 3) 3))
-                                    (destructure-test-4 (list 1 2 3)))
-                             (print " ")
-                             (let [a (list 1 2 3 4)
-                                   [b c & r] a]
+  (deftest testing-assert
+    (compare-output "false"
+                    (assert true (print "true"))
+                    (assert false (print "false")))
+    (compare-output "false"
+                    (assert (= 2 2) (print "true"))
+                    (assert (= 2 3) (print "false")))
+    (compare-output "false"
+                    (let [a 1 b 2]
+                      (assert (= a a) (print "true"))
+                      (assert (= a b) (print "false"))))
+    (compare-output "CB"
+                    (assert true (print "true"))
+                    (assert false (print "CB")))
+    (compare-output "CB"
+                    (assert (= 2 2) (print "true"))
+                    (assert (= 2 3) (print "CB")))
+    (compare-output "CB"
+                    (let [a 1 b 2]
+                      (assert (= a a) (print "true"))
+                      (assert (= a b) (print "CB"))))
+    (is (= "assert" (capture-output '((assert (= 2 1) (print "assert"))) {:release false})))
+    (is (= "" (capture-output '((assert (= 2 1) (print "assert"))) {:release true}))))
+#+end_src
 
-                               (print b c r))
-                             (let [a 1 b 2
-                                   [c & r] (list 4 5)]
-                               (print " ")
-                               (print a b c r))
-                             (let [[a & r] (list 1 2 3)
-                                   rr (rest r)]
-                               (print " ")
-                               (print rr))
-                             (print " ")
-                             (destructure-test-5)
-                             (print " ")
-                             (destructure-test-6)
-                             (print " ")
-                             (let [[_ _ a] (list 1 2 3)
-                                   [_ b] (list 4 5 6)]
-                               (print a b))
-                             (print " ")
-                             (let [a (list 1 2 3)
-                                   [b c d e f g] a]
-                               (print b c d e f g)))))))
+#+begin_src clojure :tangle no
+  (deftest testing-unit-test
+    (compare-output (str "FAIL => (= 2 3)\nFAIL => false\nFAIL => (= 5 (apply + (list 1 2 3)))\n"
+                         "FAIL => (= 3 (some-fn))\n")
+                    (deftest some-test
+                      (is (= 2 3))
+                      (is (= 2 2))
+                      (is false)
+                      (is true))
+
+                    (defn some-fn [] 2)
+                    
+                    (deftest some-other-test
+                      (is (= 5 (apply + (list 1 2 3))))
+                      (is (= 6 (apply + (list 1 2 3))))
+                      (is (= 3 (some-fn)))
+                      (is (= 2 (some-fn))))
+
+                    (run-all-tests)))
 #+end_src
 
 ** Data Structures
@@ -6018,8 +5980,9 @@ Create some dummy libs under /test/modules/,
   <<atom-test>>
   <<keyword-test>>
   <<string-test>>
-  <<math-test>>
+  <<conditionals-test>>
   <<logical-operators-test>>
+  <<math-test>>
   <<pid-controller-test>>
 
   (run-all-tests)

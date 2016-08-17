@@ -4066,53 +4066,25 @@ DSL,
 #+end_src
 
 Each transition takes a list of /fn/ /state/ pairs first function that
-returns true returns the next state.
+returns true, returns the next state.
 
 #+name: runtime-clojure-state-machine
 #+begin_src clojure :tangle no
-  (defmacro state-machine [states transitions]
-    (let [transitions
-          (->> transitions
-               rest
-               (map (fn [x]
-                      (let [[state & states] x
-                            states (->> (partition 2 states)
-                                        (map #(list (list (first %)) (second %))))
-                            states (->> (clojure.core.protocols/coll-reduce
-                                         states (fn [h v]
-                                                  (conj h (second v) (first v))) (list))
-                                        (cons 'cond))]
-                        [(list '= 'state state) (concat states [true state])]))))
-          start-state (-> transitions first first last)
-          transitions (clojure.core.protocols/coll-reduce
-                       transitions (fn [h v] (conj h (first v) (second v))) ['cond])
-          states (->> (rest states)
-                      (map (fn [x]
-                             [(first x)
-                              (->> (rest x)
-                                   (cons [])
-                                   (cons 'fn*))])))
-          states (clojure.core.protocols/coll-reduce
-                  states (fn [h v]
-                           (conj h (first v) (second v))) [])
-          state-names (->> states
-                           (partition 2)
-                           (map first))
-          state-symbols (->> states
-                             (partition 2)
-                             (map second))
-          func (list 'fn (into [] state-names)
-                     (list
-                      (list 'fn ['ferret-machine-state]
-                            `~(list 'fn* []
-                                    (list
-                                     (list 'fn* []
-                                           `~(list 'swap! 'ferret-machine-state
-                                                   (list 'fn* ['state]
-                                                         (list 'state)
-                                                         `(~@transitions)))))))
-                      (list 'atom start-state)))]
-      (cons func state-symbols)))
+  (defmacro state-machine [[_ & states] [_ & transitions]]
+    (let [transitions (reduce
+                       (fn [h v]
+                         (let [[state & conds] v
+                               conds (->> (partition 2 conds)
+                                          (reduce (fn [h v]
+                                                    (conj h `(~(first v)) (second v)))
+                                                  ['cond]))]
+                           (conj h (list '= 'state state) (concat conds [true state]))))
+                       ['cond] transitions)]
+      `(let [~@(reduce (fn [h v] (conj h (first v) `(~'fn [] ~@(rest v)))) [] states)
+             machine-state# (~'atom ~(-> states first first))]
+         (~'fn []
+           ((~'deref machine-state#))
+           (~'swap! machine-state# (~'fn [~'state] (~@transitions)))))))
 #+end_src
 
 *** PID Control
@@ -4922,7 +4894,7 @@ Compiled programs are run through /valgrind/ with following options,
 #+begin_src clojure :tangle no
   (deftest state-machine-test
     (compare-output
-     "10 0 10"
+     "10 0 10 ab"
      (def state (atom 0))
      
      (def two-state-machine
@@ -4943,7 +4915,7 @@ Compiled programs are run through /valgrind/ with following options,
      (print " ")
      (reset! state 0)
      (print (deref state))
-
+     
      (def three-state-machine
        (state-machine
         (states
@@ -4967,7 +4939,27 @@ Compiled programs are run through /valgrind/ with following options,
        (three-state-machine))
      
      (print " ")
-     (print (deref state))))
+     (print (deref state))
+
+     (print " ")
+     (def default-argument-test-state-machine
+       (state-machine
+        (states
+         (a (print "a"))
+         (b (print "b"))
+         (c (print "c"))
+         (no-op ))
+        (transitions
+         (a
+          (fn [] true) b
+          (fn [] true) c
+          (fn [] true) no-op)
+         (b (fn [] true) no-op)
+         (c (fn [] true) no-op)
+         (no-op (fn [] true) no-op))))
+
+     (dotimes [_ 50]
+       (default-argument-test-state-machine))))
 #+end_src
 
 #+begin_src clojure :tangle no

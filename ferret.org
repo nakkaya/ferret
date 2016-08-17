@@ -4630,118 +4630,7 @@ Compiled programs are run through /valgrind/ with following options,
      
      (print " ")
      (while (< (inc-int) 10)
-       (print 1))))
-#+end_src
-
-*** Conditionals
-
-#+begin_src clojure
-  (deftest clojure-core-conditionals
-    (compare-output
-     "false false true" (print (= nil 1) (= 1 nil) (= nil nil)))
-
-    (compare-output
-     "2 1 -1 2 2 2 1 2 nil 5"
-     (print (if 1 2)
-            (if (zero? 0) 1 -1)
-            (if (zero? 1) 1 -1)
-            (when true 2)
-            (when (integer? 2) 2)
-            (cond (float? 2.1) 2
-                  (integer? 2) 4
-                  true 1)
-            (cond (float? 2) 2.1
-                  (integer? 2.1) 4
-                  true 1)
-            (if nil 1 2)
-            (if-let [a nil] a)
-            (if-let [a 5] a)))
-    
-    (compare-output
-     "true false false true"
-     (print (true? true) (true? false) (false? true) (false? false))))
-#+end_src
-
-*** Logical Operators
-
-#+begin_src clojure
-  (deftest clojure-core-logical-operators
-    (compare-output
-     "true true false true false true true true false true true false true false true true"
-     (print (< 2)
-            (< 2 3 4 5)
-            (< 2 3 6 5)
-            (> 2)
-            (> 2 3 4 5)
-            (> 6 5 4 3)
-            (>= 2)
-            (>= 5 4 3 2 2 2)
-            (>= 5 1 3 2 2 2)
-            (<= 2)
-            (<= 2 2 3 4 5)
-            (<= 2 2 1 3 4)
-            (= 2)
-            (= 2 3)
-            (= 2 2 2 2)
-            (= 2 2.0 2)))
-
-    (compare-output
-     "false true false true false falsetrue false true true"
-     (print (= 2 2 2 2 3 5)
-            (= (list 1 2) (list 1 2))
-            (= (list 1 2) (list 1 3))
-            (= true true)
-            (not (= true true))
-            (not 1))
-     (let [a (fn [x] (+ 1 x))
-           b (fn [x] (inc x))]
-       (print (= a a)
-              (= a b)
-              (= nil ((fn [] )))
-              (= nil ((fn [x y] ) 1 2))))))
-#+end_src
-
-*** Math
-
-#+begin_src clojure :tangle no
-  (deftest clojure-core-arithmetic
-    (compare-output
-     "3/5 0 1 10 10 -1 0 0 1 8 8 1 1/2 1 1 1 1 1 0 0 1 1"
-     (print (+ 0.3 0.3)
-            (+ )
-            (+ 1)
-            (+ 1 2 3 4)
-            (+ 1 2.0 3 4)
-            (- 1)
-            (- 4 2 2)
-            (- 4 2 2.0)
-            (* )
-            (* 2 2 2)
-            (* 2.0 2 2)
-            (/ 1)
-            (/ 2)
-            (/ 4 2 2)
-            (/ 4 2 2.0)
-            (floor 1.1)
-            (floor 1.5)
-            (floor 1.9)
-            (mod 2 2)
-            (mod 4 2)
-            (mod 5 2)
-            (mod 8 7)))
-    
-    (compare-output
-     "true true false false true true false true true true"
-     (print (pos? 1)
-            (pos? 0.2)
-            (pos? 0)
-            (neg? 1)
-            (neg? -1)
-            (zero? 0)
-            (zero? 10)
-            (zero? (- 1 1))
-            (zero? (- 1.2 1.2))
-            (zero? (+ 1.2 -1.2))))
+       (print 1)))
 
     (compare-output
      "1 21 21 21 2"
@@ -4758,37 +4647,166 @@ Compiled programs are run through /valgrind/ with following options,
        (print a b)
        (- 2 a)
        (- b a)
-       (print a b))))
+       (print a b)))
+
+    (compare-output
+     "1234 (1 2 3 4)(1 2 3 4)"
+     (def print-list
+       (fn [t] "for(auto c : runtime::range(t))
+                 c.stream_console();"))
+     (print-list (list 1 2 3 4))
+     (print " ")
+     (print-list (list (list 1 2 3 4) (list 1 2 3 4)))))
 #+end_src
 
-#+begin_src clojure :tangle no
-  (deftest clojure-core-math
-    (compare-output
-     "1 1 1 1 2 7"
-     (print (min 1)
-            (min 2 1)
-            (min 3 5 7 1)
-            (max 1)
-            (max 2 1)
-            (max 3 5 7 1)))
-    
-    (compare-output
-     "100 50 0 5 10 0 -10"
-     (print (scale 10 0 10 0 100)
-            (scale 5 0 10 0 100)
-            (scale 0 0 10 0 100)
-            (clamp 10 0 5)
-            (clamp 10 0 20)
-            (clamp 10 -10 0)
-            (clamp -100 -10 0)))
+*** Conditionals
 
+#+begin_src clojure
+  (deftest clojure-core-conditionals
     (compare-output
-     "0 512 1024 2048 32000"
-     (print (number-combine (number-split 0))
-            (number-combine (number-split 512))
-            (number-combine (number-split 1024))
-            (number-combine (number-split 2048))
-            (number-combine (number-split 32000)))))
+     "2 1 -1 2 2 2 1 2 nil 5"
+     (print (if 1 2)
+            (if (zero? 0) 1 -1)
+            (if (zero? 1) 1 -1)
+            (when true 2)
+            (when (integer? 2) 2)
+            (cond (float? 2.1) 2
+                  (integer? 2) 4
+                  true 1)
+            (cond (float? 2) 2.1
+                  (integer? 2.1) 4
+                  true 1)
+            (if nil 1 2)
+            (if-let [a nil] a)
+            (if-let [a 5] a))))
+#+end_src
+
+*** Logical Operators
+    :PROPERTIES:
+    :noweb-ref: logical-operators-test
+    :END:
+
+#+begin_src clojure
+  (deftest logical-operators-test
+    (is (= true  (< 2)))
+    (is (= true  (< 2 3 4 5)))
+    (is (= true  (> 2)))
+    (is (= false (> 2 3 4 5)))
+    (is (= true  (> 6 5 4 3)))
+    (is (= true  (>= 2)))
+    (is (= true  (>= 5 4 3 2 2 2)))
+    (is (= false (>= 5 1 3 2 2 2)))
+    (is (= true  (<= 2)))
+    (is (= true  (<= 2 2 3 4 5)))
+    (is (= false (<= 2 2 1 3 4)))
+    (is (= true  (= 2)))
+    (is (= false (= 2 3)))
+    (is (= true  (= 2 2 2 2)))
+    (is (= true  (= 2 2.0 2)))
+    (is (= false (= 2 2 2 2 3 5)))
+    (is (= true  (= (list 1 2) (list 1 2))))
+    (is (= false (= (list 1 2) (list 1 3))))
+    (is (= true  (= true true)))
+    (is (= false (not (= true true))))
+    (is (= false (not 1)))
+
+    (let [a (fn [x] (+ 1 x))
+          b (fn [x] (inc x))]
+      (is (= true  (= a a)))
+      (is (= false (= a b)))
+      (is (= true  (= nil ((fn [] )))))
+      (is (= true  (= nil ((fn [x y] ) 1 2)))))
+
+
+    (is (= true  (true? true)))
+    (is (= false (true? false)))
+    (is (= false (false? true)))
+    (is (= true  (false? false)))
+    (is (= false (= nil 1)))
+    (is (= false (= 1 nil)))
+    (is (= true  (= nil nil)))
+
+    (is (= true  (pos? 1)))
+    (is (= true  (pos? 0.2)))
+    (is (= false (pos? 0)))
+    (is (= false (neg? 1)))
+    (is (= true  (neg? -1)))
+    (is (= true  (zero? 0)))
+    (is (= false (zero? 10)))
+    (is (= true  (zero? (- 1 1))))
+    (is (= true  (zero? (- 1.2 1.2))))
+    (is (= true  (zero? (+ 1.2 -1.2)))))
+#+end_src
+
+*** Math
+    :PROPERTIES:
+    :noweb-ref: math-test
+    :END:
+
+#+begin_src clojure :tangle no
+  (deftest math-test
+    (is (= 0.6 (+ 0.3 0.3)))
+    (is (= 0   (+ )))
+    (is (= 1   (+ 1)))
+    (is (= 10  (+ 1 2 3 4)))
+    (is (= 10  (+ 1 2.0 3 4)))
+    (is (= -1  (- 1)))
+    (is (= 0   (- 4 2 2)))
+    (is (= 0   (- 4 2 2.0)))
+    (is (= 1   (* )))
+    (is (= 8   (* 2 2 2)))
+    (is (= 8   (* 2.0 2 2)))
+    (is (= 1   (/ 1)))
+    (is (= 0.5 (/ 2)))
+    (is (= 1   (/ 4 2 2)))
+    (is (= 1   (/ 4 2 2.0)))
+    
+    (is (= 1   (floor 1.1)))
+    (is (= 1   (floor 1.5)))
+    (is (= 1   (floor 1.9)))
+    (is (= 0   (mod 2 2)))
+    (is (= 0   (mod 4 2)))
+    (is (= 1   (mod 5 2)))
+    (is (= 1   (mod 8 7)))
+    (is (= 1   (min 1)))
+    (is (= 1   (min 2 1)))
+    (is (= 1   (min 3 5 7 1)))
+    (is (= 1   (max 1)))
+    (is (= 2   (max 2 1)))
+    (is (= 7   (max 3 5 7 1)))
+    
+    (is (= 100 (scale 10 0 10 0 100)))
+    (is (= 50  (scale 5 0 10 0 100)))
+    (is (= 0   (scale 0 0 10 0 100)))
+    (is (= 5   (clamp 10 0 5)))
+    (is (= 10  (clamp 10 0 20)))
+    (is (= 0   (clamp 10 -10 0)))
+    (is (= -10 (clamp -100 -10 0)))
+
+    (is (= 0     (number-combine (number-split 0))))
+    (is (= 512   (number-combine (number-split 512))))
+    (is (= 1024  (number-combine (number-split 1024))))
+    (is (= 2048  (number-combine (number-split 2048))))
+    (is (= 32000 (number-combine (number-split 32000))))
+
+    (is (= true (not (nil? (rand)))))
+    (is (= true (not (nil? (rand 15)))))
+    (is (= true (float? (rand))))
+    (is (= true (float? (rand 10))))
+    (is (= true (integer? (rand-int 10))))
+
+    (is (= -5 (bit-not  4)))
+    (is (= -1 (bit-not  0)))
+    (is (= 7  (bit-or   4 3)))
+    (is (= 1  (bit-or   0 1)))
+    (is (= 0  (bit-and  4 3)))
+    (is (= 0  (bit-and  0 1)))
+    (is (= 0  (bit-xor  4 4)))
+    (is (= 1  (bit-xor  1 0)))
+    (is (= 8  (bit-shift-left 4 1)))
+    (is (= 16 (bit-shift-left 4 2)))
+    (is (= 2  (bit-shift-right 4 1)))
+    (is (= 1  (bit-shift-right 4 2))))
 #+end_src
 
 *** Misc
@@ -4802,35 +4820,6 @@ Compiled programs are run through /valgrind/ with following options,
      (defn hello []
        (print "Hello World"))
      (def greet hello)))
-#+end_src
-
-#+begin_src clojure
-  (deftest random-numbers-test
-    (compare-output
-     "true true true true true"
-     (print (not (nil? (rand)))
-            (not (nil? (rand 15)))
-            (float? (rand))
-            (float? (rand 10))
-            (integer? (rand-int 10)))))
-#+end_src
-
-#+begin_src clojure :tangle no
-  (deftest bit-operations-test
-    (compare-output
-     "-5 -1 7 1 0 0 0 1 8 16 2 1"
-     (print (bit-not  4)
-            (bit-not  0)
-            (bit-or   4 3)
-            (bit-or   0 1)
-            (bit-and  4 3)
-            (bit-and  0 1)
-            (bit-xor  4 4)
-            (bit-xor  1 0)
-            (bit-shift-left 4 1)
-            (bit-shift-left 4 2)
-            (bit-shift-right 4 1)
-            (bit-shift-right 4 2))))
 #+end_src
 
 #+begin_src clojure :tangle no
@@ -5054,42 +5043,43 @@ Compiled programs are run through /valgrind/ with following options,
 #+end_src
 
 *** Control
+    :PROPERTIES:
+    :noweb-ref: pid-controller-test
+    :END:
 
 #+begin_src clojure :tangle no
   (deftest pid-controller-test
-    (compare-output
-     "5 5 10 15 20 20 10 5"
-     (let [controller (pid-controller :kp 1
-                                      :ki 0
-                                      :kd 0
-                                      :set-point 5
-                                      :bounds [0 10 0 10]
-                                      :continuous false)
-           resp1 (controller 0)
-           resp2 (controller 0)]
-       (print resp1 resp2))
-     (let [controller (pid-controller :kp 1
-                                      :ki 1
-                                      :kd 0
-                                      :set-point 5
-                                      :bounds [0 10 0 20]
-                                      :continuous false)
-           resp1 (controller 0)
-           resp2 (controller 0)
-           resp3 (controller 0)
-           resp4 (controller 0)]
-       (print " ")
-       (print resp1 resp2 resp3 resp4))
-     (let [controller (pid-controller :kp 1
-                                      :ki 0
-                                      :kd 1
-                                      :set-point 5
-                                      :bounds [0 10 0 20]
-                                      :continuous false)
-           resp1 (controller 0)
-           resp2 (controller 0)]
-       (print " ")
-       (print resp1 resp2))))
+    (let [controller (pid-controller :kp 1
+                                     :ki 0
+                                     :kd 0
+                                     :set-point 5
+                                     :bounds [0 10 0 10]
+                                     :continuous false)]
+
+      (is (= 5 (controller 0)))
+      (is (= 5 (controller 0))))
+
+    (let [controller (pid-controller :kp 1
+                                     :ki 1
+                                     :kd 0
+                                     :set-point 5
+                                     :bounds [0 10 0 20]
+                                     :continuous false)]
+
+      (is (= 10 (controller 0)))
+      (is (= 15 (controller 0)))
+      (is (= 20 (controller 0)))
+      (is (= 20 (controller 0))))
+
+    (let [controller (pid-controller :kp 1
+                                     :ki 0
+                                     :kd 1
+                                     :set-point 5
+                                     :bounds [0 10 0 20]
+                                     :continuous false)]
+
+      (is (= 10 (controller 0)))
+      (is (= 5 (controller 0)))))
 #+end_src
 
 *** Macros
@@ -5294,243 +5284,201 @@ Create some dummy libs under /test/modules/,
 
 ** Data Structures
 *** Sequence
+    :PROPERTIES:
+    :noweb-ref: sequence-test
+    :END:
 
 #+begin_src clojure :tangle no
-  (deftest native-core-sequences
-    (compare-output
-     "false false false false true false false"
-     (print (= (list )       (list 1 2 3))
-            (= (list )       (list nil))
-            (= (list 1 2 3)  (list 1 2))
-            (= (list 1 2)    (list 1 2 3))
-            (= (list 1 2 3)  (list 1 2 3))
-            (= (list 1 2 3)  (list 1 2 4))
-            (= (list 1 1 3)  (list 1 2 3))))
+  (deftest sequence-test
+    (is (= true  (= (list ) (list ))))
+    (is (= 0     (count (list ))))
+    (is (nil?    (first (rest (rest (list))))))
+    (is (= false (= (list )       (list 1 2 3))))
+    (is (= false (= (list )       (list nil))))
+    (is (= false (= (list 1 2 3)  (list 1 2))))
+    (is (= false (= (list 1 2)    (list 1 2 3))))
+    (is (= true  (= (list 1 2 3)  (list 1 2 3))))
+    (is (= false (= (list 1 2 3)  (list 1 2 4))))
+    (is (= false (= (list 1 1 3)  (list 1 2 3))))
+
+    (is (= (list )            (rest (list ))))
+    (is (= (list 1)           (cons 1 nil)))
+    (is (= (list nil)         (cons nil nil)))
+    (is (= 1                  (first (list 1 2 3 4))))
+    (is (= (list 2 3 4)       (rest (list 1 2 3 4))))
+    (is (= (list 3 4)         (rest (rest (list 1 2 3 4)))))
+    (is (= (list 3 3 4)       (cons 3 (rest (rest (list 1 2 3 4))))))
+    (is (= 3                  (first (cons 3 (rest (rest (list 1 2 3 4)))))))
+    (is (= 4                  (count (list 1 2 3 4))))
+    (is (= (list 4 3 2 1 1 2) (conj (list 1 2) 1 2 3 4)))
+    (is (= (list 4 3 2 1)     (conj nil 1 2 3 4)))
+    (is (= 21                 (reduce + (list 1 2 3 4 5 6))))
+    (is (= 21                 (apply + (list 1 2 3 4 5 6))))
+
+    (is (= 1   (nth (list 1 2 3) 0)))
+    (is (= 2   (nth (list 1 2 3) 1)))
+    (is (= 3   (nth (list 1 2 3) 2)))
+    (is (= nil (nth (list 1 2 3) 10)))
+    (is (= nil (nth (list 1 2 3) -10)))
     
-    (compare-output
-     "(1 2 3 4) 1 (2 3 4) (3 4) (3 3 4) 3 4 (4 3 2 1 1 2) (4 3 2 1) 21 21 (nil) (1) () nil 0"
-     (print (list 1 2 3 4)
-            (first (list 1 2 3 4))
-            (rest (list 1 2 3 4))
-            (rest (rest (list 1 2 3 4)))
-            (cons 3 (rest (rest (list 1 2 3 4))))
-            (first (cons 3 (rest (rest (list 1 2 3 4)))))
-            (count (list 1 2 3 4))
-            (conj (list 1 2) 1 2 3 4)
-            (conj nil 1 2 3 4)
-            (reduce + (list 1 2 3 4 5 6))
-            (apply + (list 1 2 3 4 5 6))
-            (cons nil nil)
-            (cons 1 nil)
-            (rest (list))
-            (first (rest (rest (list))))
-            (count (list ))))
+    (is (= (list 1 2 3 4) (drop 0 (list 1 2 3 4))))
+    (is (= (list 2 3 4)   (drop 1 (list 1 2 3 4))))
+    (is (= (list 3 4)     (drop 2 (list 1 2 3 4))))
+    (is (= (list )        (drop 4 (list 1 2 3 4))))
+    (is (= (list )        (drop 5 (list 1 2 3 4))))
+
+    (is (= (list 6 5 4 3 2 1) (reverse (list 1 2 3 4 5 6))))
+    (is (= (list 6 5 4 3 2)   (reduce (fn [h v] (conj h (inc v))) (list) (list 1 2 3 4 5))))
+    (is (= (list 4 3 2 1 0)   (reduce (fn [h v] (conj h (dec v))) (list) (list 1 2 3 4 5))))
+
     
-    (compare-output
-     "(6 5 4 3 2 1) (6 5 4 3 2) (4 3 2 1 0) true"
-     (print (reverse (list 1 2 3 4 5 6))
-            (reduce (fn [h v]
-                      (conj h (inc v)))
-                    (list) (list 1 2 3 4 5))
-            (reduce (fn [h v]
-                      (conj h (dec v)))
-                    (list) (list 1 2 3 4 5))
-            (= (list ) (list ))))
+    (is (= 1 (first (repeatedly 3 (fn [] 1)))))
+    (is (= 3 (count (repeatedly 3 (fn [] 1)))))
+    (is (= 2 (->> (repeatedly 3 (fn [] 1)) (map inc) first)))
+    (is (= 2 (->> (repeatedly (fn [] 1)) (take 3) (map inc) reverse first)))
     
-    (compare-output
-     "(1 2 3 4 5 6) (7 6 5 4 3 2) (1 7 6 5 4 3 2) true"
-     (let [l1 (list 1 2 3 4 5 6)
-           l2 (reduce (fn[h v]
-                        (conj h (inc v)))
-                      (list) l1)
-           l3 (cons 1 l2)]
-       (print l1 l2 l3 (empty? (rest nil)))))
-    
-    (compare-output
-     "(2 3 4) (0 1 2) (4 5 6) 3 (0 1 2 3 4) 5 (0 1 2 3 4 5 6 7 8 9) (2 3) (2 3 4) (1 2 3 4 5 6 7) 21 ()"
-     (print (map inc (list 1 2 3))
-            (map dec (list 1 2 3))
-            (map (fn [x] (+ 3 x)) (list 1 2 3))
-            (count (map inc (list 1 2 3)))
-            (range 5)
-            (count (range 5))
-            (range 0 10)
-            (take 2 (map inc (list 1 2 3)))
-            (take 20 (map inc (list 1 2 3)))
-            (concat (list 1 2 3) (list 4 5 6 7))
-            (reduce + (concat (list 1 2 3) (list 4 5 6)))
-            (concat)))
-    
-    (compare-output
-     "1 2 3 nil nil"
-     (print (nth (list 1 2 3) 0)
-            (nth (list 1 2 3) 1)
-            (nth (list 1 2 3) 2)
-            (nth (list 1 2 3) 10)
-            (nth (list 1 2 3) -10)))
-    
-    (compare-output
-     "(1 2 3 4) (2 3 4) (3 4) () ()"
-     (print (drop 0 (list 1 2 3 4))
-            (drop 1 (list 1 2 3 4))
-            (drop 2 (list 1 2 3 4))
-            (drop 4 (list 1 2 3 4))
-            (drop 5 (list 1 2 3 4))))
-
-    (compare-output
-     "(1 1 1) (2 2 2) (2 2 2)"
-     (print (repeatedly 3 (fn [] 1))
-            (->> (repeatedly 3 (fn [] 1))
-                 (map inc))
-            (->> (repeatedly (fn [] 1))
-                 (take 3)
-                 (map inc)
-                 reverse)))
-    
-    (compare-output
-     "(true true) (false false) (false false false) (true true)"
-     (print (filter true? (list true false true false))
-            (filter false? (list true false true false))
-            (filter false? (list true false true false false))
-            (filter (fn [x] (not (false? x))) (list true false true false false))))
-    
-    (compare-output
-     "1234 (1 2 3 4)(1 2 3 4)"
-     (def print-list
-       (fn [t] "for(auto c : runtime::range(t))
-                 c.stream_console();"))
-     (print-list (list 1 2 3 4))
-     (print " ")
-     (print-list (list (list 1 2 3 4) (list 1 2 3 4)))))
-#+end_src
-
-*** Lambda
-
-#+begin_src clojure
-  (deftest native-core-lambda
-    (compare-output
-     "true false true false 1 2 3 4"
-     (let [f1 (fn [])
-           f2 (fn [])
-           m-func (fn
-                    ([a] 1)
-                    ([a b] 2)
-                    ([a b & c] 3)
-                    ([a b [c d] & e] 4))]
-       (print (= f1 f1)
-              (= f1 f2)
-              (= f1 (do f1))
-              (= f2 (do f1)))
-       (print " ")
-       (print (m-func 1)
-              (m-func 1 2)
-              (m-func 1 2 3)
-              (m-func 1 2 (list 3 3) 4)))))
-#+end_src
-
-*** Pointer
-
-#+begin_src clojure
-  (deftest native-core-pointer
-    (compare-output
-     "true false true false false true Clean Up"
-     (let [a-gc-fn (fn [] (print " Clean Up"))
-           a-ptr (cxx "__result = obj<Pointer>(nullptr);")
-           a-heavy-ptr (cxx "__result = obj<HeavyPointer>(a_ptr,a_gc_fn);")
-           b-ptr (cxx "__result = obj<Pointer>(new int);")
-           b-gc-fn (fn [] "delete b_ptr.cast<Pointer>()->pointer<int>();")
-           b-heavy-ptr (cxx "__result = obj<HeavyPointer>(b_ptr,b_gc_fn);")]
-       (print (= a-ptr a-ptr)
-              (= a-ptr b-ptr)
-              (= a-heavy-ptr a-heavy-ptr)
-              (= a-heavy-ptr b-heavy-ptr)
-              (= b-heavy-ptr a-heavy-ptr)
-              (= b-heavy-ptr b-heavy-ptr)))))
-#+end_src
-
-*** Atom
-
-#+begin_src clojure
-  (deftest native-core-atom
-    (compare-output
-     "nil 1 2 (1 2 3) 6 true false false"
-     (let [a (atom nil)
-           b (atom nil)]
-       (print (deref a))
-       (print " ")
-       (reset! a 1)
-       (print (deref a))
-       (print " ")
-       (swap! a inc)
-       (print (deref a))
-       (print " ")
-       (reset! a (list 1 2 3))
-       (print (deref a))
-       (print " ")
-       (swap! a (fn [l] (reduce + l)))
-       (print (deref a))
-       (print " ")
-       (print (= a a))
-       (print " ")
-       (print (= a b))
-       (print " ")
-       (print (= a 1)))))
-#+end_src
-
-*** Keyword
-
-#+begin_src clojure
-  (deftest native-core-keyword
-    (compare-output
-     "true false true"
-     (print (= :test :test)
-            (= :test :other_test)
-            ((fn [k]
-               "__result = obj<Boolean>(k.equals(obj<Keyword>(\":space\")))")
-             :space))))
-#+end_src
-
-*** String
-
-#+begin_src clojure
-  (deftest native-core-string
-    (compare-output
-     "Some String false true false true true"
-     (print "Some String"
-            (= "Some String" "Other String")
-            (= "Some String" "Some String")
-            (= "Some String" 1)
-            ((fn [s] "__result = obj<Boolean>((s.cast<String>()->to_string() == \"String\"))")
-             "String")
-            (= (cxx "std::string s = \"std::string\"; 
-                     __result = obj<String>(s);")
-               "std::string"))))
+    (is (= 2 (count (filter true? (list true false true false)))))
+    (is (= 2 (count (filter false? (list true false true false)))))
+    (is (= 3 (count (filter false? (list true false true false false)))))
+    (is (= 2 (count (filter (fn [x] (not (false? x))) (list true false true false false))))))
 #+end_src
 
 *** Lazy Sequence
+    :PROPERTIES:
+    :noweb-ref: lazy-seq-test
+    :END:
 
 #+begin_src clojure
-  (deftest native-core-lazy-sequence
-    (compare-output
-     "false false true"
-     (print (= (range 10) (range 15))
-            (= (range 15) (range 10))
-            (= (range 10) (range 10))))
-    
-    (compare-output
-     "10 11 12 (10 9 8 7 6 5 4 3 2 1 0)"
-     (let [a 1]
-       (defn lazy-countdown [n]
-         (if (>= n 0)
-           (cons n (lazy-seq (lazy-countdown (- n 1))))))
-       
-       (defn ints-from [n]
-         (cons n (lazy-seq (ints-from (inc n))))))
-     
-     (print (first (ints-from 10))
-            (first (rest (ints-from 10)))
-            (first (rest (rest (ints-from 10))))
-            (lazy-countdown 10))))
+  (defn lazy-countdown [n]
+    (if (>= n 0)
+      (cons n (lazy-seq (lazy-countdown (- n 1))))))
+
+  (defn ints-from [n]
+    (cons n (lazy-seq (ints-from (inc n)))))
+
+  (deftest lazy-seq-test
+    (is (= false (= (range 10) (range 15))))
+    (is (= false (= (range 15) (range 10))))
+    (is (= true  (= (range 10) (range 10))))
+    (is (= 10    (first (ints-from 10))))
+    (is (= 11    (first (rest (ints-from 10)))))
+    (is (= 12    (first (rest (rest (ints-from 10))))))
+    (is (= 10    (first (lazy-countdown 10))))
+    (is (= 9     (first (rest (lazy-countdown 10)))))
+    (is (= 8     (first (rest (rest (lazy-countdown 10))))))
+    (is (= 11    (count (lazy-countdown 10))))
+
+    (is (= 2   (first (map inc (list 1 2 3)))))
+    (is (= 0   (first (map dec (list 1 2 3)))))
+    (is (= 4   (first (map (fn [x] (+ 3 x)) (list 1 2 3)))))
+    (is (= 3   (count (map inc (list 1 2 3)))))
+    (is (= 10  (apply + (range 5))))
+    (is (= 5   (count (range 5))))
+    (is (= 2   (first (take 2 (map inc (list 1 2 3))))))
+    (is (= 3   (first (rest (take 2 (map inc (list 1 2 3)))))))
+    (is (= 3   (count (take 20 (map inc (list 1 2 3))))))
+    (is (= 1   (first (concat (list 1 2 3) (list 4 5 6)))))
+    (is (= 4   (first (drop 3 (concat (list 1 2 3) (list 4 5 6))))))
+    (is (= 21  (reduce + (concat (list 1 2 3) (list 4 5 6)))))
+
+    (is (empty? (concat))))
+#+end_src
+
+*** Lambda
+    :PROPERTIES:
+    :noweb-ref: lambda-test
+    :END:
+
+#+begin_src clojure
+  (deftest lambda-test
+    (let [f1 (fn [])
+          f2 (fn [])
+          m-func (fn
+                   ([a] 1)
+                   ([a b] 2)
+                   ([a b & c] 3)
+                   ([a b [c d] & e] 4))]
+      (is (= true  (= f1 f1)))
+      (is (= false (= f1 f2)))
+      (is (= true  (= f1 (do f1))))
+      (is (= false (= f2 (do f1))))
+      (is (= 1 (m-func 1)))
+      (is (= 2 (m-func 1 2)))
+      (is (= 3 (m-func 1 2 3)))
+      (is (= 4 (m-func 1 2 (list 3 3) 4)))))
+#+end_src
+
+*** Pointer
+    :PROPERTIES:
+    :noweb-ref: pointer-test
+    :END:
+
+#+begin_src clojure
+  (deftest pointer-test
+    (let [state (atom false)]
+      (let [a-gc-fn (fn [] (reset! state true))
+            a-ptr (cxx "__result = obj<Pointer>(nullptr);")
+            a-heavy-ptr (cxx "__result = obj<HeavyPointer>(a_ptr,a_gc_fn);")
+            b-ptr (cxx "__result = obj<Pointer>(new int);")
+            b-gc-fn (fn [] "delete b_ptr.cast<Pointer>()->pointer<int>();")
+            b-heavy-ptr (cxx "__result = obj<HeavyPointer>(b_ptr,b_gc_fn);")]
+        (is (= true  (= a-ptr a-ptr)))
+        (is (= false (= a-ptr b-ptr)))
+        (is (= true  (= a-heavy-ptr a-heavy-ptr)))
+        (is (= false (= a-heavy-ptr b-heavy-ptr)))
+        (is (= false (= b-heavy-ptr a-heavy-ptr)))
+        (is (= true  (= b-heavy-ptr b-heavy-ptr))))
+      (is (= true (deref state)))))
+#+end_src
+
+*** Atom
+    :PROPERTIES:
+    :noweb-ref: atom-test
+    :END:
+
+#+begin_src clojure
+  (deftest atom-test
+    (let [a (atom nil)
+          b (atom nil)]
+      (is (= nil          (deref a)))
+      (is (= 1            (do (reset! a 1) (deref a))))
+      (is (= 2            (do (swap! a inc) (deref a))))
+      (is (= (list 1 2 3) (do (reset! a (list 1 2 3)) (deref a))))
+      (is (= 6            (do (swap! a (fn [l] (reduce + l))) (deref a))))
+      (is (= true         (= a a)))
+      (is (= false        (= a b)))
+      (is (= false        (= a 3.14)))))
+#+end_src
+
+*** Keyword
+    :PROPERTIES:
+    :noweb-ref: keyword-test
+    :END:
+
+#+begin_src clojure
+  (deftest keyword-test
+    (is (= true  (= :test :test)))
+    (is (= false (= :test :other_test)))
+    (let [ke (fn [k] "__result = obj<Boolean>(k.equals(obj<Keyword>(\":space\")))")]
+      (is (= true (ke :space)))))
+#+end_src
+
+*** String
+    :PROPERTIES:
+    :noweb-ref: string-test
+    :END:
+
+#+begin_src clojure
+  (deftest string-test
+    (let [s1 "Some String"
+          s2 "Other String"
+          s1-ret (fn [] "__result = obj<String>(\"Some String\");")
+          s1-eq (fn [s] "__result = obj<Boolean>((s.cast<String>()->to_string() == \"Some String\"))")]
+      (is (= false (= s1 s2)))
+      (is (= true  (= s1 s1)))
+      (is (= false (= s1 3.14)))
+      (is (= true  (= s1 (s1-ret))))
+      (is (= true  (s1-eq s1)))))
 #+end_src
 
 *** Memory Pool
@@ -5964,6 +5912,27 @@ Create some dummy libs under /test/modules/,
     `(binding [clojure.test/report report-test-failure]
        (is (= ~res (capture-output (quote ~body))))))
 
+  (deftest test-core
+    (let [options (compile-options
+                   {:compiler-options
+                    ["-std=c++11" "-pedantic"
+                     "-Werror" "-Wall" "-Wextra"
+                     "-Woverloaded-virtual" "-Wuninitialized" "-Winit-self"
+                     "-pthread"]})
+          input (read-clojure-file "resources/core-test.clj")]
+      (compile->cpp input options)
+      (run-cppcheck "solution.cpp" '(core-test))
+      (compile->binary options [])
+      (run-valgrind '(core-test))
+
+      (let [prog-out (run-program)]
+        (binding [clojure.test/report
+                  (fn [ev]
+                    (when (= (-> ev :type) :fail)
+                      (warn (str "Core Test Failure" \newline \newline))
+                      (println prog-out)))]
+          (is (= "" prog-out))))))
+
     <<ferret-unit-tests>>
 #+end_src 
 
@@ -6037,6 +6006,23 @@ Create some dummy libs under /test/modules/,
   <<runtime-clojure-pid-controller>>
   <<runtime-clojure-gpio>>
   <<runtime-clojure-testing>>
+#+end_src
+
+** resources/core-test.clj
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/resources/core-test.clj
+  <<sequence-test>>
+  <<lazy-seq-test>>
+  <<lambda-test>>
+  <<pointer-test>>
+  <<atom-test>>
+  <<keyword-test>>
+  <<string-test>>
+  <<math-test>>
+  <<logical-operators-test>>
+  <<pid-controller-test>>
+
+  (run-all-tests)
 #+end_src
 
 ** resources/bash_executable_stub.sh

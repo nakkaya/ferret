@@ -4547,16 +4547,19 @@ Embed compilations options.
   :noweb-ref: ferret-unit-tests
   :END:
 
-Unit testing of the implementation is done by compiling forms using
-Ferret then comparing the their runtime output to their expected
-output.
+Most tests are done using the built in testing API that mimics
+/clojure.test/ API, but certain tests are easier to do using real
+/clojure.test/ framework by compiling forms using Ferret then
+comparing the their runtime output to their expected output. All
+generated code is statically checked using /cppcheck/ and tested
+against memory leaks using /vallgrind/.
 
 Tests are run by the CI system for the following compilers,
 
  - GCC 5
  - Clang 3.4
 
-Following options are passed to the compiler during testing,
+/cxx/ options,
 
  - *-std=c++11*
  - *-pedantic*
@@ -4567,15 +4570,14 @@ Following options are passed to the compiler during testing,
  - *-Wuninitialized*
  - *-Winit-self*
 
-Generated code for each test is also run through /cppcheck/ with
-following options,
+/cppcheck/ options,
 
  - *--std=c++11*
  - *--template=gcc*
  - *--enable=all*
  - *--error-exitcode=1*
 
-Compiled programs are run through /valgrind/ with following options, 
+/valgrind/ options,
 
  - *--leak-check=full*
  - *--error-exitcode=1*

@@ -4245,13 +4245,12 @@ Ported from,
   (defmacro pid-controller [& options]
     (let [options (apply hash-map options)
           {:keys [container kp ki kd set-point bounds continuous]} options
-          [in-min in-max out-min out-max] bounds
-          controller-sym (gensym)]
-      `(~'let [~controller-sym
-               ~(cons 'pid-controller-create
-                      (list set-point kp ki kd in-min in-max out-min out-max continuous))]
-         (~'fn [~'input]
-           (~'pid-controller-run ~controller-sym ~'input)))))
+          [in-min in-max out-min out-max] bounds]
+      `(~'let [controller#
+               (~'pid-controller-create
+                ~set-point ~kp ~ki ~kd ~in-min ~in-max ~out-min ~out-max ~continuous)]
+         (~'fn [input#]
+           (~'pid-controller-run controller# input#)))))
 #+end_src
 
 ** GPIO

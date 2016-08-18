@@ -1634,6 +1634,35 @@ lambda forms.
           (compile-options {}))))
   #+end_src
 
+   Takes the compiler CLI arguments and a file name, returns a map of
+   build options.
+
+  #+name: core-code-compile-code
+  #+begin_src clojure
+    (defn build-specs [input args]
+      (fn []
+        (let [base-name (org.apache.commons.io.FilenameUtils/getBaseName input)
+              path (str (org.apache.commons.io.FilenameUtils/getPrefix input)
+                        (org.apache.commons.io.FilenameUtils/getPath input))
+              default-options (compile-options-parse-source (file (str base-name ".cpp")))]
+          (-> default-options
+              (assoc :input-file input)
+              (assoc :base-name base-name)
+              (assoc :path path)
+              (assoc :output-path path)
+              (assoc :ast (->> args :options :ast))
+              (assoc :compile-program (->> args :options :compile))
+              (assoc :release (->> args :options :release))
+              (assoc :fomat-code (not (->> args :options :disable-formatting)))
+              (assoc :global-functions (->> args :options :global-functions))
+              (assoc :extra-source-files
+                     (cond (not (empty? (:arguments args)))
+                           (:arguments args)
+                           (not (empty? (:extra-source-files default-options)))
+                           (:extra-source-files default-options)
+                           :default []))))))
+  #+end_src
+
 *** Compile to C++
 
    Compile the form to C++,
@@ -1662,7 +1691,7 @@ lambda forms.
 
   #+name: core-code-compile-code
   #+begin_src clojure
-    (defn compile->binary [options extra-source-files]
+    (defn compile->binary [options]
       (if (:command options)
         (do (info "Command" (:command options))
             (let [ret (with-sh-dir (if (not (empty? (:output-path options)))
@@ -1687,7 +1716,7 @@ lambda forms.
                                                (= extension "c++") ["-x" "c++"]
                                                :default "")
                                          %])
-                                     extra-source-files)
+                                     (:extra-source-files options))
                                 ["-x" "c++"]
                                 (str (:base-name options) "." (:source-extension options))])]
 
@@ -1717,64 +1746,56 @@ lambda forms.
 
 *** Compiler Main
 
+   #+name: core-code-compile-code
+   #+begin_src clojure
+     (defn build-solution [spec-fn]
+       (let [{:keys [input-file compile-program extra-source-files]} (spec-fn)]
+         (compile->cpp (read-clojure-file input-file) (spec-fn))
+         (when compile-program
+           (compile->binary (spec-fn)))))
+   #+end_src
+
+    Compiler options,
+
+   #+name: core-code-compile-code
+   #+begin_src clojure
+     (def program-options [["-i" "--input FILE" "Input File" :default "./core.clj"]
+                           ["-c" "--compile" "Compile Solution"]
+                           ["-w" "--watch-input" "Automatically recompile input file on change."]
+                           [nil "--release" "Compile in Release Mode. Strip Debug Information."]
+                           [nil "--disable-formatting" "Disables Solution Formatting Using clang-format."]
+                           [nil "--global-functions" "Disables replace-fn-call-sites Optimization."]
+                           [nil "--ast" "Print Intermediate AST."]
+                           ["-h" "--help" "Print Help"]])
+   #+end_src
+
    Compiler /main/,
 
-  #+name: core-code-compile-code
-  #+begin_src clojure
-    (def program-options [["-i" "--input FILE" "Input File" :default "./core.clj"]
-                          ["-c" "--compile" "Compile Solution"]
-                          ["-f" "--source-files FILE" "Extra Source Files to Pass to GCC"]
-                          ["-w" "--watch-input" "Automatically recompile input file on change."]
-                          [nil "--release" "Compile in Release Mode. Strip Debug Information."]
-                          [nil "--disable-formatting" "Disables Solution Formatting Using clang-format."]
-                          [nil "--global-functions" "Disables replace-fn-call-sites Optimization."]
-                          [nil "--ast" "Print Intermediate AST."]
-                          ["-h" "--help" "Print Help"]])
+   #+name: core-code-compile-code
+   #+begin_src clojure
+     (defn -main [& args]
+       (let [args (parse-opts args program-options)
+             {:keys [help input watch-input]} (:options args)]
 
-    (defn -main [& args]
-      (let [args (parse-opts args program-options)]
-        (when (->> args :options :help)
-          (println "Ferret Compiler")
-          (println (:summary args))
-          (System/exit 0))
+         (when help
+           (println "Ferret Compiler")
+           (println (:summary args))
+           (System/exit 0))
 
-        (let [input (if (and (->> args :options :input)
-                             (.exists (file (->> args :options :input))))
-                      (->> args :options :input)
-                      (do (warn "No Input File.")
-                          (System/exit 1)))
-              input-base-name (org.apache.commons.io.FilenameUtils/getBaseName input)
-              input-path (str (org.apache.commons.io.FilenameUtils/getPrefix input)
-                              (org.apache.commons.io.FilenameUtils/getPath input))
-              options (-> (file (str input-base-name ".cpp"))
-                          compile-options-parse-source
-                          (assoc :base-name input-base-name)
-                          (assoc :output-path input-path)
-                          (assoc :ast (->> args :options :ast))
-                          (assoc :release (->> args :options :release))
-                          (assoc :fomat-code (not (->> args :options :disable-formatting)))
-                          (assoc :global-functions (->> args :options :global-functions)))
-              extra-source-files (cond (not (empty? (:arguments args))) (:arguments args)
-                                       (not (empty? (:extra-source-files options))) (:extra-source-files options)
-                                       :default [])
-              build-fn (fn []
-                         (let [input (read-clojure-file input)]
-                           (compile->cpp input options)
-                           (when (->> args :options :compile)
-                             (let [options (-> (file (cpp-file-name options))
-                                               compile-options-parse-source
-                                               (assoc :output-path input-path)
-                                               (assoc :base-name input-base-name))
-                                   options (assoc options :base-name input-base-name)]
-                               (compile->binary options extra-source-files)))))]
-          (if (nil? (->> args :options :watch-input))
-            (build-fn)
-            (do (watcher/watcher [input]
-                                 (watcher/rate 1000)
-                                 (watcher/on-change (fn [_] (build-fn))))
-                @(promise)))
-          (shutdown-agents))))
-  #+end_src
+         (when (not (.exists (file input)))
+           (warn "No Input File.")
+           (System/exit 1))
+
+         (let [specs (build-specs input args)]
+           (if (not watch-input)
+             (build-solution specs)
+             (do (watcher/watcher [input]
+                                  (watcher/rate 1000)
+                                  (watcher/on-change
+                                   (fn [_] (build-solution specs))))
+                 @(promise)))
+           (shutdown-agents))))
+   #+end_src
 
 *** Logging
 
@@ -5777,6 +5798,7 @@ Create some dummy libs under /test/modules/,
 #+end_src
 
 ** test/ferret/test/core.clj
+
 #+begin_src clojure :noweb yes :mkdirp yes :tangle src/test/ferret/test/core.clj
     (ns ferret.test.core
       (:refer-clojure :exclude [compile])
@@ -5816,16 +5838,17 @@ Create some dummy libs under /test/modules/,
       (sh "rm" "-f" "solution.cpp")
       (:out r)))
 
+  (def cxx-options ["-std=c++11" "-pedantic"
+                    "-Werror" "-Wall" "-Wextra"
+                    "-Woverloaded-virtual" "-Wuninitialized" "-Winit-self"
+                    "-pthread"])
+
   (defn capture-output [form & [opts]]
-    (let [options (compile-options
-                   {:compiler-options
-                    ["-std=c++11" "-pedantic"
-                     "-Werror" "-Wall" "-Wextra" "-Woverloaded-virtual" "-Wuninitialized" "-Winit-self"
-                     "-pthread"]})
+    (let [options (compile-options {:compiler-options cxx-options})
           options (merge options opts)]
       (compile->cpp form options)
+      (compile->binary options)
       (run-cppcheck "solution.cpp" form)
-      (compile->binary options [])
       (run-valgrind form)
       (run-program)))
 
@@ -5844,16 +5867,11 @@ Create some dummy libs under /test/modules/,
        (is (= ~res (capture-output (quote ~body))))))
 
   (deftest test-core
-    (let [options (compile-options
-                   {:compiler-options
-                    ["-std=c++11" "-pedantic"
-                     "-Werror" "-Wall" "-Wextra"
-                     "-Woverloaded-virtual" "-Wuninitialized" "-Winit-self"
-                     "-pthread"]})
+    (let [options (compile-options {:compiler-options cxx-options})
           input (read-clojure-file "resources/core-test.clj")]
       (compile->cpp input options)
+      (compile->binary options)
       (run-cppcheck "solution.cpp" '(core-test))
-      (compile->binary options [])
       (run-valgrind '(core-test))
 
       (let [prog-out (run-program)]

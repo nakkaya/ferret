@@ -4142,13 +4142,13 @@ Ported from,
     (data "T p;"
           "T i;"
           "T d;"
-          "T maximumOutput;"
-          "T minimumOutput;"
-          "T maximumInput;"
-          "T minimumInput;"
+          "T maximum_output;"
+          "T minimum_output;"
+          "T maximum_input;"
+          "T minimum_input;"
           "bool continuous;"
-          "T prevError;"
-          "T totalError;"
+          "T prev_error;"
+          "T total_error;"
           "T setpoint;"
           "T error;"
           "T result;"
@@ -4157,13 +4157,13 @@ Ported from,
           "p = kp.to<T>();
            i = ki.to<T>();
            d = kd.to<T>();
-           maximumOutput = outMax.to<T>();
-           minimumOutput = outMin.to<T>();
-           maximumInput = inMax.to<T>();
-           minimumInput = inMin.to<T>();
+           maximum_output = outMax.to<T>();
+           minimum_output = outMin.to<T>();
+           maximum_input = inMax.to<T>();
+           minimum_input = inMin.to<T>();
            continuous = cont.cast<Boolean>()->container();
-           prevError = 0;
-           totalError = 0;
+           prev_error = 0;
+           total_error = 0;
            setpoint = 0;
            error = 0;
            result = 0;
@@ -4179,11 +4179,11 @@ Ported from,
 
        // If continuous is set to true allow wrap around
        if (continuous) {
-          if (runtime::abs(error) > ((maximumInput - minimumInput) / 2)) {
+          if (runtime::abs(error) > ((maximum_input - minimum_input) / 2)) {
             if (error > 0) {
-                  error = (error - maximumInput) + minimumInput;
+                  error = (error - maximum_input) + minimum_input;
             } else {
-                  error = (error + maximumInput) - minimumInput;
+                  error = (error + maximum_input) - minimum_input;
             }
           }
        }
@@ -4192,33 +4192,33 @@ Ported from,
         ,* Integrate the errors as long as the upcoming integrator does
         ,* not exceed the minimum and maximum output thresholds
         ,*/
-       if ((((totalError + error) * i) < maximumOutput) &&
-            (((totalError + error) * i) > minimumOutput)) {
-          totalError += error;
+       if ((((total_error + error) * i) < maximum_output) &&
+            (((total_error + error) * i) > minimum_output)) {
+          total_error += error;
        }
        
        // Perform the primary PID calculation
-       result = ((p * error) + (i * totalError) + (d * (error - prevError)));
+       result = ((p * error) + (i * total_error) + (d * (error - prev_error)));
        
        // Set the current error to the previous error for the next cycle
-       prevError = error;
+       prev_error = error;
        
        // Make sure the final result is within bounds
-       if (result > maximumOutput) {
-          result = maximumOutput;
-       } else if (result < minimumOutput) {
-          result = minimumOutput;
+       if (result > maximum_output) {
+          result = maximum_output;
+       } else if (result < minimum_output) {
+          result = minimum_output;
        }
 
        return obj<Number>(result);")
      
-     ("void set_set_point" "var p"
+     ("void set_setpoint" "var p"
       "T sp = p.to<T>();
-       if (maximumInput > minimumInput) {
-          if (sp > maximumInput) {
-            setpoint = maximumInput;
-          } else if (sp < minimumInput) {
-            setpoint = minimumInput;
+       if (maximum_input > minimum_input) {
+          if (sp > maximum_input) {
+            setpoint = maximum_input;
+          } else if (sp < minimum_input) {
+            setpoint = minimum_input;
           } else {
             setpoint = sp;
           }
@@ -4227,8 +4227,8 @@ Ported from,
        }")
      
      ("void reset" ""
-      "prevError = 0;
-       totalError = 0;
+      "prev_error = 0;
+       total_error = 0;
        result = 0;")))
 #+end_src
 
@@ -4236,7 +4236,7 @@ Ported from,
 #+begin_src clojure :tangle no
   (defn pid-controller-create [set-point kp ki kd in-min in-max out-min out-max continuous]
     "var p = obj<PIDController<float>>(kp, ki, kd, in_min, in_max, out_min, out_max, continuous);
-     p.cast<PIDController<float>>()->set_set_point(set_point);
+     p.cast<PIDController<float>>()->set_setpoint(set_point);
      __result = p;")
 
   (defn pid-controller-run [controller input]

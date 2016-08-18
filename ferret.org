@@ -4582,6 +4582,76 @@ Tests are run by the CI system for the following compilers,
  - *--error-exitcode=1*
 
 ** Core
+*** Destructuring
+    :PROPERTIES:
+    :noweb-ref: destructuring-test
+    :END:
+
+#+begin_src clojure :tangle no
+  (defn destructure-test-1 [[a b c]]
+    (list a b c))
+
+  (defn destructure-test-2 [[a [b] c]]
+    b)
+
+  (defn destructure-test-3 [[a [_ b] c]]
+    b)
+
+  (defn destructure-test-4 [& a]
+    a)
+
+  (defn destructure-test-5 []
+    (let [[a b c] (list 1 2 3)]
+      (list a b c)))
+
+  (defn destructure-test-6 []
+    (let [[_ _ a] (list 1 2 3)]
+      a))
+
+  (deftest destructuring-test
+    (is (= 3                   (count (destructure-test-1 (list 1 2 3)))))
+    (is (= 2                   (destructure-test-2 (list 1 (list 2) 3))))
+    (is (= 3                   (destructure-test-3 (list 1 (list 2 3) 3))))
+    (is (= (list (list 1 2 3)) (destructure-test-4 (list 1 2 3))))
+
+    (let [a (list 1 2 3 4)
+          [b c & r] a]
+
+      (is (= 1          b))
+      (is (= 2          c))
+      (is (= (list 3 4) r)))
+
+    (let [a 1 b 2
+          [c & r] (list 4 5)]
+      
+      (is (= 1 a))
+      (is (= 2 b))
+      (is (= 4 c))
+      (is (= (list 5) r)))
+
+    (let [[a & r] (list 1 2 3)
+          rr (rest r)]
+      (is (= (list 3) rr)))
+    
+    (is (= (list 1 2 3) (destructure-test-5)))
+    (is (= 3            (destructure-test-6)))
+
+
+    (let [[_ _ a] (list 1 2 3)
+          [_ b] (list 4 5 6)]
+      (is (= 3 a))
+      (is (= 5 b)))
+
+    (let [a (list 1 2 3)
+          [b c d e f g] a]
+      (is (= 1   b))
+      (is (= 2   c))
+      (is (= 3   d))
+      (is (= nil e))
+      (is (= nil f))
+      (is (= nil g))))
+#+end_src
+
 *** Conditionals
     :PROPERTIES:
     :noweb-ref: conditionals-test
@@ -5006,56 +5076,6 @@ Tests are run by the CI system for the following compilers,
      (print-list (list 1 2 3 4))
      (print " ")
      (print-list (list (list 1 2 3 4) (list 1 2 3 4)))))
-#+end_src
-
-*** Destructuring
-
-#+begin_src clojure :tangle no
-  (deftest compiler-destructure
-    (is (= "(1 2 3) 2 3 ((1 2 3)) 1 2 (3 4) 1 2 4 (5) (3) 1 2 3 3 3 5 1 2 3 nil nil nil"
-           (capture-output '((defn destructure-test-1 [[a b c]]
-                               (list a b c))
-                             (defn destructure-test-2 [[a [b] c]]
-                               b)
-                             (defn destructure-test-3 [[a [_ b] c]]
-                               b)
-                             (defn destructure-test-4 [& a]
-                               a)
-                             (defn destructure-test-5 []
-                               (let [[a b c] (list 1 2 3)]
-                                 (print a b c)))
-                             (defn destructure-test-6 []
-                               (let [[_ _ a] (list 1 2 3)]
-                                 (print a)))
-                             (print (destructure-test-1 (list 1 2 3))
-                                    (destructure-test-2 (list 1 (list 2) 3))
-                                    (destructure-test-3 (list 1 (list 2 3) 3))
-                                    (destructure-test-4 (list 1 2 3)))
-                             (print " ")
-                             (let [a (list 1 2 3 4)
-                                   [b c & r] a]
-
-                               (print b c r))
-                             (let [a 1 b 2
-                                   [c & r] (list 4 5)]
-                               (print " ")
-                               (print a b c r))
-                             (let [[a & r] (list 1 2 3)
-                                   rr (rest r)]
-                               (print " ")
-                               (print rr))
-                             (print " ")
-                             (destructure-test-5)
-                             (print " ")
-                             (destructure-test-6)
-                             (print " ")
-                             (let [[_ _ a] (list 1 2 3)
-                                   [_ b] (list 4 5 6)]
-                               (print a b))
-                             (print " ")
-                             (let [a (list 1 2 3)
-                                   [b c d e f g] a]
-                               (print b c d e f g)))))))
 #+end_src
 
 *** Module System
@@ -5942,6 +5962,7 @@ Create some dummy libs under /test/modules/,
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/resources/core-test.clj
   <<sequence-test>>
+  <<destructuring-test>>
   <<lazy-seq-test>>
   <<lambda-test>>
   <<pointer-test>>

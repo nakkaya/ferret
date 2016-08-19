@@ -1166,7 +1166,7 @@ C++ skeleton.
     (let [cond (emit cond state)
           t (emit t state)
           f (if (nil? f) "nil()" (emit f state))]
-      (if-statement cond t f)))
+      (apply str "(" cond " ? " t " : " f ")")))
 
   (defmethod emit :invoke-lambda [[fn & args] state]
     (invoke-lambda (emit fn state) (emit-ast args state)))
@@ -1385,9 +1385,6 @@ lambda forms.
 
 #+name: code-templates
 #+begin_src clojure :tangle no
-  (defn if-statement [cond t f]
-    (apply str "(" cond " ? " t " : " f ")"))
-
   (let [env (fn [[_ _ & env]]
               (->> env
                    (flatten)

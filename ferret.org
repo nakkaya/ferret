@@ -1727,8 +1727,9 @@ lambda forms.
 
    #+name: core-code-compile-code
    #+begin_src clojure
-     (defn clang-format [file]
-       (let [source (try (with-sh-dir "./"
+     (defn clang-format [options]
+       (let [file (cpp-file-name options)
+             source (try (with-sh-dir "./"
                            (sh "clang-format" "-style" "{Standard: Cpp11}" file))
                          (catch Exception e nil))]
          (if source
@@ -1741,7 +1742,7 @@ lambda forms.
          (compile->cpp (read-clojure-file input-file) (spec-fn))
          
          (when format-code
-           (clang-format input-file))
+           (clang-format (spec-fn)))
          
          (when compile-program
            (compile->binary (spec-fn)))))

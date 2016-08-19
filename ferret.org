@@ -1189,45 +1189,13 @@ C++ skeleton.
 
 **** Lambdas
 
-List Destructuring. Clojure style list structuring is supported on
-lambda forms.
-
-#+name: core-code-generation-emit-source-methods
-#+begin_src clojure :tangle no
-  (defn destructure-set-var [val arg accesor]
-    (str "var " val " = "
-         (reduce (fn[h v] (str v "(" h ")")) arg accesor)))
-
-  (defn destructure-arguments [args name]
-    (let [[args va-args] (if (some #{'&} args)
-                           (split-at (.indexOf args '&) args)
-                           [args []])
-          args (->> args
-                    (map-indexed (fn [pos val]
-                                   (vector pos val)))
-                    (filter #(not= (second %) '_))
-                    (reduce (fn[h [pos val]]
-                              (let [accesor (flatten [(repeat pos "runtime::rest") "runtime::first"])]
-                                (if (coll? val)
-                                  (conj h (destructure-arguments
-                                           val (reduce (fn[h v] (str v "(" h ")")) name accesor)))
-                                  (conj h (destructure-set-var val name accesor))))) []))]
-      [args (if (empty? va-args)
-              []
-              (destructure-set-var
-               (last va-args) name (repeat (count args) "runtime::rest")))]))
-
-  (defn destructure-lambda [args]
-    (flatten (destructure-arguments args "_args_")))
-#+end_src
-
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
   (defmethod emit 'fir_lambda_object [f state]
-    (new-lambda f))
+    (lambda-object-heap f))
 
   (defmethod emit 'fir_invoke_lambda_stack [f state]
-    (new-lambda-stack f))
+    (lambda-object-stack f))
 
   (defn emit-define-lambda-aux [name env args body state]
     (let [native-declarations (filter #(and (seq? %)
@@ -1280,7 +1248,7 @@ lambda forms.
       (str
        (if (not (empty? nil-dispatch))
          (str "if (" args-symbol ".is_nil())
-                return " (new-lambda-stack
+                return " (lambda-object-stack
                           (->> nil-dispatch first second)) ".invoke(nil());")
          "")
        "switch(runtime::count(" args-symbol ")) {"
@@ -1288,9 +1256,9 @@ lambda forms.
             (map (fn [[count fn]]
                    (if (= count 'true)
                      (str "default: "
-                          " return " (new-lambda-stack fn) ".invoke(" args-symbol ");")
+                          " return " (lambda-object-stack fn) ".invoke(" args-symbol ");")
                      (str "case " count " : "
-                          " return " (new-lambda-stack fn) ".invoke(" args-symbol ");"))))
+                          " return " (lambda-object-stack fn) ".invoke(" args-symbol ");"))))
             (apply str)) "}")))
 #+end_src
 
@@ -1390,14 +1358,14 @@ lambda forms.
                    (flatten)
                    (filter #(and (not (= '& %))
                                  (not (= '_ %))))))]
-    (defn new-lambda [l]
+    (defn lambda-object-heap [l]
       (let [n (second l)
             e (env l)]
         (if (empty? e)
           (str "obj<" n ">()")
           (str "obj<" n ">(" (apply str (interpose \, e)) ")"))))
 
-    (defn new-lambda-stack [l]
+    (defn lambda-object-stack [l]
       (let [n (second l)
             e (env l)]
         (if (empty? e)
@@ -1407,68 +1375,92 @@ lambda forms.
   (defn invoke-lambda [n args]
     (if (empty? args)
       (str "run(" n ")")
-      (str "run(" n "," 
-           (reduce (fn[h v]
-                     (str h v))
-                   (->> args
-                        (interpose \,)))")")))
+      (str "run(" n ","  (apply str (interpose \, args))")")))
 
-  (defn declare-lambda-classes [lambdas]
-    (let [view (create-view
-                "$lambdas: {lambda|
-        $if(!lambda.stack)$
-         class $lambda.name$  : public Lambda{
-        $else$
-         class $lambda.name$  \\{
-        $endif$
+  (defn lambda-definitions [lambdas]
+    (-> (create-view
+         "$lambdas: {lambda|
+           $if(!lambda.stack)$
+            class $lambda.name$  : public Lambda{
+           $else$
+            class $lambda.name$  \\{
+           $endif$
+             $lambda.env:{var $it$;} ;separator=\"\n\"$
+           public:
+             $if(lambda.env)$
+               explicit $lambda.name$ ($lambda.env:{var $it$} ;separator=\",\"$) :
+                 $lambda.env:{$it$($it$)} ;separator=\",\"$ { }
+             $endif$
+             $if(lambda.args)$
+                 var invoke (var _args_);
+             $else$
+                 var invoke (var);
+             $endif$
+           };};separator=\"\n\n\"$")
+        (fill-view! "lambdas" lambdas)
+        (render-view)))
 
-        $lambda.env:{var $it$;} ;separator=\"\n\"$
-
-        public:
-
-        $if(lambda.env)$
-          explicit $lambda.name$ ($lambda.env:{var $it$} ;separator=\",\"$) :
-            $lambda.env:{$it$($it$)} ;separator=\",\"$ { }
-        $endif$
-
-        $if(lambda.args)$
-            var invoke (var _args_);
-        $else$
-            var invoke (var);
-        $endif$
-        };};separator=\"\n\n\"$")]
-      (fill-view! view "lambdas" lambdas)
-      (render-view view)))
-
-  (defn declare-lambda-bodies [lambdas]
-    (let [view (create-view
-                "$lambdas: {lambda|
-        $if(lambda.args)$
-            inline var $lambda.name$::invoke (var _args_)
-        $else$
-            inline var $lambda.name$::invoke (var)
-        $endif$
-            {
-              $lambda.args:{args | $args$; } ;separator=\"\n\"$
-
-              $trunc(lambda.body):{$it$} ;separator=\"\n\"$
-              return $last(lambda.body):{$it$} ;separator=\"\n\"$
-            }
-        };separator=\"\n\n\"$")]
-      (fill-view! view "lambdas" lambdas)
-      (render-view view)))
+  (defn lambda-implementations [lambdas]
+    (-> (create-view
+         "$lambdas: {lambda|
+           $if(lambda.args)$
+               inline var $lambda.name$::invoke (var _args_)
+           $else$
+               inline var $lambda.name$::invoke (var)
+           $endif$
+               {
+                 $lambda.args:{args | $args$; } ;separator=\"\n\"$
+     
+                 $trunc(lambda.body):{$it$} ;separator=\"\n\"$
+                 return $last(lambda.body):{$it$} ;separator=\"\n\"$
+               }
+           };separator=\"\n\n\"$")
+        (fill-view! "lambdas" lambdas)
+        (render-view)))
 #+end_src    
+
+
+List Destructuring. Clojure style list structuring is supported on
+lambda forms.
+
+#+name: code-templates
+#+begin_src clojure :tangle no
+  (defn destructure-set-var [val arg accesor]
+    (str "var " val " = "
+         (reduce (fn[h v] (str v "(" h ")")) arg accesor)))
+
+  (defn destructure-arguments [args name]
+    (let [[args va-args] (if (some #{'&} args)
+                           (split-at (.indexOf args '&) args)
+                           [args []])
+          args (->> args
+                    (map-indexed (fn [pos val]
+                                   (vector pos val)))
+                    (filter #(not= (second %) '_))
+                    (reduce (fn[h [pos val]]
+                              (let [accesor (flatten [(repeat pos "runtime::rest") "runtime::first"])]
+                                (if (coll? val)
+                                  (conj h (destructure-arguments
+                                           val (reduce (fn[h v] (str v "(" h ")")) name accesor)))
+                                  (conj h (destructure-set-var val name accesor))))) []))]
+      [args (if (empty? va-args)
+              []
+              (destructure-set-var
+               (last va-args) name (repeat (count args) "runtime::rest")))]))
+
+  (defn destructure-lambda [args]
+    (flatten (destructure-arguments args "_args_")))
+#+end_src
 
 **** Program
 
 #+name: code-templates
 #+begin_src clojure :tangle no :noweb yes
   (defn solution-template [source]
-    (let [{:keys [body lambdas symbol-table native-headers native-declarations native-defines objects]} source
-          native-headers (->> native-headers
-                              flatten
-                              (into #{}))
-          view (create-view "
+    (let [{:keys [body lambdas symbol-table native-headers objects
+                  native-declarations native-defines]} source
+          native-headers (->> native-headers flatten (into #{}))]
+      (-> (create-view "
           $native_defines:{$it$} ;separator=\"\n\"$
 
           $ferret_header$
@@ -1567,17 +1559,17 @@ lambda forms.
               run(FERRET_PROGRAM_MAIN);
             #endif
           }
-        #endif\n")]
-      (fill-view! view "ferret_header" (read-from-url "ferret.h"))
-      (fill-view! view "native_headers" native-headers)
-      (fill-view! view "body" (filter #(not (empty? %)) body))
-      (fill-view! view "lambda_classes" (declare-lambda-classes lambdas))
-      (fill-view! view "lambda_bodies" (declare-lambda-bodies lambdas))
-      (fill-view! view "symbols" symbol-table)
-      (fill-view! view "native_declarations" native-declarations)
-      (fill-view! view "objects" objects)
-      (fill-view! view "native_defines" native-defines)
-      (render-view view)))
+        #endif\n")
+          (fill-view! "ferret_header"       (read-from-url "ferret.h"))
+          (fill-view! "native_headers"      native-headers)
+          (fill-view! "body"                (filter #(not (empty? %)) body))
+          (fill-view! "lambda_classes"      (lambda-definitions lambdas))
+          (fill-view! "lambda_bodies"       (lambda-implementations lambdas))
+          (fill-view! "symbols"             symbol-table)
+          (fill-view! "native_declarations" native-declarations)
+          (fill-view! "objects"             objects)
+          (fill-view! "native_defines"      native-defines)
+          (render-view))))
 #+end_src
 
 ** Main

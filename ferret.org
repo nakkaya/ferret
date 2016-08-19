@@ -1064,14 +1064,14 @@ suggests and removes the node when predicate returns true.
                          (is-special-form? 'native_define form) 'native_define
                          (is-special-form? 'if form) 'if
                          (is-special-form? 'def form) 'def
-                         (symbol? form) :to-str
+                         (symbol? form) :symbol
                          (keyword? form) :keyword
                          (number? form) :number
                          (nil? form) :nil
                          (char? form) :number
                          (string? form) :string
                          (or (true? form) (false? form)) :boolean
-                         (seq? form) :sequence)))
+                         (seq? form) :invoke-lambda)))
 
   (defn emit-ast
     [ast state]
@@ -1132,7 +1132,7 @@ C++ skeleton.
 
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
-  (defmethod emit :to-str [form state] (str form))
+  (defmethod emit :symbol [form state] (str form))
 
   (defmethod emit :char [form state] (str "obj<Number>('" form "')"))
 
@@ -1152,9 +1152,27 @@ C++ skeleton.
               denom (denominator number)]
           (str "obj<Number>(" num "," denom ")"))
         (str "obj<Number>(" number ")"))))
+#+end_src
 
-  (defmethod emit :sequence [[fn & args] state]
+**** Special Forms
+
+#+name: core-code-generation-emit-source-methods
+#+begin_src clojure :tangle no
+  (defmethod emit 'def [[_ name & form] state]
+    (append-to! state [:symbol-table] name)
+    (str "(" name " = " (apply str (emit-ast form state)) ")"))
+
+  (defmethod emit 'if [[_ cond t f] state]
+    (let [cond (emit cond state)
+          t (emit t state)
+          f (if (nil? f) "nil()" (emit f state))]
+      (if-statement cond t f)))
+
+  (defmethod emit :invoke-lambda [[fn & args] state]
     (invoke-lambda (emit fn state) (emit-ast args state)))
+
+  (defmethod emit 'defobject [[_ name & spec] state]
+    (append-to! state [:objects] (declare-object name spec)) "")
 
   (defmethod emit 'fir_define_var [[_ name form] state]
     (str "var " name " = " (emit form state)))
@@ -1274,25 +1292,6 @@ lambda forms.
                      (str "case " count " : "
                           " return " (new-lambda-stack fn) ".invoke(" args-symbol ");"))))
             (apply str)) "}")))
-#+end_src
-
-**** Misc
-
-#+name: core-code-generation-emit-source-methods
-#+begin_src clojure :tangle no
-  (defmethod emit 'defobject [[_ name & spec] state]
-    (append-to! state [:objects] (declare-object name spec))
-    "")
-
-  (defmethod emit 'if [[_ cond t f] state]
-    (let [cond (emit cond state)
-          t (emit t state)
-          f (if (nil? f) "nil()" (emit f state))]
-      (if-statement cond t f)))
-
-  (defmethod emit 'def [[_ name & form] state]
-    (append-to! state [:symbol-table] name)
-    (str "(" name " = " (apply str (emit-ast form state)) ")"))
 #+end_src
 
 *** Code Templates

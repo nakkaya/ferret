@@ -1172,7 +1172,7 @@ C++ skeleton.
     (invoke-lambda (emit fn state) (emit-ast args state)))
 
   (defmethod emit 'defobject [[_ name & spec] state]
-    (append-to! state [:objects] (declare-object name spec)) "")
+    (append-to! state [:objects] (define-object name spec)) "")
 
   (defmethod emit 'fir_define_var [[_ name form] state]
     (str "var " name " = " (emit form state)))
@@ -1267,7 +1267,7 @@ C++ skeleton.
 
 #+name: code-templates
 #+begin_src clojure :tangle no
-  (defn declare-object [name body]
+  (defn define-object [name body]
     (let [specs (into {} (map #(vector (first %) (rest %)) body))
           interface (if (nil? (specs 'interface))
                       "Object"

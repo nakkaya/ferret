@@ -1226,7 +1226,7 @@ C++ skeleton.
                                  (not (= '_ %)))))]
       (doseq [dec native-declarations] 
         (emit dec state))
-      [name env (destructure-lambda args) body]))
+      [name env (lambda-arguments args) body]))
 
   (defmethod emit 'fir_define_lambda [[_ name env args & body] state]
     (let [[name env args body] (emit-define-lambda-aux name env args body state)]
@@ -1275,7 +1275,10 @@ C++ skeleton.
           interface-only (cond (specs 'interface) false
                                (empty? (specs 'new)) true
                                :defaul false)
-          view (create-view "
+          fns (specs 'fns)
+          raw-fns (filter #(= 1 (count %)) fns)
+          fns (filter #(= 3 (count %)) fns)]
+      (-> (create-view "
        $if(object_type)$
          namespace runtime {
           namespace type {
@@ -1305,11 +1308,11 @@ C++ skeleton.
          $endif$
 
          $if(stream_console)$
-  #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
+         #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
           var stream_console(){
            $stream_console$
           }
-  #endif
+         #endif
          $endif$
 
          $raw_fns:{it | $it$ } ;separator=\"\n\"$
@@ -1324,29 +1327,26 @@ C++ skeleton.
          }
        #endif} ;separator=\"\n\"$
        };
-       $post_code$")]
-      (fill-view! view "name" name)
-      (fill-view! view "template" (specs 'template))
-      (fill-view! view "interface" interface)
-      (fill-view! view "interface_only" interface-only)
-      (fill-view! view "object_type" (cond (specs 'force_type) true
-                                           interface-only false
-                                           :default true))
-      (fill-view! view "type" (str name))
-      (fill-view! view "type_val" (gensym ""))
-      (fill-view! view "data" (specs 'data))
-      (fill-view! view "new" (specs 'new))
-      (fill-view! view "equals" (first (specs 'equals)))
-      (fill-view! view "stream_console" (first (specs 'stream_console)))
-      (fill-view! view "interfaces" (specs 'interfaces))
-      (let [fns (specs 'fns)
-            raw-fns (filter #(= 1 (count %)) fns)
-            fns (filter #(= 3 (count %)) fns)]
-        (fill-view! view "fns" fns)
-        (fill-view! view "raw_fns" raw-fns))
-      (fill-view! view "ifdef_fns" (filter #(= 4 (count %)) (specs 'fns)))
-      (fill-view! view "post_code" (first (specs 'post_code)))
-      (render-view view)))
+       $post_code$")
+          (fill-view! "name"           name)
+          (fill-view! "template"       (specs 'template))
+          (fill-view! "interface"      interface)
+          (fill-view! "interface_only" interface-only)
+          (fill-view! "object_type"    (cond (specs 'force_type) true
+                                             interface-only false
+                                             :default true))
+          (fill-view! "type"           (str name))
+          (fill-view! "type_val"       (gensym ""))
+          (fill-view! "data"           (specs 'data))
+          (fill-view! "new"            (specs 'new))
+          (fill-view! "equals"         (first (specs 'equals)))
+          (fill-view! "stream_console" (first (specs 'stream_console)))
+          (fill-view! "interfaces"     (specs 'interfaces))
+          (fill-view! "fns"            fns)
+          (fill-view! "raw_fns"        raw-fns)
+          (fill-view! "ifdef_fns"      (filter #(= 4 (count %)) (specs 'fns)))
+          (fill-view! "post_code"      (first (specs 'post_code)))
+          (render-view))))
 #+end_src    
 
 **** Lambdas
@@ -1376,7 +1376,42 @@ C++ skeleton.
     (if (empty? args)
       (str "run(" n ")")
       (str "run(" n ","  (apply str (interpose \, args))")")))
+#+end_src    
 
+Initialize function arguments. Clojure style list structuring is supported.
+
+#+name: code-templates
+#+begin_src clojure :tangle no
+  (let [set-var (fn [val arg accesor]
+                  (str "var " val " = "
+                       (reduce (fn[h v] (str v "(" h ")")) arg accesor)))
+        nth (fn [pos]
+              (flatten [(repeat pos "runtime::rest") "runtime::first"]))]
+    
+    (defn lambda-arguments
+      ([args]
+       (flatten (lambda-arguments args "_args_")))
+      ([args name]
+       (let [[args va-args] (if (some #{'&} args)
+                              (split-at (.indexOf args '&) args)
+                              [args []])]
+         [(->> (map-indexed (fn [pos val] (vector pos val)) args)
+               (filter #(not= (second %) '_))
+               (reduce
+                (fn [h [pos val]]
+                  (let [accesor (nth pos)]
+                    (conj h
+                          (if (coll? val)
+                            (lambda-arguments
+                             val (reduce (fn[h v] (str v "(" h ")")) name accesor))
+                            (set-var val name accesor))))) []))
+          (if (empty? va-args)
+            []
+            (set-var (last va-args) name (repeat (count args) "runtime::rest")))]))))
+#+end_src
+
+#+name: code-templates
+#+begin_src clojure :tangle no
   (defn lambda-definitions [lambdas]
     (-> (create-view
          "$lambdas: {lambda|
@@ -1418,39 +1453,6 @@ C++ skeleton.
         (fill-view! "lambdas" lambdas)
         (render-view)))
 #+end_src    
-
-
-List Destructuring. Clojure style list structuring is supported on
-lambda forms.
-
-#+name: code-templates
-#+begin_src clojure :tangle no
-  (defn destructure-set-var [val arg accesor]
-    (str "var " val " = "
-         (reduce (fn[h v] (str v "(" h ")")) arg accesor)))
-
-  (defn destructure-arguments [args name]
-    (let [[args va-args] (if (some #{'&} args)
-                           (split-at (.indexOf args '&) args)
-                           [args []])
-          args (->> args
-                    (map-indexed (fn [pos val]
-                                   (vector pos val)))
-                    (filter #(not= (second %) '_))
-                    (reduce (fn[h [pos val]]
-                              (let [accesor (flatten [(repeat pos "runtime::rest") "runtime::first"])]
-                                (if (coll? val)
-                                  (conj h (destructure-arguments
-                                           val (reduce (fn[h v] (str v "(" h ")")) name accesor)))
-                                  (conj h (destructure-set-var val name accesor))))) []))]
-      [args (if (empty? va-args)
-              []
-              (destructure-set-var
-               (last va-args) name (repeat (count args) "runtime::rest")))]))
-
-  (defn destructure-lambda [args]
-    (flatten (destructure-arguments args "_args_")))
-#+end_src
 
 **** Program
 

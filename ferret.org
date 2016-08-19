@@ -1683,57 +1683,42 @@ lambda forms.
 
   #+name: core-code-compile-code
   #+begin_src clojure
-    (defn compile->binary [options]
+    (defn cxx-command [options]
       (if (:command options)
-        (do (info "Command" (:command options))
-            (let [ret (with-sh-dir (if (not (empty? (:output-path options)))
-                                     (:output-path options)
-                                     "./")
-                        (apply sh (flatten ["/usr/bin/env" "sh" "-c" (:command options)])))]
-              (if (not= 0 (:exit ret))
-                (do (warn "Build Error")
-                    (warn (:err ret))
-                    (System/exit 1))
-                (info (:out ret)))))
-        (let [compiler (if (System/getenv "CXX")
-                         (System/getenv "CXX")
-                         (:compiler options))
-              compiler-options (concat (map #(str %) (:compiler-options options))
-                                       (if (System/getenv "CXXFLAGS")
-                                         (seq (.split (System/getenv "CXXFLAGS") " "))))
-              command (flatten [compiler
-                                compiler-options
-                                (map #(let [extension (org.apache.commons.io.FilenameUtils/getExtension %)]
-                                        [(cond (= extension "c") ["-x" "c"]
-                                               (= extension "c++") ["-x" "c++"]
-                                               :default "")
-                                         %])
-                                     (:extra-source-files options))
-                                ["-x" "c++"]
-                                (str (:base-name options) "." (:source-extension options))])]
+        (flatten ["/usr/bin/env" "sh" "-c" (:command options)])
+        (let [cxx (if (System/getenv "CXX")
+                    (System/getenv "CXX")
+                    (:compiler options))
+              cxx-options (concat (map #(str %) (:compiler-options options))
+                                  (if (System/getenv "CXXFLAGS")
+                                    (seq (.split (System/getenv "CXXFLAGS") " "))))
+              source-files (map #(let [extension (org.apache.commons.io.FilenameUtils/getExtension %)]
+                                   [(cond (= extension "c") ["-x" "c"]
+                                          (= extension "c++") ["-x" "c++"]
+                                          :default "")
+                                    %])
+                                (:extra-source-files options))]
+          (flatten [cxx cxx-options source-files
+                    ["-x" "c++"] (str (:base-name options) "." (:source-extension options))]))))
 
-          (info "Building")
-          (info "CXX:" compiler)
-          (info "CXXFLAGS:")
-          (doseq [option compiler-options]
-            (info "\t" option))
-          (let [ret (try
-                      (with-sh-dir (if (not (empty? (:output-path options)))
-                                     (:output-path options)
-                                     "./")
-                        (apply sh command))
-                      (catch Exception e
-                        (warn (str "Error Executing C++ Compiler."))
-                        (warn (str "" (.getMessage e)))
-                        (System/exit 1)))]
-            (if (not= 0 (:exit ret))
-              (do (warn "Build Error")
-                  (warn (:err ret))
-                  (System/exit 1))
-              (do (when (:name options)
-                    (with-sh-dir (:output-path options)
-                      (sh "mv" "a.out" (str "./" (:name options)))))
-                  true))))))
+    (defn compile->binary [options]
+      (let [command (cxx-command options)]
+        (info "Building" command)
+        (let [build-dir (if (empty? (:output-path options))
+                          "./"
+                          (:output-path options))
+              ret (try
+                    (with-sh-dir build-dir
+                      (apply sh command))
+                    (catch Exception e
+                      (warn (str "Error Executing C++ Compiler."))
+                      (warn (str "" (.getMessage e)))
+                      (System/exit 1)))]
+          (if (not= 0 (:exit ret))
+            (do (warn "Build Error")
+                (warn (:err ret))
+                (System/exit 1)))
+          true)))
   #+end_src
 
 *** Build Solution

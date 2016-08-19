@@ -1653,7 +1653,7 @@ lambda forms.
               (assoc :ast (->> args :options :ast))
               (assoc :compile-program (->> args :options :compile))
               (assoc :release (->> args :options :release))
-              (assoc :fomat-code (not (->> args :options :disable-formatting)))
+              (assoc :format-code (not (->> args :options :disable-formatting)))
               (assoc :global-functions (->> args :options :global-functions))
               (assoc :extra-source-files
                      (cond (not (empty? (:arguments args)))
@@ -1674,15 +1674,7 @@ lambda forms.
       (let [file-name (cpp-file-name options)
             source (emit-source form options)
             solution (solution-template source)]
-        (FileUtils/writeStringToFile (file file-name) (.trim solution))
-        (let [formatted-source (try (with-sh-dir "./"
-                                      (sh "clang-format" "-style" "{Standard: Cpp11}" file-name))
-                                    (catch Exception e nil))]
-          (when (:fomat-code options)
-            (if formatted-source
-              (do (info "Formatting Code") 
-                  (spit file-name (:out formatted-source)))
-              (trace "Install clang-format for Formatted Output (Optional)"))))))
+        (FileUtils/writeStringToFile (file file-name) (.trim solution))))
   #+end_src
 
 *** Compile to Binary
@@ -1744,16 +1736,33 @@ lambda forms.
                   true))))))
   #+end_src
 
-*** Compiler Main
+*** Build Solution
+
+    Compile and build program,
 
    #+name: core-code-compile-code
    #+begin_src clojure
+     (defn clang-format [file]
+       (let [source (try (with-sh-dir "./"
+                           (sh "clang-format" "-style" "{Standard: Cpp11}" file))
+                         (catch Exception e nil))]
+         (if source
+           (do (info "Formatting Code") 
+               (spit file (:out source)))
+           (trace "Install clang-format for Formatted Output (Optional)"))))
+
      (defn build-solution [spec-fn]
-       (let [{:keys [input-file compile-program extra-source-files]} (spec-fn)]
+       (let [{:keys [input-file compile-program format-code]} (spec-fn)]
          (compile->cpp (read-clojure-file input-file) (spec-fn))
+         
+         (when format-code
+           (clang-format input-file))
+         
          (when compile-program
            (compile->binary (spec-fn)))))
    #+end_src
+
+*** Compiler Main
 
     Compiler options,
 

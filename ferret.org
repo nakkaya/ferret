@@ -1198,10 +1198,8 @@ C++ skeleton.
     (lambda-object-stack f))
 
   (defn emit-define-lambda-aux [name env args body state]
-    (let [native-declarations (filter #(and (seq? %)
-                                            (= (first %) 'native_declare)) body)
-          body (filter #(not (and (seq? %)
-                                  (= (first %) 'native_declare))) body)
+    (let [native-declarations (filter #((is-form? 'native_declare) %) body)
+          body (filter #(not ((is-form? 'native_declare) %)) body)
           body (cond  (empty? body)
                       ["nil();"]
                       (and (= 1 (count body))

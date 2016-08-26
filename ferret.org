@@ -106,10 +106,14 @@ Following shows a blink example for Arduino.
   $ mv blink.cpp blink/blink.ino
 #+END_EXAMPLE
 
-Then upload as usual. For more embedded usage examples see,
+Then upload as usual. 
+
+For more embedded usage examples see,
 
  - [[http://nakkaya.com/2016/06/10/ferret-a-hard-real-time-clojure-for-lisp-machines/][Ferret - A Hard Real-Time Clojure for Lisp Machines]] -
    Implementation of a line following robot in Ferret.
+ - [[https://git.nakkaya.com/nakkaya/solarcar-turn-indicator/tree/master][solarcar-turn-indicator]] - A state machine implementation for a car
+   turn indicator.
 
 ** Memory Management
 

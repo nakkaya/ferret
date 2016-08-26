@@ -1632,7 +1632,8 @@ Initialize function arguments. Clojure style list structuring is supported.
         (let [base-name (org.apache.commons.io.FilenameUtils/getBaseName input)
               path (str (org.apache.commons.io.FilenameUtils/getPrefix input)
                         (org.apache.commons.io.FilenameUtils/getPath input))
-              default-options (compile-options-parse-source (file (str base-name ".cpp")))]
+              default-compiled-file (file (str path base-name ".cpp"))
+              default-options (compile-options-parse-source default-compiled-file)]
           (-> default-options
               (assoc :input-file input)
               (assoc :base-name base-name)

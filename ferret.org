@@ -772,7 +772,7 @@ into legal ones.
 #+begin_src clojure :tangle no
   (defn remove-assertions [options form]
     (if (:release options)
-      (do (info "  - Release Mode")
+      (do (info "option => release mode")
           (remove-form form (is-form? 'assert)))
       form))
 #+end_src
@@ -1028,7 +1028,7 @@ suggests and removes the node when predicate returns true.
       (->> (read-string (str \( (FileUtils/readFileToString (file f)) \)))
            (process-reader-macros))
       (catch Exception e
-        (warn "Error Reading," f)
+        (warn "error reading =>" f)
         (System/exit 1))))
 
   (defn read-clojure-file-from-url [f]
@@ -1036,7 +1036,7 @@ suggests and removes the node when predicate returns true.
       (->> (read-string (str \( (read-from-url f) \)))
            (process-reader-macros))
       (catch Exception e
-        (warn "Error Reading," f)
+        (warn "error reading =>" f)
         (System/exit 1))))
 
   (defn is-special-form? [s f]
@@ -1658,11 +1658,12 @@ Initialize function arguments. Clojure style list structuring is supported.
   #+name: core-code-compile-code
   #+begin_src clojure
     (defn compile->cpp [form options]
-      (info "Compiling")
       (let [file-name (cpp-file-name options)
             source (emit-source form options)
             solution (solution-template source)]
-        (FileUtils/writeStringToFile (file file-name) (.trim solution))))
+        (FileUtils/writeStringToFile (file file-name) (.trim solution))
+        (info "compiled" "=>" file-name)
+        true))
   #+end_src
 
 *** Compile to Binary
@@ -1691,7 +1692,7 @@ Initialize function arguments. Clojure style list structuring is supported.
 
     (defn compile->binary [options]
       (let [command (cxx-command options)]
-        (info "Building" command)
+        (info "building" "=>" (apply str (interpose " " command)))
         (let [build-dir (if (empty? (:output-path options))
                           "./"
                           (:output-path options))
@@ -1699,11 +1700,11 @@ Initialize function arguments. Clojure style list structuring is supported.
                     (with-sh-dir build-dir
                       (apply sh command))
                     (catch Exception e
-                      (warn (str "Error Executing C++ Compiler."))
+                      (warn (str "error executing C++ compiler."))
                       (warn (str "" (.getMessage e)))
                       (System/exit 1)))]
           (if (not= 0 (:exit ret))
-            (do (warn "Build Error")
+            (do (warn "build error")
                 (warn (:err ret))
                 (System/exit 1)))
           true)))
@@ -1721,12 +1722,15 @@ Initialize function arguments. Clojure style list structuring is supported.
                            (sh "clang-format" "-style" "{Standard: Cpp11}" file))
                          (catch Exception e nil))]
          (if source
-           (do (info "Formatting Code") 
+           (do (info "formatting code") 
                (spit file (:out source)))
-           (trace "Install clang-format for Formatted Output (Optional)"))))
+           (trace "install clang-format for formatted output (optional)"))))
 
      (defn build-solution [spec-fn]
        (let [{:keys [input-file compile-program format-code]} (spec-fn)]
+         (info "dir =>" (System/getProperty "user.dir"))
+         (info "file =>" input-file)
+         
          (compile->cpp (read-clojure-file input-file) (spec-fn))
          
          (when format-code
@@ -1766,7 +1770,7 @@ Initialize function arguments. Clojure style list structuring is supported.
            (System/exit 0))
 
          (when (not (.exists (file input)))
-           (warn "No Input File.")
+           (warn "no input file")
            (System/exit 1))
 
          (let [specs (build-specs input args)]
@@ -1787,12 +1791,14 @@ Initialize function arguments. Clojure style list structuring is supported.
     (def log-formatter (proxy [java.util.logging.Formatter] []
                          (format
                            [^java.util.logging.LogRecord record]
-                           (let [level (-> record .getLevel .toString)]
-                             (str (if (= level "WARNING")
+                           (let [level (-> record .getLevel .toString clojure.string/lower-case)
+                                 now (.getTime (java.util.Calendar/getInstance))
+                                 frmtr (java.text.SimpleDateFormat. "HH:mm:ss")]
+                             (str (.format frmtr now) " "
+                                  (if (= level "warning")
                                     (color/red level)
-                                    (color/green level))
-                                  ": "
-                                  (.getMessage record) "\n")))))
+                                    (color/green level)) " "
+                                    (.getMessage record) "\n")))))
 
     (def log-handler (proxy [java.util.logging.Handler] []
                        (publish [^java.util.logging.LogRecord record]
@@ -5798,7 +5804,7 @@ Create some dummy libs under /test/modules/,
           ret (with-sh-dir "./"
                 (apply sh options))]
       (if (not= 0 (:exit ret))
-        (do (warn (str "Test Failure - CppCheck"
+        (do (warn (str "test failure - CppCheck"
                        \newline \newline (with-out-str (clojure.pprint/pprint form))))
             (warn (:err ret))
             (warn "")
@@ -5810,7 +5816,7 @@ Create some dummy libs under /test/modules/,
           ret (with-sh-dir "./"
                 (apply sh options))]
       (if (not= 0 (:exit ret))
-        (do (warn (str "Test Failure - Valgrind"
+        (do (warn (str "test failure - valgrind"
                        \newline \newline (with-out-str (clojure.pprint/pprint form))))
             (warn (:err ret))
             (System/exit 1)))))
@@ -5843,7 +5849,7 @@ Create some dummy libs under /test/modules/,
       (let [type (-> event :type)]
         (inc-report-counter type)
         (when (= type :fail)
-          (warn (str "Test Failure" \newline \newline actual \newline expected))))))
+          (warn (str "test failure" \newline \newline actual \newline expected))))))
 
   (defmacro compare-output [res & body]
     `(binding [clojure.test/report report-test-failure]
@@ -5861,7 +5867,7 @@ Create some dummy libs under /test/modules/,
         (binding [clojure.test/report
                   (fn [ev]
                     (when (= (-> ev :type) :fail)
-                      (warn (str "Core Test Failure" \newline \newline))
+                      (warn (str "core test failure" \newline \newline))
                       (println prog-out)))]
           (is (= "" prog-out))))))
 

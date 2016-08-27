@@ -5001,7 +5001,22 @@ Tests are run by the CI system for the following compilers,
                     (no-op (fn [] true) no-op)))]
       (dotimes [_ 50]
         (machine))
-      (is (= (list 2 1) (deref state)))))
+      (is (= (list 2 1) (deref state))))
+
+    (let [value (atom 0)
+          machine (state-machine 
+                   (states
+                    (increment (swap! value inc))
+                    (no-op ))
+                   (transitions
+                    (increment
+                     (fn [] true) increment
+                     (fn [] true) no-op)
+                    (no-op
+                     (fn [] true) no-op)))]
+      (machine)
+      (machine)
+      (is (= 2 (deref value)))))
 #+end_src
 
 *** Threading

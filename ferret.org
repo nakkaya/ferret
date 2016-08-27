@@ -1932,7 +1932,16 @@ Base Object,
 *** Objects
 **** Pointer
 
-An object to hold a reference to a C++ pointer,
+A /Pointer/ object keeps a reference to a C++ pointer.
+
+#+begin_src clojure
+  (let [pointer (cxx "__result = obj<Pointer>(new int(42))")
+        value   (cxx "int *ptr = pointer.cast<Pointer>()->pointer<int>();
+                      __result = obj<Number>(*ptr)")]
+    (println value))
+
+  ;; => 42
+#+end_src
 
 #+name: runtime-clojure-pointer-object
 #+begin_src clojure :tangle no
@@ -1951,6 +1960,20 @@ An object to hold a reference to a C++ pointer,
     (force-type))
 #+end_src
 
+A /HeavyPointer/ object contains a pointer and a function to be called
+right before garbage collection. This is similar to /finalizer/ in
+Java.
+
+#+begin_src clojure
+  (let [val (cxx "__result = obj<Pointer>(new int(0));")
+        gc (fn []
+             (cxx "delete val.cast<Pointer>()->pointer<int>();")
+             (println "Cleanup..."))]
+    (heavy-pointer val gc))
+
+  ;; => Cleanup...
+#+end_src
+
 #+name: runtime-clojure-heavy-pointer-object
 #+begin_src clojure :tangle no
   (defobject HeavyPointer
@@ -1965,6 +1988,9 @@ An object to hold a reference to a C++ pointer,
      ("~HeavyPointer" "" "run(gc_fn);")
      ("var container" "" "return pointer;"))
     (force-type))
+
+  (defn heavy-pointer [ptr gc]
+    "__result = obj<HeavyPointer>(ptr,gc)")
 #+end_src
 
 **** Number

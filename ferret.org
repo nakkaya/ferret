@@ -5571,7 +5571,6 @@ Create some dummy libs under /test/modules/,
     =FERRET_ALLOCATE= any third party GC can be supported.
     - http://www.ravenbrook.com/project/mps
     - http://www.hboehm.info/gc/
-  - *Pointer* - A pointer type to handle shared pointers.
   - *Escape Analysis* - Escape known language structures.
   - *Pre/Post conditions* for functions.
     - By default print error and abort. 
@@ -5654,6 +5653,8 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Pointer* - A pointer type to handle shared pointers.
+    Implemented Value Object.
   - *Unit Testing*
     - https://www.cs.northwestern.edu/academics/courses/325/readings/lisp-unit.html
     - https://github.com/fukamachi/prove

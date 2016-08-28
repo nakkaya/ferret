@@ -2013,7 +2013,7 @@ modern C++ libraries that use smart pointers for memory management.
      "T other = o.cast<Value<T>>()->value();
       return obj<Boolean>(val == other);")
     (stream_console
-     "fprintf(FERRET_OUTPUT_STREAM, \"Value<%p>\", &val); return nil();")
+     "fprintf(FERRET_OUTPUT_STREAM, \"Value<%p>\", (void*)&val); return nil();")
     (fns
      ("explicit Value(T & t) : val(t) {}")
      ("T value" "" "return val;"))

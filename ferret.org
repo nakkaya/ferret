@@ -1310,7 +1310,7 @@ C++ skeleton.
          $endif$
 
          $if(stream_console)$
-         #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
+         #if !defined(FERRET_DISABLE_STD_OUT)
           var stream_console(){
            $stream_console$
           }
@@ -1544,8 +1544,8 @@ Initialize function arguments. Clojure style list structuring is supported.
 
         #if defined(FERRET_HARDWARE_ARDUINO)
           void setup(){
-            #if defined(FERRET_INIT_OUTPUT_STREAM)
-               FERRET_INIT_OUTPUT_STREAM
+            #if defined(FERRET_INIT_STD_OUT)
+               FERRET_INIT_STD_OUT
             #endif
 
             using namespace ferret;
@@ -1871,7 +1871,7 @@ following macros,
 
 #+name: runtime-native-memory-reference-counting-macros
 #+begin_src c++ :tangle no
-  #if defined(FERRET_SINGLE_THREADED)
+  #if defined(FERRET_DISABLE_MULTI_THREADING)
     #define FERRET_NEW_REF() size_t ref_count;
     #define FERRET_COPY_REF(other) ref_count = other.ref_count;
   #else
@@ -1902,7 +1902,7 @@ Base Object,
     
     virtual size_t type() = 0;
     
-  #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
+  #if !defined(FERRET_DISABLE_STD_OUT)
     virtual var stream_console() = 0;
   #endif
     
@@ -1950,7 +1950,7 @@ A /Pointer/ object keeps a reference to a C++ pointer.
     (equals
      "return obj<Boolean>(ptr == o.cast<Pointer>()->pointer<void>());")
     (stream_console
-     "fprintf(FERRET_OUTPUT_STREAM, \"Pointer<%p>\",ptr); return nil();")
+     "fprintf(FERRET_STD_OUT, \"Pointer<%p>\",ptr); return nil();")
     (fns
      ("explicit Pointer(void* p) : ptr(p) {}")
      ("template<typename T> T* pointer" ""
@@ -2013,7 +2013,7 @@ modern C++ libraries that use smart pointers for memory management.
      "T other = o.cast<Value<T>>()->value();
       return obj<Boolean>(val == other);")
     (stream_console
-     "fprintf(FERRET_OUTPUT_STREAM, \"Value<%p>\", (void*)&val); return nil();")
+     "fprintf(FERRET_STD_OUT, \"Value<%p>\", (void*)&val); return nil();")
     (fns
      ("explicit Value(T & t) : val(t) {}")
      ("T value" "" "return val;"))
@@ -2033,7 +2033,7 @@ Default number configuration,
   namespace ferret{
     typedef int   number_t;                   // Number Container.
     const   int   float_precision = 1000;     // Used When Reading Floats.
-  #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
+  #if !defined(FERRET_DISABLE_STD_OUT)
     const   char* number_format = "%d";       // Number Format String (fprinf)
   #endif
   }
@@ -2084,13 +2084,13 @@ Number Object,
                                    (denominator() == o.cast<Number>()->denominator()));")
     (stream_console
      "if (_denominator == 1)
-        fprintf(FERRET_OUTPUT_STREAM, number_format, _numerator);
+        fprintf(FERRET_STD_OUT, number_format, _numerator);
       else if (_numerator == 0)
-        fprintf(FERRET_OUTPUT_STREAM, \"0\");
+        fprintf(FERRET_STD_OUT, \"0\");
       else{
-        fprintf(FERRET_OUTPUT_STREAM, number_format,_numerator);
-        fprintf(FERRET_OUTPUT_STREAM, \"/\");
-        fprintf(FERRET_OUTPUT_STREAM, number_format,_denominator);
+        fprintf(FERRET_STD_OUT, number_format,_numerator);
+        fprintf(FERRET_STD_OUT, \"/\");
+        fprintf(FERRET_STD_OUT, number_format,_denominator);
       }
       return nil();")
     
@@ -2146,7 +2146,7 @@ Each keyword in the program is converted to an /Keyword/ object. A
     (data "int id;")
     (equals "return obj<Boolean>(id == o.cast<Keyword>()->container());")
     (stream_console
-     "fprintf(FERRET_OUTPUT_STREAM, \"%d\", id); return nil();")
+     "fprintf(FERRET_STD_OUT, \"%d\", id); return nil();")
     (fns
      ("explicit Keyword(int id) : id(id) {}")
      ("explicit Keyword(const char * str){
@@ -2171,7 +2171,7 @@ Linked list container implementing the seekable interface.
     (equals "(void)o; 
              return obj<Boolean>(true);")
     (stream_console
-     "fprintf(FERRET_OUTPUT_STREAM, \"()\");
+     "fprintf(FERRET_STD_OUT, \"()\");
       return nil();")
     (fns
      ("var cons" "var"
@@ -2200,13 +2200,13 @@ Linked list container implementing the seekable interface.
         return obj<Boolean>(false);")
     
     (stream_console
-     "fprintf(FERRET_OUTPUT_STREAM, \"(\");
+     "fprintf(FERRET_STD_OUT, \"(\");
         data.stream_console();
         FERRET_ITERATE(next,it){
-          fprintf(FERRET_OUTPUT_STREAM, \" \");
+          fprintf(FERRET_STD_OUT, \" \");
           runtime::first(it).stream_console();
         }
-      fprintf(FERRET_OUTPUT_STREAM, \")\");
+      fprintf(FERRET_STD_OUT, \")\");
       return nil();")
     (fns
      ("explicit Sequence(var d = var(), var n = var()) : data(d), next(n) {}")
@@ -2255,13 +2255,13 @@ A lazy list container implementing the seekable interface.
       else
         return obj<Boolean>(false);")
     (stream_console
-     "fprintf(FERRET_OUTPUT_STREAM, \"(\");
+     "fprintf(FERRET_STD_OUT, \"(\");
       head.stream_console();
       FERRET_ITERATE(runtime::rest(var(this)),it){
-        fprintf(FERRET_OUTPUT_STREAM, \" \");
+        fprintf(FERRET_STD_OUT, \" \");
         runtime::first(it).stream_console();
       }
-      fprintf(FERRET_OUTPUT_STREAM, \")\");
+      fprintf(FERRET_STD_OUT, \")\");
       return nil();")
     (fns
      ("explicit LazySequence(var t) : thunk(t) {}")
@@ -2297,7 +2297,7 @@ Strings are represented as a linked list of characters.
     (stream_console
      "FERRET_ITERATE(data,it){ 
        char ch = runtime::first(it).to<char>();
-       fprintf(FERRET_OUTPUT_STREAM, \"%c\",ch);
+       fprintf(FERRET_STD_OUT, \"%c\",ch);
       }
       return nil();")
     (fns
@@ -2347,9 +2347,9 @@ A boolean object,
     (equals "return obj<Boolean>(value == (bool)o);")
     (stream_console
      "if (value)
-        fprintf(FERRET_OUTPUT_STREAM, \"true\"); 
+        fprintf(FERRET_STD_OUT, \"true\"); 
       else
-      fprintf(FERRET_OUTPUT_STREAM, \"false\"); 
+      fprintf(FERRET_STD_OUT, \"false\"); 
       return nil();")
     (fns
      ("explicit Boolean(bool b) : value(b) {}")
@@ -2390,9 +2390,9 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
           "FERRET_NEW_LOCK(lock)")
     (equals "return obj<Boolean>(this == o.cast<Atom>());")
     (stream_console
-     "fprintf(FERRET_OUTPUT_STREAM, \"atom <\");
+     "fprintf(FERRET_STD_OUT, \"atom <\");
       data.stream_console();
-      fprintf(FERRET_OUTPUT_STREAM, \">\");
+      fprintf(FERRET_STD_OUT, \">\");
       return nil();")
     (fns
      ("explicit Atom(var d) : data(d) {}")
@@ -2549,7 +2549,7 @@ uniform fashion.
     (interfaces "var invoke(var args)")
     (equals "return obj<Boolean>(this == o.cast<Lambda>());")
     (stream_console
-     "fprintf(FERRET_OUTPUT_STREAM, \"lambda\"); return nil();")
+     "fprintf(FERRET_STD_OUT, \"lambda\"); return nil();")
     (force-type true))
 #+end_src
 
@@ -2625,12 +2625,12 @@ reaches zero it will automatically free the Object.
     
     operator bool() const;
 
-  #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
+  #if !defined(FERRET_DISABLE_STD_OUT)
     var stream_console() {
       if (m_ptr != nullptr )
         m_ptr->stream_console();
       else
-        fprintf(FERRET_OUTPUT_STREAM, "nil");
+        fprintf(FERRET_STD_OUT, "nil");
       return var();
     }
   #endif
@@ -2875,75 +2875,117 @@ Dispatch correct memory allocation/deallocation implementation,
 ** Configuration
 
 Following options can be configured using /#define/ directives, or using
-/native-define/ or /configure-runtime!/ from program code.
+/native-define/ or /configure-runtime!/ from program code. Unless
+these options are overridden in source file, they are auto configured
+during compilation on supported platforms. (i.e Multi threading is
+enabled on Linux.) On unsupported platforms Ferret defaults to running
+in safe mode.
 
 #+BEGIN_EXAMPLE
-  (configure-runtime! FERRET_DISABLE_OUTPUT_STREAM true)
+  (configure-runtime! FERRET_DISABLE_STD_OUT true)
 #+END_EXAMPLE
 
 #+BEGIN_EXAMPLE
-  |------------------------------+--------------+-------------------------------------------------------------------|
-  | Define                       | Defult Value | Description                                                       |
-  |------------------------------+--------------+-------------------------------------------------------------------|
-  | FERRET_DISABLE_OUTPUT_STREAM | true         | Disables output stream. (Reduces code size on micro-controllers.) |
-  | FERRET_DISABLE_MAIN_FUNCTION | false        | Disables auto execution of ferret::program_run()                  |
-  | FERRET_PROGRAM_MAIN          |              | A function to execute after ferret::program_run()                 |
-  | FERRET_SINGLE_THREADED       | false        | Disable atomic reference counting.                                |
-  | FERRET_UART_RATE             | 9600         | Set default UART rate.                                            |
-  |------------------------------+--------------+-------------------------------------------------------------------|
+  |--------------------------------+--------------+-------------------------------------------------------------------|
+  | Define                         | Defult Value | Description                                                       |
+  |--------------------------------+--------------+-------------------------------------------------------------------|
+  | FERRET_SAFE_MODE               | false        | Force Safe Mode.                                                  |
+  | FERRET_DISABLE_STD_OUT         | true         | Disables output stream. (Reduces code size on micro-controllers.) |
+  | FERRET_DISABLE_MULTI_THREADING | true         | Disable atomic reference counting.                                |
+  | FERRET_DISABLE_MAIN_FUNCTION   | false        | Disables auto execution of ferret::program_run()                  |
+  | FERRET_PROGRAM_MAIN            | Not Defined  | A function to execute after ferret::program_run()                 |
+  | FERRET_UART_RATE               | 9600         | Set default UART rate.                                            |
+  |------------------------------+--------------+---------------------------------------------------------------------|
 #+END_EXAMPLE
 
 ** Initialization
 *** Detect Hardware
 
+Ferret defaults to running in safe mode, which means 
+
+  - Multi threading is disabled.
+  - Console output is disabled.
+
+Safe mode only requires a C++11 compiler no third party library is
+required including the C++ standard library. Macros listed in this
+section are used to enable the above disabled features if a known
+environment is found. (i.e Multi threading is enabled if compiling on
+Linux or Mac OS X)
+
 #+name: runtime-native-detect-hardware
 #+begin_src c++ :tangle no
-  #if defined(__SAM3X8E__)
-    # define FERRET_HARDWARE_ARDUINO TRUE
-    # define FERRET_HARDWARE_ARDUINO_DUE TRUE
-  #elif defined(__AVR__)
-    # define FERRET_HARDWARE_ARDUINO TRUE
-    # define FERRET_HARDWARE_ARDUINO_UNO TRUE
-  #elif defined(_VARIANT_ARDUINO_101_X_)
-    # define FERRET_HARDWARE_ARDUINO TRUE
-    # define FERRET_HARDWARE_ARDUINO_101 TRUE
-    # define FERRET_DISABLE_OUTPUT_STREAM TRUE
-  #else
-    # define FERRET_STD_LIB TRUE
-    # define FERRET_OUTPUT_STREAM stdout
+  # define FERRET_CONFIG_SAFE_MODE TRUE
+
+  #if !defined(FERRET_SAFE_MODE)
+    #if defined(__APPLE__) ||                       \
+      defined(_WIN32) ||                            \
+      defined(__linux__) ||                         \
+      defined(__unix__) ||                          \
+      defined(_POSIX_VERSION)
+    
+      # undef  FERRET_CONFIG_SAFE_MODE
+      # define FERRET_STD_LIB TRUE
+    #endif
+    
+    #if defined(__SAM3X8E__)
+      # define FERRET_HARDWARE_ARDUINO TRUE
+      # define FERRET_HARDWARE_ARDUINO_DUE TRUE
+    #elif defined(__AVR__)
+      # define FERRET_HARDWARE_ARDUINO TRUE
+      # define FERRET_HARDWARE_ARDUINO_UNO TRUE
+    #elif defined(_VARIANT_ARDUINO_101_X_)
+      # define FERRET_HARDWARE_ARDUINO TRUE
+      # define FERRET_HARDWARE_ARDUINO_101 TRUE
+      # define FERRET_DISABLE_STD_OUT TRUE
+    #endif
+    
+    #if defined(FERRET_HARDWARE_ARDUINO)
+      # undef  FERRET_CONFIG_SAFE_MODE
+      # define FERRET_DISABLE_MAIN_FUNCTION TRUE
+    #endif
   #endif
 
-  #if defined(FERRET_HARDWARE_ARDUINO)
-    # define FERRET_DISABLE_MAIN_FUNCTION true
-    # define FERRET_SINGLE_THREADED true
-    #if !defined(FERRET_UART_RATE)
-      # define FERRET_UART_RATE 9600
-    #endif
+  #if defined(FERRET_CONFIG_SAFE_MODE)
+    # define FERRET_DISABLE_MULTI_THREADING TRUE
+    # define FERRET_DISABLE_STD_OUT TRUE
   #endif
 #+end_src
 
 *** Initialize Hardware
 
+Default output configuration,
+
+#+name: runtime-native-hardware-initialize
+#+begin_src c++ :tangle no
+  #if !defined(FERRET_UART_RATE)
+    # define FERRET_UART_RATE 9600
+  #endif
+
+  # define FERRET_STD_OUT stdout
+#+end_src
+
+Setup IO on supported embedded systems,
+
 #+name: runtime-native-hardware-initialize
 #+begin_src c++ :tangle no
   #ifdef FERRET_HARDWARE_ARDUINO_UNO
-      #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
+      #if !defined(FERRET_DISABLE_STD_OUT)
        static FILE uartout = {0};
        static int uart_putchar (char c, FILE *stream){
            Serial.write(c);
            return 0 ;
        }
-       #define FERRET_OUTPUT_STREAM &uartout
-       #define FERRET_INIT_OUTPUT_STREAM                                       \
+       #define FERRET_STD_OUT &uartout
+       #define FERRET_INIT_STD_OUT                                       \
            Serial.begin(FERRET_UART_RATE);                                     \
            fdev_setup_stream (&ferret::uartout, ferret::uart_putchar, NULL, _FDEV_SETUP_WRITE);
       #endif
   #endif
 
   #ifdef FERRET_HARDWARE_ARDUINO_DUE
-      #if !defined(FERRET_DISABLE_OUTPUT_STREAM)
-        # define FERRET_OUTPUT_STREAM stdout
-        # define FERRET_INIT_OUTPUT_STREAM Serial.begin(FERRET_UART_RATE);
+      #if !defined(FERRET_DISABLE_STD_OUT)
+        # define FERRET_STD_OUT stdout
+        # define FERRET_INIT_STD_OUT Serial.begin(FERRET_UART_RATE);
       #endif
   #endif
 #+end_src
@@ -2976,7 +3018,7 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
 
 #+name: runtime-native-locking-macros
 #+begin_src c++ :tangle no
-  #if defined(FERRET_STD_LIB) && !defined(FERRET_SINGLE_THREADED)
+  #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)
    #define FERRET_NEW_LOCK(symbol) ::std::mutex symbol;
    #define FERRET_WITH_LOCK(lock,code)                         \
      {                                                         \
@@ -2996,12 +3038,12 @@ Helper macros, to be used when debugging on the native side.
 #+name: runtime-native-debugging-macros
 #+begin_src c++ :tangle no
   #define FERRET_PRT_MSG(msg)                     \
-    fprintf(FERRET_OUTPUT_STREAM, msg);           \
-    fprintf(FERRET_OUTPUT_STREAM, "\n");
+    fprintf(FERRET_STD_OUT, msg);           \
+    fprintf(FERRET_STD_OUT, "\n");
 
   #define FERRET_PRT_OBJ(o)                       \
     o.stream_console();                           \
-    fprintf(FERRET_OUTPUT_STREAM, "\n");
+    fprintf(FERRET_STD_OUT, "\n");
 #+end_src
 
 * Clojure Core
@@ -3098,14 +3140,14 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-console-io
 #+begin_src clojure :tangle no
   (defnative print [& more]
-    (on "!defined(FERRET_DISABLE_OUTPUT_STREAM)"
+    (on "!defined(FERRET_DISABLE_STD_OUT)"
         "if (more.is_nil())
            return nil();
          var f = more.cast<ISeekable>()->first();
          f.stream_console();
          var r = more.cast<ISeekable>()->rest();
          FERRET_ITERATE(r,it){
-          fprintf(FERRET_OUTPUT_STREAM, \" \");
+          fprintf(FERRET_STD_OUT, \" \");
           runtime::first(it).stream_console();
          }"))
 #+end_src
@@ -3115,8 +3157,8 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-console-io
 #+begin_src clojure :tangle no
   (defnative newline [& more]
-    (on "!defined(FERRET_DISABLE_OUTPUT_STREAM)"
-        "fprintf(FERRET_OUTPUT_STREAM, \"\\n\");"))
+    (on "!defined(FERRET_DISABLE_STD_OUT)"
+        "fprintf(FERRET_STD_OUT, \"\\n\");"))
 #+end_src
 
 *** println
@@ -3938,7 +3980,7 @@ Runs the given lambda in a thread,
 #+name: runtime-clojure-bit-operations
 #+begin_src clojure :tangle no
   (defnative thread [f]
-    (on "defined FERRET_STD_LIB"
+    (on "defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)"
         ("thread")
         "::std::thread ([f](){return run(f);}).detach();"))
 #+end_src
@@ -4237,7 +4279,7 @@ Ported from,
            result = 0;
            input = 0;"))
     (equals "return obj<Boolean>(this == o.cast<PIDController>());")
-    (stream_console "fprintf(FERRET_OUTPUT_STREAM, \"PIDController\"); return nil();")
+    (stream_console "fprintf(FERRET_STD_OUT, \"PIDController\"); return nil();")
     (fns
      ("var update" "var in"
       "input = in.to<T>();

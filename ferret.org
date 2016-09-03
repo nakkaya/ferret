@@ -1504,7 +1504,7 @@ Initialize function arguments. Clojure style list structuring is supported.
           // Command Line Arguments
           #if defined(FERRET_STD_LIB) &&                    \\
               !defined(DISABLE_COMMAND_LINE_ARGUMENTS) &&   \\
-              !defined(FERRET_DISABLE_MAIN_FUNCTION)
+              !defined(FERRET_DISABLE_STD_MAIN)
             ferret::var _star_command_line_args_star_;
           #endif
 
@@ -1520,7 +1520,7 @@ Initialize function arguments. Clojure style list structuring is supported.
             }
           }
 
-        #if !defined(FERRET_DISABLE_MAIN_FUNCTION)
+        #if !defined(FERRET_DISABLE_STD_MAIN)
           int main(int argc, char* argv[]){
             using namespace ferret;
 
@@ -2890,9 +2890,10 @@ in safe mode.
   | Define                         | Defult Value | Description                                                       |
   |--------------------------------+--------------+-------------------------------------------------------------------|
   | FERRET_SAFE_MODE               | false        | Force Safe Mode.                                                  |
+  | DISABLE_COMMAND_LINE_ARGUMENTS | false        | Disable command line arguments.                                   |
   | FERRET_DISABLE_STD_OUT         | true         | Disables output stream. (Reduces code size on micro-controllers.) |
   | FERRET_DISABLE_MULTI_THREADING | true         | Disable atomic reference counting.                                |
-  | FERRET_DISABLE_MAIN_FUNCTION   | false        | Disables auto execution of ferret::program_run()                  |
+  | FERRET_DISABLE_STD_MAIN        | false        | Disables auto execution of ferret::program_run()                  |
   | FERRET_PROGRAM_MAIN            | Not Defined  | A function to execute after ferret::program_run()                 |
   | FERRET_UART_RATE               | 9600         | Set default UART rate.                                            |
   |------------------------------+--------------+---------------------------------------------------------------------|
@@ -2941,7 +2942,7 @@ Linux or Mac OS X)
     
     #if defined(FERRET_HARDWARE_ARDUINO)
       # undef  FERRET_CONFIG_SAFE_MODE
-      # define FERRET_DISABLE_MAIN_FUNCTION TRUE
+      # define FERRET_DISABLE_STD_MAIN TRUE
     #endif
   #endif
 

@@ -1520,50 +1520,8 @@ Initialize function arguments. Clojure style list structuring is supported.
             }
           }
 
-        #if !defined(FERRET_DISABLE_STD_MAIN)
-          int main(int argc, char* argv[]){
-            using namespace ferret;
-
-          #if defined(FERRET_STD_LIB) &&               \\
-              !defined(FERRET_DISABLE_CLI_ARGS)
-            _star_command_line_args_star_ = runtime::list();
-            for (int i = argc - 1; i > -1 ; i--)
-              _star_command_line_args_star_ = 
-                  runtime::cons(obj<String>(argv[i]),_star_command_line_args_star_);
-          #endif
-
-            program_run();
-
-            #if defined(FERRET_PROGRAM_MAIN)
-              run(FERRET_PROGRAM_MAIN);
-            #endif
-
-            return 0;
-          }
-        #endif
-
-        #if defined(FERRET_HARDWARE_ARDUINO)
-          void setup(){
-            #if defined(FERRET_INIT_STD_OUT)
-               FERRET_INIT_STD_OUT
-            #endif
-
-            using namespace ferret;
-            #if defined(FERRET_PROGRAM_MAIN)
-              program_run();
-            #endif
-          }
-          void loop(){
-            using namespace ferret;
-            #if !defined(FERRET_PROGRAM_MAIN)
-              program_run();
-            #endif          
-
-            #if defined(FERRET_PROGRAM_MAIN)
-              run(FERRET_PROGRAM_MAIN);
-            #endif
-          }
-        #endif\n")
+         <<runtime-native-program-run-std-main>>
+         <<runtime-native-program-arduino>>\n")
           (fill-view! "ferret_header"       (read-from-url "ferret.h"))
           (fill-view! "native_headers"      native-headers)
           (fill-view! "body"                (filter #(not (empty? %)) body))
@@ -3010,6 +2968,59 @@ Setup IO on supported embedded systems,
         # define FERRET_STD_OUT stdout
         # define FERRET_INIT_STD_OUT Serial.begin(FERRET_UART_RATE);
       #endif
+  #endif
+#+end_src
+
+*** Program Run
+
+#+name: runtime-native-program-run-std-main
+#+begin_src c++ :tangle no
+  #if !defined(FERRET_DISABLE_STD_MAIN)
+    int main(int argc, char* argv[]){
+      using namespace ferret;
+
+     #if defined(FERRET_STD_LIB) &&               \\
+        !defined(FERRET_DISABLE_CLI_ARGS)
+      _star_command_line_args_star_ = runtime::list();
+      for (int i = argc - 1; i > -1 ; i--)
+        _star_command_line_args_star_ = 
+            runtime::cons(obj<String>(argv[i]),_star_command_line_args_star_);
+    #endif
+
+       program_run();
+
+       #if defined(FERRET_PROGRAM_MAIN)
+        run(FERRET_PROGRAM_MAIN);
+      #endif
+
+       return 0;
+    }
+  #endif
+#+end_src
+
+#+name: runtime-native-program-arduino
+#+begin_src c++ :tangle no
+  #if defined(FERRET_HARDWARE_ARDUINO)
+    void setup(){
+      #if defined(FERRET_INIT_STD_OUT)
+         FERRET_INIT_STD_OUT
+      #endif
+
+       using namespace ferret;
+      #if defined(FERRET_PROGRAM_MAIN)
+        program_run();
+      #endif
+    }
+    void loop(){
+      using namespace ferret;
+      #if !defined(FERRET_PROGRAM_MAIN)
+        program_run();
+      #endif          
+
+       #if defined(FERRET_PROGRAM_MAIN)
+        run(FERRET_PROGRAM_MAIN);
+      #endif
+    }
   #endif
 #+end_src
 

@@ -2942,6 +2942,7 @@ indicating platform.
     
     #if defined(FERRET_HARDWARE_ARDUINO)
       # undef  FERRET_CONFIG_SAFE_MODE
+      # define FERRET_DISABLE_MULTI_THREADING TRUE
       # define FERRET_DISABLE_STD_MAIN TRUE
     #endif
   #endif

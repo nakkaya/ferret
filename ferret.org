@@ -2953,6 +2953,27 @@ indicating platform.
   #endif
 #+end_src
 
+*** Import libraries
+
+#+name: runtime-native-program-includes
+#+begin_src c++ :tangle no
+  #ifdef FERRET_STD_LIB
+   #include <iostream>
+   #include <sstream>
+   #include <cstdio>
+   #include <cstdlib>
+   #include <cstddef>
+   #include <atomic>
+   #include <mutex>
+  #endif
+
+  #ifdef FERRET_HARDWARE_ARDUINO
+   #include <Arduino.h>
+   #include <stdio.h>
+   #include <stdlib.h>
+  #endif
+#+end_src
+
 *** Initialize Hardware
 
 Default output configuration,
@@ -2989,27 +3010,6 @@ Setup IO on supported embedded systems,
         # define FERRET_STD_OUT stdout
         # define FERRET_INIT_STD_OUT Serial.begin(FERRET_UART_RATE);
       #endif
-  #endif
-#+end_src
-
-*** Import libraries
-
-#+name: runtime-native-program-includes
-#+begin_src c++ :tangle no
-  #ifdef FERRET_STD_LIB
-   #include <iostream>
-   #include <sstream>
-   #include <cstdio>
-   #include <cstdlib>
-   #include <cstddef>
-   #include <atomic>
-   #include <mutex>
-  #endif
-
-  #ifdef FERRET_HARDWARE_ARDUINO
-   #include <Arduino.h>
-   #include <stdio.h>
-   #include <stdlib.h>
   #endif
 #+end_src
 

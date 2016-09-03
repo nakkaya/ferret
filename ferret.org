@@ -2874,12 +2874,19 @@ Dispatch correct memory allocation/deallocation implementation,
 
 ** Configuration
 
-Following options can be configured using /#define/ directives, or using
-/native-define/ or /configure-runtime!/ from program code. Unless
-these options are overridden in source file, they are auto configured
-during compilation on supported platforms. (i.e Multi threading is
-enabled on Linux.) On unsupported platforms Ferret defaults to running
-in safe mode.
+Ferret defaults to running in safe mode, which means 
+
+  - Multi threading is disabled.
+  - Console output is disabled.
+
+Safe mode only requires a C++11 compiler, no third party library is
+required including the C++ standard library. Following options can be
+configured using /#define/ directives, or using /native-define/ or
+/configure-runtime!/ from program code. Unless these options are
+overridden in source file, they are auto configured during compilation
+on supported platforms. (i.e Multi threading will be enabled on
+Linux or Mac OS X.) On unsupported platforms Ferret defaults to
+running in safe mode.
 
 #+BEGIN_EXAMPLE
   (configure-runtime! FERRET_DISABLE_STD_OUT true)
@@ -2902,16 +2909,9 @@ in safe mode.
 ** Initialization
 *** Detect Hardware
 
-Ferret defaults to running in safe mode, which means 
-
-  - Multi threading is disabled.
-  - Console output is disabled.
-
-Safe mode only requires a C++11 compiler no third party library is
-required including the C++ standard library. Macros listed in this
-section are used to enable the above disabled features if a known
-environment is found. (i.e Multi threading is enabled if compiling on
-Linux or Mac OS X)
+Check for supported hardware or platform. If running on a known
+hardware or platform break out of *Safe Mode* and set a flag
+indicating platform.
 
 #+name: runtime-native-detect-hardware
 #+begin_src c++ :tangle no

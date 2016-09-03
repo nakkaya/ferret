@@ -1503,7 +1503,7 @@ Initialize function arguments. Clojure style list structuring is supported.
 
           // Command Line Arguments
           #if defined(FERRET_STD_LIB) &&                    \\
-              !defined(DISABLE_COMMAND_LINE_ARGUMENTS) &&   \\
+              !defined(FERRET_DISABLE_CLI_ARGS) &&   \\
               !defined(FERRET_DISABLE_STD_MAIN)
             ferret::var _star_command_line_args_star_;
           #endif
@@ -1525,7 +1525,7 @@ Initialize function arguments. Clojure style list structuring is supported.
             using namespace ferret;
 
           #if defined(FERRET_STD_LIB) &&               \\
-              !defined(DISABLE_COMMAND_LINE_ARGUMENTS)
+              !defined(FERRET_DISABLE_CLI_ARGS)
             _star_command_line_args_star_ = runtime::list();
             for (int i = argc - 1; i > -1 ; i--)
               _star_command_line_args_star_ = 
@@ -2886,17 +2886,17 @@ in safe mode.
 #+END_EXAMPLE
 
 #+BEGIN_EXAMPLE
-  |--------------------------------+--------------+-------------------------------------------------------------------|
-  | Define                         | Defult Value | Description                                                       |
-  |--------------------------------+--------------+-------------------------------------------------------------------|
-  | FERRET_SAFE_MODE               | false        | Force Safe Mode.                                                  |
-  | DISABLE_COMMAND_LINE_ARGUMENTS | false        | Disable command line arguments.                                   |
-  | FERRET_DISABLE_STD_OUT         | true         | Disables output stream. (Reduces code size on micro-controllers.) |
-  | FERRET_DISABLE_MULTI_THREADING | true         | Disable atomic reference counting.                                |
-  | FERRET_DISABLE_STD_MAIN        | false        | Disables auto execution of ferret::program_run()                  |
-  | FERRET_PROGRAM_MAIN            | Not Defined  | A function to execute after ferret::program_run()                 |
-  | FERRET_UART_RATE               | 9600         | Set default UART rate.                                            |
-  |------------------------------+--------------+---------------------------------------------------------------------|
+  |--------------------------------+--------------+--------------------------------------------------------------------|
+  | Define                         | Defult Value | Description                                                        |
+  |--------------------------------+--------------+--------------------------------------------------------------------|
+  | FERRET_SAFE_MODE                 | false        | Force Safe Mode.                                                 |
+  | FERRET_DISABLE_CLI_ARGS          | false        | Disable command line arguments.                                  |
+  | FERRET_DISABLE_STD_OUT           | true         | Disables output stream. (Reduces code size.)                     |
+  | FERRET_DISABLE_MULTI_THREADING   | true         | Disable atomic reference counting.                               |
+  | FERRET_DISABLE_STD_MAIN          | false        | Disables auto execution of ferret::program_run()                 |
+  | FERRET_PROGRAM_MAIN              | Not Defined  | A function to execute after ferret::program_run()                |
+  | FERRET_UART_RATE                 | 9600         | Set default UART rate.                                           |
+  |------------------------------+--------------+----------------------------------------------------------------------|
 #+END_EXAMPLE
 
 ** Initialization

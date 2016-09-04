@@ -4735,7 +4735,7 @@ Tests are run by the CI system for the following compilers,
     (is (= 3                (#(+ 1 2))))
     (is (= 11               ((fn [n] (+ n 1)) 10)))
     (is (= 3               (((fn [n] (fn [n] n)) 3) 3)))
-    (let [args (list "./a.out")]
+    (let [args (list "./a.out" "42")]
       (is (= args *command-line-args*)))
 
     
@@ -5197,53 +5197,53 @@ Run import tests.
 #+begin_src clojure :tangle no
   (deftest import-module-test
     (is (= "Module AModule C 10 11 1 42"
-           (capture-output '((require '[test.modules.module-a :as mod-a])
-                             (require '[test.modules.module-b :as mod-b])
-                             (mod-a/helper-a)
-                             (mod-b/helper-b)
-                             (print " ")
-                             (print ((mod-a/ten-fn))
-                                    ((mod-b/eleven-fn))
-                                    (mod-a/helper-c)
-                                    (mod-b/macro-call))))))
+           (exec-form '((require '[test.modules.module-a :as mod-a])
+                        (require '[test.modules.module-b :as mod-b])
+                        (mod-a/helper-a)
+                        (mod-b/helper-b)
+                        (print " ")
+                        (print ((mod-a/ten-fn))
+                               ((mod-b/eleven-fn))
+                               (mod-a/helper-c)
+                               (mod-b/macro-call))))))
     (is (= "Module AModule C 10 11 1 42"
-           (capture-output '((require '[test.modules.module-a :as mod-a]
-                                      '[test.modules.module-b :as mod-b])
-                             (mod-a/helper-a)
-                             (mod-b/helper-b)
-                             (print " ")
-                             (print ((mod-a/ten-fn))
-                                    ((mod-b/eleven-fn))
-                                    (mod-a/helper-c)
-                                    (mod-b/macro-call))))))
+           (exec-form '((require '[test.modules.module-a :as mod-a]
+                                 '[test.modules.module-b :as mod-b])
+                        (mod-a/helper-a)
+                        (mod-b/helper-b)
+                        (print " ")
+                        (print ((mod-a/ten-fn))
+                               ((mod-b/eleven-fn))
+                               (mod-a/helper-c)
+                               (mod-b/macro-call))))))
     (is (= "Module AModule C 10 11 1 42"
-           (capture-output '((require 'test.modules.module-a
-                                      'test.modules.module-b)
-                             (test.modules.module-a/helper-a)
-                             (test.modules.module-b/helper-b)
-                             (print " ")
-                             (print ((test.modules.module-a/ten-fn))
-                                    ((test.modules.module-b/eleven-fn))
-                                    (test.modules.module-a/helper-c)
-                                    (test.modules.module-b/macro-call))))))
+           (exec-form '((require 'test.modules.module-a
+                                 'test.modules.module-b)
+                        (test.modules.module-a/helper-a)
+                        (test.modules.module-b/helper-b)
+                        (print " ")
+                        (print ((test.modules.module-a/ten-fn))
+                               ((test.modules.module-b/eleven-fn))
+                               (test.modules.module-a/helper-c)
+                               (test.modules.module-b/macro-call))))))
     (is (= "Module AModule C 10 11 1 42"
-           (capture-output '((require '[test.modules.module-a :as mod-a]
-                                      'test.modules.module-b)
-                             (mod-a/helper-a)
-                             (test.modules.module-b/helper-b)
-                             (print " ")
-                             (print ((mod-a/ten-fn))
-                                    ((test.modules.module-b/eleven-fn))
-                                    (mod-a/helper-c)
-                                    (test.modules.module-b/macro-call))))))
-    (is (= "" (capture-output '((require '[test.modules.module-a :as mod-a])))))
-    (is (= "" (capture-output '((require '[test.modules.module-a :as mod-a])
-                                (require '[test.modules.module-b :as mod-b])))))
-    (is (= "Call" (capture-output '((require '[test.modules.module-c :as mod-c])
-                                    (cxx "__result = obj<Number>((number_t)std::sqrt(100)); 
+           (exec-form '((require '[test.modules.module-a :as mod-a]
+                                 'test.modules.module-b)
+                        (mod-a/helper-a)
+                        (test.modules.module-b/helper-b)
+                        (print " ")
+                        (print ((mod-a/ten-fn))
+                               ((test.modules.module-b/eleven-fn))
+                               (mod-a/helper-c)
+                               (test.modules.module-b/macro-call))))))
+    (is (= "" (exec-form '((require '[test.modules.module-a :as mod-a])))))
+    (is (= "" (exec-form '((require '[test.modules.module-a :as mod-a])
+                           (require '[test.modules.module-b :as mod-b])))))
+    (is (= "Call" (exec-form '((require '[test.modules.module-c :as mod-c])
+                               (cxx "__result = obj<Number>((number_t)std::sqrt(100)); 
                                             std::cout << \"Call\"")))))
-    (is (= "25" (capture-output '((require '[test.modules.module-c :as mod-c])
-                                  (cxx "std::cout << dummy_native_fn();"))))))
+    (is (= "25" (exec-form '((require '[test.modules.module-c :as mod-c])
+                             (cxx "std::cout << dummy_native_fn();"))))))
 #+end_src
 
 **** Dummy Modules
@@ -5321,8 +5321,8 @@ Create some dummy libs under /test/modules/,
                     (let [a 1 b 2]
                       (assert (= a a) (print "true"))
                       (assert (= a b) (print "CB"))))
-    (is (= "assert" (capture-output '((assert (= 2 1) (print "assert"))) {:release false})))
-    (is (= "" (capture-output '((assert (= 2 1) (print "assert"))) {:release true}))))
+    (is (= "assert" (exec-form '((assert (= 2 1) (print "assert"))) {:release false})))
+    (is (= "" (exec-form '((assert (= 2 1) (print "assert"))) {:release true}))))
 #+end_src
 
 #+begin_src clojure :tangle no
@@ -5927,57 +5927,42 @@ Create some dummy libs under /test/modules/,
 ** test/ferret/test/core.clj
 
 #+begin_src clojure :noweb yes :mkdirp yes :tangle src/test/ferret/test/core.clj
-    (ns ferret.test.core
-      (:refer-clojure :exclude [compile])
-      (:use [ferret.core] :reload)
-      (:use [clojure.test]
-            [clojure.java.shell]
-            [clojure.tools [logging :only [log warn info]]]))
+  (ns ferret.test.core
+    (:refer-clojure :exclude [compile])
+    (:use [ferret.core] :reload)
+    (:use [clojure.test]
+          [clojure.java.shell]
+          [clojure.tools [logging :only [log warn info]]]))
 
   (set-log-level! :warn)
 
-  (defn run-cppcheck [file form]
-    (let [options ["cppcheck" "-q" "--std=c++11" "--template=gcc"
-                   "--enable=all" "--error-exitcode=1" file]
-          ret (with-sh-dir "./"
-                (apply sh options))]
+  (defn exec-check [& cmd]
+    (let [ret (with-sh-dir "./" (apply sh cmd))]
       (if (not= 0 (:exit ret))
-        (do (warn (str "test failure - CppCheck"
-                       \newline \newline (with-out-str (clojure.pprint/pprint form))))
+        (do (warn (str "exec-check failure" cmd))
             (warn (:err ret))
-            (warn "")
-            (warn (:err ret))
-            (System/exit 1)))))
+            (System/exit 1))
+        (:out ret))))
 
-  (defn run-valgrind [form]
-    (let [options ["valgrind" "--leak-check=full" "--error-exitcode=1" "./a.out"]
-          ret (with-sh-dir "./"
-                (apply sh options))]
-      (if (not= 0 (:exit ret))
-        (do (warn (str "test failure - valgrind"
-                       \newline \newline (with-out-str (clojure.pprint/pprint form))))
-            (warn (:err ret))
-            (System/exit 1)))))
+  (defn static-check [f]
+    (exec-check
+     "cppcheck" "-q" "--std=c++11" "--template=gcc" "--enable=all" "--error-exitcode=1" f))
 
-  (defn run-program []
-    (let [r (sh "./a.out")]
-      (sh "rm" "-f" "a.out")
-      (sh "rm" "-f" "solution.cpp")
-      (:out r)))
+  (defn leak-check [f]
+    (exec-check "valgrind" "--quiet" "--leak-check=full" "--error-exitcode=1" f "42"))
 
   (def cxx-options ["-std=c++11" "-pedantic"
                     "-Werror" "-Wall" "-Wextra"
                     "-Woverloaded-virtual" "-Wuninitialized" "-Winit-self"
                     "-pthread"])
 
-  (defn capture-output [form & [opts]]
+  (defn exec-form [form & [opts]]
     (let [options (compile-options {:compiler-options cxx-options})
           options (merge options opts)]
       (compile->cpp form options)
       (compile->binary options)
-      (run-cppcheck "solution.cpp" form)
-      (run-valgrind form)
-      (run-program)))
+      (static-check "solution.cpp")
+      (leak-check "./a.out")))
 
   (defn report-test-failure [event]
     (let [actual (with-out-str
@@ -5991,25 +5976,18 @@ Create some dummy libs under /test/modules/,
 
   (defmacro compare-output [res & body]
     `(binding [clojure.test/report report-test-failure]
-       (is (= ~res (capture-output (quote ~body))))))
+       (is (= ~res (exec-form (quote ~body))))))
 
   (deftest test-core
-    (let [options (compile-options {:compiler-options cxx-options})
-          input (read-clojure-file "resources/core-test.clj")]
-      (compile->cpp input options)
-      (compile->binary options)
-      (run-cppcheck "solution.cpp" '(core-test))
-      (run-valgrind '(core-test))
+    (let [prog-out (exec-form (read-clojure-file "resources/core-test.clj"))]
+      (binding [clojure.test/report
+                (fn [ev]
+                  (when (= (-> ev :type) :fail)
+                    (warn (str "core test failure" \newline \newline))
+                    (println prog-out)))]
+        (is (= "" prog-out)))))
 
-      (let [prog-out (run-program)]
-        (binding [clojure.test/report
-                  (fn [ev]
-                    (when (= (-> ev :type) :fail)
-                      (warn (str "core test failure" \newline \newline))
-                      (println prog-out)))]
-          (is (= "" prog-out))))))
-
-    <<ferret-unit-tests>>
+  <<ferret-unit-tests>>
 #+end_src 
 
 ** resources/ferret.h

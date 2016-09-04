@@ -5300,50 +5300,28 @@ Create some dummy libs under /test/modules/,
 *** Testing
 
 #+begin_src clojure :tangle no
-  (deftest testing-assert
-    (compare-output "false"
-                    (assert true (print "true"))
-                    (assert false (print "false")))
-    (compare-output "false"
-                    (assert (= 2 2) (print "true"))
-                    (assert (= 2 3) (print "false")))
-    (compare-output "false"
-                    (let [a 1 b 2]
-                      (assert (= a a) (print "true"))
-                      (assert (= a b) (print "false"))))
-    (compare-output "CB"
-                    (assert true (print "true"))
-                    (assert false (print "CB")))
-    (compare-output "CB"
-                    (assert (= 2 2) (print "true"))
-                    (assert (= 2 3) (print "CB")))
-    (compare-output "CB"
-                    (let [a 1 b 2]
-                      (assert (= a a) (print "true"))
-                      (assert (= a b) (print "CB"))))
-    (is (= "assert" (exec-form '((assert (= 2 1) (print "assert"))) {:release false})))
-    (is (= "" (exec-form '((assert (= 2 1) (print "assert"))) {:release true}))))
-#+end_src
-
-#+begin_src clojure :tangle no
   (deftest testing-unit-test
-    (compare-output (str "FAIL => (= 2 3)\nFAIL => false\nFAIL => (= 5 (apply + (list 1 2 3)))\n"
-                         "FAIL => (= 3 (some-fn))\n")
-                    (deftest some-test
-                      (is (= 2 3))
-                      (is (= 2 2))
-                      (is false)
-                      (is true))
+    (is (= "" (exec-form '((assert (= 2 1) (print "fail"))) {:release true})))
+    (compare-output
+     (str "FAIL => (= 2 3)\n"
+          "FAIL => false\n"
+          "FAIL => (= 5 (apply + (list 1 2 3)))\n"
+          "FAIL => (= 3 (some-fn))\n")
+     (deftest some-test
+       (is (= 2 3))
+       (is (= 2 2))
+       (is false)
+       (is true))
 
-                    (defn some-fn [] 2)
-                    
-                    (deftest some-other-test
-                      (is (= 5 (apply + (list 1 2 3))))
-                      (is (= 6 (apply + (list 1 2 3))))
-                      (is (= 3 (some-fn)))
-                      (is (= 2 (some-fn))))
+     (defn some-fn [] 2)
+     
+     (deftest some-other-test
+       (is (= 5 (apply + (list 1 2 3))))
+       (is (= 6 (apply + (list 1 2 3))))
+       (is (= 3 (some-fn)))
+       (is (= 2 (some-fn))))
 
-                    (run-all-tests)))
+     (run-all-tests)))
 #+end_src
 
 ** Data Structures

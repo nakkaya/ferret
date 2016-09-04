@@ -5544,57 +5544,68 @@ Create some dummy libs under /test/modules/,
 #+begin_src clojure
   (deftest native-core-memory-pool
     (compare-output
-     "0 3 8 3 1 1 1 1 1 "
-     (native-define "#define FERRET_MEMORY_POOL_SIZE 2048")
-     (native-declare "ferret::MemoryPool<size_t,14> mem;")
+     ""
+     (native-define "#define FERRET_MEMORY_POOL_SIZE 4194304") ;; 4 MB
      (native-declare "void* ptr;")
-     (cxx "::std::cout << mem.next_avalible_page(0) << \" \";")
-     (cxx "mem.allocate(sizeof(size_t)*2);")
-     (cxx "::std::cout << mem.next_avalible_page(0) << \" \";")
-     (cxx "ptr = mem.allocate(sizeof(size_t)*4);")
-     (cxx "::std::cout << mem.next_avalible_page(2) << \" \";")
-     (cxx "mem.free(ptr);")
-     (cxx "::std::cout << mem.next_avalible_page(2) << \" \";")
-     (cxx "::std::cout << (nullptr == mem.allocate(sizeof(size_t)*40)) << \" \";")
-     (cxx "::std::cout << (nullptr != mem.allocate(sizeof(size_t)*6)) << \" \";")
-     (cxx "::std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";")
-     (cxx "::std::cout << (nullptr != mem.allocate(sizeof(size_t)*1)) << \" \";")
-     (cxx "::std::cout << (nullptr == mem.allocate(sizeof(size_t)*10)) << \" \";"))
 
-    (compare-output
-     "0 1 256 -1 "
-     (native-define "#define FERRET_MEMORY_POOL_SIZE 2048")
-     (native-declare "ferret::MemoryPool<size_t,256> mem;")
-     (cxx "::std::cout << mem.next_avalible_page(0) << \" \";")
-     (cxx "::std::cout << (nullptr != mem.allocate(sizeof(size_t)*255)) << \" \";")
-     (cxx "::std::cout << mem.next_avalible_page(0) << \" \";")
-     (cxx "::std::cout << mem.find_page(1, 0) << \" \";"))
+     (native-declare "ferret::MemoryPool<size_t,14> tiny_pool;")
+     (let [next-page (fn [idx]
+                       "size_t i = (size_t)idx.cast<Number>()->as<int>();
+                        __result = obj<Number>((int)tiny_pool.next_avalible_page(i))")
+           malloc (fn [size]
+                    "size_t s = (size_t)size.cast<Number>()->as<int>();
+                     ptr = tiny_pool.allocate(sizeof(size_t) * s);
+                     __result = obj<Boolean>((ptr != nullptr));")
+           free (fn [] "tiny_pool.free(ptr);")]
+       
+       (assert (= 0 (next-page 0)))
+       (assert (malloc 2))
+       (assert (= 3 (next-page 0)))
+       (assert (malloc 4))
+       (assert (= 8 (next-page 2)))
+       (free)
+       (assert (= 3 (next-page 2)))
+       (assert (false? (malloc 40)))
+       (assert (malloc 6))
+       (assert (malloc 1))
+       (assert (malloc 1))
+       (assert (false? (malloc 10))))
 
-    (compare-output
-     "1 256 0 1 "
-     (native-define "#define FERRET_MEMORY_POOL_SIZE 2048")
-     (native-declare "ferret::MemoryPool<size_t,256> mem;")
-     (native-declare "void* ptr;")
-     (cxx "ptr = mem.allocate(sizeof(size_t)*255);")
-     (cxx "::std::cout << (nullptr != ptr) << \" \";")
-     (cxx "::std::cout << mem.next_avalible_page(0) << \" \";")
-     (cxx "mem.free(ptr);")
-     (cxx "::std::cout << mem.next_avalible_page(0) << \" \";")
-     (cxx "ptr = mem.allocate(sizeof(size_t)*256);")
-     (cxx "::std::cout << (nullptr == ptr) << \" \";"))
+     (native-declare "ferret::MemoryPool<size_t,256> even_pool;")
+     (let [next-page (fn [idx]
+                       "size_t i = (size_t)idx.cast<Number>()->as<int>();
+                        __result = obj<Number>((int)even_pool.next_avalible_page(i))")
+           malloc (fn [size]
+                    "size_t s = (size_t)size.cast<Number>()->as<int>();
+                     ptr = even_pool.allocate(sizeof(size_t) * s);
+                     __result = obj<Boolean>((ptr != nullptr));")
+           free (fn [] "even_pool.free(ptr);")]
+       
+       (assert (= 0 (next-page 0)))
+       (assert (malloc 255))
+       (assert (= 256 (next-page 0)))
+       (free)
+       (assert (= 0 (next-page 0)))
+       (assert (false? (malloc 256)))
+       (assert (= 0 (next-page 0))))
 
-    (compare-output
-     "1 1000 0 1 "
-     (native-define "#define FERRET_MEMORY_POOL_SIZE 2048")
-     (native-declare "ferret::MemoryPool<size_t,1000> mem;")
-     (native-declare "void* ptr;")
-     (cxx "ptr = mem.allocate(sizeof(size_t)*999);")
-     (cxx "::std::cout << (nullptr != ptr) << \" \";")
-     (cxx "::std::cout << mem.next_avalible_page(0) << \" \";")
-     (cxx "mem.free(ptr);")
-     (cxx "::std::cout << mem.next_avalible_page(0) << \" \";")
-     (cxx "ptr = mem.allocate(sizeof(size_t)*1000);")
-     (cxx "::std::cout << (nullptr == ptr) << \" \";")))
+     (native-declare "ferret::MemoryPool<size_t,255> odd_pool;")
+     (let [next-page (fn [idx]
+                       "size_t i = (size_t)idx.cast<Number>()->as<int>();
+                       __result = obj<Number>((int)odd_pool.next_avalible_page(i))")
+           malloc (fn [size]
+                    "size_t s = (size_t)size.cast<Number>()->as<int>();
+                     ptr = odd_pool.allocate(sizeof(size_t) * s);
+                     __result = obj<Boolean>((ptr != nullptr));")
+           free (fn [] "odd_pool.free(ptr);")]
+       
+       (assert (= 0 (next-page 0)))
+       (assert (malloc 254))
+       (assert (= 255 (next-page 0)))
+       (free)
+       (assert (= 0 (next-page 0)))
+       (assert (false? (malloc 255)))
+       (assert (= 0 (next-page 0))))))
 #+end_src
 
 * Roadmap

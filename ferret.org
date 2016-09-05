@@ -5146,48 +5146,50 @@ Tests are run by the CI system for the following compilers,
       (is (< (- (millis) begin) 1000))))
 #+end_src
 
-*** Misc
+*** XOR Stream
+    :PROPERTIES:
+    :noweb-ref: xor-stream-test
+    :END:
 
 #+begin_src clojure :tangle no
+  (def xor-stream-state (atom nil))
+
+  (defn xor-sample-read-stream [buf]
+    (let [buffer (atom buf)]
+      (list
+       (fn []
+         (let [f (first (deref buffer))]
+           (swap! buffer rest)
+           f))
+       (fn []
+         (count (deref buffer)))
+       (fn [vals]
+         (reset! xor-stream-state vals)))))
+
+  (defn xor-sample-write-stream []
+    (let [buffer (atom (list))]
+      (list
+       (fn [v]
+         (swap! buffer conj v))
+       (fn []
+         (reverse (deref buffer))))))
+
   (deftest xor-stream-test
-    (compare-output
-     "(1 2 3 4)(1 2 3 4)(1 2 3 4)"
-     (defn xor-sample-read-stream [buf]
-       (let [buffer (atom buf)]
-         (list
-          (fn []
-            (let [f (first (deref buffer))]
-              (swap! buffer rest)
-              f))
-          (fn []
-            (count (deref buffer)))
-          (fn [vals]
-            (print vals)))))
+    (let [[writer get-buffer] (xor-sample-write-stream)
+          encoder (xor-stream-encoder writer)
+          data (list (list 1 2 3 4)
+                     (list 5 6 7 8))]
+      (doseq [d data] 
+        (encoder d))
 
-     (defn xor-sample-write-stream []
-       (let [buffer (atom (list))]
-         (list
-          (fn [v]
-            (swap! buffer conj v))
-          (fn []
-            (reverse (deref buffer))))))
-
-     (defn xor-run-decoder [buffer]
-       (let [[read in-waiting handler] (xor-sample-read-stream buffer)
-             decoder (xor-stream-decoder read in-waiting handler)]
-         (dotimes [i 10]
-           (decoder))))
-
-     (let [[writer get-buffer] (xor-sample-write-stream)
-           encoder (xor-stream-encoder writer)
-           data (list (list 1 2 3 4)
-                      (list 1 2 3 4))]
-       (doseq [d data] 
-         (encoder d))
-
-       (xor-run-decoder (get-buffer))
-       (xor-run-decoder (drop 3 (get-buffer)))
-       (xor-run-decoder (list)))))
+      (let [[read in-waiting handler] (xor-sample-read-stream (get-buffer))
+            decoder (xor-stream-decoder read in-waiting handler)]
+        (dotimes [i 4]
+          (decoder))
+        (is (= (list 1 2 3 4) @xor-stream-state))
+        (dotimes [i 4]
+          (decoder))
+        (is (= (list 5 6 7 8) @xor-stream-state)))))
  #+end_src
  
 *** Module System
@@ -5971,6 +5973,7 @@ Create some dummy libs under /test/modules/,
     (let [prog-out (exec-form (read-clojure-file "resources/core-test.clj"))]
       (binding [clojure.test/report
                 (fn [ev]
+                  (inc-report-counter (-> ev :type))
                   (when (= (-> ev :type) :fail)
                     (warn (str "core test failure" \newline \newline))
                     (println prog-out)))]
@@ -6070,6 +6073,7 @@ Create some dummy libs under /test/modules/,
   <<math-test>>
   <<control-test>>
   <<threading-test>>
+  <<xor-stream-test>>
 
   (defn ferret-unit-test []
     (run-all-tests))

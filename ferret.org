@@ -2973,30 +2973,44 @@ Setup IO on supported embedded systems,
 
 *** Program Run
 
+Unless =FERRET_DISABLE_STD_MAIN= is *defined* a =main= function is
+defined which is the designated start of the program. =program_run=
+function contains all compiled code. Executing this function has
+equivalent semantics to loading the Clojure source file into a virgin
+Clojure interpreter and then terminating its execution. If
+=FERRET_PROGRAM_MAIN= is defined, it will be called right after
+=program_run=.
+
 #+name: runtime-native-program-run-std-main
 #+begin_src c++ :tangle no
   #if !defined(FERRET_DISABLE_STD_MAIN)
+   #if defined(FERRET_DISABLE_CLI_ARGS) || !defined(FERRET_STD_LIB)
+    int main(){
+   #else
     int main(int argc, char* argv[]){
+   #endif
+
       using namespace ferret;
 
-     #if defined(FERRET_STD_LIB) &&               \\
-        !defined(FERRET_DISABLE_CLI_ARGS)
-      _star_command_line_args_star_ = runtime::list();
+     #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_CLI_ARGS)
       for (int i = argc - 1; i > -1 ; i--)
-        _star_command_line_args_star_ = 
-            runtime::cons(obj<String>(argv[i]),_star_command_line_args_star_);
-    #endif
+        _star_command_line_args_star_ =  runtime::cons(obj<String>(argv[i]),_star_command_line_args_star_);
+     #endif
 
-       program_run();
+      program_run();
 
-       #if defined(FERRET_PROGRAM_MAIN)
-        run(FERRET_PROGRAM_MAIN);
-      #endif
-
-       return 0;
+     #if defined(FERRET_PROGRAM_MAIN)
+      run(FERRET_PROGRAM_MAIN);
+     #endif
+       
+      return 0;
     }
   #endif
 #+end_src
+
+When a supported Arduino board is [[Detect Hardware][detected]]. Instead of using a
+standard =main= function, Ferret uses Arduino compatible boot
+procedure. 
 
 #+name: runtime-native-program-arduino
 #+begin_src c++ :tangle no
@@ -3006,7 +3020,7 @@ Setup IO on supported embedded systems,
          FERRET_INIT_STD_OUT
       #endif
 
-       using namespace ferret;
+      using namespace ferret;
       #if defined(FERRET_PROGRAM_MAIN)
         program_run();
       #endif
@@ -3017,7 +3031,7 @@ Setup IO on supported embedded systems,
         program_run();
       #endif          
 
-       #if defined(FERRET_PROGRAM_MAIN)
+      #if defined(FERRET_PROGRAM_MAIN)
         run(FERRET_PROGRAM_MAIN);
       #endif
     }

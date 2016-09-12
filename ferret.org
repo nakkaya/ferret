@@ -2929,6 +2929,13 @@ indicating platform.
    #include <Arduino.h>
    #include <stdio.h>
    #include <stdlib.h>
+   #include <stdint.h>
+  #endif
+
+  #ifdef FERRET_CONFIG_SAFE_MODE
+   #include <stdio.h>
+   #include <stdlib.h>
+   #include <stdint.h>
   #endif
 #+end_src
 

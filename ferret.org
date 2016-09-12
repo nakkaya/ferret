@@ -21,6 +21,7 @@ purpose computers running Linux/Mac OS X/Windows.
  - Arduino Uno / Atmega328
  - Arduino Due / AT91SAM3X8E
  - Arduino 101 / Intel Curie
+ - SparkFun SAMD21 Mini / ATSAMD21G18 - ARM Cortex-M0+
  - Clang on Mac OS X
  - GCC on Linux
 
@@ -2892,6 +2893,10 @@ indicating platform.
     #elif defined(__AVR__)
       # define FERRET_HARDWARE_ARDUINO TRUE
       # define FERRET_HARDWARE_ARDUINO_UNO TRUE
+    #elif defined(ARDUINO_SAMD_ZERO) && defined(__SAMD21G18A__)
+      # define FERRET_HARDWARE_ARDUINO TRUE
+      # define FERRET_HARDWARE_SPARKFUN_SAMD21 TRUE
+      # define FERRET_DISABLE_STD_OUT TRUE
     #elif defined(_VARIANT_ARDUINO_101_X_)
       # define FERRET_HARDWARE_ARDUINO TRUE
       # define FERRET_HARDWARE_ARDUINO_101 TRUE

@@ -2549,7 +2549,65 @@ Function invocation,
   }
 #+end_src
 
-** Garbage Collection
+** Memory Management
+*** Object Allocation
+
+All object allocations are done using *obj* function. It will return a
+new *var* containing a pointer to an [[Object System][Object]]. *nil* is represented as a
+*var* pointing to *nullptr*.
+
+#+BEGIN_EXAMPLE
+  var two = obj<Number>(2);
+  var some_nil = nil();
+#+END_EXAMPLE
+
+#+name: runtime-native-object-allocation
+#+begin_src c++ :tangle no
+  template<typename FT, typename... Args>
+  inline var obj(Args... args) {
+    void * storage = FERRET_ALLOCATE(sizeof(FT));
+    return var(new(storage) FT(args...));
+  }
+
+  inline var nil(){
+    return var();
+  }
+#+end_src
+
+The default memory management scheme is reference counting. Unlike
+other lisp implementations, Ferret supports various memory management
+schemes,
+
+ - *malloc/free* - Allocations are handled by the system
+   implementation. (Default memory management.)
+ - *Memory Pooling* - On memory constraint systems such as
+   microcontrollers Ferret can use a memory pool to avoid heap
+   fragmentation and calling malloc/free. Effectively running with
+   no heap, allocating all memory at compile time on the stack.
+ - *Third party allocators* (i.e tcmalloc)
+ - *Third party garbage collectors* (i.e The Boehm-Demers-Weiser
+   conservative garbage collector.)
+
+Dispatching the correct memory allocation/deallocation implementation
+is done using the following macros. when running with with a memory
+pool, memory for Ferret [[Object]]s are allocated from a memory pool
+called =program_memory= otherwise memory is allocated using
+=malloc=. Third party garbage collectors can be used by overriding
+=FERRET_ALLOCATE=/=FERRET_FREE=.
+
+#+name: runtime-native-memory-management-macros
+#+begin_src c++ :tangle no
+  #if !defined(FERRET_ALLOCATE)
+    #ifdef FERRET_MEMORY_POOL_SIZE
+      #define FERRET_ALLOCATE(size) program_memory.allocate(size)
+      #define FERRET_FREE(pre) program_memory.free(ptr)
+    #else
+      #define FERRET_ALLOCATE(size) ::malloc(size)
+      #define FERRET_FREE(ptr) ::free(ptr)
+    #endif
+  #endif
+#+end_src
+
 *** Reference Counting
 
 Garbage collection is handled by reference counting, a /var/ holds a
@@ -2629,30 +2687,6 @@ reaches zero it will automatically free the Object.
       
     Object* m_ptr;
   };
-#+end_src
-
-*** Object Allocation
-
-All object allocations are done using *obj* function. It will return a
-new *var* containing the [[Object System][Object]]. *nil* is represented as a *var*
-pointing to *nullptr*.
-
-#+BEGIN_EXAMPLE
-  var two = obj<Number>(2);
-  var some_nil = nil();
-#+END_EXAMPLE
-
-#+name: runtime-native-var
-#+begin_src c++ :tangle no
-  template<typename FT, typename... Args>
-  inline var obj(Args... args) {
-    void * storage = FERRET_ALLOCATE(sizeof(FT));
-    return var(new(storage) FT(args...));
-  }
-
-  inline var nil(){
-    return var();
-  }
 #+end_src
 
 *** Memory Pool
@@ -2813,21 +2847,6 @@ pointing to *nullptr*.
    #else
     MemoryPool<FERRET_MEMORY_POOL_PAGE_TYPE,FERRET_MEMORY_POOL_SIZE> program_memory;
    #endif
-  #endif
-#+end_src
-
-Dispatch correct memory allocation/deallocation implementation,
-
-#+name: runtime-native-memory-management-macros
-#+begin_src c++ :tangle no
-  #if !defined(FERRET_ALLOCATE)
-    #ifdef FERRET_MEMORY_POOL_SIZE
-      #define FERRET_ALLOCATE(size) program_memory.allocate(size)
-      #define FERRET_FREE(pre) program_memory.free(ptr)
-    #else
-      #define FERRET_ALLOCATE(size) ::malloc(size)
-      #define FERRET_FREE(ptr) ::free(ptr)
-    #endif
   #endif
 #+end_src
 
@@ -6044,6 +6063,7 @@ Create some dummy libs under /test/modules/,
     <<runtime-native-memory-reference-counting-macros>>
     <<runtime-native-object>>
     <<runtime-native-var>>
+    <<runtime-native-object-allocation>>
     <<runtime-native-debugging-macros>>
   }
 #+end_src 

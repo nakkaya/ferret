@@ -1865,8 +1865,8 @@ All our types are derived from the base Object type. Which is a
 Reference count is kept within the base object using one of the
 following reference counting policies.
 
- - AtomicRC - Atomic reference counting. (using std::atomic)
- - RC - Non Atomic reference counting. (using size_t)
+ - AtomicRC - Atomic reference counting. (using =std::atomic=)
+ - RC - Non Atomic reference counting. (using =size_t=)
  - NoRC - No reference counting.
 
 #+name: runtime-native-reference-counting

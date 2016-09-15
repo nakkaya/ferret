@@ -2612,7 +2612,7 @@ is done using the following macros. when running with with a memory
 pool, memory for Ferret [[Object]]s are allocated from a memory pool
 called =program_memory= otherwise memory is allocated using
 =malloc=. Third party garbage collectors can be used by overriding
-=FERRET_ALLOCATE=/=FERRET_FREE=.
+=FERRET_ALLOCATE= / =FERRET_FREE=.
 
 #+name: runtime-native-memory-management-macros
 #+begin_src c++ :tangle no

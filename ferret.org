@@ -18,12 +18,15 @@ compliant compiler. it has been verified to run on architectures
 ranging from embedded systems with as little as 2KB of RAM to general
 purpose computers running Linux/Mac OS X/Windows.
 
- - Arduino Uno / Atmega328
- - Arduino Due / AT91SAM3X8E
- - Arduino 101 / Intel Curie
- - SparkFun SAMD21 Mini / ATSAMD21G18 - ARM Cortex-M0+
- - Clang on Mac OS X
- - GCC on Linux
+ - General Purpose Computer
+   - Clang on Mac OS X
+   - GCC & Clang on Linux
+ - Microcontrollers
+   - Arduino 
+     - Uno / Atmega328
+     - Due / AT91SAM3X8E
+     - 101 / Intel Curie
+   - SparkFun SAMD21 Mini / ATSAMD21G18 - ARM Cortex-M0+
 
 ** Features
 

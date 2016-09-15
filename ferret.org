@@ -568,12 +568,14 @@ then the node is replaced with its expanded form.
         (remove-ns temp-ns)
         form)))
 
-  (defn expand-macros-all [form]
+  (defn expand-macros-all-aux [form]
     (loop [f form]
       (let [expanded (expand-macros f)]
         (if (= f expanded)
           expanded
           (recur expanded)))))
+
+  (def expand-macros-all (memoize expand-macros-all-aux))
 #+end_src
 
 Takes a *fn* form and converts all argument symbols with their unique

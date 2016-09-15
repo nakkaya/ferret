@@ -1824,40 +1824,17 @@ Interfaces,
 
 *** Base
 
-All our types are derived from the base Object type. Reference count
-is kept within the base object and configured/modified using the
-following macros,
-
-#+name: runtime-native-memory-reference-counting-macros
-#+begin_src c++ :tangle no
-  #if defined(FERRET_DISABLE_MULTI_THREADING)
-    #define FERRET_NEW_REF() size_t ref_count;
-    #define FERRET_COPY_REF(other) ref_count = other.ref_count;
-  #else
-    #define FERRET_NEW_REF() ::std::atomic<size_t> ref_count;
-    #define FERRET_COPY_REF(other) ref_count.exchange(other.ref_count);
-  #endif
-
-  #define FERRET_REF ref_count
-  #define FERRET_INC_REF(this) ref_count++;
-  #define FERRET_DEC_REF(this) (--ref_count == 0);
-#+end_src 
-
-
-Base Object,
+All our types are derived from the base Object type. Which is a
+=typedef= of =ObjectBase<ReferenceCountingScheme>=.
 
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
-  class Object{
+  template <typename T>
+  class ObjectBase : public T{
   public:
-    Object() : FERRET_REF(0) { }
-
-    Object(const Object& other){
-      FERRET_COPY_REF(other);
-    }
-    
-    virtual ~Object() {
-    };
+    ObjectBase() : T(0) { }
+    ObjectBase(const ObjectBase& other): T(other) { }
+    virtual ~ObjectBase() { };
     
     virtual size_t type() = 0;
     
@@ -1867,26 +1844,66 @@ Base Object,
     
     virtual var equals(var o) = 0;
     
-    void inc_ref() {
-      FERRET_INC_REF(this);
-    }
-    
-    bool dec_ref() {
-      return FERRET_DEC_REF(this);
-    }
-    
-    void  operator delete(void * ptr){
-      FERRET_FREE(ptr);
-    }
+    void inc_ref() { T::inc_ref(); }
+    bool dec_ref() { return T::dec_ref(); }
 
-    void* operator new(size_t, void* ptr){
-      return ptr;
-    }
-    
-  private:
-    FERRET_NEW_REF()
+    void* operator new(size_t, void* ptr){ return ptr; }
+    void  operator delete(void * ptr){ FERRET_FREE(ptr); }
   };
+
+  #if defined(FERRET_DISABLE_MULTI_THREADING)
+    typedef ObjectBase<RC> Object;
+  #elif defined(FERRET_DISABLE_RC)
+    typedef ObjectBase<NoRC> Object;
+  #else
+    typedef ObjectBase<AtomicRC> Object;
+  #endif
 #+end_src
+
+Reference count is kept within the base object using one of the
+following reference counting policies.
+
+ - AtomicRC - Atomic reference counting. (using std::atomic)
+ - RC - Non Atomic reference counting. (using size_t)
+ - NoRC - No reference counting.
+
+#+name: runtime-native-reference-counting
+#+begin_src c++ :tangle no
+  #if defined(FERRET_STD_LIB)
+  class AtomicRC{
+  public:
+    explicit AtomicRC(size_t start) : ref_count(start) { }
+    explicit AtomicRC(const AtomicRC& other){ ref_count.exchange(other.ref_count); }
+      
+    void inc_ref() { ref_count++; }
+    bool dec_ref() { return (--ref_count == 0); }
+      
+  private:
+    ::std::atomic<size_t> ref_count;
+  };
+  #endif
+
+  class RC{
+  public:
+    explicit RC(size_t start) : ref_count(start) { }
+    explicit RC(const RC& other){ ref_count = other.ref_count; }
+      
+    void inc_ref() { ref_count++; }
+    bool dec_ref() { return (--ref_count == 0); }
+      
+  private:
+    size_t ref_count;
+  };
+
+  class NoRC{
+  public:
+    explicit NoRC(size_t) { }
+    explicit NoRC(const NoRC& ){ }
+      
+    void inc_ref() { }
+    bool dec_ref() { return false; }
+  };
+#+end_src 
 
 *** Objects
 **** Pointer
@@ -2879,6 +2896,7 @@ running in safe mode.
   | FERRET_DISABLE_STD_OUT           | true         | Disables output stream. (Reduces code size.)                     |
   | FERRET_DISABLE_MULTI_THREADING   | true         | Disable atomic reference counting.                               |
   | FERRET_DISABLE_STD_MAIN          | false        | Disables auto execution of ferret::program_run()                 |
+  | FERRET_DISABLE_RC                | Not Defined  | Disable Reference Counting. (When using third party GCs)         |
   | FERRET_PROGRAM_MAIN              | Not Defined  | A function to execute after ferret::program_run()                |
   | FERRET_UART_RATE                 | 9600         | Set default UART rate.                                           |
   |------------------------------+--------------+----------------------------------------------------------------------|
@@ -5658,10 +5676,6 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Core
 
-  - *Memory* - Option to disable [[Reference Counting]]. Combined with
-    =FERRET_ALLOCATE= any third party GC can be supported.
-    - http://www.ravenbrook.com/project/mps
-    - http://www.hboehm.info/gc/
   - *Escape Analysis* - Escape known language structures.
   - *Pre/Post conditions* for functions.
     - By default print error and abort. 
@@ -5744,6 +5758,11 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Memory* - Option to disable [[Reference Counting]]. Combined with
+    =FERRET_ALLOCATE= any third party GC can be supported.
+    - http://www.ravenbrook.com/project/mps
+    - http://www.hboehm.info/gc/
+    Implemented =FERRET_DISABLE_RC= option.
   - *Pointer* - A pointer type to handle shared pointers.
     Implemented Value Object.
   - *Unit Testing*
@@ -6060,7 +6079,7 @@ Create some dummy libs under /test/modules/,
   // Object System Base
   namespace ferret{
     class var;
-    <<runtime-native-memory-reference-counting-macros>>
+    <<runtime-native-reference-counting>>
     <<runtime-native-object>>
     <<runtime-native-var>>
     <<runtime-native-object-allocation>>

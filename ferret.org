@@ -1835,11 +1835,11 @@ for available reference counting policies.
 
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
-  template <typename T>
-  class ObjectBase : public T{
+  template <typename RC>
+  class ObjectBase : public RC{
   public:
-    ObjectBase() : T(0) { }
-    ObjectBase(const ObjectBase& other): T(other) { }
+    ObjectBase() : RC(0) { }
+    ObjectBase(const ObjectBase& other): RC(other) { }
     virtual ~ObjectBase() { };
     
     virtual size_t type() = 0;
@@ -1850,7 +1850,7 @@ for available reference counting policies.
     
     virtual var equals(var o) = 0;
 
-    void* operator new(size_t, void* ptr){ return ptr; }
+    void* operator new(size_t size){ return FERRET_ALLOCATE(size); }
     void  operator delete(void * ptr){ FERRET_FREE(ptr); }
   };
 
@@ -2265,8 +2265,7 @@ Strings are represented as a linked list of characters.
     (post-code "#ifdef FERRET_STD_LIB
                   template<>
                   inline var obj<String>(std::string s) {
-                    void * storage = FERRET_ALLOCATE(sizeof(String));
-                    return var(new(storage) String(s.c_str(), s.size()));
+                    return var(new String(s.c_str(), s.size()));
                   }
                 #endif")
     (force-type))
@@ -2542,8 +2541,7 @@ new *var* containing a pointer to an [[Object System][Object]]. *nil* is represe
 #+begin_src c++ :tangle no
   template<typename FT, typename... Args>
   inline var obj(Args... args) {
-    void * storage = FERRET_ALLOCATE(sizeof(FT));
-    return var(new(storage) FT(args...));
+    return var(new FT(args...));
   }
 
   inline var nil(){

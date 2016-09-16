@@ -5687,9 +5687,11 @@ Create some dummy libs under /test/modules/,
     forms generate =fn=s that never escape. These can be generated on
     the stack.
   - *Escape Analysis* for other types. Currently escape analysis is
-    only used for functions.
+    only used for functions.    
+    - [[https://news.ycombinator.com/item?id=12158191][Static Analysis]]
   - *Readbility* - Add context to auto generated symbols in compiled
     code.
+  * Check out Typed Racket
   - Since Ferret does whole-program compilation. Implement
     optimizations from Stalin Scheme compiler.
     - https://github.com/barak/stalin
@@ -5743,6 +5745,7 @@ Create some dummy libs under /test/modules/,
   - *Co-Operative Multitasking* - For Embedded Systems.
     - https://forum.pjrc.com/threads/25628-Lightweight-Teensy3-x-Fibers-Library-%28C-%29-Available
     - https://github.com/ve3wwg/teensy3_fibers/blob/1ba0c1e79a423f097e12e6c4176b40cf9d4f44e4/fibers.cpp
+  - *MemoryPool* - Option for enabling allocation profiling.
   - *MemoryPool* - Ability to run functions on different Memory Pools.
     - Improved data locality and safety.
     - Optionally disable reference counting to improve performance since

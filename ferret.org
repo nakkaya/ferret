@@ -1078,7 +1078,7 @@ suggests and removes the node when predicate returns true.
                          (keyword? form) :keyword
                          (number? form) :number
                          (nil? form) :nil
-                         (char? form) :number
+                         (char? form) :char
                          (string? form) :string
                          (or (true? form) (false? form)) :boolean
                          (seq? form) :invoke-lambda)))
@@ -1144,8 +1144,6 @@ C++ skeleton.
 #+begin_src clojure :tangle no
   (defmethod emit :symbol [form state] (str form))
 
-  (defmethod emit :char [form state] (str "obj<Number>('" form "')"))
-
   (defmethod emit :string [form state] (str "obj<String>(\"" form "\")"))
 
   (defmethod emit :boolean [form state] (str "obj<Boolean>(" form ")"))
@@ -1154,6 +1152,8 @@ C++ skeleton.
 
   (defmethod emit :keyword [form state]
     (str "obj<Keyword>(" (reduce (fn[h v] (+ h (int v))) 0 (str form)) ")"))
+
+  (defmethod emit :char [form state] (str "obj<Number>(" (int form) ")"))
 
   (defmethod emit :number [form state]
     (let [number (rationalize form)]
@@ -5606,7 +5606,9 @@ Create some dummy libs under /test/modules/,
       (is (= true  (= s1 s1)))
       (is (= false (= s1 3.14)))
       (is (= true  (= s1 (s1-ret))))
-      (is (= true  (s1-eq s1)))))
+      (is (= true  (s1-eq s1)))
+      (is (= 99 \c))
+      (is (= \S (first s1)))))
 #+end_src
 
 *** Memory Pool

@@ -1830,7 +1830,8 @@ Interfaces,
 *** Base
 
 All our types are derived from the base Object type. Which is a
-=typedef= of =ObjectBase<ReferenceCountingScheme>=.
+=typedef= of =ObjectBase<ReferenceCountingScheme>=. See [[Reference Counting]] 
+for available reference counting policies.
 
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
@@ -1861,51 +1862,6 @@ All our types are derived from the base Object type. Which is a
     typedef ObjectBase<AtomicRC> Object;
   #endif
 #+end_src
-
-Reference count is kept within the base object using one of the
-following reference counting policies.
-
- - AtomicRC - Atomic reference counting. (using =std::atomic=)
- - RC - Non Atomic reference counting. (using =size_t=)
- - NoRC - No reference counting.
-
-#+name: runtime-native-reference-counting
-#+begin_src c++ :tangle no
-  #if defined(FERRET_STD_LIB)
-  class AtomicRC{
-  public:
-    explicit AtomicRC(size_t start) : ref_count(start) { }
-    explicit AtomicRC(const AtomicRC& other){ ref_count.exchange(other.ref_count); }
-      
-    void inc_ref() { ref_count++; }
-    bool dec_ref() { return (--ref_count == 0); }
-      
-  private:
-    ::std::atomic<size_t> ref_count;
-  };
-  #endif
-
-  class RC{
-  public:
-    explicit RC(size_t start) : ref_count(start) { }
-    explicit RC(const RC& other){ ref_count = other.ref_count; }
-      
-    void inc_ref() { ref_count++; }
-    bool dec_ref() { return (--ref_count == 0); }
-      
-  private:
-    size_t ref_count;
-  };
-
-  class NoRC{
-  public:
-    explicit NoRC(size_t) { }
-    explicit NoRC(const NoRC& ){ }
-      
-    void inc_ref() { }
-    bool dec_ref() { return false; }
-  };
-#+end_src 
 
 *** Objects
 **** Pointer
@@ -2629,10 +2585,55 @@ called =program_memory= otherwise memory is allocated using
 
 *** Reference Counting
 
-Garbage collection is handled by reference counting, a /var/ holds a
-pointer to an Object, everything is passed around as /vars/ it is
-responsible for incrementing/decrementing the reference count, when it
-reaches zero it will automatically free the Object. 
+Garbage collection is handled by reference counting. Reference count
+is kept within the [[Base][ObjectBase]] using one of the following reference
+counting policies.
+
+ - AtomicRC - Atomic reference counting. (using =std::atomic=)
+ - RC - Non Atomic reference counting. (using =size_t=)
+ - NoRC - No reference counting.
+
+#+name: runtime-native-reference-counting
+#+begin_src c++ :tangle no
+  #if defined(FERRET_STD_LIB)
+  class AtomicRC{
+  public:
+    explicit AtomicRC(size_t start) : ref_count(start) { }
+    explicit AtomicRC(const AtomicRC& other){ ref_count.exchange(other.ref_count); }
+      
+    void inc_ref() { ref_count++; }
+    bool dec_ref() { return (--ref_count == 0); }
+      
+  private:
+    ::std::atomic<size_t> ref_count;
+  };
+  #endif
+
+  class RC{
+  public:
+    explicit RC(size_t start) : ref_count(start) { }
+    explicit RC(const RC& other){ ref_count = other.ref_count; }
+      
+    void inc_ref() { ref_count++; }
+    bool dec_ref() { return (--ref_count == 0); }
+      
+  private:
+    size_t ref_count;
+  };
+
+  class NoRC{
+  public:
+    explicit NoRC(size_t) { }
+    explicit NoRC(const NoRC& ){ }
+      
+    void inc_ref() { }
+    bool dec_ref() { return false; }
+  };
+#+end_src 
+
+A /var/ holds a pointer to an Object, everything is passed around as
+/vars/ it is responsible for incrementing/decrementing the reference
+count, when it reaches zero it will automatically free the Object.
 
 #+name: runtime-native-var
 #+begin_src c++ :tangle no

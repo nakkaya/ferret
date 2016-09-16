@@ -4618,7 +4618,7 @@ Evaluates expr and aborts if it does not evaluate to logical true.
 
   (defmacro assert
     ([exp]
-     `(~'assert-aux (~'fn [] ~exp) ~(pr-str exp)))
+     `(~'assert-aux (~'fn [] ~exp) ~(-> exp pr-str (clojure.string/escape {\\ "\\\\"}))))
     ([exp callback]
      `(~'assert-aux-callback (~'fn [] ~exp) (~'fn [] ~callback))))
 #+end_src
@@ -4630,7 +4630,7 @@ Support for Clojure style unit testing.
 #+name: runtime-clojure-testing
 #+begin_src clojure :tangle no
   (defmacro is [form]
-    `(~'assert ~form (~'println "FAIL =>" ~(pr-str form))))
+    `(~'assert ~form (~'println "FAIL =>" ~(-> form pr-str (clojure.string/escape {\\ "\\\\"})))))
 
   (defmacro deftest [name & exprs]
     (defonce fir-unit-tests (atom []))

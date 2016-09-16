@@ -5679,18 +5679,25 @@ Create some dummy libs under /test/modules/,
 #+end_src
 
 * Roadmap
-** Core
+** Compiler
 
-  - *Escape Analysis* - Escape known language structures.
-  - *Pre/Post conditions* for functions.
-    - By default print error and abort. 
-    - Let user define a callback function.
-  - *Cleaner FFI* - Current FFI system is modeled after [[http://gambitscheme.org/wiki/index.php/Using_Gambit_with_External_Libraries][Gambit
-    Scheme]]. 
-    - With a set a macros can provide a DSL like [[https://github.com/tomhrr/dale][Dale]].
-    - Cleans up /defobject/ macro.
-  - *Implement Que*
-  - *Multimethods*
+  - *Shared Library* - Ability to be run as a shared lib.
+    - Export functions to JNA (C API)
+  - *Escape Analysis* - Escape known language structures. Certain
+    forms generate =fn=s that never escape. These can be generated on
+    the stack.
+  - *Escape Analysis* for other types. Currently escape analysis is
+    only used for functions.
+  - *Readbility* - Add context to auto generated symbols in compiled
+    code.
+  - Since Ferret does whole-program compilation. Implement
+    optimizations from Stalin Scheme compiler.
+    - https://github.com/barak/stalin
+    - https://news.ycombinator.com/item?id=8214343
+    - https://justindomke.wordpress.com/2009/02/23/the-stalin-compiler/
+
+** Data Structures
+
   - *Association Lists* as an alternative to maps. More suited to
     embedded systems. Quoted from Wikipedia, for quite small values of
     n it is more efficient in terms of time and space than more
@@ -5698,11 +5705,9 @@ Create some dummy libs under /test/modules/,
     - D-Lists - https://news.ycombinator.com/item?id=11575540
     - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/PersistentHashMap.java
     - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/APersistentMap.java
-  - *Co-Operative Multitasking* - For Embedded Systems.
-    - https://forum.pjrc.com/threads/25628-Lightweight-Teensy3-x-Fibers-Library-%28C-%29-Available
-    - https://github.com/ve3wwg/teensy3_fibers/blob/1ba0c1e79a423f097e12e6c4176b40cf9d4f44e4/fibers.cpp
   - *Pluggable Numbers* - Ability to change the default number type at
     compile time.
+  - *Implement Que*
   - *Unbounded Precision Integers*
     - [[https://web.archive.org/web/20101208222557/http://www.mactech.com/articles/mactech/Vol.08/08.03/BigNums/index.html][Arbitrarily Large Bignums]]
     - From p.11: PICOBIT: A Compact Scheme System for Microcontrollers
@@ -5724,6 +5729,20 @@ Create some dummy libs under /test/modules/,
        integers (including PICOBIT Light), integers are limited to 24
        bits, and encoded directly in the object.
     - Ranged Numbers - This type is an int but can only be 1-12.
+
+** Core
+
+  - *Pre/Post conditions* for functions.
+    - By default print error and abort. 
+    - Let user define a callback function.
+  - *Cleaner FFI* - Current FFI system is modeled after [[http://gambitscheme.org/wiki/index.php/Using_Gambit_with_External_Libraries][Gambit
+    Scheme]]. 
+    - With a set a macros can provide a DSL like [[https://github.com/tomhrr/dale][Dale]].
+    - Cleans up /defobject/ macro.
+  - *Multimethods*
+  - *Co-Operative Multitasking* - For Embedded Systems.
+    - https://forum.pjrc.com/threads/25628-Lightweight-Teensy3-x-Fibers-Library-%28C-%29-Available
+    - https://github.com/ve3wwg/teensy3_fibers/blob/1ba0c1e79a423f097e12e6c4176b40cf9d4f44e4/fibers.cpp
   - *MemoryPool* - Ability to run functions on different Memory Pools.
     - Improved data locality and safety.
     - Optionally disable reference counting to improve performance since
@@ -5734,31 +5753,18 @@ Create some dummy libs under /test/modules/,
       determined to be born and die within that sub-stack are
       allocated from that heap. When the stack unwinds past that
       point, the entire local heap can be released in one fell swoop.
-  - *Shared Library* - Ability to be run as a shared lib.
-    - Export functions to JNA (C API)
-  - *Safety when used in ISR*.
-  - *Readbility* - Add context to auto generated symbols in compiled
-    code.
-  - Since Ferret does whole-program compilation. Implement
-    optimizations from Stalin Scheme compiler.
-    - https://github.com/barak/stalin
-    - https://news.ycombinator.com/item?id=8214343
-    - https://justindomke.wordpress.com/2009/02/23/the-stalin-compiler/
-  - *Escape Analysis* for other types. Currently escape analysis is
-    only used for functions.
+
+** Issues
+
   - *Variadic Templates* - GCC evaluates arguments in reverse order.
     - [[http://stackoverflow.com/questions/14060264/order-of-evaluation-of-elements-in-list-initialization][Order of evaluation of elements in list-initialization]]
     - [[https://blogs.msdn.microsoft.com/vcblog/2016/02/11/compiler-improvements-in-vs-2015-update-2/][Compiler improvements in VS 2015 Update 2]]
 
-*** Libraries
+** Hardware
 
   - RPi GPIO
     - http://elinux.org/RPi_Low-level_peripherals
     - http://elinux.org/RPi_GPIO_Code_Samples
-  - HTTP Server
-    - [[https://github.com/ipkn/crow][crow]]
-    - [[http://siliconframework.org/][Silicon]]
-  - Sqlite Wrapper.
 
 ** The Rearview
 *** Core

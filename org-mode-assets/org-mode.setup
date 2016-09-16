@@ -15,7 +15,6 @@
 #+HTML_HEAD: <script type="text/javascript"> $( document ).ready(function() {
 #+HTML_HEAD:    $('#outline-container-sec-1 > .hsCollapsible').removeClass( "hsCollapsible" );
 #+HTML_HEAD:    $('#outline-container-sec-2 > .hsCollapsible').removeClass( "hsCollapsible" );
-#+HTML_HEAD:    $('#outline-container-sec-7 > .hsCollapsible').removeClass( "hsCollapsible" );
 #+HTML_HEAD: });</script>
 #+HTML_HEAD: <meta name="author" content="Nurullah Akkaya">
 #+HTML_HEAD: <meta name="description" content="Clojure to C++ Compiler">

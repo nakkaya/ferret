@@ -1848,9 +1848,6 @@ All our types are derived from the base Object type. Which is a
   #endif
     
     virtual var equals(var o) = 0;
-    
-    void inc_ref() { T::inc_ref(); }
-    bool dec_ref() { return T::dec_ref(); }
 
     void* operator new(size_t, void* ptr){ return ptr; }
     void  operator delete(void * ptr){ FERRET_FREE(ptr); }

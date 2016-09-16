@@ -1830,13 +1830,14 @@ Interfaces,
 *** Base
 
 All our types are derived from the base Object type. Which is a
-=typedef= of =ObjectBase<ReferenceCountingScheme>=. See [[Reference Counting]] 
-for available reference counting policies.
+=typedef= of =ObjectBase<FERRET_RC_POLICY,FERRET_ALLOC_POLICY>=. See
+[[Reference Counting]] for available reference counting policies and
+[[Memory Allocation]] for available allocation policies.
 
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
-  template <typename RC>
-  class ObjectBase : public RC{
+  template <typename RC, typename MEM>
+  class ObjectBase : public RC, public MEM{
   public:
     ObjectBase() : RC(0) { }
     ObjectBase(const ObjectBase& other): RC(other) { }
@@ -1849,9 +1850,6 @@ for available reference counting policies.
   #endif
     
     virtual var equals(var o) = 0;
-
-    void* operator new(size_t size){ return FERRET_ALLOCATE(size); }
-    void  operator delete(void * ptr){ FERRET_FREE(ptr); }
   };
 
   #if defined(FERRET_DISABLE_MULTI_THREADING)
@@ -1862,7 +1860,13 @@ for available reference counting policies.
     #define FERRET_RC_POLICY AtomicRC
   #endif
 
-  typedef ObjectBase<FERRET_RC_POLICY> Object;
+  #if defined(FERRET_MEMORY_POOL_SIZE)
+    #define FERRET_ALLOC_POLICY PoolAllocator
+  #else
+    #define FERRET_ALLOC_POLICY SystemAllocator
+  #endif
+
+  typedef ObjectBase<FERRET_RC_POLICY,FERRET_ALLOC_POLICY> Object;
 #+end_src
 
 *** Objects
@@ -2549,40 +2553,6 @@ new *var* containing a pointer to an [[Object System][Object]]. *nil* is represe
   }
 #+end_src
 
-The default memory management scheme is reference counting. Unlike
-other lisp implementations, Ferret supports various memory management
-schemes,
-
- - *malloc/free* - Allocations are handled by the system
-   implementation. (Default memory management.)
- - *Memory Pooling* - On memory constraint systems such as
-   microcontrollers Ferret can use a memory pool to avoid heap
-   fragmentation and calling malloc/free. Effectively running with
-   no heap, allocating all memory at compile time on the stack.
- - *Third party allocators* (i.e tcmalloc)
- - *Third party garbage collectors* (i.e The Boehm-Demers-Weiser
-   conservative garbage collector.)
-
-Dispatching the correct memory allocation/deallocation implementation
-is done using the following macros. when running with with a memory
-pool, memory for Ferret [[Object]]s are allocated from a memory pool
-called =program_memory= otherwise memory is allocated using
-=malloc=. Third party garbage collectors can be used by overriding
-=FERRET_ALLOCATE= / =FERRET_FREE=.
-
-#+name: runtime-native-memory-management-macros
-#+begin_src c++ :tangle no
-  #if !defined(FERRET_ALLOCATE)
-    #ifdef FERRET_MEMORY_POOL_SIZE
-      #define FERRET_ALLOCATE(size) program_memory.allocate(size)
-      #define FERRET_FREE(pre) program_memory.free(ptr)
-    #else
-      #define FERRET_ALLOCATE(size) ::malloc(size)
-      #define FERRET_FREE(ptr) ::free(ptr)
-    #endif
-  #endif
-#+end_src
-
 *** Reference Counting
 
 Garbage collection is handled by reference counting. Reference count
@@ -2709,37 +2679,71 @@ count, when it reaches zero it will automatically free the Object.
   };
 #+end_src
 
-*** Memory Pool
+*** Memory Allocation
 
-    When,
+Ferret supports various memory allocation schemes,
 
-#+BEGIN_EXAMPLE
-  FERRET_MEMORY_POOL_SIZE
-#+END_EXAMPLE
+ - *malloc/free* - Allocations are handled by the system
+   implementation. (Default memory management.)
+ - *Memory Pooling* - On memory constraint systems such as
+   microcontrollers Ferret can use a memory pool to avoid heap
+   fragmentation and calling malloc/free. Effectively running with
+   no heap, allocating all memory at compile time on the stack.
+ - *Third party allocators* (i.e tcmalloc)
+ - *Third party garbage collectors* (i.e The Boehm-Demers-Weiser
+   conservative garbage collector.)
 
-    is defined ferret program will use a memory pool instead of
-    /mallac/,/free/, depending on the pool size ferret will allocate 
-    /N/ bytes of memory on stack and all object creation
-    happens in this memory pool useful when working with very limited
-    amount of memory, such as micro controllers where you want
-    complete control over the memory and you need deterministic timing
-    requirements.
+**** Default Allocator
 
-    When /allocate/ is called the pool will scan the memory pool using
-    the /used/ bit array to find a block of memory big enough to
-    satisfy the request. If found, it will the mark the region as used and
-    return a pointer from /pool/ array to the user which points to
-    the memory block.
+[[Object]]s are allocated from system implementation.
 
-    When a free request is received, we resolve the pointer in to the
-    memory pool read the book keeping information on how much memory
-    is allocated to this pointer and set these pages to unused.
+#+name: runtime-native-memory-system-allocator
+#+begin_src c++ :tangle no
+  class SystemAllocator{
+  public:
+    void* operator new(size_t size){ return ::malloc(size); }
+    void  operator delete(void * ptr){ ::free(ptr); }
+  };
+#+end_src 
 
-    Memory pool has several advantages, it will avoid fragmentation,
-    function related to each other will always keep their data close
-    to each other in the array which improves data locality.
+**** Pool Allocator
 
-#+name: runtime-native-memory-pool
+[[Object]]s are allocated from a memory pool called =program_memory=.
+
+#+name: runtime-native-memory-pool-allocator
+#+begin_src c++ :tangle no
+  #ifdef FERRET_MEMORY_POOL_SIZE
+  class PoolAllocator{
+  public:
+    void* operator new(size_t size){ return program_memory.allocate(size); }
+    void  operator delete(void * ptr){ program_memory.free(ptr); }
+  };
+  #endif
+#+end_src 
+
+When =FERRET_MEMORY_POOL_SIZE= is defined ferret program will use a
+memory pool instead of /mallac/,/free/, depending on the pool size
+ferret will allocate /N/ bytes of memory on stack and all object
+creation happens in this memory pool useful when working with very
+limited amount of memory, such as micro controllers where you want
+complete control over the memory and you need deterministic timing
+requirements.
+
+When /allocate/ is called the pool will scan the memory pool using
+the /used/ bit array to find a block of memory big enough to
+satisfy the request. If found, it will the mark the region as used and
+return a pointer from /pool/ array to the user which points to
+the memory block.
+
+When a free request is received, we resolve the pointer in to the
+memory pool read the book keeping information on how much memory
+is allocated to this pointer and set these pages to unused.
+
+Memory pool has several advantages, it will avoid fragmentation,
+function related to each other will always keep their data close
+to each other in the array which improves data locality.
+
+#+name: runtime-native-memory-pool-allocator-implementation
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_POOL_SIZE
   template<size_t pool_size>
@@ -6070,8 +6074,8 @@ Create some dummy libs under /test/modules/,
 
   <<runtime-native-program-includes>>
 
+  // Initialize Hardware
   namespace ferret{
-    //Initialize Hardware
     <<runtime-native-hardware-initialize>>
     <<runtime-native-program-header>>
   }
@@ -6084,15 +6088,12 @@ Create some dummy libs under /test/modules/,
     <<runtime-native-locking-macros>>
   }
 
-  // Memory Pool
-  namespace ferret{
-    <<runtime-native-memory-pool>>
-    <<runtime-native-memory-management-macros>>
-  }
-
   // Object System Base
   namespace ferret{
     class var;
+    <<runtime-native-memory-system-allocator>>
+    <<runtime-native-memory-pool-allocator-implementation>>
+    <<runtime-native-memory-pool-allocator>>
     <<runtime-native-reference-counting>>
     <<runtime-native-object>>
     <<runtime-native-var>>

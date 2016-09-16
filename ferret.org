@@ -1855,12 +1855,14 @@ for available reference counting policies.
   };
 
   #if defined(FERRET_DISABLE_MULTI_THREADING)
-    typedef ObjectBase<RC> Object;
+    #define FERRET_RC_POLICY RC
   #elif defined(FERRET_DISABLE_RC)
-    typedef ObjectBase<NoRC> Object;
+    #define FERRET_RC_POLICY NoRC
   #else
-    typedef ObjectBase<AtomicRC> Object;
+    #define FERRET_RC_POLICY AtomicRC
   #endif
+
+  typedef ObjectBase<FERRET_RC_POLICY> Object;
 #+end_src
 
 *** Objects

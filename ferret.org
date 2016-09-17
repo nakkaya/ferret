@@ -2789,10 +2789,12 @@ to each other in the array which improves data locality.
     public:
       BitArray<pool_size> used;
       page_size pool[pool_size];
-      size_t last_allocation_index;
+      size_t offset;
       FERRET_NEW_LOCK(lock)
 
-      inline size_t calculate_needed_pages(size_t size){
+      MemoryPool() : pool{0}, offset(0) { }
+
+      inline size_t chunk_length(size_t size){
         size_t d = (size / sizeof(page_size));
         size_t f = (size % sizeof(page_size));
 
@@ -2802,63 +2804,61 @@ to each other in the array which improves data locality.
           return (d + 1);
       }
 
-      MemoryPool() : pool{0}, last_allocation_index(0) { }
-
-      inline bool is_page_range_usable(size_t begin,size_t end){
+      inline bool chunk_usable(size_t begin, size_t end){
         for(size_t i=begin; i < end; i++)
           if (used.get(i) != 0)
             return false;
         return true;
       }
 
-      inline size_t next_avalible_page(size_t offset){
-        for(size_t i=offset; i < pool_size; i++)
+      inline size_t next_page(size_t begin){
+        for(size_t i=begin; i < pool_size; i++)
           if (used.get(i) == 0)
             return i;
         return pool_size;
       }
 
-      inline int find_page(size_t pages_needed, size_t offset = 0){
+      inline int scan_pool(size_t pages_needed, size_t offset = 0){
         for(;;){
-          int page = next_avalible_page(offset);
+          size_t begin = next_page(offset);
+          size_t end   = begin + pages_needed;
     
-          if ((page + pages_needed) > pool_size)
+          if (end > pool_size)
             return -1;
           
-          if (is_page_range_usable(page,(page + pages_needed)) == true)
-            return page;
+          if (chunk_usable(begin, end))
+            return begin;
     
-          offset = (page + pages_needed);
+          offset = end;
         }
       }
 
       void *allocate(size_t req_size){
         FERRET_WITH_LOCK(lock,{
-            size_t length = calculate_needed_pages(++req_size);
-            int page = find_page(length, last_allocation_index);
+            size_t length = chunk_length(++req_size);
+            int page      = scan_pool(length, offset);
 
             if (page == -1){
-              page = find_page(length);
+              page = scan_pool(length);
               if (page == -1)
                 return nullptr;
             }
           
             pool[page] = length;
-            for(size_t i = page; i < (page + length); i++)
+            offset = page + length;
+            for(size_t i = page; i < offset; i++)
               used.set(i);
 
-            last_allocation_index = page + length;
             return &pool[++page];
           });
       }
 
       void free(void *p){
         FERRET_WITH_LOCK(lock,{
-            page_size* ptr = static_cast<page_size*>(p);
-            ptrdiff_t index = (ptr - pool) - 1;
-            size_t length = pool[index];
+            ptrdiff_t begin = (static_cast<page_size*>(p) - pool) - 1;
+            size_t end = begin + pool[begin];
 
-            for(size_t i = index ; i < (index + length); i++)
+            for(size_t i = begin ; i < end; i++)
               used.clear(i);
           });
       }
@@ -5617,7 +5617,7 @@ Create some dummy libs under /test/modules/,
      (native-declare "ferret::MemoryPool<size_t,14> tiny_pool;")
      (let [next-page (fn [idx]
                        "size_t i = (size_t)idx.cast<Number>()->as<int>();
-                        __result = obj<Number>((int)tiny_pool.next_avalible_page(i))")
+                        __result = obj<Number>((int)tiny_pool.next_page(i))")
            malloc (fn [size]
                     "size_t s = (size_t)size.cast<Number>()->as<int>();
                      ptr = tiny_pool.allocate(sizeof(size_t) * s);
@@ -5640,7 +5640,7 @@ Create some dummy libs under /test/modules/,
      (native-declare "ferret::MemoryPool<size_t,256> even_pool;")
      (let [next-page (fn [idx]
                        "size_t i = (size_t)idx.cast<Number>()->as<int>();
-                        __result = obj<Number>((int)even_pool.next_avalible_page(i))")
+                        __result = obj<Number>((int)even_pool.next_page(i))")
            malloc (fn [size]
                     "size_t s = (size_t)size.cast<Number>()->as<int>();
                      ptr = even_pool.allocate(sizeof(size_t) * s);
@@ -5658,7 +5658,7 @@ Create some dummy libs under /test/modules/,
      (native-declare "ferret::MemoryPool<size_t,255> odd_pool;")
      (let [next-page (fn [idx]
                        "size_t i = (size_t)idx.cast<Number>()->as<int>();
-                       __result = obj<Number>((int)odd_pool.next_avalible_page(i))")
+                       __result = obj<Number>((int)odd_pool.next_page(i))")
            malloc (fn [size]
                     "size_t s = (size_t)size.cast<Number>()->as<int>();
                      ptr = odd_pool.allocate(sizeof(size_t) * s);

@@ -2708,26 +2708,35 @@ Ferret supports various memory allocation schemes,
 
 **** Pool Allocator
 
-[[Object]]s are allocated from a memory pool called =program_memory=.
+When =FERRET_MEMORY_POOL_SIZE= is defined Ferret programs will use a
+memory pool called =program_memory= instead of /mallac/,/free/ for
+memory allocation, depending on the pool size Ferret will allocate /N/
+bytes of memory on stack and all memory allocation happens in this
+memory pool useful when working with very limited amount of memory,
+such as micro controllers where you want complete control over the
+memory and you need deterministic timing requirements.
 
 #+name: runtime-native-memory-pool-allocator
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_POOL_SIZE
-  class PoolAllocator{
-  public:
-    void* operator new(size_t size){ return program_memory.allocate(size); }
-    void  operator delete(void * ptr){ program_memory.free(ptr); }
-  };
+
+   #if !defined(FERRET_MEMORY_POOL_PAGE_TYPE)
+    #define FERRET_MEMORY_POOL_PAGE_TYPE long
+    #define FERRET_MEMORY_POOL_PAGE_COUNT                                   \
+      (FERRET_MEMORY_POOL_SIZE / sizeof(FERRET_MEMORY_POOL_PAGE_TYPE))
+   #else
+    #define FERRET_MEMORY_POOL_PAGE_COUNT FERRET_MEMORY_POOL_SIZE
+   #endif
+
+   MemoryPool<FERRET_MEMORY_POOL_PAGE_TYPE, FERRET_MEMORY_POOL_PAGE_COUNT> program_memory;
+
+   class PoolAllocator{
+   public:
+     void* operator new(size_t size){ return program_memory.allocate(size); }
+     void  operator delete(void * ptr){ program_memory.free(ptr); }
+   };
   #endif
 #+end_src 
-
-When =FERRET_MEMORY_POOL_SIZE= is defined ferret program will use a
-memory pool instead of /mallac/,/free/, depending on the pool size
-ferret will allocate /N/ bytes of memory on stack and all object
-creation happens in this memory pool useful when working with very
-limited amount of memory, such as micro controllers where you want
-complete control over the memory and you need deterministic timing
-requirements.
 
 When /allocate/ is called the pool will scan the memory pool using
 the /used/ bit array to find a block of memory big enough to
@@ -2745,7 +2754,7 @@ to each other in the array which improves data locality.
 
 #+name: runtime-native-memory-pool-allocator-implementation
 #+begin_src c++ :tangle no
-  #ifdef FERRET_MEMORY_POOL_SIZE
+#ifdef FERRET_MEMORY_POOL_SIZE
   template<size_t pool_size>
   class BitArray {
   private:
@@ -2865,13 +2874,7 @@ to each other in the array which improves data locality.
         });
     }
   };
-
-   #if !defined(FERRET_MEMORY_POOL_PAGE_TYPE)
-    MemoryPool<long,(FERRET_MEMORY_POOL_SIZE/sizeof(long))> program_memory;
-   #else
-    MemoryPool<FERRET_MEMORY_POOL_PAGE_TYPE,FERRET_MEMORY_POOL_SIZE> program_memory;
-   #endif
-  #endif
+#endif
 #+end_src
 
 ** Configuration

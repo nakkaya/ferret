@@ -18,7 +18,7 @@ compliant compiler. it has been verified to run on architectures
 ranging from embedded systems with as little as 2KB of RAM to general
 purpose computers running Linux/Mac OS X/Windows.
 
- - General Purpose Computer
+ - General Purpose Computers
    - Clang on Mac OS X
    - GCC & Clang on Linux
  - Microcontrollers
@@ -116,8 +116,10 @@ For more embedded usage examples see,
 
  - [[http://nakkaya.com/2016/06/10/ferret-a-hard-real-time-clojure-for-lisp-machines/][Ferret - A Hard Real-Time Clojure for Lisp Machines]] -
    Implementation of a line following robot in Ferret.
- - [[https://git.nakkaya.com/nakkaya/solarcar-turn-indicator/tree/master][solarcar-turn-indicator]] - A state machine implementation for a car
-   turn indicator.
+ - [[https://git.nakkaya.com/nakkaya/solarcar-tracker][solarcar-tracker]] - A Tracking device for the [[http://solarcar.neu.edu.tr][Ra27 solar car]]. (GPS,
+   IMU etc.) (Raspberry Pi)
+ - [[https://git.nakkaya.com/nakkaya/solarcar-turn-indicator/tree/master][solarcar-turn-indicator]] - Controller for the turn indicator
+   assembly on the [[http://solarcar.neu.edu.tr][Ra27 solar car]]. (Atmega MCU)
 
 ** Memory Management
 

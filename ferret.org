@@ -4047,6 +4047,20 @@ Combine a list of bytes to a number.
      __result = obj<Number>(res);")
 #+end_src
 
+*** sqrt
+
+Square root.
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defnative sqrt [s]
+    (on "defined FERRET_STD_LIB"
+        ("cmath")
+        "__result = obj<Number>((float)::sqrt(s.to<float>()));")
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "__result = obj<Number>((float)::sqrt(s.to<float>()));"))
+#+end_src
+
 ** Concurrency
 *** thread
 
@@ -5031,6 +5045,9 @@ Tests are run by the CI system for the following compilers,
     (is (= 16 (bit-shift-left 4 2)))
     (is (= 2  (bit-shift-right 4 1)))
     (is (= 1  (bit-shift-right 4 2)))
+
+    (is (= 32 (sqrt 1024)))
+    (is (= 2 (sqrt 4)))
 
     (let [a 1
           b 2]

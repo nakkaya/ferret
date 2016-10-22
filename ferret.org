@@ -222,10 +222,10 @@ will return *nil*. You can have multiple *on* blocks per *defnative*,
   (defnative sleep [t]
     (on "defined FERRET_STD_LIB"
         ("chrono" "thread")
-        "auto duration = ::std::chrono::milliseconds(t.to<int>());
+        "auto duration = ::std::chrono::milliseconds(t.to<number_t>());
          ::std::this_thread::sleep_for(duration);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::delay(t.to<int>());"))
+        "::delay(t.to<number_t>());"))
 #+end_src
 
 This way a single function can be defined for multiple
@@ -237,7 +237,7 @@ are immutable you can freely call Ferret code from C++,
 
   int sum = 0;
   for(auto it : runtime::range(alist)){
-    sum += it.to<int>();
+    sum += it.to<number_t>();
    }
 
   ::std::cout << sum << ::std::endl;
@@ -1155,7 +1155,7 @@ C++ skeleton.
   (defmethod emit :keyword [form state]
     (str "obj<Keyword>(" (reduce (fn[h v] (+ h (int v))) 0 (str form)) ")"))
 
-  (defmethod emit :char [form state] (str "obj<Number>(" (int form) ")"))
+  (defmethod emit :char [form state] (str "obj<Number>((number_t)" (int form) ")"))
 
   (defmethod emit :number [form state]
     (let [number (rationalize form)]
@@ -2062,16 +2062,16 @@ Number Object,
     (post-code "template<> float Number::as(){
                    return (float)_numerator/(float)_denominator;
                 }
-                template<> int Number::as(){
+                template<> number_t Number::as(){
                    if (_denominator == 1)
-                     return (int)_numerator;
+                     return (number_t)_numerator;
                    else
-                     return (int)as<float>();
+                     return (number_t)as<float>();
                 }
                 template<> char Number::as(){
-                   return as<int>();
+                   return as<number_t>();
                 }
-                template <> int var::to() { return cast<Number>()->as<int>(); }
+                template <> number_t var::to() { return cast<Number>()->as<number_t>(); }
                 template <> float var::to() { return cast<Number>()->as<float>(); }
                 template <> char var::to() { return cast<Number>()->as<char>(); }")
     (force-type))
@@ -2461,7 +2461,7 @@ Range-based for loop support for seekable containers.
     }
     
     var nth(var seq, var idx){
-      return nth(seq,idx.to<int>());
+      return nth(seq,idx.to<number_t>());
     }
     
     size_t count(var seq){
@@ -3277,7 +3277,7 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-console-io
 #+begin_src clojure :tangle no
   (defn system-exit [code]
-    "::std::exit(code.to<int>());")
+    "::std::exit(code.to<number_t>());")
 #+end_src
 
 *** system-abort
@@ -3354,7 +3354,7 @@ A simple macro for calling inline C++,
     `(~'_dotimes_ ~(second binding)
                   (~'fn [~(first binding)] ~@body)))
 
-  (defn _dotimes_ [t f] "for(int i = 0; i < t.to<int>(); i++) run(f,obj<Number>(i));")
+  (defn _dotimes_ [t f] "for(number_t i = 0; i < t.to<number_t>(); i++) run(f,obj<Number>(i));")
 #+end_src
 
 ** Conditionals
@@ -3934,14 +3934,14 @@ A simple macro for calling inline C++,
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn mod [num div] "__result = obj<Number>((num.to<int>() % div.to<int>()));")
+  (defn mod [num div] "__result = obj<Number>((num.to<number_t>() % div.to<number_t>()));")
 #+end_src
 
 *** floor
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn floor [x] "__result = obj<Number>(x.to<int>());")
+  (defn floor [x] "__result = obj<Number>(x.to<number_t>());")
 #+end_src
 
 *** scale
@@ -4029,7 +4029,7 @@ Split a number into bytes.
      unsigned char *p = (unsigned char*)&val;
      __result = runtime::list();
      for(size_t i = 0; i < sizeof(number_t); i++)
-       __result = runtime::cons(obj<Number>(p[i]),__result);")
+       __result = runtime::cons(obj<Number>((number_t)p[i]),__result);")
 #+end_src
 
 *** number-combine
@@ -4102,10 +4102,10 @@ Sleep current thread for *t* milliseconds,
   (defnative sleep [t]
     (on "defined FERRET_STD_LIB"
         ("chrono" "thread")
-        "auto duration = ::std::chrono::milliseconds(t.to<int>());
+        "auto duration = ::std::chrono::milliseconds(t.to<number_t>());
          ::std::this_thread::sleep_for(duration);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::delay(t.to<int>());"))
+        "::delay(t.to<number_t>());"))
 #+end_src
 
 *** time-fn
@@ -4464,11 +4464,11 @@ output.
 #+begin_src clojure :tangle no
   (defnative pin-mode-input [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "pinMode(pin.to<int>(), INPUT);"))
+        "pinMode(pin.to<number_t>(), INPUT);"))
 
   (defnative pin-mode-output [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "pinMode(pin.to<int>(), OUTPUT);"))
+        "pinMode(pin.to<number_t>(), OUTPUT);"))
 
   (defmacro pin-mode [pin mode]
     (if (= mode :input)
@@ -4484,11 +4484,11 @@ Write a HIGH or a LOW value to a digital pin.
 #+begin_src clojure :tangle no
   (defnative digital-write-high [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "digitalWrite(pin.to<int>(), HIGH);"))
+        "digitalWrite(pin.to<number_t>(), HIGH);"))
 
   (defnative digital-write-low [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "digitalWrite(pin.to<int>(), LOW);"))
+        "digitalWrite(pin.to<number_t>(), LOW);"))
 
   (defmacro digital-write [pin mode]
     (if (= mode :high)
@@ -4504,7 +4504,7 @@ Reads the value from a specified digital pin, either HIGH or LOW.
 #+begin_src clojure :tangle no
   (defnative digital-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "if (digitalRead(pin.to<int>()) == HIGH)
+        "if (digitalRead(pin.to<number_t>()) == HIGH)
            __result = obj<Boolean>(true);
          else
            __result = obj<Boolean>(false);"))
@@ -4518,7 +4518,7 @@ Writes an analog value (PWM wave) to a pin.
 #+begin_src clojure :tangle no
   (defnative analog-write [pin val]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "analogWrite(pin.to<int>(),val.to<int>());"))
+        "analogWrite(pin.to<number_t>(),val.to<number_t>());"))
 #+end_src
 
 *** analog-read
@@ -4529,7 +4529,7 @@ Reads the value from the specified analog pin.
 #+begin_src clojure :tangle no
   (defnative analog-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "__result = obj<Number>((int)analogRead(pin.to<int>()));"))
+        "__result = obj<Number>((int)analogRead(pin.to<number_t>()));"))
 #+end_src
 
 *** analog-write-resolution
@@ -4540,7 +4540,7 @@ Sets the resolution of the *analog-write*
 #+begin_src clojure :tangle no
   (defnative analog-write-resolution [bit]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "analogWriteResolution(bit.to<int>());"))
+        "analogWriteResolution(bit.to<number_t>());"))
 #+end_src
 
 *** analog-read-resolution
@@ -4551,7 +4551,7 @@ Sets the size (in bits) of the value returned by *analog-read*.
 #+begin_src clojure :tangle no
   (defnative analog-read-resolution [bit]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "analogReadResolution(bit.to<int>());"))
+        "analogReadResolution(bit.to<number_t>());"))
 #+end_src
 
 *** tone/noTone
@@ -4563,14 +4563,14 @@ cycle) on a pin.
 #+begin_src clojure :tangle no
   (defnative tone [pin freq]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "tone(pin.to<int>(),freq.to<int>());"))
+        "tone(pin.to<number_t>(),freq.to<number_t>());"))
 #+end_src
 
 #+name: runtime-clojure-gpio
 #+begin_src clojure :tangle no
   (defnative no-tone [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "noTone(pin.to<int>());"))
+        "noTone(pin.to<number_t>());"))
 #+end_src
 
 *** definterrupt
@@ -4592,7 +4592,7 @@ Registers an interrupt on the /symbol/ for the given pin and mode. See
   (defmacro definterrupt [callback pin mode]
     (let [pin (if (number? pin)
                 pin
-                (str (symbol-conversion pin) ".to<int>()"))
+                (str (symbol-conversion pin) ".to<number_t>()"))
           mode (cond (= mode :low) "LOW"
                      (= mode :change) "CHANGE"
                      (= mode :rising) "RISING"
@@ -4803,7 +4803,7 @@ Tests are run by the CI system for the following compilers,
         (+ (fibo (- n 1))
            (fibo (- n 2))))))
 
-  (native-declare "int i = 0;")
+  (native-declare "ferret::number_t i = 0;")
 
   (defn inc-int []
     "__result =  obj<Number>(i++);")
@@ -5362,7 +5362,7 @@ Create some dummy libs under /test/modules/,
 
   (defnative macro-aux []
     (on "defined FERRET_STD_LIB"
-        "__result = obj<Number>(42);"))
+        "__result = obj<Number>((number_t)42);"))
 
   (defmacro macro-call []
     `(~'do (~'macro-aux)))
@@ -5564,9 +5564,9 @@ Create some dummy libs under /test/modules/,
 
 
   (deftest value-test
-    (let [obj-42 (cxx "__result = obj<Value<int>>(42)")
-          obj-24 (cxx "__result = obj<Value<int>>(24)")
-          val-42  (cxx "__result = obj<Number>(obj_42.cast<Value<int>>()->value())")]
+    (let [obj-42 (cxx "__result = obj<Value<number_t>>((number_t)42)")
+          obj-24 (cxx "__result = obj<Value<number_t>>((number_t)24)")
+          val-42  (cxx "__result = obj<Number>(obj_42.cast<Value<number_t>>()->value())")]
       (is (=    obj-42 obj-42))
       (is (not= obj-42 obj-24))
       (is (=    val-42 42))))
@@ -5635,10 +5635,10 @@ Create some dummy libs under /test/modules/,
 
      (native-declare "ferret::MemoryPool<size_t,14> tiny_pool;")
      (let [next-page (fn [idx]
-                       "size_t i = (size_t)idx.cast<Number>()->as<int>();
-                        __result = obj<Number>((int)tiny_pool.next_page(i))")
+                       "size_t i = (size_t)idx.cast<Number>()->as<number_t>();
+                        __result = obj<Number>((number_t)tiny_pool.next_page(i))")
            malloc (fn [size]
-                    "size_t s = (size_t)size.cast<Number>()->as<int>();
+                    "size_t s = (size_t)size.cast<Number>()->as<number_t>();
                      ptr = tiny_pool.allocate(sizeof(size_t) * s);
                      __result = obj<Boolean>((ptr != nullptr));")
            free (fn [] "tiny_pool.free(ptr);")]
@@ -5658,10 +5658,10 @@ Create some dummy libs under /test/modules/,
 
      (native-declare "ferret::MemoryPool<size_t,256> even_pool;")
      (let [next-page (fn [idx]
-                       "size_t i = (size_t)idx.cast<Number>()->as<int>();
-                        __result = obj<Number>((int)even_pool.next_page(i))")
+                       "size_t i = (size_t)idx.cast<Number>()->as<number_t>();
+                        __result = obj<Number>((number_t)even_pool.next_page(i))")
            malloc (fn [size]
-                    "size_t s = (size_t)size.cast<Number>()->as<int>();
+                    "size_t s = (size_t)size.cast<Number>()->as<number_t>();
                      ptr = even_pool.allocate(sizeof(size_t) * s);
                      __result = obj<Boolean>((ptr != nullptr));")
            free (fn [] "even_pool.free(ptr);")]
@@ -5676,10 +5676,10 @@ Create some dummy libs under /test/modules/,
 
      (native-declare "ferret::MemoryPool<size_t,255> odd_pool;")
      (let [next-page (fn [idx]
-                       "size_t i = (size_t)idx.cast<Number>()->as<int>();
-                       __result = obj<Number>((int)odd_pool.next_page(i))")
+                       "size_t i = (size_t)idx.cast<Number>()->as<number_t>();
+                       __result = obj<Number>((number_t)odd_pool.next_page(i))")
            malloc (fn [size]
-                    "size_t s = (size_t)size.cast<Number>()->as<int>();
+                    "size_t s = (size_t)size.cast<Number>()->as<number_t>();
                      ptr = odd_pool.allocate(sizeof(size_t) * s);
                      __result = obj<Boolean>((ptr != nullptr));")
            free (fn [] "odd_pool.free(ptr);")]

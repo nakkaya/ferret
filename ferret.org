@@ -1162,8 +1162,8 @@ C++ skeleton.
       (if (ratio? number)
         (let [num (numerator number)
               denom (denominator number)]
-          (str "obj<Number>(" num "," denom ")"))
-        (str "obj<Number>(" number ")"))))
+          (str "obj<Number>((number_t)" num ",(number_t)" denom ")"))
+        (str "obj<Number>((number_t)" number ")"))))
 #+end_src
 
 **** Special Forms
@@ -2249,11 +2249,11 @@ Strings are represented as a linked list of characters.
            int length = 0;
            for (length = 0; str[length] != '\\0'; ++length);
            for (int i = --length; i >= 0; i--)
-             data = runtime::cons(obj<Number>(str[i]),data);
+             data = runtime::cons(obj<Number>((number_t)str[i]),data);
        }")
      ("explicit String(const char * str,int length) {
            for (int i = --length; i >= 0; i--)
-             data = runtime::cons(obj<Number>(str[i]),data);
+             data = runtime::cons(obj<Number>((number_t)str[i]),data);
        }")
      ("var container" ""
       "return data;")

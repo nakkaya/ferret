@@ -1973,10 +1973,14 @@ Default number configuration,
 #+name: runtime-native-number-config-macros
 #+begin_src c++ :tangle no
   namespace ferret{
-    typedef int   number_t;                   // Number Container.
-    const   int   float_precision = 1000;     // Used When Reading Floats.
+  #if !defined(FERRET_NUMBER_TYPE)
+     #define FERRET_NUMBER_TYPE int
+  #endif
+
+    typedef FERRET_NUMBER_TYPE           number_t;                   // Number Container.
+    const   int                          float_precision = 1000;     // Used When Reading Floats.
   #if !defined(FERRET_DISABLE_STD_OUT)
-    const   char* number_format = "%d";       // Number Format String (fprinf)
+    const   char*                        number_format = "%d";       // Number Format String (fprinf)
   #endif
   }
 #+end_src
@@ -2889,18 +2893,19 @@ running in safe mode.
 #+END_EXAMPLE
 
 #+BEGIN_EXAMPLE
-  |--------------------------------+--------------+--------------------------------------------------------------------|
-  | Define                         | Defult Value | Description                                                        |
-  |--------------------------------+--------------+--------------------------------------------------------------------|
-  | FERRET_SAFE_MODE                 | false        | Force Safe Mode.                                                 |
-  | FERRET_DISABLE_CLI_ARGS          | false        | Disable command line arguments.                                  |
-  | FERRET_DISABLE_STD_OUT           | true         | Disables output stream. (Reduces code size.)                     |
-  | FERRET_DISABLE_MULTI_THREADING   | true         | Disable atomic reference counting.                               |
-  | FERRET_DISABLE_STD_MAIN          | false        | Disables auto execution of ferret::program_run()                 |
-  | FERRET_DISABLE_RC                | Not Defined  | Disable Reference Counting. (When using third party GCs)         |
-  | FERRET_PROGRAM_MAIN              | Not Defined  | A function to execute after ferret::program_run()                |
-  | FERRET_UART_RATE                 | 9600         | Set default UART rate.                                           |
-  |------------------------------+--------------+----------------------------------------------------------------------|
+  |--------------------------------+--------------+----------------------------------------------------------|
+  | Define                         | Defult Value | Description                                              |
+  |--------------------------------+--------------+----------------------------------------------------------|
+  | FERRET_SAFE_MODE               | false        | Force Safe Mode.                                         |
+  | FERRET_DISABLE_CLI_ARGS        | false        | Disable command line arguments.                          |
+  | FERRET_DISABLE_STD_OUT         | true         | Disables output stream. (Reduces code size.)             |
+  | FERRET_DISABLE_MULTI_THREADING | true         | Disable atomic reference counting.                       |
+  | FERRET_DISABLE_STD_MAIN        | false        | Disables auto execution of ferret::program_run()         |
+  | FERRET_DISABLE_RC              | Not Defined  | Disable Reference Counting. (When using third party GCs) |
+  | FERRET_PROGRAM_MAIN            | Not Defined  | A function to execute after ferret::program_run()        |
+  | FERRET_UART_RATE               | 9600         | Set default UART rate.                                   |
+  | FERRET_NUMBER_TYPE             | int          | Default number_t type.                                   |
+  |--------------------------------+--------------+----------------------------------------------------------|
 #+END_EXAMPLE
 
 ** Initialization

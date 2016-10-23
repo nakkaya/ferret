@@ -2041,7 +2041,7 @@ Number Object,
       return nil();")
     
     (fns
-     ("explicit Number(number_t x) : _numerator(x), _denominator(1) {}")
+     ("explicit Number(number_t x) : _numerator(x), _denominator((number_t)1) {}")
      ("explicit Number(number_t n, number_t dn) : _numerator(n), _denominator(dn) {
          simplificate();
        }")
@@ -4534,7 +4534,7 @@ Reads the value from the specified analog pin.
 #+begin_src clojure :tangle no
   (defnative analog-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "__result = obj<Number>((int)analogRead(pin.to<number_t>()));"))
+        "__result = obj<Number>((number_t)analogRead(pin.to<number_t>()));"))
 #+end_src
 
 *** analog-write-resolution

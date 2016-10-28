@@ -1951,9 +1951,7 @@ modern C++ libraries that use smart pointers for memory management.
   (defobject Value
     (template "typename T")
     (data "T val;")
-    (equals
-     "T other = o.cast<Value<T>>()->value();
-      return obj<Boolean>(val == other);")
+    (equals "return obj<Boolean>(this == o.get());")
     (stream_console
      "fprintf(FERRET_STD_OUT, \"Value<%p>\", (void*)&val); return nil();")
     (fns
@@ -5570,11 +5568,9 @@ Create some dummy libs under /test/modules/,
 
   (deftest value-test
     (let [obj-42 (cxx "__result = obj<Value<number_t>>((number_t)42)")
-          obj-24 (cxx "__result = obj<Value<number_t>>((number_t)24)")
-          val-42  (cxx "__result = obj<Number>(obj_42.cast<Value<number_t>>()->value())")]
+          obj-24 (cxx "__result = obj<Value<number_t>>((number_t)24)")]
       (is (=    obj-42 obj-42))
-      (is (not= obj-42 obj-24))
-      (is (=    val-42 42))))
+      (is (not= obj-42 obj-24))))
 #+end_src
 
 *** Atom

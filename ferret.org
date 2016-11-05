@@ -4247,6 +4247,26 @@ last item in second form, etc.
         x)))
 #+end_src
 
+*** doto
+
+Evaluates x then calls all of the methods and functions with the
+value of x supplied at the front of the given arguments.  The forms
+are evaluated in order.  Returns x.
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no
+  (defmacro doto
+    [x & forms]
+    (let [gx (gensym)]
+      `(let [~gx ~x]
+         ~@(map (fn [f]
+                  (if (seq? f)
+                    `(~(first f) ~gx ~@(next f))
+                    `(~f ~gx)))
+                forms)
+         ~gx)))
+#+end_src
+
 ** Control
 *** State Machines
 
@@ -5276,6 +5296,23 @@ Tests are run by the CI system for the following compilers,
         (is (= (list 5 6 7 8) @xor-stream-state)))))
  #+end_src
  
+*** Misc
+    :PROPERTIES:
+    :noweb-ref: misc-test
+    :END:
+
+ #+begin_src clojure :tangle no
+   (deftest doto-test
+     (let [st (atom )
+           add (fn [s v]
+                 (swap! s conj v))]
+       (doto st
+         (add 1)
+         (add 2)
+         (add 3))
+       (is (= (list 3 2 1) @st))))
+ #+end_src
+
 *** Module System
 
 Run import tests. 
@@ -6166,6 +6203,7 @@ Create some dummy libs under /test/modules/,
   <<control-test>>
   <<threading-test>>
   <<xor-stream-test>>
+  <<misc-test>>
 
   (defn ferret-unit-test []
     (run-all-tests))

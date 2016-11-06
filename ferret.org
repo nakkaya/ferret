@@ -2311,8 +2311,11 @@ A boolean object,
                      return obj<Boolean>(false);
                    if (get() != nullptr && rhs.get() == nullptr)
                      return obj<Boolean>(false);
+
                    if (get() == rhs.get())
                      return obj<Boolean>(true);
+                   else if (runtime::is_seqable(*this) && runtime::is_seqable(rhs))
+                     return get()->equals(rhs);
                    else if (m_ptr->type() != rhs.cast<Object>()->type())
                      return obj<Boolean>(false);
                    else
@@ -2395,6 +2398,7 @@ C++ API for the interface,
     var nth(var seq, var index);
     var nth(var seq, int index);
     size_t count(var seq);
+    var is_seqable(var seq);
   }
 #+end_src
 
@@ -2470,6 +2474,14 @@ Range-based for loop support for seekable containers.
       size_t acc = 0;
       FERRET_ITERATE(seq,it){ acc++; }
       return acc;
+    }
+
+    var is_seqable(var seq){
+      if(seq.is_type(runtime::type::Sequence) || 
+         seq.is_type(runtime::type::LazySequence))
+        return obj<Boolean>(true);
+      else
+        return obj<Boolean>(false);
     }
   }
 #+end_src

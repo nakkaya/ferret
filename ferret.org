@@ -3627,6 +3627,16 @@ A simple macro for calling inline C++,
               (lazy-seq (take (- n 1) (rest coll)))))))
 #+end_src
 
+*** take-while
+
+#+name: runtime-clojure-sequence-lazy
+#+begin_src clojure :tangle no
+  (defn take-while [pred s]
+    (if (and (not (empty? s))
+             (pred (first s)))
+      (cons (first s) (lazy-seq (take-while pred (rest s))))))
+#+end_src
+
 *** drop
 
 #+name: runtime-clojure-sequence-lazy
@@ -5565,6 +5575,11 @@ Create some dummy libs under /test/modules/,
     (is (= 4   (first (drop 3 (concat (list 1 2 3) (list 4 5 6))))))
     (is (= 21  (reduce + (concat (list 1 2 3) (list 4 5 6)))))
 
+    (is (= (list -2 -1)          (take-while neg? (list -2 -1 0 1 2 3))))
+    (is (= (list -2 -1 0 1 2)    (take-while #(< % 3) (list -2 -1 0 1 2 3))))
+    (is (= (list -2 -1 0 1 2 3)  (take-while #(<= % 3) (list -2 -1 0 1 2 3))))
+    (is (= (list -2 -1 0 1 2 3)  (take-while #(<= % 4) (list -2 -1 0 1 2 3))))
+    
     (is (empty? (concat))))
 #+end_src
 

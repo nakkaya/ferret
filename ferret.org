@@ -3144,6 +3144,9 @@ Once our object system is in place we can define rest of the runtime
   (defn first [x]
     "__result = runtime::first(x);")
 
+  (defn second [x]
+    "__result = runtime::first(runtime::rest(x));")
+
   (defn nil? [x] "__result = obj<Boolean>(x.is_nil())")
 #+end_src
 
@@ -5500,6 +5503,7 @@ Create some dummy libs under /test/modules/,
     (is (= (list 1)           (cons 1 nil)))
     (is (= (list nil)         (cons nil nil)))
     (is (= 1                  (first (list 1 2 3 4))))
+    (is (= 2                  (second (list 1 2 3 4))))
     (is (= (list 2 3 4)       (rest (list 1 2 3 4))))
     (is (= (list 3 4)         (rest (rest (list 1 2 3 4)))))
     (is (= (list 3 3 4)       (cons 3 (rest (rest (list 1 2 3 4))))))

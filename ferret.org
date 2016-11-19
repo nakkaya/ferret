@@ -5550,12 +5550,13 @@ Create some dummy libs under /test/modules/,
     (is (= 3 (count (filter false? (list true false true false false)))))
     (is (= 2 (count (filter (fn [x] (not (false? x))) (list true false true false false)))))
 
-    (let [state (atom nil)
-          add (fn [i]
-                (swap! state conj i))
-          collect (fn [t] "for(auto c : runtime::range(t)) run(add,t);")]
-      (collect (list 1 2))
-      (is (= (list (list 1 2) (list 1 2)) @state))))
+    (let [sum (cxx "var alist = runtime::list(obj<Number>(1),obj<Number>(2),obj<Number>(3));
+                    number_t sum = 0;
+                    for(auto it : runtime::range(alist)){
+                      sum += it.to<number_t>();
+                    }
+                    __result = obj<Number>(sum);")]
+      (is (= 6 sum))))
 #+end_src
 
 *** Lazy Sequence

@@ -647,18 +647,20 @@ after transformation becomes,
 #+name: core-compilation-let-fn
 #+begin_src clojure :tangle no
   (defn let->fn [form]
-    (morph-form form
-                (is-form? 'let*)
-                (fn [[_ bindings & body]]
-                  (let [bindings (partition 2 bindings)]
-                    (if (empty? bindings)
-                      (list (concat (list 'fn* []) body))
-                      (let [closure-fn
-                            (fn close [[arg val] & more]
-                              (if (empty? more)
-                                (list (concat (list 'fn* (list arg)) body) val)
-                                (list (list 'fn* (list arg) (apply close more)) val)))]
-                        (apply closure-fn bindings)))))))
+    (-> form
+        (morph-form (is-form? 'let*)
+                    (fn [[_ bindings & body]]
+                      (let [bindings (partition 2 bindings)]
+                        (if (empty? bindings)
+                          (list (concat (list 'fn []) body))
+                          (let [closure-fn
+                                (fn close [[arg val] & more]
+                                  (if (empty? more)
+                                    (list (concat (list 'fn [arg]) body) val)
+                                    (list (list 'fn [arg] (apply close more)) val)))]
+                            (apply closure-fn bindings))))))
+        (morph-form (is-form? 'fn)
+                    (fn [[_ & body]] (localize-fn-args body)))))
 #+end_src
 
 *** do->fn
@@ -4860,6 +4862,13 @@ Tests are run by the CI system for the following compilers,
     (let [args (list "./a.out" "42")]
       (is (= args *command-line-args*)))
 
+    (let [a 1]
+      (is (= 1 a)))
+
+    (let [a 1
+          a 3]
+      (is (= 3 a)))
+    
     (let [a 1
           b 2]
       (is (= 3 (+ a b))))

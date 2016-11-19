@@ -650,18 +650,14 @@ after transformation becomes,
     (morph-form form
                 (is-form? 'let*)
                 (fn [[_ bindings & body]]
-                  (let [bindings (->> (partition 2 bindings)
-                                      (map-indexed (fn [idx [args val]]
-                                                     [idx args val])))
-                        vars (map first bindings)]
-                    (if (empty? vars)
+                  (let [bindings (partition 2 bindings)]
+                    (if (empty? bindings)
                       (list (concat (list 'fn* []) body))
-                      (let [closure-fn (fn close [[idx arg vals] & more]
-                                         (let [body (if (empty? more)
-                                                      (list (concat ['fn* []] body))
-                                                      (apply close more))]
-                                           (list (list 'fn* (list arg) body)
-                                                 (last (nth bindings idx)))))]
+                      (let [closure-fn
+                            (fn close [[arg val] & more]
+                              (if (empty? more)
+                                (list (concat (list 'fn* (list arg)) body) val)
+                                (list (list 'fn* (list arg) (apply close more)) val)))]
                         (apply closure-fn bindings)))))))
 #+end_src
 
@@ -4861,7 +4857,19 @@ Tests are run by the CI system for the following compilers,
     (let [args (list "./a.out" "42")]
       (is (= args *command-line-args*)))
 
-    
+    (let [a 1
+          b 2]
+      (is (= 3 (+ a b))))
+
+    (let [a 1
+          b 2
+          c 3]
+      (is (= 6 (+ a b c))))
+
+    (let [a 1
+          b 2]
+      (let []
+        (is (= 3 (+ a b)))))
     
     (is (= 10 (adder 9)))
     (is (= 89 (fibo 10)))

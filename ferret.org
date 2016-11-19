@@ -5639,10 +5639,10 @@ Create some dummy libs under /test/modules/,
     (let [state (atom false)]
       (let [a-gc-fn (fn [] (reset! state true))
             a-ptr (cxx "__result = obj<Pointer>(nullptr);")
-            a-heavy-ptr (cxx "__result = obj<HeavyPointer>(a_ptr,a_gc_fn);")
+            a-heavy-ptr ((fn [p g] "__result = obj<HeavyPointer>(p,g);") a-ptr a-gc-fn)
             ;; b-ptr (cxx "__result = obj<Pointer>(new int);")
             ;; b-gc-fn (fn [] "delete b_ptr.cast<Pointer>()->pointer<int>();")
-            ;; b-heavy-ptr (cxx "__result = obj<HeavyPointer>(b_ptr,b_gc_fn);")
+            ;; b-heavy-ptr ((fn [ptr gc] "__result = obj<HeavyPointer>(ptr,gc);") b-ptr b-gc-fn)
             ]
         (is (= true  (= a-ptr a-ptr)))
         ;;(is (= false (= a-ptr b-ptr)))

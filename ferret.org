@@ -5640,15 +5640,17 @@ Create some dummy libs under /test/modules/,
       (let [a-gc-fn (fn [] (reset! state true))
             a-ptr (cxx "__result = obj<Pointer>(nullptr);")
             a-heavy-ptr (cxx "__result = obj<HeavyPointer>(a_ptr,a_gc_fn);")
-            b-ptr (cxx "__result = obj<Pointer>(new int);")
-            b-gc-fn (fn [] "delete b_ptr.cast<Pointer>()->pointer<int>();")
-            b-heavy-ptr (cxx "__result = obj<HeavyPointer>(b_ptr,b_gc_fn);")]
+            ;; b-ptr (cxx "__result = obj<Pointer>(new int);")
+            ;; b-gc-fn (fn [] "delete b_ptr.cast<Pointer>()->pointer<int>();")
+            ;; b-heavy-ptr (cxx "__result = obj<HeavyPointer>(b_ptr,b_gc_fn);")
+            ]
         (is (= true  (= a-ptr a-ptr)))
-        (is (= false (= a-ptr b-ptr)))
+        ;;(is (= false (= a-ptr b-ptr)))
         (is (= true  (= a-heavy-ptr a-heavy-ptr)))
-        (is (= false (= a-heavy-ptr b-heavy-ptr)))
-        (is (= false (= b-heavy-ptr a-heavy-ptr)))
-        (is (= true  (= b-heavy-ptr b-heavy-ptr))))
+        ;; (is (= false (= a-heavy-ptr b-heavy-ptr)))
+        ;; (is (= false (= b-heavy-ptr a-heavy-ptr)))
+        ;; (is (= true  (= b-heavy-ptr b-heavy-ptr)))
+        )
       (is (= true (deref state)))))
 
 

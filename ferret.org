@@ -1925,7 +1925,7 @@ Java.
      "return pointer.cast<Pointer>()->stream_console();")
     (fns
      ("explicit HeavyPointer(var p, var gc) : pointer(p), gc_fn(gc) {}")
-     ("~HeavyPointer" "" "run(gc_fn);")
+     ("~HeavyPointer" "" "gc_fn.cast<Lambda>()->invoke(runtime::list(pointer));")
      ("var container" "" "return pointer;"))
     (force-type))
 
@@ -5637,22 +5637,19 @@ Create some dummy libs under /test/modules/,
 #+begin_src clojure
   (deftest pointer-test
     (let [state (atom false)]
-      (let [a-gc-fn (fn [] (reset! state true))
+      (let [a-gc-fn (fn [p] (reset! state true))
             a-ptr (cxx "__result = obj<Pointer>(nullptr);")
-            a-heavy-ptr ((fn [p g] "__result = obj<HeavyPointer>(p,g);") a-ptr a-gc-fn)
-            ;; b-ptr (cxx "__result = obj<Pointer>(new int);")
-            ;; b-gc-fn (fn [] "delete b_ptr.cast<Pointer>()->pointer<int>();")
-            ;; b-heavy-ptr ((fn [ptr gc] "__result = obj<HeavyPointer>(ptr,gc);") b-ptr b-gc-fn)
-            ]
+            a-heavy-ptr (heavy-pointer a-ptr a-gc-fn)
+            b-ptr (cxx "__result = obj<Pointer>(new int);")
+            b-gc-fn (fn [p] "delete p.cast<Pointer>()->pointer<int>();")
+            b-heavy-ptr (heavy-pointer b-ptr b-gc-fn)]
         (is (= true  (= a-ptr a-ptr)))
-        ;;(is (= false (= a-ptr b-ptr)))
+        (is (= false (= a-ptr b-ptr)))
         (is (= true  (= a-heavy-ptr a-heavy-ptr)))
-        ;; (is (= false (= a-heavy-ptr b-heavy-ptr)))
-        ;; (is (= false (= b-heavy-ptr a-heavy-ptr)))
-        ;; (is (= true  (= b-heavy-ptr b-heavy-ptr)))
-        )
+        (is (= false (= a-heavy-ptr b-heavy-ptr)))
+        (is (= false (= b-heavy-ptr a-heavy-ptr)))
+        (is (= true  (= b-heavy-ptr b-heavy-ptr))))
       (is (= true (deref state)))))
-
 
   (deftest value-test
     (let [obj-42 (cxx "__result = obj<Value<number_t>>((number_t)42)")

@@ -1,6 +1,6 @@
 ## [Ferret Programmer's Manual](http://dropbox.nakkaya.com/builds/ferret-manual.html)
 
-Copyright 2015 Nurullah Akkaya
+Copyright 2016 Nurullah Akkaya
 
 This file is part of Ferret.
 

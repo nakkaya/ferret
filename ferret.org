@@ -345,7 +345,7 @@ Clojure/Lein project.
 
 ** License
 
-Copyright 2015 Nurullah Akkaya
+Copyright 2016 Nurullah Akkaya
 
 This file is part of Ferret.
 

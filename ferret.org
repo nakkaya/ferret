@@ -13,10 +13,12 @@ restricted subset of the Clojure language to self contained *ISO
 C++11* which allows for the use of Clojure in real time embedded
 control systems. 
 
-Generated code can be used on any platform that has a *C++11*
-compliant compiler. it has been verified to run on architectures
-ranging from embedded systems with as little as 2KB of RAM to general
-purpose computers running Linux/Mac OS X/Windows.
+Generated code is self contained *ISO C++11*, it is not tied to any
+one compiler, generated code should be portable between any Operating
+System and/or Microcontroller that supports a *C++11* compliant
+compiler. It has been verified to run on architectures ranging from
+embedded systems with as little as *2KB of RAM* to general purpose
+computers running Linux/Mac OS X/Windows.
 
  - General Purpose Computers
    - Clang on Mac OS X
@@ -34,9 +36,9 @@ purpose computers running Linux/Mac OS X/Windows.
  - Immutable Data Structures
  - Functional
  - Macros
- - Easy FFI (Inline C,C++)
+ - Easy FFI (Inline C,C++. See [[Accessing C,C++ Libraries]])
  - Easily Embeddable (i.e Ferret fns are just C++ functors.)
- - Memory Pooling (Ability to run without heap.)
+ - Memory Pooling (Ability to *run without heap memory*. See [[Memory Management]])
  - Destructuring
  - Module System
 
@@ -121,152 +123,41 @@ For more embedded usage examples see,
  - [[https://git.nakkaya.com/nakkaya/solarcar-turn-indicator/tree/master][solarcar-turn-indicator]] - Controller for the turn indicator
    assembly on the [[http://solarcar.neu.edu.tr][Ra27 solar car]]. (Atmega MCU)
 
-** Memory Management
+** License
 
-Ferret is designed to be used on embedded systems which means,
+Copyright 2016 Nurullah Akkaya
 
- - Latency is more important then through put.
- - Can't have unpredictable GC pauses when running.
+This file is part of Ferret.
 
-So the default memory management is done using reference
-counting. Unlike other lisp implementations, Ferret supports various
-memory management schemes,
+Ferret is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version. 
 
- - *malloc/free* - Allocations are handled by the system
-   implementation. (Default memory management.)
- - *Memory Pooling* - On memory constraint systems such as
-   microcontrollers Ferret can use a memory pool to avoid heap
-   fragmentation and calling malloc/free. Effectively running with
-   no heap, allocating all memory at compile time on the stack.
- - *Third party allocators* (i.e tcmalloc)
+Ferret is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+General Public License for more details. 
 
-To enable memory pooling,
-
-#+BEGIN_EXAMPLE
-  (configure-runtime! FERRET_MEMORY_POOL_SIZE 256)
-#+END_EXAMPLE
-
-This will create a pool object as a global variable that holds an
-array of *256 / sizeof(long)*. 
-
-By default page size is =sizeof(long)=. This can be changed using,
-
-#+BEGIN_EXAMPLE
-  (configure-runtime! FERRET_MEMORY_POOL_PAGE_TYPE char)
-#+END_EXAMPLE
-
-Memory pooling is intended for embedded systems where calling
-malloc/free is not desired.
-
-Steps for using *tcmalloc* on Mac OS X, install dependencies, 
-
-#+BEGIN_EXAMPLE
-  brew install google-perftools
-#+END_EXAMPLE
-
-Then from your program you can link to it using,
-
-#+begin_src clojure
-  (configure-ferret! :compiler-options ["-std=c++11"
-                                        "-L/usr/local/Cellar/gperftools/2.4/lib/"
-                                        "-ltcmalloc"])
-#+end_src
-
-** Accessing C,C++ Libraries
-
-You can declare global level things using,
-
-#+begin_src clojure
-  (native-declare "int i = 0;")
-#+end_src
-
-this will define an *int* called *i* as a global variable. If a
-function only contains a string such as,
-
-#+begin_src clojure
-  (defn inc-int [] "__result =  obj<Number>(i++);")
-#+end_src
-
-It is assumed to be a native function string it is taken as C++
-code. You can then use it like any other ferret function.
-
-#+begin_src clojure
-  (while (< (inc-int) 10)
-    (print 1))
-#+end_src
-
-Another option is to use the *cxx* macro,
-
-#+begin_src clojure
-  (let [msg "Hello World!"]
-    (cxx "::std::cout << msg.cast<String>()->to_string() << ::std::endl;"))
-
-  (def dac-0 (cxx "__result =  obj<Number>(DAC0);"))
-#+end_src
-
-In addition to *defn* form there is also a *defnative* form which
-allows you to define different function bodies for different *#define*
-directives,
-
-#+begin_src clojure
-  (defnative get-char []
-    (on "defined GNU_GCC"
-        "__result = obj<Number>(getchar());"))
-#+end_src
-
-This function when compiled on a system that defines =GNU_GCC= will
-return the result of *getchar* as a *Number* , on ANY other system it
-will return *nil*. You can have multiple *on* blocks per *defnative*,
-
-#+begin_src clojure
-  (defnative sleep [t]
-    (on "defined FERRET_STD_LIB"
-        ("chrono" "thread")
-        "auto duration = ::std::chrono::milliseconds(t.to<number_t>());
-         ::std::this_thread::sleep_for(duration);")
-    (on "defined FERRET_HARDWARE_ARDUINO"
-        "::delay(t.to<number_t>());"))
-#+end_src
-
-This way a single function can be defined for multiple
-systems. Reverse is also possible, since all built in data structures
-are immutable you can freely call Ferret code from C++,
-
-#+begin_src c++
-  var alist = runtime::list(obj<Number>(1),obj<Number>(2),obj<Number>(3));
-
-  int sum = 0;
-  for(auto it : runtime::range(alist)){
-    sum += it.to<number_t>();
-   }
-
-  ::std::cout << sum << ::std::endl;
-
-  //or
-
-  var res = _plus_().invoke(alist);
-  res.stream_console();
-  ::std::cout << ::std::endl;
-#+end_src
+You should have received a copy of the GNU General Public License
+along with Ferret. If not, see http://www.gnu.org/licenses/.
 
 * Overview
-
-This is a literate program, inspired by Donald Knuth (Knuth, Donald
-“Literate Programming (1984)” Literate Programming CSLI, p99). It is
-intended to be read like a novel from cover to cover. The ideas are
-expressed clearly but they are grounded in the actual source code.
-
-This document is not intended to be a full Clojure tutorial. It is a
-specification of the subset of Clojure implemented by Ferret, and
-the particular workings of the Object / Runtime system.
-
-** Language 
 
 Ferret is a functional, lazy language. All functions should mimic
 their Clojure counter parts. If they don't it is considered a bug. (or
 not possible to implement with the current implementation.)
 
-** Structure
+This document is not intended to be a full Clojure tutorial. It is a
+specification of the subset of Clojure implemented by Ferret, and
+the particular workings of the Object / Runtime system.
+
+** Documentation Structure
+
+This is a literate program, inspired by Donald Knuth (Knuth, Donald
+“Literate Programming (1984)” Literate Programming CSLI, p99). It is
+intended to be read like a novel from cover to cover. The ideas are
+expressed clearly but they are grounded in the actual source code.
 
 The compiler and the C++ runtime needed is split into three sections.
 
@@ -281,32 +172,8 @@ transformations]]. This IR is then run through [[Code Generation]] module to
 create C++ code. *[[Native Core]]* contains the C++ runtime needed to
 support Ferret such as [[Object System]], [[Memory Pool][ Memory Pooling]], [[Reference Counting][Garbage
 Collection]]. It is written in a mixture of C++ and Ferret DSL. *[[Clojure
-Core]]* corresponds to *clojure.core*, contains all functions.
-
-** Compiled Code
-
-The generated code is self contained *ISO C++11*, it is not tied to
-any one compiler, generated code should be portable between any
-Operating System / Microcontroller that support a *C++11* compliant
-compiler.
-
-Generated C++ code has the following structure, (All Ferret code is
-defined within *ferret* namespace. All Ferret macros starts with
-*FERRET_*.)
-
- - Detect Hardware
- - Include files
- - Ferret Header (resources/ferret.h)
- - Ferret Native Runtime Prototypes (runtime::first, runtime::rest
-   etc.)
- - Native Declarations
- - Object Definitions
- - Symbol Definitions
- - Native Runtime Implementations
- - Lambda Prototypes
- - Lambda Implementations
- - Ferret Main
- - Hardware Dependent Main Functions
+Core]]* corresponds to *clojure.core*, contains all Clojure functions
+supported by Ferret.
 
 ** Building From Sources
 
@@ -342,25 +209,6 @@ it is running on a **NIX* based system if not, open this file using
 
 that will extract the source code then you can threat it as any other
 Clojure/Lein project.
-
-** License
-
-Copyright 2016 Nurullah Akkaya
-
-This file is part of Ferret.
-
-Ferret is free software: you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version. 
-
-Ferret is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. 
-
-You should have received a copy of the GNU General Public License
-along with Ferret. If not, see http://www.gnu.org/licenses/.
 
 * Compiler
 
@@ -1138,6 +986,25 @@ C++ skeleton.
 #+end_src
 
 *** Code Emitting
+
+Generated C++ code has the following structure, (All Ferret code is
+defined within *ferret* namespace. All Ferret macros starts with
+*FERRET_*.)
+
+ - Detect Hardware
+ - Include files
+ - Ferret Header (resources/ferret.h)
+ - Ferret Native Runtime Prototypes (runtime::first, runtime::rest
+   etc.)
+ - Native Declarations
+ - Object Definitions
+ - Symbol Definitions
+ - Native Runtime Implementations
+ - Lambda Prototypes
+ - Lambda Implementations
+ - Ferret Main
+ - Hardware Dependent Main Functions
+
 **** Object Types
 
 #+name: core-code-generation-emit-source-methods
@@ -2544,6 +2411,56 @@ Function invocation,
 #+end_src
 
 ** Memory Management
+
+Ferret is designed to be used on embedded systems which means,
+
+ - Latency is more important then through put.
+ - Can't have unpredictable GC pauses when running.
+
+So the default memory management is done using reference
+counting. Unlike other lisp implementations, Ferret supports various
+memory management schemes,
+
+ - *malloc/free* - Allocations are handled by the system
+   implementation. (Default memory management.)
+ - *Memory Pooling* - On memory constraint systems such as
+   microcontrollers Ferret can use a memory pool to avoid heap
+   fragmentation and calling malloc/free. Effectively running with
+   no heap, allocating all memory at compile time on the stack.
+ - *Third party allocators* (i.e tcmalloc)
+
+To enable memory pooling,
+
+#+BEGIN_EXAMPLE
+  (configure-runtime! FERRET_MEMORY_POOL_SIZE 256)
+#+END_EXAMPLE
+
+This will create a pool object as a global variable that holds an
+array of *256 / sizeof(long)*. 
+
+By default page size is =sizeof(long)=. This can be changed using,
+
+#+BEGIN_EXAMPLE
+  (configure-runtime! FERRET_MEMORY_POOL_PAGE_TYPE char)
+#+END_EXAMPLE
+
+Memory pooling is intended for embedded systems where calling
+malloc/free is not desired.
+
+Steps for using *tcmalloc* on Mac OS X, install dependencies, 
+
+#+BEGIN_EXAMPLE
+  brew install google-perftools
+#+END_EXAMPLE
+
+Then from your program you can link to it using,
+
+#+begin_src clojure
+  (configure-ferret! :compiler-options ["-std=c++11"
+                                        "-L/usr/local/Cellar/gperftools/2.4/lib/"
+                                        "-ltcmalloc"])
+#+end_src
+
 *** Object Allocation
 
 All object allocations are done using *obj* function. It will return a
@@ -3134,6 +3051,83 @@ Helper macros, to be used when debugging on the native side.
   #define FERRET_PRT_OBJ(o)                       \
     o.stream_console();                           \
     fprintf(FERRET_STD_OUT, "\n");
+#+end_src
+
+** Accessing C,C++ Libraries
+
+You can declare global level things using,
+
+#+begin_src clojure
+  (native-declare "int i = 0;")
+#+end_src
+
+this will define an *int* called *i* as a global variable. If a
+function only contains a string such as,
+
+#+begin_src clojure
+  (defn inc-int [] "__result =  obj<Number>(i++);")
+#+end_src
+
+It is assumed to be a native function string it is taken as C++
+code. You can then use it like any other ferret function.
+
+#+begin_src clojure
+  (while (< (inc-int) 10)
+    (print 1))
+#+end_src
+
+Another option is to use the *cxx* macro,
+
+#+begin_src clojure
+  (let [msg "Hello World!"]
+    (cxx "::std::cout << msg.cast<String>()->to_string() << ::std::endl;"))
+
+  (def dac-0 (cxx "__result =  obj<Number>(DAC0);"))
+#+end_src
+
+In addition to *defn* form there is also a *defnative* form which
+allows you to define different function bodies for different *#define*
+directives,
+
+#+begin_src clojure
+  (defnative get-char []
+    (on "defined GNU_GCC"
+        "__result = obj<Number>(getchar());"))
+#+end_src
+
+This function when compiled on a system that defines =GNU_GCC= will
+return the result of *getchar* as a *Number* , on ANY other system it
+will return *nil*. You can have multiple *on* blocks per *defnative*,
+
+#+begin_src clojure
+  (defnative sleep [t]
+    (on "defined FERRET_STD_LIB"
+        ("chrono" "thread")
+        "auto duration = ::std::chrono::milliseconds(t.to<number_t>());
+         ::std::this_thread::sleep_for(duration);")
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "::delay(t.to<number_t>());"))
+#+end_src
+
+This way a single function can be defined for multiple
+systems. Reverse is also possible, since all built in data structures
+are immutable you can freely call Ferret code from C++,
+
+#+begin_src c++
+  var alist = runtime::list(obj<Number>(1),obj<Number>(2),obj<Number>(3));
+
+  int sum = 0;
+  for(auto it : runtime::range(alist)){
+    sum += it.to<number_t>();
+   }
+
+  ::std::cout << sum << ::std::endl;
+
+  //or
+
+  var res = _plus_().invoke(alist);
+  res.stream_console();
+  ::std::cout << ::std::endl;
 #+end_src
 
 * Clojure Core

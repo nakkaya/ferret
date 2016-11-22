@@ -3427,6 +3427,21 @@ A simple macro for calling inline C++,
             ~else)))))
 #+end_src
 
+*** when-let
+
+When test is true, evaluates body with binding-form bound to the value of test.
+
+#+name: runtime-clojure-conditionals
+#+begin_src clojure :tangle no
+  (defmacro when-let
+    [bindings & body]
+    (let [form (bindings 0) tst (bindings 1)]
+      `(let [temp# ~tst]
+         (when temp#
+           (let [~form temp#]
+             ~@body)))))
+#+end_src
+
 ** Logical Operators
 *** =
 
@@ -4970,6 +4985,8 @@ Tests are run by the CI system for the following compilers,
     (is (= 2   (if nil 1 2)))
     (is (= nil (if-let [a nil] a)))
     (is (= 5   (if-let [a 5] a)))
+    (is (= nil (when-let [a nil] a)))
+    (is (= 5   (when-let [a 5] a)))
 
     (is (= 1     (when (< 2 3) 1)))
     (is (= true  (let [a 1] (and (> a 0) (< a 10)))))

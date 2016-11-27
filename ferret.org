@@ -114,7 +114,8 @@ Following shows a blink example for Arduino.
 
 Then upload as usual. 
 
-For more embedded usage examples see,
+** Examples
+*** Projects
 
  - [[http://nakkaya.com/2016/06/10/ferret-a-hard-real-time-clojure-for-lisp-machines/][Ferret - A Hard Real-Time Clojure for Lisp Machines]] -
    Implementation of a line following robot in Ferret.
@@ -122,6 +123,15 @@ For more embedded usage examples see,
    IMU etc.) (Raspberry Pi)
  - [[https://git.nakkaya.com/nakkaya/solarcar-turn-indicator/tree/master][solarcar-turn-indicator]] - Controller for the turn indicator
    assembly on the [[http://solarcar.neu.edu.tr][Ra27 solar car]]. (Atmega MCU)
+
+*** Wrappers
+
+ - [[https://git.nakkaya.com/nakkaya/ferret-arduino-keypad][ferret-arduino-keypad]] - Arduino Keypad library bindings.
+ - [[https://git.nakkaya.com/nakkaya/ferret-arduino-adafruit-pcd8544][ferret-arduino-adafruit-pcd8544]] - Adafruit Arduino PCD8544 screen
+   library bindings most commonly found in Nokia 5110.
+ - [[https://git.nakkaya.com/nakkaya/ferret-boost][ferret-boost]] - Boost bindings.
+ - [[https://git.nakkaya.com/nakkaya/ferret-websocket][ferret-websocket]] - WebSocket++ bindigns.
+ - [[https://git.nakkaya.com/nakkaya/ferret-logging][ferret-logging]] - easyloggingpp bindigns.
 
 ** License
 

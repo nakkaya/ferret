@@ -1687,8 +1687,8 @@ code. (ie. printing on different embedded systems.)
 
 All Ferret objects derive from a [[Base]] class.
 
- - [[Pointer]] - For Holding references to native objects.
- - [[Number]] - All numbers are kept as ratios (two ints).
+ - [[Pointer]]
+ - [[Number]]
  - [[Keyword]] 
  - [[Sequence]]
  - [[Lazy Sequence]]
@@ -1835,9 +1835,10 @@ modern C++ libraries that use smart pointers for memory management.
 
 **** Number
 
-There is only one number type in ferret. All numbers are kept as
-ratios. Default number size is /int/. A ratio is kept in memory as two
-/number_t/ size members named /_numerator/ and /_denominator/.
+In the interest of simplicity Ferret supports only one type of number:
+floating point numbers. By default these are floating point
+numbers. However Ferret programs can easily be recompiled to support
+any real number type the system supported.
 
 Default number configuration,
 
@@ -5744,8 +5745,6 @@ Create some dummy libs under /test/modules/,
     - D-Lists - https://news.ycombinator.com/item?id=11575540
     - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/PersistentHashMap.java
     - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/APersistentMap.java
-  - *Pluggable Numbers* - Ability to change the default number type at
-    compile time.
   - *Implement Que*
   - *Unbounded Precision Integers*
     - [[https://web.archive.org/web/20101208222557/http://www.mactech.com/articles/mactech/Vol.08/08.03/BigNums/index.html][Arbitrarily Large Bignums]]
@@ -5767,7 +5766,6 @@ Create some dummy libs under /test/modules/,
      - On versions of PICOBIT which do not support unbounded precision
        integers (including PICOBIT Light), integers are limited to 24
        bits, and encoded directly in the object.
-    - Ranged Numbers - This type is an int but can only be 1-12.
 
 ** Core
 
@@ -5809,6 +5807,9 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Numberic Tower* - Numeric tower is now based on Lua number type.
+  - *Pluggable Numbers* - Ability to change the default number type at
+    compile time.
   - *Memory* - Option to disable [[Reference Counting]]. Combined with
     =FERRET_ALLOCATE= any third party GC can be supported.
     - http://www.ravenbrook.com/project/mps

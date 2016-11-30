@@ -1846,14 +1846,20 @@ Default number configuration,
   namespace ferret{
   #if !defined(FERRET_NUMBER_TYPE)
      #define FERRET_NUMBER_TYPE int
+  #endif
+
+  #if !defined(FERRET_REAL_TYPE)
      #define FERRET_REAL_TYPE   float
   #endif
 
+  #if !defined(FERRET_REAL_EPSILON)
+     #define FERRET_REAL_EPSILON   0.00001
+  #endif
+    
     typedef FERRET_NUMBER_TYPE           number_t;                   // Whole Number Container.
     typedef FERRET_REAL_TYPE             real_t;                     // Real Number Container.
-    const   int                          real_precision = 1000;     // Used When Reading Floats.
   #if !defined(FERRET_DISABLE_STD_OUT)
-    const   char*                        number_format = "%d";       // Number Format String (fprinf)
+    const   char*                        number_format = "%.4f";       // Number Format String (fprinf)
   #endif
   }
 #+end_src
@@ -1894,107 +1900,53 @@ Number Object,
 #+name: runtime-clojure-number-object
 #+begin_src clojure :tangle no
   (defobject Number
-    (data "number_t _numerator;"
-          "number_t _denominator;")
-    (equals "if (numerator() == 0 && o.cast<Number>()->numerator() == 0)
+    (data "real_t _number;")
+    (equals "if (runtime::abs(_number - o.cast<Number>()->number()) < FERRET_REAL_EPSILON)
                return obj<Boolean>(true);
              else
-               return obj<Boolean>((numerator() == o.cast<Number>()->numerator()) &&
-                                   (denominator() == o.cast<Number>()->denominator()));")
+               return obj<Boolean>(false);")
     (stream_console
-     "if (_denominator == 1)
-        fprintf(FERRET_STD_OUT, number_format, _numerator);
-      else if (_numerator == 0)
-        fprintf(FERRET_STD_OUT, \"0\");
-      else{
-        fprintf(FERRET_STD_OUT, number_format,_numerator);
-        fprintf(FERRET_STD_OUT, \"/\");
-        fprintf(FERRET_STD_OUT, number_format,_denominator);
-      }
-      return nil();")
-    
+     "fprintf(FERRET_STD_OUT, number_format, _number);
+      return nil();")  
     (fns
-     ("explicit Number(number_t x) : _numerator(x), _denominator((number_t)1) {}")
-     ("explicit Number(number_t n, number_t dn) : _numerator(n), _denominator(dn) {
-         simplificate();
-       }")
-     ("explicit Number(real_t x){
-           real_t decimal = (x - (number_t)x) * (real_t)real_precision;
-           number_t integer = (number_t)x;
-           _numerator = decimal + (integer * real_precision);
-           _denominator = real_precision;
-           simplificate();
-       }")
-     ("number_t numerator" "" "return _numerator;")
-     ("number_t denominator" "" "return _denominator;")
+     ("explicit Number(number_t x) : _number((real_t)x) {}")
+     ("explicit Number(real_t x) : _number(x) {}")
+     ("real_t number" "" "return _number;")
      ("template<typename T> T as" "" "T::unimplemented_function;")
-     ("void simplificate" ""
-      "int commondivisor = 1;
-        for(number_t i=2;i<=runtime::min(runtime::abs(_numerator), runtime::abs(_denominator));i++)
-          if( _numerator%i == 0 && _denominator%i == 0 )
-            commondivisor = i;
-        _numerator /= commondivisor;
-        _denominator /= commondivisor;")
      ("~Number" "" "")
      ;; Math Ops
      ("var add" "var v"
-      "number_t vn = v.cast<Number>()->numerator();
-       number_t vdn = v.cast<Number>()->denominator();
-
-       return obj<Number>(((_numerator * vdn) + (vn * _denominator)), (_denominator * vdn));")
+      "return obj<Number>(_number + v.cast<Number>()->number());")
      ("var sub" "var v"
-      "number_t vn = v.cast<Number>()->numerator();
-       number_t vdn = v.cast<Number>()->denominator();
-
-       return obj<Number>(((_numerator * vdn) - (vn * _denominator)), (_denominator * vdn));")
+      "return obj<Number>(_number - v.cast<Number>()->number());")
 
      ("var mul" "var v"
-      "number_t vn = v.cast<Number>()->numerator();
-       number_t vdn = v.cast<Number>()->denominator();
-
-       return obj<Number>((_numerator * vn), (_denominator * vdn));")
+      "return obj<Number>(_number * v.cast<Number>()->number());")
 
      ("var div" "var v"
-      "number_t vn = v.cast<Number>()->numerator();
-       number_t vdn = v.cast<Number>()->denominator();
-
-       return obj<Number>((_numerator * vdn),(vn * _denominator));")
+      "return obj<Number>(_number / v.cast<Number>()->number());")
 
      ;; Logical Ops
      ("var is_smaller" "var v"
-      "number_t vn = v.cast<Number>()->numerator();
-       number_t vdn = v.cast<Number>()->denominator();
-
-       return obj<Boolean>((_numerator * vdn) < (vn * _denominator));")
+      "return obj<Boolean>(_number < v.cast<Number>()->number());")
 
      ("var is_smaller_equal" "var v"
-      "number_t vn = v.cast<Number>()->numerator();
-       number_t vdn = v.cast<Number>()->denominator();
-
-       return obj<Boolean>((_numerator * vdn) <= (vn * _denominator));")
+      "return obj<Boolean>(_number <= v.cast<Number>()->number());")
      
      ("var is_bigger" "var v"
-      "number_t vn = v.cast<Number>()->numerator();
-       number_t vdn = v.cast<Number>()->denominator();
-
-       return obj<Boolean>((_numerator * vdn) > (vn * _denominator));")
+      "return obj<Boolean>(_number > v.cast<Number>()->number());")
 
      ("var is_bigger_equal" "var v"
-      "number_t vn = v.cast<Number>()->numerator();
-       number_t vdn = v.cast<Number>()->denominator();
-
-       return obj<Boolean>((_numerator * vdn) >= (vn * _denominator));"))
+      "return obj<Boolean>(_number >= v.cast<Number>()->number());"))
+    
     (post-code "template<> real_t Number::as(){
-                   return (real_t)_numerator/(real_t)_denominator;
+                   return _number;
                 }
                 template<> number_t Number::as(){
-                   if (_denominator == 1)
-                     return (number_t)_numerator;
-                   else
-                     return (number_t)as<real_t>();
+                   return (number_t)_number;
                 }
                 template<> char Number::as(){
-                   return as<number_t>();
+                   return (char)_number;
                 }
                 template <> number_t var::to() { return cast<Number>()->as<number_t>(); }
                 template <> real_t   var::to() { return cast<Number>()->as<real_t>(); }
@@ -2889,6 +2841,7 @@ running in safe mode.
   | FERRET_UART_RATE               | 9600         | Set default UART rate.                                   |
   | FERRET_NUMBER_TYPE             | int          | Default number_t type.                                   |
   | FERRET_REAL_TYPE               | float        | Default real_t type.                                     |
+  | FERRET_REAL_EPSILON            | 0.00001      | Least significant digit representable.                   |
   |--------------------------------+--------------+----------------------------------------------------------|
 #+END_EXAMPLE
 
@@ -5344,7 +5297,7 @@ Run import tests.
 
 #+begin_src clojure :tangle no
   (deftest import-module-test
-    (is (= "Module AModule C 10 11 1 42"
+    (is (= "Module AModule C 10.0000 11.0000 1.0000 42.0000"
            (exec-form '((require '[test.modules.module-a :as mod-a])
                         (require '[test.modules.module-b :as mod-b])
                         (mod-a/helper-a)
@@ -5354,7 +5307,7 @@ Run import tests.
                                ((mod-b/eleven-fn))
                                (mod-a/helper-c)
                                (mod-b/macro-call))))))
-    (is (= "Module AModule C 10 11 1 42"
+    (is (= "Module AModule C 10.0000 11.0000 1.0000 42.0000"
            (exec-form '((require '[test.modules.module-a :as mod-a]
                                  '[test.modules.module-b :as mod-b])
                         (mod-a/helper-a)
@@ -5364,7 +5317,7 @@ Run import tests.
                                ((mod-b/eleven-fn))
                                (mod-a/helper-c)
                                (mod-b/macro-call))))))
-    (is (= "Module AModule C 10 11 1 42"
+    (is (= "Module AModule C 10.0000 11.0000 1.0000 42.0000"
            (exec-form '((require 'test.modules.module-a
                                  'test.modules.module-b)
                         (test.modules.module-a/helper-a)
@@ -5374,7 +5327,7 @@ Run import tests.
                                ((test.modules.module-b/eleven-fn))
                                (test.modules.module-a/helper-c)
                                (test.modules.module-b/macro-call))))))
-    (is (= "Module AModule C 10 11 1 42"
+    (is (= "Module AModule C 10.0000 11.0000 1.0000 42.0000"
            (exec-form '((require '[test.modules.module-a :as mod-a]
                                  'test.modules.module-b)
                         (mod-a/helper-a)

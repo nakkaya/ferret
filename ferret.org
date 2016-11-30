@@ -1848,10 +1848,12 @@ Default number configuration,
   namespace ferret{
   #if !defined(FERRET_NUMBER_TYPE)
      #define FERRET_NUMBER_TYPE int
+     #define FERRET_REAL_TYPE   float
   #endif
 
-    typedef FERRET_NUMBER_TYPE           number_t;                   // Number Container.
-    const   int                          float_precision = 1000;     // Used When Reading Floats.
+    typedef FERRET_NUMBER_TYPE           number_t;                   // Whole Number Container.
+    typedef FERRET_REAL_TYPE             real_t;                     // Real Number Container.
+    const   int                          real_precision = 1000;     // Used When Reading Floats.
   #if !defined(FERRET_DISABLE_STD_OUT)
     const   char*                        number_format = "%d";       // Number Format String (fprinf)
   #endif
@@ -1918,11 +1920,11 @@ Number Object,
      ("explicit Number(number_t n, number_t dn) : _numerator(n), _denominator(dn) {
          simplificate();
        }")
-     ("explicit Number(float x){
-           float decimal = (x - (number_t)x) * (float)float_precision;
+     ("explicit Number(real_t x){
+           real_t decimal = (x - (number_t)x) * (real_t)real_precision;
            number_t integer = (number_t)x;
-           _numerator = decimal + (integer * float_precision);
-           _denominator = float_precision;
+           _numerator = decimal + (integer * real_precision);
+           _denominator = real_precision;
            simplificate();
        }")
      ("number_t numerator" "" "return _numerator;")
@@ -1984,21 +1986,21 @@ Number Object,
        number_t vdn = v.cast<Number>()->denominator();
 
        return obj<Boolean>((_numerator * vdn) >= (vn * _denominator));"))
-    (post-code "template<> float Number::as(){
-                   return (float)_numerator/(float)_denominator;
+    (post-code "template<> real_t Number::as(){
+                   return (real_t)_numerator/(real_t)_denominator;
                 }
                 template<> number_t Number::as(){
                    if (_denominator == 1)
                      return (number_t)_numerator;
                    else
-                     return (number_t)as<float>();
+                     return (number_t)as<real_t>();
                 }
                 template<> char Number::as(){
                    return as<number_t>();
                 }
                 template <> number_t var::to() { return cast<Number>()->as<number_t>(); }
-                template <> float var::to() { return cast<Number>()->as<float>(); }
-                template <> char var::to() { return cast<Number>()->as<char>(); }")
+                template <> real_t   var::to() { return cast<Number>()->as<real_t>(); }
+                template <> char     var::to() { return cast<Number>()->as<char>(); }")
     (force-type))
 #+end_src
 
@@ -2888,6 +2890,7 @@ running in safe mode.
   | FERRET_PROGRAM_MAIN            | Not Defined  | A function to execute after ferret::program_run()        |
   | FERRET_UART_RATE               | 9600         | Set default UART rate.                                   |
   | FERRET_NUMBER_TYPE             | int          | Default number_t type.                                   |
+  | FERRET_REAL_TYPE               | float        | Default real_t type.                                     |
   |--------------------------------+--------------+----------------------------------------------------------|
 #+END_EXAMPLE
 
@@ -4070,9 +4073,9 @@ Square root.
   (defnative sqrt [s]
     (on "defined FERRET_STD_LIB"
         ("cmath")
-        "__result = obj<Number>((float)::sqrt(s.to<float>()));")
+        "__result = obj<Number>((real_t)::sqrt(s.to<real_t>()));")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "__result = obj<Number>((float)::sqrt(s.to<float>()));"))
+        "__result = obj<Number>((real_t)::sqrt(s.to<real_t>()));"))
 #+end_src
 
 ** Concurrency
@@ -4208,7 +4211,7 @@ Returns a random floating point number between 0 (inclusive) and n
         ("random")
         "::std::random_device ferret_random_device;
          ::std::mt19937_64 ferret_random_generator(ferret_random_device());
-         ::std::uniform_real_distribution<float> ferret_random_distribution(0.0,1.0);"
+         ::std::uniform_real_distribution<ferret::real_t> ferret_random_distribution(0.0,1.0);"
         "__result = obj<Number>(ferret_random_distribution(ferret_random_generator));"))
 
   (defn rand
@@ -4468,12 +4471,12 @@ Ported from,
 #+name: runtime-clojure-pid-controller
 #+begin_src clojure :tangle no
   (defn pid-controller-create [set-point kp ki kd in-min in-max out-min out-max continuous]
-    "var p = obj<PIDController<float>>(kp, ki, kd, in_min, in_max, out_min, out_max, continuous);
-     p.cast<PIDController<float>>()->set_setpoint(set_point);
+    "var p = obj<PIDController<real_t>>(kp, ki, kd, in_min, in_max, out_min, out_max, continuous);
+     p.cast<PIDController<real_t>>()->set_setpoint(set_point);
      __result = p;")
 
   (defn pid-controller-run [controller input]
-    "__result = controller.cast<PIDController<float>>()->update(input)")
+    "__result = controller.cast<PIDController<real_t>>()->update(input)")
 
   (defmacro pid-controller [& options]
     (let [options (apply hash-map options)
@@ -4730,10 +4733,10 @@ examples.
     (println "\tBoolean:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Boolean));"))
     (println "\tLambda:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Lambda));"))
     (println "\tAtom:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Atom));"))
-    (println "\tPIDController<float>:\t"
-             (cxx "__result = obj<Number>((number_t)sizeof(PIDController<float>));"))
-    (println "\tPIDController<int>:\t"
-             (cxx "__result = obj<Number>((number_t)sizeof(PIDController<int>));")))
+    (println "\tPIDController<real_t>:\t"
+             (cxx "__result = obj<Number>((number_t)sizeof(PIDController<real_t>));"))
+    (println "\tPIDController<number_t>:\t"
+             (cxx "__result = obj<Number>((number_t)sizeof(PIDController<number_t>));")))
 #+end_src
 
 *** memory-pool-free-space

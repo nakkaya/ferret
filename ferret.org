@@ -5746,6 +5746,13 @@ Create some dummy libs under /test/modules/,
     - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/PersistentHashMap.java
     - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/APersistentMap.java
   - *Implement Que*
+  - *Fixed-point Arithmetic*
+    Implement fixed point real number type for embedded systems
+    without a FPU.
+    - [[https://www.reddit.com/r/lisp/comments/51kkym/fixedpoint_arithmetic_in_picolisp/][Fixed-point Arithmetic in Picolisp]]
+    - [[https://accu.org/index.php/journals/1717][Why Fixed Point Won't Cure Your Floating Point Blues]]
+    - http://jet.ro/files/The_neglected_art_of_Fixed_Point_arithmetic_20060913.pdf
+    - [[https://alikhuram.wordpress.com/2013/05/20/implementing-fixed-point-numbers-in-c/][Implementing Fixed-Point Numbers in C++]]
   - *Unbounded Precision Integers*
     - [[https://web.archive.org/web/20101208222557/http://www.mactech.com/articles/mactech/Vol.08/08.03/BigNums/index.html][Arbitrarily Large Bignums]]
     - From p.11: PICOBIT: A Compact Scheme System for Microcontrollers

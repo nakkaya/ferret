@@ -5203,10 +5203,10 @@ Tests are run by the CI system for the following compilers,
 
   (deftest timing-test
     (let [now (millis)]
-      (sleep 100)
+      (sleep 150)
       (is (>= (- (millis) now) 100)))
-    (is (>= (time-fn (fn [] (sleep 100) (+ 1 1))) 100))
-    (is (>= (benchmark (fn [] (sleep 10) (+ 1 1)) 10) 10)))
+    (is (>= (time-fn (fn [] (sleep 150) (+ 1 1))) 100))
+    (is (>= (benchmark (fn [] (sleep 20) (+ 1 1)) 10) 10)))
 
   (defn ping [] true)
 

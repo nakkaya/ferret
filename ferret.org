@@ -1035,9 +1035,7 @@ defined within *ferret* namespace. All Ferret macros starts with
   (defmethod emit :number [form state]
     (let [number (rationalize form)]
       (if (ratio? number)
-        (let [num (numerator number)
-              denom (denominator number)]
-          (str "obj<Number>((number_t)" num ",(number_t)" denom ")"))
+        (str "obj<Number>((real_t)"   number ")")
         (str "obj<Number>((number_t)" number ")"))))
 #+end_src
 

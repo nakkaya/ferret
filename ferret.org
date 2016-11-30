@@ -1935,7 +1935,55 @@ Number Object,
             commondivisor = i;
         _numerator /= commondivisor;
         _denominator /= commondivisor;")
-     ("~Number" "" ""))
+     ("~Number" "" "")
+     ;; Math Ops
+     ("var add" "var v"
+      "number_t vn = v.cast<Number>()->numerator();
+       number_t vdn = v.cast<Number>()->denominator();
+
+       return obj<Number>(((_numerator * vdn) + (vn * _denominator)), (_denominator * vdn));")
+     ("var sub" "var v"
+      "number_t vn = v.cast<Number>()->numerator();
+       number_t vdn = v.cast<Number>()->denominator();
+
+       return obj<Number>(((_numerator * vdn) - (vn * _denominator)), (_denominator * vdn));")
+
+     ("var mul" "var v"
+      "number_t vn = v.cast<Number>()->numerator();
+       number_t vdn = v.cast<Number>()->denominator();
+
+       return obj<Number>((_numerator * vn), (_denominator * vdn));")
+
+     ("var div" "var v"
+      "number_t vn = v.cast<Number>()->numerator();
+       number_t vdn = v.cast<Number>()->denominator();
+
+       return obj<Number>((_numerator * vdn),(vn * _denominator));")
+
+     ;; Logical Ops
+     ("var is_smaller" "var v"
+      "number_t vn = v.cast<Number>()->numerator();
+       number_t vdn = v.cast<Number>()->denominator();
+
+       return obj<Boolean>((_numerator * vdn) < (vn * _denominator));")
+
+     ("var is_smaller_equal" "var v"
+      "number_t vn = v.cast<Number>()->numerator();
+       number_t vdn = v.cast<Number>()->denominator();
+
+       return obj<Boolean>((_numerator * vdn) <= (vn * _denominator));")
+     
+     ("var is_bigger" "var v"
+      "number_t vn = v.cast<Number>()->numerator();
+       number_t vdn = v.cast<Number>()->denominator();
+
+       return obj<Boolean>((_numerator * vdn) > (vn * _denominator));")
+
+     ("var is_bigger_equal" "var v"
+      "number_t vn = v.cast<Number>()->numerator();
+       number_t vdn = v.cast<Number>()->denominator();
+
+       return obj<Boolean>((_numerator * vdn) >= (vn * _denominator));"))
     (post-code "template<> float Number::as(){
                    return (float)_numerator/(float)_denominator;
                 }
@@ -3484,13 +3532,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([] true)
     ([x] true)
     ([a b]
-     "number_t an = a.cast<Number>()->numerator();
-      number_t adn = a.cast<Number>()->denominator();
-
-      number_t bn = b.cast<Number>()->numerator();
-      number_t bdn = b.cast<Number>()->denominator();
-
-      __result = obj<Boolean>((an * bdn) < (bn * adn));")
+     "__result = a.cast<Number>()->is_smaller(b);")
     ([a b & more]
      (if (< a b)
        (apply < (cons b more))
@@ -3505,13 +3547,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([] true)
     ([x] true)
     ([a b]
-     "number_t an = a.cast<Number>()->numerator();
-      number_t adn = a.cast<Number>()->denominator();
-
-      number_t bn = b.cast<Number>()->numerator();
-      number_t bdn = b.cast<Number>()->denominator();
-
-      __result = obj<Boolean>((an * bdn) > (bn * adn));")
+     "__result = a.cast<Number>()->is_bigger(b);")
     ([a b & more]
      (if (> a b)
        (apply > (cons b more))
@@ -3526,13 +3562,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([] true)
     ([x] true)
     ([a b]
-     "number_t an = a.cast<Number>()->numerator();
-      number_t adn = a.cast<Number>()->denominator();
-
-      number_t bn = b.cast<Number>()->numerator();
-      number_t bdn = b.cast<Number>()->denominator();
-
-      __result = obj<Boolean>((an * bdn) >= (bn * adn));")
+     "__result = a.cast<Number>()->is_bigger_equal(b);")
     ([a b & more]
      (if (>= a b)
        (apply >= (cons b more))
@@ -3547,13 +3577,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([] true)
     ([x] true)
     ([a b]
-     "number_t an = a.cast<Number>()->numerator();
-      number_t adn = a.cast<Number>()->denominator();
-
-      number_t bn = b.cast<Number>()->numerator();
-      number_t bdn = b.cast<Number>()->denominator();
-
-      __result = obj<Boolean>((an * bdn) <= (bn * adn));")
+     "__result = a.cast<Number>()->is_smaller_equal(b);")
     ([a b & more]
      (if (<= a b)
        (apply <= (cons b more))
@@ -3811,22 +3835,6 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+end_src
 
 ** Math
-*** float?
-
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
-  (defn float? [x] "__result = obj<Boolean>(x.is_type(runtime::type::Number) &&
-                                           (x.cast<Number>()->denominator() != 1));")
-#+end_src
-
-*** integer?
-
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
-  (defn integer? [x] "__result = obj<Boolean>(x.is_type(runtime::type::Number) &&
-                                             (x.cast<Number>()->denominator() == 1));")
-#+end_src
-
 *** zero?
 
 #+name: runtime-clojure-math
@@ -3859,15 +3867,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([] 0)
     ([x] x)
     ([h v]
-     "number_t hn = h.cast<Number>()->numerator();
-      number_t hdn = h.cast<Number>()->denominator();
-
-      number_t vn = v.cast<Number>()->numerator();
-      number_t vdn = v.cast<Number>()->denominator();
-
-      number_t ndn = (hdn * vdn);
-
-      __result = obj<Number>(((hn * vdn) + (vn * hdn)),ndn);")
+     "__result = h.cast<Number>()->add(v);")
     ([x y & more]
      (reduce + (+ x y) more)))
 #+end_src
@@ -3880,15 +3880,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([x]
      (* -1 x))
     ([h v]
-     "number_t hn = h.cast<Number>()->numerator();
-      number_t hdn = h.cast<Number>()->denominator();
-
-      number_t vn = v.cast<Number>()->numerator();
-      number_t vdn = v.cast<Number>()->denominator();
-
-      number_t ndn = (hdn * vdn);
-
-      __result = obj<Number>(((hn * vdn) - (vn * hdn)),ndn);")
+     "__result = h.cast<Number>()->sub(v);")
     ([x y & more]
      (reduce - (- x y) more)))
 #+end_src
@@ -3901,13 +3893,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([] 1)
     ([x] x)
     ([h v]
-     "number_t hn = h.cast<Number>()->numerator();
-      number_t hdn = h.cast<Number>()->denominator();
-
-      number_t vn = v.cast<Number>()->numerator();
-      number_t vdn = v.cast<Number>()->denominator();
-
-      __result = obj<Number>((hn * vn), (hdn * vdn));")
+     "__result = h.cast<Number>()->mul(v);")
     ([x y & more]
      (reduce * (* x y) more)))
 #+end_src
@@ -3920,13 +3906,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([x]
      (apply / (list 1 x)))
     ([h v]
-     "number_t hn = h.cast<Number>()->numerator();
-      number_t hdn = h.cast<Number>()->denominator();
-
-      number_t vn = v.cast<Number>()->numerator();
-      number_t vdn = v.cast<Number>()->denominator();
-
-      __result = obj<Number>((hn * vdn),(vn * hdn));")
+     "__result = h.cast<Number>()->div(v);")
     ([x y & more]
      (reduce / (/ x y) more)))
 #+end_src
@@ -4012,55 +3992,42 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-and [x y] "__result = obj<Number>((x.cast<Number>()->numerator() &
-                                               y.cast<Number>()->numerator()));")
+  (defn bit-and [x y] "__result = obj<Number>((x.to<number_t>() & y.to<number_t>()));")
 #+end_src
 
 *** bit-not
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-not [x] "__result = obj<Number>(~x.cast<Number>()->numerator());")
+  (defn bit-not [x] "__result = obj<Number>(~x.to<number_t>());")
 #+end_src
 
 *** bit-or
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-or [x y] "__result = obj<Number>((x.cast<Number>()->numerator() |
-                                              y.cast<Number>()->numerator()));")
+  (defn bit-or [x y] "__result = obj<Number>((x.to<number_t>() | y.to<number_t>()));")
 #+end_src
 
 *** bit-xor
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-xor [x y] "__result = obj<Number>((x.cast<Number>()->numerator() ^
-                                               y.cast<Number>()->numerator()));")
+  (defn bit-xor [x y] "__result = obj<Number>((x.to<number_t>() ^ y.to<number_t>()));")
 #+end_src
 
 *** bit-shift-left
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-shift-left [x n] "__result = obj<Number>((x.cast<Number>()->numerator() <<
-                                                      n.cast<Number>()->numerator()));")
-#+end_src
-
-*** bit-shift-left
-
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
-  (defn bit-shift-left [x n] "__result = obj<Number>((x.cast<Number>()->numerator() <<
-                                                      n.cast<Number>()->numerator()));")
+  (defn bit-shift-left [x n] "__result = obj<Number>((x.to<number_t>() << n.to<number_t>()));")
 #+end_src
 
 *** bit-shift-right
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-shift-right [x n] "__result = obj<Number>((x.cast<Number>()->numerator() >>
-                                                       n.cast<Number>()->numerator()));")
+  (defn bit-shift-right [x n] "__result = obj<Number>((x.to<number_t>() >> n.to<number_t>()));")
 #+end_src
 
 *** number-split
@@ -4989,9 +4956,6 @@ Tests are run by the CI system for the following compilers,
     (is (= 1   (if (zero? 0) 1 -1)))
     (is (= -1  (if (zero? 1) 1 -1)))
     (is (= 2   (when true 2)))
-    (is (= 2   (when (integer? 2) 2)))
-    (is (= 2   (cond (float? 2.1) 2 (integer? 2) 4 true 1)))
-    (is (= 1   (cond (float? 2) 2.1 (integer? 2.1) 4 true 1)))
     (is (= 2   (if nil 1 2)))
     (is (= nil (if-let [a nil] a)))
     (is (= 5   (if-let [a 5] a)))
@@ -5117,9 +5081,6 @@ Tests are run by the CI system for the following compilers,
 
     (is (= true (not (nil? (rand)))))
     (is (= true (not (nil? (rand 15)))))
-    (is (= true (float? (rand))))
-    (is (= true (float? (rand 10))))
-    (is (= true (integer? (rand-int 10))))
 
     (is (= -5 (bit-not  4)))
     (is (= -1 (bit-not  0)))

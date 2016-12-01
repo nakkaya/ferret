@@ -582,7 +582,8 @@ the free variable problem.
     (let [f (concat [env args] body)
           name (reduce (fn[h v]
                          (let [[_ n & r] v]
-                           (if (= r f) n))) nil @fns)]
+                           (if (= r f)
+                             n h))) nil @fns)]
       (when name
         (apply list 'fir-lambda-object name env))))
 
@@ -4768,6 +4769,20 @@ Tests are run by the CI system for the following compilers,
 
  - *--leak-check=full*
  - *--error-exitcode=1*
+
+** Compiler
+
+#+begin_src clojure :tangle no
+  (deftest compiler-core
+    (let [program (compile '((defn one-plus-one []
+                               (+ 1 1))
+
+                             (while true
+                               (+ 1 1))) {})]
+      ;;while shoud use one-plus-one in its body
+      ;;check lambda-already-defined?
+      (is (= 2 (count (select-form program (fn [f] (= 'one_plus_one f))))))))
+#+end_src
 
 ** Core
 *** Special Forms

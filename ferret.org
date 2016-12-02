@@ -1837,9 +1837,9 @@ modern C++ libraries that use smart pointers for memory management.
 **** Number
 
 In the interest of simplicity Ferret supports only one type of number:
-floating point numbers. By default these are floating point
-numbers. However Ferret programs can easily be recompiled to support
-any real number type the system supported.
+floating point numbers. By default these are double precision floating
+point numbers. However Ferret programs can easily be recompiled to
+support any real number type the system supported.
 
 Default number configuration,
 
@@ -1851,7 +1851,7 @@ Default number configuration,
   #endif
 
   #if !defined(FERRET_REAL_TYPE)
-     #define FERRET_REAL_TYPE   float
+     #define FERRET_REAL_TYPE   double
   #endif
 
   #if !defined(FERRET_REAL_EPSILON)
@@ -2842,7 +2842,7 @@ running in safe mode.
   | FERRET_PROGRAM_MAIN            | Not Defined  | A function to execute after ferret::program_run()        |
   | FERRET_UART_RATE               | 9600         | Set default UART rate.                                   |
   | FERRET_NUMBER_TYPE             | int          | Default number_t type.                                   |
-  | FERRET_REAL_TYPE               | float        | Default real_t type.                                     |
+  | FERRET_REAL_TYPE               | double       | Default real_t type.                                     |
   | FERRET_REAL_EPSILON            | 0.00001      | Least significant digit representable.                   |
   |--------------------------------+--------------+----------------------------------------------------------|
 #+END_EXAMPLE

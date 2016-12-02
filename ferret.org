@@ -5769,6 +5769,7 @@ Create some dummy libs under /test/modules/,
     - http://jet.ro/files/The_neglected_art_of_Fixed_Point_arithmetic_20060913.pdf
     - [[https://alikhuram.wordpress.com/2013/05/20/implementing-fixed-point-numbers-in-c/][Implementing Fixed-Point Numbers in C++]]
   - *Unbounded Precision Integers*
+    - [[http://www.more-magic.net/posts/numeric-tower-part-2.html][CHICKEN's numeric tower: part 2]]
     - [[https://web.archive.org/web/20101208222557/http://www.mactech.com/articles/mactech/Vol.08/08.03/BigNums/index.html][Arbitrarily Large Bignums]]
     - From p.11: PICOBIT: A Compact Scheme System for Microcontrollers
      - Larger values are needed in some embedded applications.

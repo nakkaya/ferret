@@ -784,22 +784,14 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 #+name: core-compilation-escape-analysis
 #+begin_src clojure
   (defn escape-fn-calls [form]
-    (-> form
-        (morph-form (fn [f]
-                      (and (seq? f)
-                           (is-special-form? 'fir-lambda-object (first f))))
-                    (fn [f]
-                      (let [[fn & args] f
-                            fn (cons 'fir-invoke-lambda-stack (rest fn))]
-                        (cons fn args))))
-        ;;escape while
-        (morph-form (fn [f] (is-special-form? '_while_ f))
-                    (fn [f]
-                      (let [[_ [_ pred-fn] [_ body-fn] & body] f]
-                        (->> body
-                             (cons (list 'fir-invoke-lambda-stack body-fn))
-                             (cons (list 'fir-invoke-lambda-stack pred-fn))
-                             (cons '_while_)))))))
+    (morph-form form
+                (fn [f]
+                  (and (seq? f)
+                       (is-special-form? 'fir-lambda-object (first f))))
+                (fn [f]
+                  (let [[fn & args] f
+                        fn (cons 'fir-invoke-lambda-stack (rest fn))]
+                    (cons fn args)))))
 #+end_src
 
 ***** Escape Dispatch Functions

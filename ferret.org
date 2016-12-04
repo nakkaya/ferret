@@ -1356,7 +1356,7 @@ Initialize function arguments. Clojure style list structuring is supported.
           // Runtime Prototypes
           namespace ferret{
            <<runtime-native-prototypes>>
-           <<runtime-native-iterate-macro>>
+           <<runtime-native-ranged-for>>
           }
 
           // Objects
@@ -1375,7 +1375,6 @@ Initialize function arguments. Clojure style list structuring is supported.
           namespace ferret{
            <<runtime-native-math-misc>>
            <<runtime-native-implementations>>
-           <<runtime-native-ranged-for>>
           }
 
           // Lambda Prototypes
@@ -2009,10 +2008,10 @@ Linked list container implementing the seekable interface.
           "var next;")
     (equals
      "var itOther = o;
-      FERRET_ITERATE(var(this),it){
-        if (itOther.is_nil() || runtime::first(it).equals(runtime::first(itOther))  == false)
-          return obj<Boolean>(false);
-        itOther = runtime::rest(itOther);
+      for(auto it : runtime::range(var(this))){
+       if (itOther.is_nil() || it.equals(runtime::first(itOther))  == false)
+         return obj<Boolean>(false);
+       itOther = runtime::rest(itOther);
       }
 
       if (itOther.is_nil())
@@ -2023,9 +2022,9 @@ Linked list container implementing the seekable interface.
     (stream_console
      "fprintf(FERRET_STD_OUT, \"(\");
         data.stream_console();
-        FERRET_ITERATE(next,it){
-          fprintf(FERRET_STD_OUT, \" \");
-          runtime::first(it).stream_console();
+        for(auto i : runtime::range(next)){
+         fprintf(FERRET_STD_OUT, \" \");
+         i.stream_console();
         }
       fprintf(FERRET_STD_OUT, \")\");
       return nil();")
@@ -2065,10 +2064,10 @@ A lazy list container implementing the seekable interface.
           "var thunk;")
     (equals
      "var itOther = o;
-      FERRET_ITERATE(var(this),it){
-        if (itOther.is_nil() || runtime::first(it).equals(runtime::first(itOther))  == false)
-          return obj<Boolean>(false);
-        itOther = runtime::rest(itOther);
+      for(auto it : runtime::range(var(this))){
+       if (itOther.is_nil() || it.equals(runtime::first(itOther))  == false)
+         return obj<Boolean>(false);
+       itOther = runtime::rest(itOther);
       }
 
       if (itOther.is_nil())
@@ -2078,9 +2077,9 @@ A lazy list container implementing the seekable interface.
     (stream_console
      "fprintf(FERRET_STD_OUT, \"(\");
       head.stream_console();
-      FERRET_ITERATE(runtime::rest(var(this)),it){
-        fprintf(FERRET_STD_OUT, \" \");
-        runtime::first(it).stream_console();
+      for(auto i : runtime::range(runtime::rest(var(this)))){
+       fprintf(FERRET_STD_OUT, \" \");
+       i.stream_console();
       }
       fprintf(FERRET_STD_OUT, \")\");
       return nil();")
@@ -2116,8 +2115,8 @@ Strings are represented as a linked list of characters.
     (data "var data;")
     (equals "return obj<Boolean>(container().equals(o.cast<String>()->container()));")
     (stream_console
-     "FERRET_ITERATE(data,it){ 
-       char ch = runtime::first(it).to<char>();
+     "for(auto it : runtime::range(data)){ 
+       char ch = it.to<char>();
        fprintf(FERRET_STD_OUT, \"%c\",ch);
       }
       return nil();")
@@ -2145,7 +2144,8 @@ Strings are represented as a linked list of characters.
      ("ifdef FERRET_STD_LIB"
       "::std::string to_string" ""
       "::std::stringstream ss;
-       FERRET_ITERATE(data,it){ss << runtime::first(it).to<char>();}
+       for(auto it : runtime::range(data))
+        ss << it.to<char>();
        return ss.str();"))
     (post-code "#ifdef FERRET_STD_LIB
                   template<>
@@ -2288,22 +2288,21 @@ Range-based for loop support for seekable containers.
       var p;
 
       explicit range(var v) : p(v) { }
-      range begin() const { return range(p); }
-      range end() const { return range(var()); }
+      inline range begin() const { return range(p); }
+      inline range end() const { return range(var()); }
 
-      bool operator!=(const range& other){
+      inline bool operator!=(const range& other){
         return (p != other.p);
       }
 
-      const range& operator++(){
+      inline const range& operator++(){
         p = runtime::rest(p);
         return *this;
       }
 
-      var operator*(){
+      inline var operator*(){
         return runtime::first(p);
       }
-
     };
   }
 #+end_src
@@ -2335,9 +2334,9 @@ Range-based for loop support for seekable containers.
 
     var nth(var seq, int index){
       int itIdx = 0;
-      FERRET_ITERATE(seq,it){
+      for(auto it : runtime::range(seq)){
         if (index == itIdx)
-          return runtime::first(it);
+          return it;
         itIdx++;
       }
       return nil();
@@ -2349,7 +2348,8 @@ Range-based for loop support for seekable containers.
     
     size_t count(var seq){
       size_t acc = 0;
-      FERRET_ITERATE(seq,it){ acc++; }
+      for(auto it : runtime::range(seq))
+       acc++;
       return acc;
     }
 
@@ -2361,11 +2361,6 @@ Range-based for loop support for seekable containers.
         return obj<Boolean>(false);
     }
   }
-#+end_src
-
-#+name: runtime-native-iterate-macro
-#+begin_src c++ :tangle no
-  #define FERRET_ITERATE(c,i) for(var i = c; !i.is_nil(); i = runtime::rest(i))
 #+end_src
 
 **** Lambda
@@ -3247,9 +3242,9 @@ A simple macro for calling inline C++,
          var f = more.cast<ISeekable>()->first();
          f.stream_console();
          var r = more.cast<ISeekable>()->rest();
-         FERRET_ITERATE(r,it){
+         for(auto it : runtime::range(r)){
           fprintf(FERRET_STD_OUT, \" \");
-          runtime::first(it).stream_console();
+          it.stream_console();
          }"))
 #+end_src
 
@@ -3367,7 +3362,7 @@ A simple macro for calling inline C++,
     `(~'_doseq_ ~(second binding)
                 (~'fn [~(first binding)] ~@body)))
 
-  (defn _doseq_ [seq f] "FERRET_ITERATE(seq,it){run(f,runtime::first(it));}")
+  (defn _doseq_ [seq f] "for(auto it : runtime::range(seq)) run(f,it);")
 #+end_src
 
 *** dotimes
@@ -3463,11 +3458,10 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+begin_src clojure :tangle no
   (defn = [& args]
     "var curr = runtime::first(args);
-     FERRET_ITERATE(runtime::rest(args),it){
-      var first = runtime::first(it);
-      if (curr.equals(first) == false)
+     for(auto it : runtime::range(runtime::rest(args))){
+      if (curr.equals(it) == false)
         return obj<Boolean>(false);
-      curr = first;
+      curr = it;
      }
      __result = obj<Boolean>(true);")
 #+end_src
@@ -3671,14 +3665,13 @@ When test is true, evaluates body with binding-form bound to the value of test.
   (defn reduce
     ([f [sf & sr]]
      "var acc = run(f, runtime::first(sr), sf);
-      FERRET_ITERATE(runtime::rest(sr),it){
-        acc = run(f, acc, runtime::first(it));
-      }
+      var r = runtime::rest(sr);
+      for (auto i : runtime::range(r))
+       acc = run(f, acc, i);
       __result = acc;")
     ([f acc coll]
-     "FERRET_ITERATE(coll,it){
-       acc = run(f, acc, runtime::first(it));
-      }
+     "for (auto i : runtime::range(coll))
+       acc = run(f, acc, i);
       __result = acc;"))
 #+end_src
 

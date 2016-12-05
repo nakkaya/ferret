@@ -1300,7 +1300,7 @@ Initialize function arguments. Clojure style list structuring is supported.
     (-> (create-view
          "$lambdas: {lambda|
            $if(!lambda.stack)$
-            class $lambda.name$  : public Lambda{
+            class $lambda.name$ final : public Lambda{
            $else$
             class $lambda.name$  \\{
            $endif$
@@ -1311,9 +1311,9 @@ Initialize function arguments. Clojure style list structuring is supported.
                  $lambda.env:{$it$($it$)} ;separator=\",\"$ { }
              $endif$
              $if(lambda.args)$
-                 var invoke (var _args_) $if(!lambda.stack)$ final $endif$ ;
+                 var invoke (var _args_) const $if(!lambda.stack)$ final $endif$ ;
              $else$
-                 var invoke (var) $if(!lambda.stack)$ final $endif$ ;
+                 var invoke (var) const $if(!lambda.stack)$ final $endif$ ;
              $endif$
            };};separator=\"\n\n\"$")
         (fill-view! "lambdas" lambdas)
@@ -1323,9 +1323,9 @@ Initialize function arguments. Clojure style list structuring is supported.
     (-> (create-view
          "$lambdas: {lambda|
            $if(lambda.args)$
-               inline var $lambda.name$::invoke (var _args_)
+               inline var $lambda.name$::invoke (var _args_) const
            $else$
-               inline var $lambda.name$::invoke (var)
+               inline var $lambda.name$::invoke (var) const
            $endif$
                {
                  $lambda.args:{args | $args$; } ;separator=\"\n\"$
@@ -2372,11 +2372,11 @@ uniform fashion.
 #+name: runtime-clojure-lambda-interface
 #+begin_src clojure :tangle no
   (defobject Lambda
-    (interfaces "var invoke(var args)")
+    (interfaces "var invoke(var args) const")
     (equals "return obj<Boolean>(this == o.cast<Lambda>());")
     (stream_console
      "fprintf(FERRET_STD_OUT, \"lambda\"); return nil();")
-    (force-type true))
+    (force-type))
 #+end_src
 
 Function invocation,

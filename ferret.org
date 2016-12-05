@@ -1914,10 +1914,10 @@ Number Object,
      ("explicit Number(real_t x) : _number(x) {}")
      ("real_t number" "" "return _number;")
      ("template<typename T> T as" "" "T::unimplemented_function;")
-     ("~Number" "" "")
      ;; Math Ops
      ("var add" "var v"
       "return obj<Number>(_number + v.cast<Number>()->number());")
+
      ("var sub" "var v"
       "return obj<Number>(_number - v.cast<Number>()->number());")
 
@@ -2260,8 +2260,7 @@ containers.
   (defobject ISeekable
     (interfaces "var cons(var x)"
                 "var first()"
-                "var rest()")
-    (fns ("virtual ~ISeekable" "" "")))
+                "var rest()"))
 #+end_src
 
 C++ API for the interface,

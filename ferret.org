@@ -1311,9 +1311,9 @@ Initialize function arguments. Clojure style list structuring is supported.
                  $lambda.env:{$it$($it$)} ;separator=\",\"$ { }
              $endif$
              $if(lambda.args)$
-                 var invoke (var _args_);
+                 var invoke (var _args_) $if(!lambda.stack)$ final $endif$ ;
              $else$
-                 var invoke (var);
+                 var invoke (var) $if(!lambda.stack)$ final $endif$ ;
              $endif$
            };};separator=\"\n\n\"$")
         (fill-view! "lambdas" lambdas)

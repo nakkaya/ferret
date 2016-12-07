@@ -2136,7 +2136,7 @@ Strings are represented as a linked list of characters.
      ("var container" ""
       "return data;")
      ("var cons" "var x"
-      "return data.cast<ISeekable>()->cons(x);")
+      "return runtime::cons(x,data);")
      ("var first" ""
       "return runtime::first(data);")
      ("var rest" ""
@@ -3238,9 +3238,9 @@ A simple macro for calling inline C++,
     (on "!defined(FERRET_DISABLE_STD_OUT)"
         "if (more.is_nil())
            return nil();
-         var f = more.cast<ISeekable>()->first();
+         var f = runtime::first(more);
          f.stream_console();
-         var r = more.cast<ISeekable>()->rest();
+         var r = runtime::rest(more);
          for(auto it : runtime::range(r)){
           fprintf(FERRET_STD_OUT, \" \");
           it.stream_console();

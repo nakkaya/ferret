@@ -1907,8 +1907,13 @@ Number Object,
              else
                return obj<Boolean>(false);")
     (stream_console
-     "fprintf(FERRET_STD_OUT, number_format, _number);
-      return nil();")  
+     "#if defined(FERRET_HARDWARE_ARDUINO_UNO) 
+        //avr-gcc does not support printing floats.
+        Serial.print(_number);
+      #else
+        fprintf(FERRET_STD_OUT, number_format, _number);
+      #endif
+      return nil();")
     (fns
      ("explicit Number(number_t x) : _number((real_t)x) {}")
      ("explicit Number(real_t x) : _number(x) {}")

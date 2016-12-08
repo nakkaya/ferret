@@ -2141,7 +2141,7 @@ Strings are represented as a linked list of characters.
      ("var container" ""
       "return data;")
      ("var cons" "var x"
-      "return data.cast<ISeekable>()->cons(x);")
+      "return runtime::cons(x,data);")
      ("var first" ""
       "return runtime::first(data);")
      ("var rest" ""
@@ -3243,9 +3243,9 @@ A simple macro for calling inline C++,
     (on "!defined(FERRET_DISABLE_STD_OUT)"
         "if (more.is_nil())
            return nil();
-         var f = more.cast<ISeekable>()->first();
+         var f = runtime::first(more);
          f.stream_console();
-         var r = more.cast<ISeekable>()->rest();
+         var r = runtime::rest(more);
          for(auto it : runtime::range(r)){
           fprintf(FERRET_STD_OUT, \" \");
           it.stream_console();
@@ -5670,10 +5670,10 @@ Create some dummy libs under /test/modules/,
 
      (native-declare "ferret::MemoryPool<size_t,14> tiny_pool;")
      (let [next-page (fn [idx]
-                       "size_t i = (size_t)idx.cast<Number>()->as<number_t>();
+                       "size_t i = (size_t)idx.to<number_t>();
                         __result = obj<Number>((number_t)tiny_pool.next_page(i))")
            malloc (fn [size]
-                    "size_t s = (size_t)size.cast<Number>()->as<number_t>();
+                    "size_t s = (size_t)size.to<number_t>();
                      ptr = tiny_pool.allocate(sizeof(size_t) * s);
                      __result = obj<Boolean>((ptr != nullptr));")
            free (fn [] "tiny_pool.free(ptr);")]
@@ -5693,10 +5693,10 @@ Create some dummy libs under /test/modules/,
 
      (native-declare "ferret::MemoryPool<size_t,256> even_pool;")
      (let [next-page (fn [idx]
-                       "size_t i = (size_t)idx.cast<Number>()->as<number_t>();
+                       "size_t i = (size_t)idx.to<number_t>();
                         __result = obj<Number>((number_t)even_pool.next_page(i))")
            malloc (fn [size]
-                    "size_t s = (size_t)size.cast<Number>()->as<number_t>();
+                    "size_t s = (size_t)size.to<number_t>();
                      ptr = even_pool.allocate(sizeof(size_t) * s);
                      __result = obj<Boolean>((ptr != nullptr));")
            free (fn [] "even_pool.free(ptr);")]
@@ -5711,10 +5711,10 @@ Create some dummy libs under /test/modules/,
 
      (native-declare "ferret::MemoryPool<size_t,255> odd_pool;")
      (let [next-page (fn [idx]
-                       "size_t i = (size_t)idx.cast<Number>()->as<number_t>();
+                       "size_t i = (size_t)idx.to<number_t>();
                        __result = obj<Number>((number_t)odd_pool.next_page(i))")
            malloc (fn [size]
-                    "size_t s = (size_t)size.cast<Number>()->as<number_t>();
+                    "size_t s = (size_t)size.to<number_t>();
                      ptr = odd_pool.allocate(sizeof(size_t) * s);
                      __result = obj<Boolean>((ptr != nullptr));")
            free (fn [] "odd_pool.free(ptr);")]

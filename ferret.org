@@ -589,12 +589,12 @@ the free variable problem.
 
   (defn define-lambda [fns env args body]
     (let [n (gensym)]
-      (dosync (alter fns conj (concat ['fir-define-lambda n env args] body)))
+      (swap! fns conj (concat ['fir-define-lambda n env args] body))
       (apply list 'fir-lambda-object n env)))
 
   (defn closure-conversion
     ([form]
-     (let [fns (ref [])
+     (let [fns (atom [])
            form (closure-conversion form fns)]
        (concat form @fns)))
     ([form fns & env]

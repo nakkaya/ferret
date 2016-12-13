@@ -5884,6 +5884,7 @@ Create some dummy libs under /test/modules/,
 #+begin_src clojure :mkdirp yes :tangle src/project.clj
   (defproject ferret "1.0.0-SNAPSHOT"
     :dependencies [[org.clojure/clojure "1.7.0"]
+                   [fast-zip "0.7.0"]
                    [org.clojure/tools.cli "0.3.3"]
                    [org.bituf/clj-stringtemplate "0.2"]
                    [org.clojars.amit/commons-io "1.4.0"]
@@ -5905,7 +5906,7 @@ Create some dummy libs under /test/modules/,
     (:gen-class)
     (:use [clojure.java.io])
     (:require [clojure.set :as set]
-              [clojure.zip :as zip]
+              [fast-zip.core :as zip]
               [clojure.walk :as walk]
               [clojure.pprint :as pprint]
               [clojure.tools.cli :refer [parse-opts]]

@@ -2145,17 +2145,18 @@ Strings are represented as a linked list of characters.
      ("var first" ""
       "return runtime::first(data);")
      ("var rest" ""
-      "return runtime::rest(data);")
-     ("ifdef FERRET_STD_LIB"
-      "::std::string to_string" ""
-      "::std::stringstream ss;
-       for(auto it : runtime::range(data))
-        ss << it.to<char>();
-       return ss.str();"))
+      "return runtime::rest(data);"))
     (post-code "#ifdef FERRET_STD_LIB
                   template<>
                   inline var obj<String>(std::string s) {
                     return var(new String(s.c_str(), s.size()));
+                  }
+
+                  template <> ::std::string var::to() { 
+                    ::std::stringstream ss;
+                    for(auto it : runtime::range(cast<String>()->container()))
+                      ss << it.to<char>();
+                    return ss.str();
                   }
                 #endif")
     (force-type))
@@ -3093,7 +3094,7 @@ Another option is to use the *cxx* macro,
 
 #+begin_src clojure
   (let [msg "Hello World!"]
-    (cxx "::std::cout << msg.cast<String>()->to_string() << ::std::endl;"))
+    (cxx "::std::cout << msg.to<std::string>() << ::std::endl;"))
 
   (def dac-0 (cxx "__result =  obj<Number>(DAC0);"))
 #+end_src
@@ -3284,7 +3285,7 @@ A simple macro for calling inline C++,
   (defnative sh [cmd]
     (on "defined FERRET_STD_LIB"
         ("memory")
-        "::std::shared_ptr<FILE> pipe(popen(cmd.cast<String>()->to_string().c_str(), \"r\"), pclose);
+        "::std::shared_ptr<FILE> pipe(popen(cmd.to<std::string>().c_str(), \"r\"), pclose);
          if (!pipe) 
             __result = nil();
          char buffer[128];
@@ -5649,7 +5650,7 @@ Create some dummy libs under /test/modules/,
     (let [s1 "Some String"
           s2 "Other String"
           s1-ret (fn [] "__result = obj<String>(\"Some String\");")
-          s1-eq (fn [s] "__result = obj<Boolean>((s.cast<String>()->to_string() == \"Some String\"))")]
+          s1-eq (fn [s] "__result = obj<Boolean>((s.to<std::string>() == \"Some String\"))")]
       (is (= false (= s1 s2)))
       (is (= true  (= s1 s1)))
       (is (= false (= s1 3.14)))

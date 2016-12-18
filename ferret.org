@@ -4703,6 +4703,18 @@ examples.
          __result = obj<Number>((number_t)(count*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
 #+end_src
 
+*** lock-memory
+
+Wraps mlockall - locks the address space of process.
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no
+  (defnative lock-memory []
+    (on "defined FERRET_STD_LIB"
+        ("sys/mman.h")
+        "mlockall(MCL_CURRENT | MCL_FUTURE);"))
+#+end_src
+
 ** Compiler
 *** configure-runtime!
 

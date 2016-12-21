@@ -4440,6 +4440,23 @@ Ported from,
            (~'pid-controller-run controller# input#)))))
 #+end_src
 
+*** Moving Average Filter
+
+A First order IIR filter (exponentially decaying moving average
+filter) to approximate a K sample first order IIR filter to
+approximate a K sample moving average. This filter approximates a
+moving average of the last K samples by setting the value of alpha to
+1/K.
+
+#+begin_src clojure :tangle no
+  (defn moving-average-filter [alpha average data]
+    (+ (* alpha data)
+       (* (- 1.0 alpha) average)))
+#+end_src
+
+ - http://electronics.stackexchange.com/a/34426
+ - http://stackoverflow.com/a/3761318
+
 ** GPIO
 *** pin-mode
 

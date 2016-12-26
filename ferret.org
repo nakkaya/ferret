@@ -2979,11 +2979,11 @@ Clojure interpreter and then terminating its execution. If
 #+begin_src c++ :tangle no
   #if !defined(FERRET_DISABLE_STD_MAIN)
    #if defined(FERRET_DISABLE_CLI_ARGS) || !defined(FERRET_STD_LIB)
-    int main(){
+    int main()
    #else
-    int main(int argc, char* argv[]){
+    int main(int argc, char* argv[])
    #endif
-
+    {
       using namespace ferret;
 
      #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_CLI_ARGS)
@@ -4677,6 +4677,7 @@ examples.
                                "\n#endif\n"))
                     (apply str))
           pre-ample (->> (map #(vector (second %) (drop-last (drop 3 %))) form)
+                         (remove #(empty? (second %)))
                          (map #(str "\n#if " (first %) " \n"
                                     (apply str (map (fn [line] (str line "\n")) (second %)))
                                     "\n#endif\n"))

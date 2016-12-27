@@ -3914,11 +3914,23 @@ When test is true, evaluates body with binding-form bound to the value of test.
              x r)))
 #+end_src
 
+*** rem
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn rem [num div]
+    "__result = obj<Number>(remainder(num.to<real_t>(), div.to<real_t>()));")
+#+end_src
+
 *** mod
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn mod [num div] "__result = obj<Number>((num.to<number_t>() % div.to<number_t>()));")
+  (defn mod [num div] 
+    (let [m (rem num div)] 
+      (if (or (zero? m) (= (pos? num) (pos? div)))
+        m 
+        (+ m div))))
 #+end_src
 
 *** floor
@@ -5122,19 +5134,20 @@ Tests are run by the CI system for the following compilers,
     (is (= 1   (/ 4 2 2)))
     (is (= 1   (/ 4 2 2.0)))
     
-    (is (= 1   (floor 1.1)))
-    (is (= 1   (floor 1.5)))
-    (is (= 1   (floor 1.9)))
-    (is (= 0   (mod 2 2)))
-    (is (= 0   (mod 4 2)))
-    (is (= 1   (mod 5 2)))
-    (is (= 1   (mod 8 7)))
-    (is (= 1   (min 1)))
-    (is (= 1   (min 2 1)))
-    (is (= 1   (min 3 5 7 1)))
-    (is (= 1   (max 1)))
-    (is (= 2   (max 2 1)))
-    (is (= 7   (max 3 5 7 1)))
+    (is (= 1         (floor 1.1)))
+    (is (= 1         (floor 1.5)))
+    (is (= 1         (floor 1.9)))
+    (is (= 0         (mod 2 2)))
+    (is (= 0         (mod 4 2)))
+    (is (= 1         (mod 5 2)))
+    (is (= 1         (mod 8 7)))
+    (is (= 4.98588   (mod -1.2973 (* 2 3.14159265358979323846))))
+    (is (= 1         (min 1)))
+    (is (= 1         (min 2 1)))
+    (is (= 1         (min 3 5 7 1)))
+    (is (= 1         (max 1)))
+    (is (= 2         (max 2 1)))
+    (is (= 7         (max 3 5 7 1)))
     
     (is (= 100 (scale 10 0 10 0 100)))
     (is (= 50  (scale 5 0 10 0 100)))

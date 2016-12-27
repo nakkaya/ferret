@@ -1862,6 +1862,10 @@ Default number configuration,
   #if !defined(FERRET_DISABLE_STD_OUT)
     const   char*                        number_format = "%.4f";       // Number Format String (fprinf)
   #endif
+
+  #ifndef M_PI
+    #define M_PI 3.14159265358979323846
+  #endif
   }
 #+end_src
 
@@ -2910,6 +2914,7 @@ indicating platform.
    #include <cstddef>
    #include <atomic>
    #include <mutex>
+   #include <cmath>
   #endif
 
   #ifdef FERRET_HARDWARE_ARDUINO
@@ -4021,12 +4026,80 @@ Square root.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defnative sqrt [s]
-    (on "defined FERRET_STD_LIB"
-        ("cmath")
-        "__result = obj<Number>((real_t)::sqrt(s.to<real_t>()));")
-    (on "defined FERRET_HARDWARE_ARDUINO"
-        "__result = obj<Number>((real_t)::sqrt(s.to<real_t>()));"))
+  (defn sqrt [s]
+    "__result = obj<Number>((real_t)::sqrt(s.to<real_t>()));")
+#+end_src
+
+*** pow
+
+Returns base raised to the power exponent:
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn pow [b e]
+    "__result = obj<Number>((real_t)::pow(b.to<real_t>(),e.to<real_t>()));")
+#+end_src
+
+*** cos
+
+Returns the cosine of an angle of x radians.
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn cos [s]
+    "__result = obj<Number>((real_t)::cos(s.to<real_t>()));")
+#+end_src
+
+*** sin
+
+Returns the sine of an angle of x radians.
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn sin [s]
+    "__result = obj<Number>((real_t)::sin(s.to<real_t>()));")
+#+end_src
+
+*** asin
+
+ Returns the principal value of the arc sine of x, expressed in radians.
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn asin [x]
+    "__result = obj<Number>((real_t)::asin(x.to<real_t>()));")
+#+end_src
+
+*** atan2
+
+Returns the principal value of the arc tangent of y/x, expressed in radians.
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn atan2 [x y]
+    "__result = obj<Number>((real_t)::atan2(x.to<real_t>(),y.to<real_t>()));")
+#+end_src
+
+*** to-degrees
+
+Converts an angle measured in radians to an approximately equivalent
+angle measured in degrees.
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn to-degrees [x]
+    "__result = obj<Number>((real_t) (x.to<real_t>() * 180.0 / M_PI) );")
+#+end_src
+
+*** to-radians
+
+Converts an angle measured in degrees to an approximately equivalent
+angle measured in radians.
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn to-radians [x]
+    "__result = obj<Number>((real_t) (x.to<real_t>() * M_PI / 180.0) );")
 #+end_src
 
 ** Concurrency
@@ -5093,8 +5166,17 @@ Tests are run by the CI system for the following compilers,
     (is (= 2  (bit-shift-right 4 1)))
     (is (= 1  (bit-shift-right 4 2)))
 
-    (is (= 32 (sqrt 1024)))
-    (is (= 2 (sqrt 4)))
+    (is (= 32         (sqrt 1024)))
+    (is (= 2          (sqrt 4)))
+    (is (= 8          (pow 2 3)))
+    (is (= 16         (pow 2 4)))
+    (is (= 1          (cos 0)))
+    (is (= -0.99999   (cos 3.145)))
+    (is (= 0          (sin 0)))
+    (is (= -0.00340   (sin 3.145)))
+    (is (= 0.98279    (atan2 45 30)))
+    (is (= 180.19522  (to-degrees 3.145)))
+    (is (= 3.14159    (to-radians 180)))
 
     (let [a 1
           b 2]

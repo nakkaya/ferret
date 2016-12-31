@@ -303,11 +303,9 @@ of mod -> aliases pairs.
                                      (map second)
                                      (into #{}))
                     replace? (set/union macro-symbols def-symbols)
-                    mod (morph-form mod symbol?
-                                    (fn [f]
-                                      (if (replace? f)
-                                        (symbol (str (.replace (str m) "." "_") "_" f))
-                                        f)))]
+                    mod (morph-form mod #(and (symbol? %)
+                                              (replace? %))
+                                    #(symbol (str (.replace (str m) "." "_") "_" %)))]
                 (reduce (fn [h v] (conj h v)) h mod)))
             (list ) package-list))
 #+end_src
@@ -472,8 +470,7 @@ replacements,
                                       (replace? x))
                                (replace? x)
                                x)) body)
-              args (->> (morph-form args #(replace? %)
-                                    (fn [f] (replace? f)))
+              args (->> (morph-form args #(replace? %) #(replace? %))
                         (into []))]
           (cons 'fn* `(~args ~@unique-body))))))
 #+end_src
@@ -692,18 +689,14 @@ with the global name for readability.
                                                        (every? true? (map = f v))))))
                                form fn-defs)        
           embeded-fn-calls (reduce (fn[h [name gensym]]
-                                     (morph-form h symbol?
-                                                 (fn [f]
-                                                   (if (= f name)
-                                                     (list 'fir-lambda-object gensym)
-                                                     f))))
+                                     (morph-form h  #(and (symbol? %)
+                                                          (= % name))
+                                                 (fn [_] (list 'fir-lambda-object gensym))))
                                    no-global-fn fn-table)
           embed-fn-names (reduce (fn[h [name gensym]]
-                                   (morph-form h symbol?
-                                               (fn [f]
-                                                 (if (= f gensym)
-                                                   name
-                                                   f))))
+                                   (morph-form h #(and (symbol? %)
+                                                       (= % gensym))
+                                               (fn [_] (identity name))))
                                  embeded-fn-calls fn-table)]
       embed-fn-names))
 
@@ -718,11 +711,9 @@ with the global name for readability.
                                  (filter #(not= 2 (-> % last count))))
             closure-fn-table (map (fn [[_ name [_ gensym]]] [name gensym]) closure-fn-defs)]
         (reduce (fn[h [name gensym]]
-                  (morph-form h symbol?
-                              (fn [f]
-                                (if (= f gensym)
-                                  (symbol (str name "_" gensym))
-                                  f))))
+                  (morph-form h #(and (symbol? %)
+                                      (= % gensym))
+                              (fn [_] (symbol (str name "_" gensym)))))
                 form closure-fn-table))))
 #+end_src
 

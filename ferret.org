@@ -733,26 +733,25 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 #+begin_src clojure
   (defn shake-concat
     ([header form]
-     (let [header-no-macro (expand-macros-all header)
-           header-symbols (->> (select-form header-no-macro (is-form? 'def))
-                               (map second))
-           header-fns (reduce (fn[h v] (assoc h (second v) v)) {} header-no-macro)
-           objects (select-form header (is-form? 'defobject))
-           macros (select-form header (is-form? 'defmacro))
-           requires (select-form header (is-form? 'require))
-           native-headers (select-form header (is-form? 'native-header))
-           native-declarations (select-form header (is-form? 'native-declare))
-           fns (atom {})
-           _ (shake-concat (expand-macros-all (concat macros form)) header-fns fns)
-           include-fns (->> @fns
-                            (sort-by #(.indexOf header-symbols (key %)))
-                            (map #(second %)))]
-       (concat requires native-headers objects native-declarations include-fns macros form)))
+     (let [shakeable? (fn [f]
+                        (or ((is-form? 'defn) f)
+                            ((is-form? 'defnative) f)))
+           header-fns (->> (select-form header shakeable?)
+                           (map #(vector (second %) %))
+                           (into {}))
+           header-macros (select-form header (is-form? 'defmacro))
+           form-expanded (expand-macros-all (concat header-macros form))
+           fns (atom #{})
+           _ (shake-concat form-expanded header-fns fns)
+           header-shaked (remove-form header (fn [f]
+                                               (and (shakeable? f)
+                                                    (not (@fns (second f))))))]
+       (concat header-shaked form)))
     ([form built-in fns]
      (morph-form form symbol?
                  #(do (if-let [f (built-in %)]
                         (when (not (@fns %))
-                          (swap! fns assoc % f)
+                          (swap! fns conj %)
                           (shake-concat f built-in fns))) %))))
 #+end_src
 
@@ -4885,7 +4884,35 @@ Tests are run by the CI system for the following compilers,
                                (+ 1 1))) {})]
       ;;while shoud use one-plus-one in its body
       ;;check lambda-already-defined?
-      (is (= 2 (count (select-form program (fn [f] (= 'one_plus_one f))))))))
+      (is (= 2 (count (select-form program (fn [f] (= 'one_plus_one f))))))
+      ;;test shake-concat
+      (is (= '((defn c [] 1)
+               (defn b [] (c))
+               (defn a [] (b))
+               (a))
+             (shake-concat '((defn no-call-a [])
+                             (defnative no-call-b [] (on "" ""))
+                             (defn c [] 1)
+                             (defn b [] (c))
+                             (defn a [] (b)))
+                           '((a)))))
+      (is (= '((defn y [])
+               (let [a 1]
+                 (defn b []))
+               (println (b) (y)))
+             (shake-concat '((defn x [] )
+                             (defn y [] )
+                             (let [a 1]
+                               (defn b [] )
+                               (defn c [] a)))
+                           '((println (b) (y))))))
+      (is (= '((defn p-create []) (defn p-update []))
+             (take 2 (shake-concat '((defn p-create [])
+                                     (defn p-update [])
+                                     (defmacro pc [& options]
+                                       `(~'let [controller# (~'p-create)]
+                                         (~'fn [input#] (~'p-update)))))
+                                   '((pc))))))))
 #+end_src
 
 ** Core

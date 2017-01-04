@@ -52,8 +52,8 @@ Ferret is available as prebuilt and source code distributions. See
   <img src="https://travis-ci.org/nakkaya/ferret.svg?branch=master" style="margin-left: 0;">
 #+END_HTML
 
-   - [[http://dropbox.nakkaya.com/builds/ferret][Executable]] (Requires Bash and JVM)
-   - [[http://dropbox.nakkaya.com/builds/ferret.jar][Standalone Jar]] (Requires JVM)
+   - [[http://ferret-lang.org/builds/ferret][Executable]] (Requires Bash and JVM)
+   - [[http://ferret-lang.org/builds/ferret.jar][Standalone Jar]] (Requires JVM)
 
 ** A glimpse of Ferret
 

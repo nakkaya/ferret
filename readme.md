@@ -1,4 +1,4 @@
-## [Ferret Programmer's Manual](http://dropbox.nakkaya.com/builds/ferret-manual.html)
+## [Ferret Programmer's Manual](http://ferret-lang.org)
 
 Copyright 2016 Nurullah Akkaya
 

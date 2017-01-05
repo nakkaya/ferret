@@ -1755,7 +1755,9 @@ A /Pointer/ object keeps a reference to a C++ pointer.
     (equals
      "return obj<Boolean>(ptr == o.cast<Pointer>()->pointer<void>());")
     (stream_console
-     "fprintf(FERRET_STD_OUT, \"Pointer<%p>\",ptr); return nil();")
+     "runtime::print(\"Pointer<\");
+      runtime::print(ptr);
+      runtime::print(\">\");return nil();")
     (fns
      ("explicit Pointer(void* p) : ptr(p) {}")
      ("template<typename T> T* pointer" ""
@@ -1816,7 +1818,10 @@ modern C++ libraries that use smart pointers for memory management.
     (data "T val;")
     (equals "return obj<Boolean>(this == o.get());")
     (stream_console
-     "fprintf(FERRET_STD_OUT, \"Value<%p>\", (void*)&val); return nil();")
+     "runtime::print(\"Value<\");
+      runtime::print((void*)&val);
+      runtime::print(\">\");
+      return nil();")
     (fns
      ("explicit Value(T & t) : val(t) {}")
      ("T value" "" "return val;"))
@@ -1850,7 +1855,7 @@ Default number configuration,
     typedef FERRET_NUMBER_TYPE           number_t;                   // Whole Number Container.
     typedef FERRET_REAL_TYPE             real_t;                     // Real Number Container.
   #if !defined(FERRET_DISABLE_STD_OUT)
-    const   char*                        number_format = "%.4f";       // Number Format String (fprinf)
+    const   size_t                       number_precision = 4;       // Number Format String (fprinf)
   #endif
 
   #ifndef M_PI
@@ -1901,13 +1906,7 @@ Number Object,
              else
                return obj<Boolean>(false);")
     (stream_console
-     "#if defined(FERRET_HARDWARE_ARDUINO_UNO) 
-        //avr-gcc does not support printing floats.
-        Serial.print(_number);
-      #else
-        fprintf(FERRET_STD_OUT, number_format, _number);
-      #endif
-      return nil();")
+     "runtime::print(_number); return nil();")
     (fns
      ("explicit Number(number_t x) : _number((real_t)x) {}")
      ("explicit Number(real_t x) : _number(x) {}")
@@ -1965,7 +1964,7 @@ Each keyword in the program is converted to an /Keyword/ object. A
     (data "int id;")
     (equals "return obj<Boolean>(id == o.cast<Keyword>()->container());")
     (stream_console
-     "fprintf(FERRET_STD_OUT, \"%d\", id); return nil();")
+     "runtime::print(id); return nil();")
     (fns
      ("explicit Keyword(int id) : id(id) {}")
      ("explicit Keyword(const char * str){
@@ -1990,7 +1989,7 @@ Linked list container implementing the seekable interface.
     (equals "(void)o; 
              return obj<Boolean>(true);")
     (stream_console
-     "fprintf(FERRET_STD_OUT, \"()\");
+     "runtime::print(\"()\");
       return nil();")
     (fns
      ("var cons" "var"
@@ -2019,13 +2018,13 @@ Linked list container implementing the seekable interface.
         return obj<Boolean>(false);")
     
     (stream_console
-     "fprintf(FERRET_STD_OUT, \"(\");
+     "runtime::print(\"(\");
         data.stream_console();
         for(auto i : runtime::range(next)){
-         fprintf(FERRET_STD_OUT, \" \");
+         runtime::print(\" \");
          i.stream_console();
         }
-      fprintf(FERRET_STD_OUT, \")\");
+      runtime::print(\")\");
       return nil();")
     (fns
      ("explicit Sequence(var d = var(), var n = var()) : data(d), next(n) {}")
@@ -2074,13 +2073,13 @@ A lazy list container implementing the seekable interface.
       else
         return obj<Boolean>(false);")
     (stream_console
-     "fprintf(FERRET_STD_OUT, \"(\");
+     "runtime::print(\"(\");
       head.stream_console();
       for(auto i : runtime::range(runtime::rest(var(this)))){
-       fprintf(FERRET_STD_OUT, \" \");
+       runtime::print(\" \");
        i.stream_console();
       }
-      fprintf(FERRET_STD_OUT, \")\");
+      runtime::print(\")\");
       return nil();")
     (fns
      ("explicit LazySequence(var t) : thunk(t) {}")
@@ -2114,10 +2113,8 @@ Strings are represented as a linked list of characters.
     (data "var data;")
     (equals "return obj<Boolean>(container().equals(o.cast<String>()->container()));")
     (stream_console
-     "for(auto it : runtime::range(data)){ 
-       char ch = it.to<char>();
-       fprintf(FERRET_STD_OUT, \"%c\",ch);
-      }
+     "for(auto it : runtime::range(data))
+       runtime::print(it.to<char>());
       return nil();")
     (fns
      ("explicit String() : data(nullptr) {}")
@@ -2167,9 +2164,9 @@ A boolean object,
     (equals "return obj<Boolean>(value == (bool)o);")
     (stream_console
      "if (value)
-        fprintf(FERRET_STD_OUT, \"true\"); 
+        runtime::print(\"true\");
       else
-      fprintf(FERRET_STD_OUT, \"false\"); 
+        runtime::print(\"false\");
       return nil();")
     (fns
      ("explicit Boolean(bool b) : value(b) {}")
@@ -2213,9 +2210,9 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
           "FERRET_NEW_LOCK(lock)")
     (equals "return obj<Boolean>(this == o.cast<Atom>());")
     (stream_console
-     "fprintf(FERRET_STD_OUT, \"atom <\");
+     "runtime::print(\"atom <\");
       data.stream_console();
-      fprintf(FERRET_STD_OUT, \">\");
+      runtime::print(\">\");
       return nil();")
     (fns
      ("explicit Atom(var d) : data(d) {}")
@@ -2375,7 +2372,7 @@ uniform fashion.
     (interfaces "var invoke(var args) const")
     (equals "return obj<Boolean>(this == o.cast<Lambda>());")
     (stream_console
-     "fprintf(FERRET_STD_OUT, \"lambda\"); return nil();")
+     "runtime::print(\"lambda\"); return nil();")
     (force-type))
 #+end_src
 
@@ -2574,7 +2571,7 @@ count, when it reaches zero it will automatically free the Object.
       if (m_ptr != nullptr )
         m_ptr->stream_console();
       else
-        fprintf(FERRET_STD_OUT, "nil");
+        runtime::print("nil");
       return var();
     }
   #endif
@@ -2863,20 +2860,12 @@ indicating platform.
       # define FERRET_STD_LIB TRUE
     #endif
     
-    #if defined(__SAM3X8E__)
+    #if defined(__SAM3X8E__)                                  || \
+      defined(__AVR__)                                        || \
+      (defined(ARDUINO_SAMD_ZERO) && defined(__SAMD21G18A__)) || \
+      defined(_VARIANT_ARDUINO_101_X_)
+
       # define FERRET_HARDWARE_ARDUINO TRUE
-      # define FERRET_HARDWARE_ARDUINO_DUE TRUE
-    #elif defined(__AVR__)
-      # define FERRET_HARDWARE_ARDUINO TRUE
-      # define FERRET_HARDWARE_ARDUINO_UNO TRUE
-    #elif defined(ARDUINO_SAMD_ZERO) && defined(__SAMD21G18A__)
-      # define FERRET_HARDWARE_ARDUINO TRUE
-      # define FERRET_HARDWARE_SPARKFUN_SAMD21 TRUE
-      # define FERRET_DISABLE_STD_OUT TRUE
-    #elif defined(_VARIANT_ARDUINO_101_X_)
-      # define FERRET_HARDWARE_ARDUINO TRUE
-      # define FERRET_HARDWARE_ARDUINO_101 TRUE
-      # define FERRET_DISABLE_STD_OUT TRUE
     #endif
     
     #if defined(FERRET_HARDWARE_ARDUINO)
@@ -2898,6 +2887,7 @@ indicating platform.
 #+begin_src c++ :tangle no
   #ifdef FERRET_STD_LIB
    #include <iostream>
+   #include <iomanip>
    #include <sstream>
    #include <cstdio>
    #include <cstdlib>
@@ -2923,40 +2913,64 @@ indicating platform.
 
 *** Initialize Hardware
 
-Default output configuration,
+Default UART rate (if supported),
 
 #+name: runtime-native-hardware-initialize
 #+begin_src c++ :tangle no
   #if !defined(FERRET_UART_RATE)
     # define FERRET_UART_RATE 9600
   #endif
-
-  # define FERRET_STD_OUT stdout
 #+end_src
 
-Setup IO on supported embedded systems,
+Setup dummy IO,
 
 #+name: runtime-native-hardware-initialize
 #+begin_src c++ :tangle no
-  #ifdef FERRET_HARDWARE_ARDUINO_UNO
-      #if !defined(FERRET_DISABLE_STD_OUT)
-       static FILE uartout = {0};
-       static int uart_putchar (char c, FILE *stream){
-           Serial.write(c);
-           return 0 ;
-       }
-       #define FERRET_STD_OUT &uartout
-       #define FERRET_INIT_STD_OUT                                       \
-           Serial.begin(FERRET_UART_RATE);                                     \
-           fdev_setup_stream (&ferret::uartout, ferret::uart_putchar, NULL, _FDEV_SETUP_WRITE);
-      #endif
+  #if defined(FERRET_DISABLE_STD_OUT)
+     namespace runtime{
+       void init(){ }
+      
+       template <typename T>
+       void print(T t){ }
+     }
   #endif
+#+end_src
 
-  #ifdef FERRET_HARDWARE_ARDUINO_DUE
-      #if !defined(FERRET_DISABLE_STD_OUT)
-        # define FERRET_STD_OUT stdout
-        # define FERRET_INIT_STD_OUT Serial.begin(FERRET_UART_RATE);
-      #endif
+Setup IO for general purpose OS,
+
+#+name: runtime-native-hardware-initialize
+#+begin_src c++ :tangle no
+  #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_STD_OUT)
+    namespace runtime{
+      void init(){}
+      
+      template <typename T>
+      void print(T t){ std::cout << t; }
+
+      template <>
+      void print(real_t n){
+        std::cout << std::fixed << std::setprecision(number_precision) << n;
+      }
+    }
+  #endif
+#+end_src
+
+Setup IO for Arduino boards,
+
+#+name: runtime-native-hardware-initialize
+#+begin_src c++ :tangle no
+  #if defined(FERRET_HARDWARE_ARDUINO) && !defined(FERRET_DISABLE_STD_OUT) 
+    namespace runtime{
+      void init(){ Serial.begin(FERRET_UART_RATE); }
+
+      template <typename T>
+      void print(T t){ Serial.print(t); }
+
+      template <>
+      void print(void* p){
+        Serial.print((size_t)p,HEX);
+      }
+     }
   #endif
 #+end_src
 
@@ -3005,11 +3019,10 @@ procedure.
 #+begin_src c++ :tangle no
   #if defined(FERRET_HARDWARE_ARDUINO)
     void setup(){
-      #if defined(FERRET_INIT_STD_OUT)
-         FERRET_INIT_STD_OUT
-      #endif
-
       using namespace ferret;
+
+        runtime::init();
+
       #if defined(FERRET_PROGRAM_MAIN)
         program_run();
       #endif
@@ -3045,21 +3058,6 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
    #define FERRET_NEW_LOCK(symbol)
    #define FERRET_WITH_LOCK(lock,code) code;
   #endif
-#+end_src
-
-** Debugging Macros
-
-Helper macros, to be used when debugging on the native side.
-
-#+name: runtime-native-debugging-macros
-#+begin_src c++ :tangle no
-  #define FERRET_PRT_MSG(msg)                     \
-    fprintf(FERRET_STD_OUT, msg);           \
-    fprintf(FERRET_STD_OUT, "\n");
-
-  #define FERRET_PRT_OBJ(o)                       \
-    o.stream_console();                           \
-    fprintf(FERRET_STD_OUT, "\n");
 #+end_src
 
 ** Accessing C,C++ Libraries
@@ -3243,7 +3241,7 @@ A simple macro for calling inline C++,
          f.stream_console();
          var r = runtime::rest(more);
          for(auto it : runtime::range(r)){
-          fprintf(FERRET_STD_OUT, \" \");
+          runtime::print(\" \");
           it.stream_console();
          }"))
 #+end_src
@@ -3254,7 +3252,7 @@ A simple macro for calling inline C++,
 #+begin_src clojure :tangle no
   (defnative newline [& more]
     (on "!defined(FERRET_DISABLE_STD_OUT)"
-        "fprintf(FERRET_STD_OUT, \"\\n\");"))
+        "runtime::print(\"\\n\");"))
 #+end_src
 
 *** println
@@ -4431,7 +4429,7 @@ Ported from,
            result = 0;
            input = 0;"))
     (equals "return obj<Boolean>(this == o.cast<PIDController>());")
-    (stream_console "fprintf(FERRET_STD_OUT, \"PIDController\"); return nil();")
+    (stream_console "runtime::print(\"PIDController\"); return nil();")
     (fns
      ("var update" "var in"
       "input = in.to<T>();
@@ -6273,14 +6271,14 @@ Create some dummy libs under /test/modules/,
 
   <<runtime-native-program-includes>>
 
+  // Number Configuration
+  <<runtime-native-number-config-macros>>
+
   // Initialize Hardware
   namespace ferret{
     <<runtime-native-hardware-initialize>>
     <<runtime-native-program-header>>
   }
-
-  // Number Configuration
-  <<runtime-native-number-config-macros>>
 
   // Locking Macros
   namespace ferret{

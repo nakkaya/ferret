@@ -185,6 +185,19 @@ Collection]]. It is written in a mixture of C++ and Ferret DSL. *[[Clojure
 Core]]* corresponds to *clojure.core*, contains all Clojure functions
 supported by Ferret.
 
+** Hardware / Operating System Support
+
+Ferret does not depend on any external dependencies (Including the C++
+Standard Library). Unit tests are run on Mac OS X and Linux, any
+operating system with a C++11 compiler is supported. When running on a
+microcontroller ferret will check if it is a supported platform during
+compile time and enable hardware specific features. (Currently only
+UART is hardware specific.) If running on an unknown hardware it
+will run in *safe mode* (UART disabled.). Everything else is supported
+in safe mode. Like operating system support any embedded system with a
+C++11 compiler is supported. See [[What Is Ferret]] for a list of
+currently supported microcontrollers.
+
 ** Building From Sources
 
 The code in this document is the executable source. Use the *build*

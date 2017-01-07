@@ -4383,7 +4383,7 @@ output trying to make the input equal the setpoint.
   (def controller (pid-controller :kp 0.5
                                   :ki 0
                                   :kd 0
-                                  :set-point 5
+                                  :set-point 5 ;; or symbol to a fn
                                   ;;in min - in max - out min - out max
                                   :bounds [0 10 0 10]
                                   :continuous false))
@@ -4507,23 +4507,33 @@ Ported from,
 
 #+name: runtime-clojure-pid-controller
 #+begin_src clojure :tangle no
-  (defn pid-controller-create [set-point kp ki kd in-min in-max out-min out-max continuous]
-    "var p = obj<PIDController<real_t>>(kp, ki, kd, in_min, in_max, out_min, out_max, continuous);
-     p.cast<PIDController<real_t>>()->set_setpoint(set_point);
-     __result = p;")
+  (defn pid-controller-create [kp ki kd in-min in-max out-min out-max continuous]
+    "__result = obj<PIDController<real_t>>(kp, ki, kd, 
+                                           in_min, in_max, out_min, out_max, 
+                                           continuous);")
 
-  (defn pid-controller-run [controller input]
+  (defn pid-controller-set-point [controller sp]
+    "controller.cast<PIDController<real_t>>()->set_setpoint(sp);")
+
+  (defn pid-controller-update [controller input]
     "__result = controller.cast<PIDController<real_t>>()->update(input)")
 
   (defmacro pid-controller [& options]
     (let [options (apply hash-map options)
           {:keys [container kp ki kd set-point bounds continuous]} options
           [in-min in-max out-min out-max] bounds]
-      `(~'let [controller#
-               (~'pid-controller-create
-                ~set-point ~kp ~ki ~kd ~in-min ~in-max ~out-min ~out-max ~continuous)]
-         (~'fn [input#]
-           (~'pid-controller-run controller# input#)))))
+      (if (symbol? set-point)
+        `(~'let [pid# (~'pid-controller-create
+                       ~kp ~ki ~kd ~in-min ~in-max ~out-min ~out-max ~continuous)]
+          (~'pid-controller-set-point pid# (~set-point))
+          (~'fn [input#]
+           (~'pid-controller-set-point pid# (~set-point))
+           (~'pid-controller-update pid# input#)))
+        `(~'let [pid# (~'pid-controller-create
+                       ~kp ~ki ~kd ~in-min ~in-max ~out-min ~out-max ~continuous)]
+          (~'pid-controller-set-point pid# ~set-point)
+          (~'fn [input#]
+           (~'pid-controller-update pid# input#))))))
 #+end_src
 
 *** Moving Average Filter
@@ -5273,6 +5283,17 @@ Tests are run by the CI system for the following compilers,
                                      :ki 0
                                      :kd 1
                                      :set-point 5
+                                     :bounds [0 10 0 20]
+                                     :continuous false)]
+
+      (is (= 10 (controller 0)))
+      (is (= 5 (controller 0))))
+
+    (let [sp-fn (fn [] 5)
+          controller (pid-controller :kp 1
+                                     :ki 0
+                                     :kd 1
+                                     :set-point sp-fn
                                      :bounds [0 10 0 20]
                                      :continuous false)]
 

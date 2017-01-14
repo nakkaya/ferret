@@ -4606,11 +4606,11 @@ output.
 #+begin_src clojure :tangle no
   (defnative pin-mode-input [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "pinMode(pin.to<number_t>(), INPUT);"))
+        "::pinMode(pin.to<number_t>(), INPUT);"))
 
   (defnative pin-mode-output [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "pinMode(pin.to<number_t>(), OUTPUT);"))
+        "::pinMode(pin.to<number_t>(), OUTPUT);"))
 
   (defmacro pin-mode [pin mode]
     (if (= mode :input)
@@ -4626,11 +4626,11 @@ Write a HIGH or a LOW value to a digital pin.
 #+begin_src clojure :tangle no
   (defnative digital-write-high [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "digitalWrite(pin.to<number_t>(), HIGH);"))
+        "::digitalWrite(pin.to<number_t>(), HIGH);"))
 
   (defnative digital-write-low [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "digitalWrite(pin.to<number_t>(), LOW);"))
+        "::digitalWrite(pin.to<number_t>(), LOW);"))
 
   (defmacro digital-write [pin mode]
     (if (= mode :high)
@@ -4646,7 +4646,7 @@ Reads the value from a specified digital pin, either HIGH or LOW.
 #+begin_src clojure :tangle no
   (defnative digital-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "if (digitalRead(pin.to<number_t>()) == HIGH)
+        "if (::digitalRead(pin.to<number_t>()) == HIGH)
            __result = obj<Boolean>(true);
          else
            __result = obj<Boolean>(false);"))
@@ -4660,7 +4660,7 @@ Writes an analog value (PWM wave) to a pin.
 #+begin_src clojure :tangle no
   (defnative analog-write [pin val]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "analogWrite(pin.to<number_t>(),val.to<number_t>());"))
+        "::analogWrite(pin.to<number_t>(),val.to<number_t>());"))
 #+end_src
 
 *** analog-read
@@ -4671,7 +4671,7 @@ Reads the value from the specified analog pin.
 #+begin_src clojure :tangle no
   (defnative analog-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "__result = obj<Number>((number_t)analogRead(pin.to<number_t>()));"))
+        "__result = obj<Number>((number_t)::analogRead(pin.to<number_t>()));"))
 #+end_src
 
 *** analog-write-resolution
@@ -4682,7 +4682,7 @@ Sets the resolution of the *analog-write*
 #+begin_src clojure :tangle no
   (defnative analog-write-resolution [bit]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "analogWriteResolution(bit.to<number_t>());"))
+        "::analogWriteResolution(bit.to<number_t>());"))
 #+end_src
 
 *** analog-read-resolution
@@ -4693,7 +4693,7 @@ Sets the size (in bits) of the value returned by *analog-read*.
 #+begin_src clojure :tangle no
   (defnative analog-read-resolution [bit]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "analogReadResolution(bit.to<number_t>());"))
+        "::analogReadResolution(bit.to<number_t>());"))
 #+end_src
 
 *** tone/noTone
@@ -4705,14 +4705,14 @@ cycle) on a pin.
 #+begin_src clojure :tangle no
   (defnative tone [pin freq]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "tone(pin.to<number_t>(),freq.to<number_t>());"))
+        "::tone(pin.to<number_t>(),freq.to<number_t>());"))
 #+end_src
 
 #+name: runtime-clojure-gpio
 #+begin_src clojure :tangle no
   (defnative no-tone [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "noTone(pin.to<number_t>());"))
+        "::noTone(pin.to<number_t>());"))
 #+end_src
 
 *** definterrupt
@@ -4749,8 +4749,8 @@ Registers an interrupt on the /symbol/ for the given pin and mode. See
                 "run(ferret::" (symbol-conversion callback-clj) ");"
                 "\n}\n"))
          ((~'fn []
-            ~(str "pinMode(" pin " , INPUT_PULLUP);"
-                  "attachInterrupt(digitalPinToInterrupt(" pin "), " callback-cpp "_callack , " mode ");"))))))
+            ~(str "::pinMode(" pin " , INPUT_PULLUP);"
+                  "::attachInterrupt(::digitalPinToInterrupt(" pin "), " callback-cpp "_callack , " mode ");"))))))
 #+end_src
 
 ** Testing

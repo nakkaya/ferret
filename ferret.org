@@ -93,7 +93,8 @@ variable on the resulting *cpp* file.
   15
 #+END_EXAMPLE
 
-Following shows a blink example for Arduino.
+Following shows a blink example for Arduino. (See section [[Arduino
+Boards]] for more info on how to use Ferret lisp on Arduino boards.) 
 
 #+begin_src clojure
   ;;; blink.clj
@@ -197,6 +198,48 @@ will run in *safe mode* (UART disabled.). Everything else is supported
 in safe mode. Like operating system support any embedded system with a
 C++11 compiler is supported. See [[What Is Ferret]] for a list of
 currently supported microcontrollers.
+
+*** Arduino Boards
+
+Ferret standard library has built in support for Arduino library. *Any
+board* that Arduino IDE supports should work with Ferret lisp. 
+
+*Post Arduino 1.5.0*, Ferret compiler can upload directly to a Arduino
+board by adding the following build command to the top of the file,
+
+#+begin_src clojure
+  (configure-ferret! :command "~/apps/arduino-1.8.0/arduino \\
+                                 --board arduino:sam:arduino_due_x_dbg \\
+                                 --port /dev/ttyACM0 \\
+                                 --upload ./blink.cpp")
+#+end_src
+
+When *-c* option is passed Ferret will execute the above command and
+upload the solution to the board. (See [[https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc][ARDUINO(1) Manual Page]] for
+details.)
+
+#+BEGIN_EXAMPLE
+  $ ./ferret -i blink.clj -c
+#+END_EXAMPLE
+
+*Pre Arduino 1.5.0*, recommended way is to go to preferences and set
+Arduino IDE to use an External Editor. This way when Ferret recompiles
+the sketch changes will be automatically picked up by the IDE ready to
+be uploaded. To automatically rename the *cpp* file to *ino* or *pde*
+use the following option,
+
+#+begin_src clojure
+  (configure-ferret! :command "mv blink.cpp blink.ino")
+#+end_src
+
+Then compile with,
+
+#+BEGIN_EXAMPLE
+  $ ./ferret -i blink.clj -c
+#+END_EXAMPLE
+
+Result will be *blink.ino* ready to be uploaded. Any changes to the
+*clj* file should be picked up by the IDE.
 
 ** Building From Sources
 

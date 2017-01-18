@@ -429,11 +429,8 @@ tangled.
 
 #+name: core-compilation-embed-ferret-core
 #+begin_src clojure :tangle no
-  (defn embed-ferret-core
-    ([form]
-     (shake-concat (-> (read-clojure-file-from-url "core.clj")
-                       (remove-form (is-form? 'defmacro)))
-                   form)))
+  (defn embed-ferret-core [form]
+    (shake-concat (read-clojure-file-from-url "core.clj") form))
 #+end_src
 
 *** Expand Macros
@@ -798,17 +795,18 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
            header-macros (select-form header (is-form? 'defmacro))
            form-expanded (expand-macros-all (concat header-macros form))
            fns (atom #{})
-           _ (shake-concat form-expanded header-fns fns)
+           _ (shake-concat form-expanded header-fns fns header-macros)
            header-shaked (remove-form header (fn [f]
                                                (and (shakeable? f)
                                                     (not (@fns (second f))))))]
        (concat header-shaked form)))
-    ([form built-in fns]
+    ([form built-in fns macros]
      (morph-form form symbol?
                  #(do (if-let [f (built-in %)]
                         (when (not (@fns %))
                           (swap! fns conj %)
-                          (shake-concat f built-in fns))) %))))
+                          (shake-concat (expand-macros-all (concat macros f))
+                                        built-in fns macros))) %))))
 #+end_src
 
 **** Escape Analysis
@@ -4976,7 +4974,19 @@ Tests are run by the CI system for the following compilers,
                                      (defmacro pc [& options]
                                        `(~'let [controller# (~'p-create)]
                                          (~'fn [input#] (~'p-update)))))
-                                   '((pc))))))))
+                                   '((pc))))))
+      (is (= '(defn new-lazy-seq [f] )
+             (first (shake-concat '((defn new-lazy-seq [f] )
+                                    (defmacro lazy-seq [& body]
+                                      `(~'new-lazy-seq (~'fn [] ~@body)))
+                                    (defn range
+                                      ([high]
+                                       (range 0 high))
+                                      ([low high]
+                                       (if (< low high)
+                                         (cons low (lazy-seq
+                                                    (range (inc low) high)))))))
+                                  '((range 10))))))))
 #+end_src
 
 ** Core

@@ -1066,7 +1066,8 @@ defined within *ferret* namespace. All Ferret macros starts with
 #+begin_src clojure :tangle no
   (defmethod emit :symbol [form state] (str form))
 
-  (defmethod emit :string [form state] (str "obj<String>(\"" form "\")"))
+  (defmethod emit :string [form state]
+    (str "obj<String>(\"" (org.apache.commons.lang.StringEscapeUtils/escapeJava form) "\")"))
 
   (defmethod emit :boolean [form state] (str "obj<Boolean>(" form ")"))
 
@@ -6117,6 +6118,7 @@ Create some dummy libs under /test/modules/,
                    [org.clojure/tools.cli "0.3.3"]
                    [org.bituf/clj-stringtemplate "0.2"]
                    [org.clojars.amit/commons-io "1.4.0"]
+                   [commons-lang "2.5"]
                    [watchtower "0.1.1"]
                    [org.clojure/tools.logging "0.2.3"]
                    [clojure-term-colors "0.1.0-SNAPSHOT"]]

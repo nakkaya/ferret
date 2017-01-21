@@ -6307,6 +6307,7 @@ Create some dummy libs under /test/modules/,
   (def cxx-options ["-std=c++11" "-pedantic"
                     "-Werror" "-Wall" "-Wextra"
                     "-Woverloaded-virtual" "-Wuninitialized" "-Winit-self"
+                    "-Wno-misleading-indentation"
                     "-fsanitize=leak" "-fsanitize=undefined"
                     "-pthread"])
 

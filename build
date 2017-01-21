@@ -5,7 +5,9 @@ emacs -nw -Q --batch --eval "
  (require 'package)
  (package-initialize)
 
- (setq package-list '(htmlize clojure-mode clojure-mode-extra-font-locking))
+ (add-to-list 'load-path \"./org-mode-assets//\")
+
+ (setq package-list '(htmlize clojure-mode))
 
  (setq package-archives '((\"elpa\" . \"http://tromey.com/elpa/\")
                           (\"gnu\" . \"http://elpa.gnu.org/packages/\")

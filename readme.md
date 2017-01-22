@@ -1,6 +1,6 @@
 ## [Ferret Programmer's Manual](http://ferret-lang.org)
 
-Copyright 2016 Nurullah Akkaya
+Copyright 2017 Nurullah Akkaya
 
 This file is part of Ferret.
 

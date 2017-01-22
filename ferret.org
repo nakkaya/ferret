@@ -282,7 +282,7 @@ Ferret has a similar architecture to other modern compilers,
 
 #+CAPTION: Ferret Compiler Architecture
 #+NAME:   fig:compiler_architecture
-[[./org-mode-assets/graphs/compiler_arch.png]]
+[[./ferret-styles/graphs/compiler_arch.png]]
 
 First, an input file containing Clojure code is loaded from the
 command line. From there a series of source-to-source transformations

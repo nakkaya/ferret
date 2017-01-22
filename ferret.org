@@ -278,15 +278,31 @@ Clojure/Lein project.
 
 * Compiler
 
-Compilation happens by taking the /form/ and running it through several
-transformations. Each transformation turns the form into more and more
-C++ written with s-expressions. This intermediate language is then run
-through code generation to produce the C++ file.
+Ferret has a similar architecture to other modern compilers,
+
+#+CAPTION: Ferret Compiler Architecture
+#+NAME:   fig:compiler_architecture
+[[./org-mode-assets/graphs/compiler_arch.png]]
+
+First, an input file containing Clojure code is loaded from the
+command line. From there a series of source-to-source transformations
+are performed on the AST to expand macros, perform optimizations, and
+make the code easier to compile to C++. (Optionally these intermediate
+representations (IR) can be printed out in a readable format to aid
+debugging.) The final AST is then output as a .cpp file and the C++
+compiler is invoked to create the final executable or object file.
 
 ** Compilation
 
-Forms go through twelve transformations before they are passed to the
-code generation phase.
+Clojure (or any other Lisp) has features not provided by C++ such as
+automatic memory management i.e. garbage collection (GC), closures
+etc. Source-to-source transformations are used to add constructs
+required by C++, restructure Clojure forms in preparation to generate
+C++ code. Final intermediate representation can be directly compiled
+to C++. Any Clojure form go through eleven transformations before they
+are passed to the code generation phase. Each transformation makes a
+separate pass over the form, this makes the compiler easier to
+maintain.
 
 #+name: core-compilation-process
 #+begin_src clojure :tangle no
@@ -435,11 +451,12 @@ tangled.
 
 *** Expand Macros
 
-First we read all the macros present in /resources/core.clj/ then
-add to that  user defined macros, they are evaluated in a temporary
-namespace, using /morph-form/ we iterate all the macros used in the
-code that we are compiling and expand them in the temporary namespace
-then the node is replaced with its expanded form.
+Macro expansion is done by reading all the macros present in
+/resources/core.clj/ and combining them with user defined macros. They
+are evaluated in a temporary namespace, using /morph-form/ we iterate
+all the macros used in the code that we are compiling and expand them
+in the temporary namespace then the node is replaced with its expanded
+form.
 
 #+name: core-compilation-expand-macros
 #+begin_src clojure :tangle no
@@ -594,17 +611,22 @@ that takes no parameters and executed in place.
 
 *** Closure Conversion
 
-/closure-conversion/ handles the problem of free variables, 
+/closure-conversion/ handles the problem of free variables. Free
+variables passed to a nested function must be captured in a closure so
+they can be referenced at runtime. The closure conversion
+transformation modifies lambda definitions as necessary to create new
+closures.
 
 #+begin_src clojure :tangle no
   (defn make-adder [x]
     (fn [n] (+ x n)))
 #+end_src
 
-in the above snippet x is a free variable, when the function /make-adder/
-returns, it need to have a way of referencing that variable when it is
-used. The way we do this is that, every function will pass its arguments to
-inner functions (if any) it contains.
+in the above snippet /x/ is a free variable, when the function
+/make-adder/ returns, it needs to have a way of referencing that
+variable when it is used. The way Ferret handles this is that, every
+function will pass its arguments to inner functions (if any) it
+contains.
 
 #+begin_src clojure :tangle no
   (closure-conversion '(fn [x]
@@ -620,8 +642,8 @@ Above form will be converted to,
 #+end_src
 
 What this means is, define a functor named =G__3154= that holds a
-reference to /x/, and another functor =G__3155= that has no state. When
-we create an instance of =G__3154= we pass /x/ to its
+reference to /x/, and another functor =G__3155= that has no
+state. When we create an instance of =G__3154= we pass /x/ to its
 constructor. Since every thing is already converted to fns this
 mechanism allows variables to be referenced down the line and solves
 the free variable problem.
@@ -959,8 +981,10 @@ suggests and removes the node when predicate returns true.
 
 ** Code Generation
 
- Once compilation is complete the form is in a state that is very
- close to C++. running /emit/ on the form converts it into C++.
+The compiler's code generation phase takes a single pass over the
+transformed Clojure code and outputs C++ code. (a single .cpp file)
+This is done by running /emit/ on the final intermediate
+representation.
 
 #+name: core-code-generation-emit
 #+begin_src clojure :tangle no  

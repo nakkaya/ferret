@@ -29,6 +29,7 @@ computers running Linux/Mac OS X/Windows.
      - Due / AT91SAM3X8E
      - 101 / Intel Curie
    - SparkFun SAMD21 Mini / ATSAMD21G18 - ARM Cortex-M0+
+ - [[Hardware / Operating System Support]]
 
 ** Features
 

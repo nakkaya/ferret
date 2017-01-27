@@ -440,7 +440,7 @@ Process some supported reader macros, /@/ and /#(some-fn)/ forms.
   (defn process-reader-macros [form]
     (morph-form form
                 (is-form? 'clojure.core/deref)
-                (fn [f] (cons 'deref (rest f)))))
+                (fn [f] `(~'deref ~@(rest f)))))
 #+end_src
 
 *** Add Runtime
@@ -527,7 +527,7 @@ replacements,
     (let [valid-symbol? (fn [s] (and (not= s '&) (not= s '_)))
           [args & body] form]
       (if (string? (first body))
-        (cons 'fn* `(~args ~@body))
+        `(~'fn* ~args ~@body)
         (let [unique-args (->> args
                                flatten
                                (filter valid-symbol?)
@@ -545,7 +545,7 @@ replacements,
                                x)) body)
               args (->> (morph-form args #(replace? %) #(replace? %))
                         (into []))]
-          (cons 'fn* `(~args ~@unique-body))))))
+          `(~'fn* ~args ~@unique-body)))))
 #+end_src
 
 *** let->fn
@@ -576,19 +576,21 @@ after transformation becomes,
 #+begin_src clojure :tangle no
   (defn let->fn [form]
     (-> form
+
         (morph-form (is-form? 'let*)
                     (fn [[_ bindings & body]]
-                      (let [bindings (partition 2 bindings)]
-                        (if (empty? bindings)
-                          (list (concat (list 'fn []) body))
-                          (let [closure-fn
-                                (fn close [[arg val] & more]
-                                  (if (empty? more)
-                                    (list (concat (list 'fn [arg]) body) val)
-                                    (list (list 'fn [arg] (apply close more)) val)))]
-                            (apply closure-fn bindings))))))
+                      (if (empty? bindings)
+                        `((~'fn () ~@body))
+                        (apply
+                         (fn close [[arg val] & more]
+                           (if (empty? more)
+                             `((~'fn [~arg] ~@body) ~val)
+                             `((~'fn [~arg] ~(apply close more)) ~val)))
+                         (partition 2 bindings)))))
+
         (morph-form (is-form? 'fn)
-                    (fn [[_ & body]] (localize-fn-args body)))))
+                    (fn [[_ & body]]
+                      (localize-fn-args body)))))
 #+end_src
 
 *** do->fn
@@ -609,7 +611,7 @@ that takes no parameters and executed in place.
   (defn do->fn [form]
     (morph-form form
                 (is-form? 'do)
-                #(list (concat ['fn* []] (rest %)))))
+                (fn [f] `((~'fn* () ~@(rest f))))))
 #+end_src
 
 *** Closure Conversion
@@ -858,9 +860,8 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
                   (and (seq? f)
                        (is-special-form? 'fir-lambda-object (first f))))
                 (fn [f]
-                  (let [[fn & args] f
-                        fn (cons 'fir-invoke-lambda-stack (rest fn))]
-                    (cons fn args)))))
+                  (let [[[_ & fn] & args] f]
+                    `((~'fir-invoke-lambda-stack ~@fn) ~@args)))))
 #+end_src
 
 ***** Escape Dispatch Functions
@@ -875,8 +876,8 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
                   (morph-form f
                               (fn [f]
                                 (is-special-form? 'fir-lambda-object f))
-                              (fn [f]
-                                (cons 'fir-invoke-lambda-stack (rest f)))))))
+                              (fn [[_ & f]]
+                                `(~'fir-invoke-lambda-stack ~@f))))))
 #+end_src
 
 ***** Escape Lambda Classes
@@ -903,7 +904,8 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
                     (and (seq? f)
                          (= (first f) 'fir-define-lambda)
                          (escapeable-lambdas (second f))))
-                  #(cons 'fir-define-lambda-stack (rest %)))))
+                  (fn [[_ & f]]
+                    `(~'fir-define-lambda-stack ~@f)))))
 #+end_src
 
 *** Helpers

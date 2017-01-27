@@ -469,38 +469,36 @@ form.
   (declare localize-fn-args)
 
   (defn expand-macros [form]
-    (let [build-in-macros (->> (read-clojure-file-from-url "core.clj")
-                               (filter (is-form? 'defmacro)))
-          build-in-macro-symbols (into #{} (map second build-in-macros))
+    (let [core-macros (->> (read-clojure-file-from-url "core.clj")
+                           (filter (is-form? 'defmacro)))
+          core-macro-symbols (into #{} (map second core-macros))
           form-macros (->> (filter (is-form? 'defmacro) form)
                            (filter (fn [[_ name]]
-                                     (not (build-in-macro-symbols name)))))
+                                     (not (core-macro-symbols name)))))
           form-macro-symbols (map second form-macros)
           form (remove-form form (is-form? 'defmacro))
-          temp-ns (gensym)]
+          temp-ns (gensym)
+          macro-symbols (concat core-macro-symbols form-macro-symbols)]
+      
       (create-ns temp-ns)
       (binding [*ns* (the-ns temp-ns)]
-        (refer 'clojure.core :exclude (concat build-in-macro-symbols form-macro-symbols ['fn 'def]))
+        (refer 'clojure.core :exclude (concat macro-symbols ['fn 'def]))
         (use '[ferret.core :only [symbol-conversion localize-fn-args]])
         
-        (doseq [m build-in-macros]
-          (eval m))
-        
-        (doseq [m form-macros]
+        (doseq [m (concat core-macros form-macros)]
           (eval m)))
       
-      (let [form (morph-form form
-                             (is-form? 'let)
-                             (fn [[_ bindings & body]]
-                               (let [bindings (map #(if (list? %)
-                                                      (expand-macros-all %) %) bindings)
-                                     form (cons 'let* (cons bindings (expand-macros-all body)))]
-                                 (expand-macros-all form))))
-            form (morph-form form
-                             (apply is-form? (concat build-in-macro-symbols form-macro-symbols))
-                             (fn [f]
-                               (binding [*ns* (the-ns temp-ns)]
-                                 (walk/macroexpand-all f))))]
+      (let [form (-> form
+                     
+                     (morph-form
+                      (is-form? 'let)
+                      (fn [[_ bindings & body]]
+                        `(~'let* ~(apply list bindings) ~@body)))
+
+                     (morph-form (apply is-form? macro-symbols)
+                                 (fn [f]
+                                   (binding [*ns* (the-ns temp-ns)]
+                                     (walk/macroexpand-all f)))))]
         (remove-ns temp-ns)
         form)))
 

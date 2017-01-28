@@ -3471,15 +3471,14 @@ A simple macro for calling inline C++,
 
 #+name: runtime-clojure-conditionals
 #+begin_src clojure :tangle no
-  (defmacro cond
-    [& clauses]
+  (defmacro cond [& clauses]
     (when clauses
-      (list 'if (first clauses)
-            (if (next clauses)
-              (second clauses)
-              (throw (IllegalArgumentException.
-                      "cond requires an even number of forms")))
-            (cons 'cond (next (next clauses))))))
+      `(~'if ~(first clauses)
+        ~(if (next clauses)
+           (second clauses)
+           (throw (IllegalArgumentException.
+                   "cond requires an even number of forms")))
+        (~'cond ~@(next (next clauses))))))
 #+end_src
 
 *** while
@@ -5179,6 +5178,12 @@ Tests are run by the CI system for the following compilers,
     :END:
 
 #+begin_src clojure
+  (defn pos-neg-or-zero [n]
+    (cond
+      (< n 0) -1
+      (> n 0)  1
+      :else    0))
+
   (deftest logical-operators-test
     (is (= true  (< 2)))
     (is (= true  (< 2 3 4 5)))
@@ -5209,6 +5214,9 @@ Tests are run by the CI system for the following compilers,
       (is (= true  (= nil ((fn [] )))))
       (is (= true  (= nil ((fn [x y] ) 1 2)))))
 
+    (is (= -1  (pos-neg-or-zero -5)))
+    (is (=  1  (pos-neg-or-zero  5)))
+    (is (=  0  (pos-neg-or-zero  0)))
 
     (is (= true  (true? true)))
     (is (= false (true? false)))

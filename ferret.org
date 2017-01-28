@@ -304,7 +304,7 @@ automatic memory management i.e. garbage collection (GC), closures
 etc. Source-to-source transformations are used to add constructs
 required by C++, restructure Clojure forms in preparation to generate
 C++ code. Final intermediate representation can be directly compiled
-to C++. Any Clojure form go through ten transformations before they
+to C++. Any Clojure form go through nine transformations before they
 are passed to the code generation phase. Each transformation makes a
 separate pass over the form, this makes the compiler easier to
 maintain.
@@ -312,8 +312,7 @@ maintain.
 #+name: core-compilation-process
 #+begin_src clojure :tangle no
   (defn compile [form options]
-    (->> (import-modules-all form)
-         (embed-ferret-core)
+    (->> (ferret-runtime form)
          (remove-assertions options)
          (expand-macros-all)
          (let->fn)
@@ -324,7 +323,18 @@ maintain.
          (symbol-conversion)))
 #+end_src
 
-*** Import Modules
+*** Runtime
+
+Generates the required runtime for the form by importing the required
+modules and concatenate the required runtime from clojure.core
+(resources/core.clj)
+
+#+name: core-compilation-embed-ferret-runtime
+#+begin_src clojure :tangle no
+  (defn ferret-runtime [form]
+    (->> (import-modules-all form)
+         (shake-concat (read-clojure-file-from-url "core.clj"))))
+#+end_src
 
 Import other ferret files using,
 
@@ -429,17 +439,6 @@ modules names. So =helper-a= defined in module =util.db= becomes
 #+end_src
 
 Import all modules in the given form.
-
-*** Add Runtime
-
-/resources/core.clj/ contains the ferret core runtime when
-tangled.
-
-#+name: core-compilation-embed-ferret-core
-#+begin_src clojure :tangle no
-  (defn embed-ferret-core [form]
-    (shake-concat (read-clojure-file-from-url "core.clj") form))
-#+end_src
 
 *** Expand Macros
 
@@ -6193,6 +6192,7 @@ Create some dummy libs under /test/modules/,
   <<core-compilation-escape-analysis>>
   <<core-compilation-escape-analysis-post>>
   <<core-compilation-embed-ferret-core>>
+  <<core-compilation-embed-ferret-runtime>>
   <<core-compilation-closure-conversion>>
   <<core-compilation-symbol-conversion>>
   <<core-compilation-remove-assertions>>

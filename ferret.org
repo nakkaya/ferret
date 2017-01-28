@@ -304,7 +304,7 @@ automatic memory management i.e. garbage collection (GC), closures
 etc. Source-to-source transformations are used to add constructs
 required by C++, restructure Clojure forms in preparation to generate
 C++ code. Final intermediate representation can be directly compiled
-to C++. Any Clojure form go through eleven transformations before they
+to C++. Any Clojure form go through ten transformations before they
 are passed to the code generation phase. Each transformation makes a
 separate pass over the form, this makes the compiler easier to
 maintain.
@@ -313,7 +313,6 @@ maintain.
 #+begin_src clojure :tangle no
   (defn compile [form options]
     (->> (import-modules-all form)
-         (process-reader-macros)
          (embed-ferret-core)
          (remove-assertions options)
          (expand-macros-all)
@@ -431,18 +430,6 @@ modules names. So =helper-a= defined in module =util.db= becomes
 
 Import all modules in the given form.
 
-*** Process Reader Macros
-
-Process some supported reader macros, /@/ and /#(some-fn)/ forms.
-
-#+name: core-compilation-reader-macros
-#+begin_src clojure :tangle no
-  (defn process-reader-macros [form]
-    (morph-form form
-                (is-form? 'clojure.core/deref)
-                (fn [f] `(~'deref ~@(rest f)))))
-#+end_src
-
 *** Add Runtime
 
 /resources/core.clj/ contains the ferret core runtime when
@@ -456,6 +443,16 @@ tangled.
 
 *** Expand Macros
 
+Process some supported reader macros, /@/ and /#(some-fn)/ forms.
+
+#+name: core-compilation-expand-macros
+#+begin_src clojure :tangle no
+  (defn expand-reader-macros [form]
+    (morph-form form
+                (is-form? 'clojure.core/deref)
+                (fn [f] `(~'deref ~@(rest f)))))
+#+end_src
+
 Macro expansion is done by reading all the macros present in
 /resources/core.clj/ and combining them with user defined macros. They
 are evaluated in a temporary namespace, using /morph-form/ we iterate
@@ -466,7 +463,6 @@ form.
 #+name: core-compilation-expand-macros
 #+begin_src clojure :tangle no
   (declare expand-macros-all)
-  (declare localize-fn-args)
 
   (defn expand-macros [form]
     (let [core-macros (->> (read-clojure-file-from-url "core.clj")
@@ -483,18 +479,14 @@ form.
       (create-ns temp-ns)
       (binding [*ns* (the-ns temp-ns)]
         (refer 'clojure.core :exclude (concat macro-symbols ['fn 'def]))
-        (use '[ferret.core :only [symbol-conversion localize-fn-args]])
+        (use '[ferret.core :only [symbol-conversion unique-fn]])
         
         (doseq [m (concat core-macros form-macros)]
           (eval m)))
       
       (let [form (-> form
-                     
-                     (morph-form
-                      (is-form? 'let)
-                      (fn [[_ bindings & body]]
-                        `(~'let* ~(apply list bindings) ~@body)))
-
+                     (macro-normalize)
+                     (expand-reader-macros)
                      (morph-form (apply is-form? macro-symbols)
                                  (fn [f]
                                    (binding [*ns* (the-ns temp-ns)]
@@ -512,6 +504,17 @@ form.
   (def expand-macros-all (memoize expand-macros-all-aux))
 #+end_src
 
+Prepare form /f/ for macro expansion,
+
+#+name: core-compilation-normalize
+#+begin_src clojure :tangle no
+  (defn macro-normalize [f]
+    (morph-form f
+                (is-form? 'let)
+                (fn [[_ bindings & body]]
+                  `(~'let* ~(apply list bindings) ~@body))))
+#+end_src
+
 Takes a *fn* form and converts all argument symbols with their unique
 replacements,
 
@@ -521,9 +524,9 @@ replacements,
   (fn [a__1510 b__1511] (list a__1510 b__1511))
 #+end_src
 
-#+name: core-compilation-expand-macros
+#+name: core-compilation-unique-fn
 #+begin_src clojure :tangle no
-  (defn localize-fn-args [form]
+  (defn unique-fn [form]
     (let [valid-symbol? (fn [s] (and (not= s '&) (not= s '_)))
           [args & body] form]
       (if (string? (first body))
@@ -590,7 +593,7 @@ after transformation becomes,
 
         (morph-form (is-form? 'fn)
                     (fn [[_ & body]]
-                      (localize-fn-args body)))))
+                      (unique-fn body)))))
 #+end_src
 
 *** do->fn
@@ -961,20 +964,17 @@ suggests and removes the node when predicate returns true.
 
 #+name: core-code-generation-misc
 #+begin_src clojure :tangle no
-  (declare process-reader-macros)
 
   (defn read-clojure-file [f]
     (try
-      (->> (read-string (str \( (FileUtils/readFileToString (file f)) \)))
-           (process-reader-macros))
+      (read-string (str \( (FileUtils/readFileToString (file f)) \)))
       (catch Exception e
         (warn "error reading =>" f)
         (System/exit 1))))
 
   (defn read-clojure-file-from-url [f]
     (try
-      (->> (read-string (str \( (read-from-url f) \)))
-           (process-reader-macros))
+      (read-string (str \( (read-from-url f) \)))
       (catch Exception e
         (warn "error reading =>" f)
         (System/exit 1))))
@@ -3289,8 +3289,8 @@ implementation.
 #+begin_src clojure :tangle no
   (defmacro fn [& body]
     (if (vector? (first body))
-      (localize-fn-args body)
-      (let [fns (map #(localize-fn-args %) body)
+      (unique-fn body)
+      (let [fns (map #(unique-fn %) body)
             conds (->> (map first body)
                        (map (fn* [args] (filter #(not (= % '&)) args)))
                        (map #(count %)))
@@ -6186,7 +6186,8 @@ Create some dummy libs under /test/modules/,
   <<core-logging>>
   <<core-code-generation-misc>>
   <<core-compilation-form-fns>>
-  <<core-compilation-reader-macros>>
+  <<core-compilation-unique-fn>>
+  <<core-compilation-normalize>>
   <<core-compilation-expand-macros>>
   <<core-compilation-shake-concat>>
   <<core-compilation-escape-analysis>>

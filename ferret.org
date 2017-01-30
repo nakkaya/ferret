@@ -1900,24 +1900,25 @@ modern C++ libraries that use smart pointers for memory management.
     "__result = obj<Value<data>>(x.to<int>())")
 
   (defn get-data [x]
-    "__result = obj<Number>((number_t) x.cast<Value<data>>()->value().content())")
+    "__result = obj<Number>((number_t) Value<data>::value(x).content());")
 #+end_src
 
 #+name: runtime-clojure-pointer-object
 #+begin_src clojure :tangle no
   (defobject Value
     (template "typename T")
-    (data "T data;")
+    (data "T _data;")
     (equals "return obj<Boolean>(this == o.get());")
     (stream_console
      "runtime::print(\"Value<\");
-      runtime::print((void*)&data);
+      runtime::print((void*)&_data);
       runtime::print(\">\");
       return nil();")
     (fns
      ("template <typename... Args>
-       explicit Value(Args&&... args) : data(static_cast<Args&&>(args)...) { }")
-     ("T value" "" "return data;"))
+       explicit Value(Args&&... args) : _data(static_cast<Args&&>(args)...) { }")
+     ("T data" "" "return _data;")
+     ("static T value" "var v" "return v.cast<Value<T>>()->data();"))
     (force-type))
 #+end_src
 

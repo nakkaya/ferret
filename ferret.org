@@ -1809,9 +1809,9 @@ All our types are derived from the base Object type. Which is a
   #endif
 
   #if defined(FERRET_MEMORY_POOL_SIZE)
-    #define FERRET_ALLOC_POLICY PoolAllocator
+    #define FERRET_ALLOC_POLICY mem::allocator::pool
   #else
-    #define FERRET_ALLOC_POLICY SystemAllocator
+    #define FERRET_ALLOC_POLICY mem::allocator::system
   #endif
 
   typedef ObjectBase<FERRET_RC_POLICY,FERRET_ALLOC_POLICY> Object;
@@ -2727,22 +2727,27 @@ Ferret supports various memory allocation schemes,
 
 #+name: runtime-native-memory-system-allocator
 #+begin_src c++ :tangle no
-  class SystemAllocator{
-  public:
-    void* operator new(size_t size){ return ::malloc(size); }
-    void  operator delete(void * ptr){ ::free(ptr); }
-  };
+  namespace mem{
+    namespace allocator{
+      class system{
+      public:
+        void* operator new(size_t size){ return ::malloc(size); }
+        void  operator delete(void * ptr){ ::free(ptr); }
+      };
+    }
+  }
 #+end_src 
 
 **** Pool Allocator
 
 When =FERRET_MEMORY_POOL_SIZE= is defined Ferret programs will use a
-memory pool called =program_memory= instead of /mallac/,/free/ for
-memory allocation, depending on the pool size Ferret will allocate /N/
-bytes of memory on stack and all memory allocation happens in this
-memory pool useful when working with very limited amount of memory,
-such as micro controllers where you want complete control over the
-memory and you need deterministic timing requirements.
+memory pool called =mem::allocator::program_memory= instead of
+/mallac/,/free/ for memory allocation, depending on the pool size
+Ferret will allocate /N/ bytes of memory on stack and all memory
+allocation happens in this memory pool useful when working with very
+limited amount of memory, such as micro controllers where you want
+complete control over the memory and you need deterministic timing
+requirements.
 
 #+name: runtime-native-memory-pool-allocator
 #+begin_src c++ :tangle no
@@ -2756,13 +2761,17 @@ memory and you need deterministic timing requirements.
     #define FERRET_MEMORY_POOL_PAGE_COUNT FERRET_MEMORY_POOL_SIZE
    #endif
 
-   MemoryPool<FERRET_MEMORY_POOL_PAGE_TYPE, FERRET_MEMORY_POOL_PAGE_COUNT> program_memory;
+  namespace mem{
+    namespace allocator{
+      memory_pool<FERRET_MEMORY_POOL_PAGE_TYPE, FERRET_MEMORY_POOL_PAGE_COUNT> program_memory;
 
-   class PoolAllocator{
-   public:
-     void* operator new(size_t size){ return program_memory.allocate(size); }
-     void  operator delete(void * ptr){ program_memory.free(ptr); }
-   };
+      class pool{
+      public:
+        void* operator new(size_t size){ return program_memory.allocate(size); }
+        void  operator delete(void * ptr){ program_memory.free(ptr); }
+      };
+    }
+  }
   #endif
 #+end_src 
 
@@ -2783,114 +2792,118 @@ to each other in the array which improves data locality.
 #+name: runtime-native-memory-pool-allocator-implementation
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_POOL_SIZE
-    template<size_t pool_size>
-    class BitArray {
-    private:
-      uint8_t bits[pool_size / 8 + 1];
+  namespace mem{
+    namespace allocator{
+      template<size_t pool_size>
+      class bit_array {
+      private:
+        uint8_t bits[pool_size / 8 + 1];
 
-      inline size_t index(size_t i){
-        return i / 8;
-      }
-
-      inline size_t offset(size_t i){
-        return i % 8;
-      }
-
-    public:
-      BitArray() : bits{ false } { }
-
-      inline void set(size_t b){
-        bits[index(b)] |= 1 << (offset(b));
-      }
-
-      inline void clear(size_t b){
-        bits[index(b)] &= ~(1 << (offset(b)));
-      }
-
-      inline int get(size_t b){
-        return (bits[index(b)] & (1 << (offset(b))));
-      }
-    };
-
-    template<typename page_size, size_t pool_size>
-    class MemoryPool{
-    public:
-      BitArray<pool_size> used;
-      page_size pool[pool_size];
-      size_t offset;
-      FERRET_NEW_LOCK(lock)
-
-      MemoryPool() : pool{0}, offset(0) { }
-
-      inline size_t chunk_length(size_t size){
-        size_t d = (size / sizeof(page_size));
-        size_t f = (size % sizeof(page_size));
-
-        if (f == 0)
-          return d;
-        else
-          return (d + 1);
-      }
-
-      inline bool chunk_usable(size_t begin, size_t end){
-        for(size_t i=begin; i < end; i++)
-          if (used.get(i) != 0)
-            return false;
-        return true;
-      }
-
-      inline size_t next_page(size_t begin){
-        for(size_t i=begin; i < pool_size; i++)
-          if (used.get(i) == 0)
-            return i;
-        return pool_size;
-      }
-
-      inline int scan_pool(size_t pages_needed, size_t offset = 0){
-        for(;;){
-          size_t begin = next_page(offset);
-          size_t end   = begin + pages_needed;
-    
-          if (end > pool_size)
-            return -1;
-          
-          if (chunk_usable(begin, end))
-            return begin;
-    
-          offset = end;
+        inline size_t index(size_t i){
+          return i / 8;
         }
-      }
 
-      void *allocate(size_t req_size){
-        FERRET_WITH_LOCK(lock,{
-            size_t length = chunk_length(++req_size);
-            int page      = scan_pool(length, offset);
+        inline size_t offset(size_t i){
+          return i % 8;
+        }
 
-            if (page == -1){
-              page = scan_pool(length);
-              if (page == -1)
-                return nullptr;
-            }
+      public:
+        bit_array() : bits{ false } { }
+
+        inline void set(size_t b){
+          bits[index(b)] |= 1 << (offset(b));
+        }
+
+        inline void clear(size_t b){
+          bits[index(b)] &= ~(1 << (offset(b)));
+        }
+
+        inline int get(size_t b){
+          return (bits[index(b)] & (1 << (offset(b))));
+        }
+      };
+
+      template<typename page_size, size_t pool_size>
+      class memory_pool{
+      public:
+        bit_array<pool_size> used;
+        page_size pool[pool_size];
+        size_t offset;
+        FERRET_NEW_LOCK(lock)
+
+        memory_pool() : pool{0}, offset(0) { }
+
+        inline size_t chunk_length(size_t size){
+          size_t d = (size / sizeof(page_size));
+          size_t f = (size % sizeof(page_size));
+
+          if (f == 0)
+            return d;
+          else
+            return (d + 1);
+        }
+
+        inline bool chunk_usable(size_t begin, size_t end){
+          for(size_t i=begin; i < end; i++)
+            if (used.get(i) != 0)
+              return false;
+          return true;
+        }
+
+        inline size_t next_page(size_t begin){
+          for(size_t i=begin; i < pool_size; i++)
+            if (used.get(i) == 0)
+              return i;
+          return pool_size;
+        }
+
+        inline int scan_pool(size_t pages_needed, size_t offset = 0){
+          for(;;){
+            size_t begin = next_page(offset);
+            size_t end   = begin + pages_needed;
+    
+            if (end > pool_size)
+              return -1;
           
-            pool[page] = length;
-            offset = page + length;
-            for(size_t i = page; i < offset; i++)
-              used.set(i);
+            if (chunk_usable(begin, end))
+              return begin;
+    
+            offset = end;
+          }
+        }
 
-            return &pool[++page];
-          });
-      }
+        void *allocate(size_t req_size){
+          FERRET_WITH_LOCK(lock,{
+              size_t length = chunk_length(++req_size);
+              int page      = scan_pool(length, offset);
 
-      void free(void *p){
-        FERRET_WITH_LOCK(lock,{
-            ptrdiff_t begin = (static_cast<page_size*>(p) - pool) - 1;
-            size_t end = begin + pool[begin];
+              if (page == -1){
+                page = scan_pool(length);
+                if (page == -1)
+                  return nullptr;
+              }
+          
+              pool[page] = length;
+              offset = page + length;
+              for(size_t i = page; i < offset; i++)
+                used.set(i);
 
-            for(size_t i = begin ; i < end; i++)
-              used.clear(i);
-          });
-      }
-    };
+              return &pool[++page];
+            });
+        }
+
+        void free(void *p){
+          FERRET_WITH_LOCK(lock,{
+              ptrdiff_t begin = (static_cast<page_size*>(p) - pool) - 1;
+              size_t end = begin + pool[begin];
+
+              for(size_t i = begin ; i < end; i++)
+                used.clear(i);
+            });
+        }
+      };
+    }
+  }
   #endif
 #+end_src
 
@@ -4892,7 +4905,7 @@ examples.
     (on "defined FERRET_MEMORY_POOL_SIZE"
         "int count = 0;
          for(int i = 0; i < FERRET_MEMORY_POOL_SIZE; i++)
-           if(program_memory.used[i] == false)
+           if(mem::allocator::program_memory.used[i] == false)
              count++;
          __result = obj<Number>((number_t)(count*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
 #+end_src
@@ -5946,7 +5959,7 @@ Create some dummy libs under /test/modules/,
      (native-define "#define FERRET_MEMORY_POOL_SIZE 4194304") ;; 4 MB
      (native-declare "void* ptr;")
 
-     (native-declare "ferret::MemoryPool<size_t,14> tiny_pool;")
+     (native-declare "ferret::mem::allocator::memory_pool<size_t,14> tiny_pool;")
      (let [next-page (fn [idx]
                        "size_t i = (size_t)idx.to<number_t>();
                         __result = obj<Number>((number_t)tiny_pool.next_page(i))")
@@ -5969,7 +5982,7 @@ Create some dummy libs under /test/modules/,
        (assert (malloc 1))
        (assert (false? (malloc 10))))
 
-     (native-declare "ferret::MemoryPool<size_t,256> even_pool;")
+     (native-declare "ferret::mem::allocator::memory_pool<size_t,256> even_pool;")
      (let [next-page (fn [idx]
                        "size_t i = (size_t)idx.to<number_t>();
                         __result = obj<Number>((number_t)even_pool.next_page(i))")
@@ -5987,7 +6000,7 @@ Create some dummy libs under /test/modules/,
        (assert (false? (malloc 256)))
        (assert (= 0 (next-page 0))))
 
-     (native-declare "ferret::MemoryPool<size_t,255> odd_pool;")
+     (native-declare "ferret::mem::allocator::memory_pool<size_t,255> odd_pool;")
      (let [next-page (fn [idx]
                        "size_t i = (size_t)idx.to<number_t>();
                        __result = obj<Number>((number_t)odd_pool.next_page(i))")
@@ -6078,8 +6091,8 @@ Create some dummy libs under /test/modules/,
   - *Co-Operative Multitasking* - For Embedded Systems.
     - https://forum.pjrc.com/threads/25628-Lightweight-Teensy3-x-Fibers-Library-%28C-%29-Available
     - https://github.com/ve3wwg/teensy3_fibers/blob/1ba0c1e79a423f097e12e6c4176b40cf9d4f44e4/fibers.cpp
-  - *MemoryPool* - Option for enabling allocation profiling.
-  - *MemoryPool* - Ability to run functions on different Memory Pools.
+  - *memory_pool* - Option for enabling allocation profiling.
+  - *memory_pool* - Ability to run functions on different Memory Pools.
     - Improved data locality and safety.
     - Optionally disable reference counting to improve performance since
       whole pool can be garbage collected when done.
@@ -6144,7 +6157,7 @@ Create some dummy libs under /test/modules/,
   - *Benchmarking* - Add a benchmarking function.
   - *Memory Pool* - Functions report in bytes.
   - *Sequence* - Remove size from object.
-  - *MemoryPool* - Enable Locking, make it thread safe.
+  - *memory_pool* - Enable Locking, make it thread safe.
     - Removed - Wasted to much memory.
   - *Lazy Sequence* - Should cache the result of *rest* and return it
     on subsequent calls.

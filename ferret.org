@@ -1886,28 +1886,38 @@ Java.
 A /Value/ object keeps a native object. Useful when working with
 modern C++ libraries that use smart pointers for memory management.
 
-#+begin_src clojure
-  (let [obj-42 (cxx "__result = obj<Value<int>>(42)")
-        val-42  (cxx "__result = obj<Number>(obj_42.cast<Value<int>>()->value())")]
-    (println val-42))
+#+name: value-test-helpers
+#+begin_src clojure :tangle no
+  (native-declare "class data{ 
+                   public: 
+                    int x; 
+                    
+                    explicit data(int _x) : x(_x) {} 
+                    int content() { return x; }
+                   };")
 
-  ;; => 42
+  (defn make-data [x]
+    "__result = obj<Value<data>>(x.to<int>())")
+
+  (defn get-data [x]
+    "__result = obj<Number>((number_t) x.cast<Value<data>>()->value().content())")
 #+end_src
 
 #+name: runtime-clojure-pointer-object
 #+begin_src clojure :tangle no
   (defobject Value
     (template "typename T")
-    (data "T val;")
+    (data "T data;")
     (equals "return obj<Boolean>(this == o.get());")
     (stream_console
      "runtime::print(\"Value<\");
-      runtime::print((void*)&val);
+      runtime::print((void*)&data);
       runtime::print(\">\");
       return nil();")
     (fns
-     ("explicit Value(T & t) : val(t) {}")
-     ("T value" "" "return val;"))
+     ("template <typename... Args>
+       explicit Value(Args&&... args) : data(static_cast<Args&&>(args)...) { }")
+     ("T value" "" "return data;"))
     (force-type))
 #+end_src
 
@@ -5864,10 +5874,14 @@ Create some dummy libs under /test/modules/,
       (is (= true (deref state)))))
 
   (deftest value-test
-    (let [obj-42 (cxx "__result = obj<Value<number_t>>((number_t)42)")
-          obj-24 (cxx "__result = obj<Value<number_t>>((number_t)24)")]
+    (let [obj-42 (make-data 42)
+          obj-24 (make-data 24)
+          val-42 (get-data obj-42)
+          val-24 (get-data obj-24)]
       (is (=    obj-42 obj-42))
-      (is (not= obj-42 obj-24))))
+      (is (not= obj-42 obj-24))
+      (is (=    val-42 42))
+      (is (=    val-24 24))))
 #+end_src
 
 *** Atom
@@ -6463,6 +6477,7 @@ Create some dummy libs under /test/modules/,
   <<destructuring-test>>
   <<lazy-seq-test>>
   <<lambda-test>>
+  <<value-test-helpers>>
   <<pointer-test>>
   <<atom-test>>
   <<keyword-test>>

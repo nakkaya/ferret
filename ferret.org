@@ -1784,11 +1784,11 @@ All our types are derived from the base Object type. Which is a
 
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
-  template <typename RC, typename MEM>
-  class ObjectBase : public RC, public MEM{
+  template <typename rc, typename mem>
+  class ObjectBase : public rc, public mem{
   public:
-    ObjectBase() : RC(0) { }
-    ObjectBase(const ObjectBase& other): RC(other) { }
+    ObjectBase() : rc(0) { }
+    ObjectBase(const ObjectBase& other): rc(other) { }
     virtual ~ObjectBase() { };
     
     virtual size_t type() = 0;
@@ -1801,11 +1801,11 @@ All our types are derived from the base Object type. Which is a
   };
 
   #if defined(FERRET_DISABLE_MULTI_THREADING)
-    #define FERRET_RC_POLICY RC
+    #define FERRET_RC_POLICY mem::gc::rc
   #elif defined(FERRET_DISABLE_RC)
-    #define FERRET_RC_POLICY NoRC
+    #define FERRET_RC_POLICY mem::gc::no_rc
   #else
-    #define FERRET_RC_POLICY AtomicRC
+    #define FERRET_RC_POLICY mem::gc::atomic_rc
   #endif
 
   #if defined(FERRET_MEMORY_POOL_SIZE)
@@ -2587,46 +2587,50 @@ Garbage collection is handled by reference counting. Reference count
 is kept within the [[Base][ObjectBase]] using one of the following reference
 counting policies.
 
- - AtomicRC - Atomic reference counting. (using =std::atomic=)
- - RC - Non Atomic reference counting. (using =size_t=)
- - NoRC - No reference counting.
+ - atomic_rc - Atomic reference counting. (using =std::atomic=)
+ - rc - Non Atomic reference counting. (using =size_t=)
+ - no_rc - No reference counting.
 
 #+name: runtime-native-reference-counting
 #+begin_src c++ :tangle no
+  namespace mem {
+    namespace gc {
   #if defined(FERRET_STD_LIB)
-  class AtomicRC{
-  public:
-    explicit AtomicRC(size_t start) : ref_count(start) { }
-    explicit AtomicRC(const AtomicRC& other){ ref_count.exchange(other.ref_count); }
+      class atomic_rc{
+      public:
+        explicit atomic_rc(size_t start) : ref_count(start) { }
+        explicit atomic_rc(const atomic_rc& other){ ref_count.exchange(other.ref_count); }
       
-    void inc_ref() { ref_count++; }
-    bool dec_ref() { return (--ref_count == 0); }
+        void inc_ref() { ref_count++; }
+        bool dec_ref() { return (--ref_count == 0); }
       
-  private:
-    ::std::atomic<size_t> ref_count;
-  };
+      private:
+        ::std::atomic<size_t> ref_count;
+      };
   #endif
 
-  class RC{
-  public:
-    explicit RC(size_t start) : ref_count(start) { }
-    explicit RC(const RC& other){ ref_count = other.ref_count; }
+      class rc{
+      public:
+        explicit rc(size_t start) : ref_count(start) { }
+        explicit rc(const rc& other){ ref_count = other.ref_count; }
       
-    void inc_ref() { ref_count++; }
-    bool dec_ref() { return (--ref_count == 0); }
+        void inc_ref() { ref_count++; }
+        bool dec_ref() { return (--ref_count == 0); }
       
-  private:
-    size_t ref_count;
-  };
+      private:
+        size_t ref_count;
+      };
 
-  class NoRC{
-  public:
-    explicit NoRC(size_t) { }
-    explicit NoRC(const NoRC& ){ }
+      class no_rc{
+      public:
+        explicit no_rc(size_t) { }
+        explicit no_rc(const no_rc& ){ }
       
-    void inc_ref() { }
-    bool dec_ref() { return false; }
-  };
+        void inc_ref() { }
+        bool dec_ref() { return false; }
+      };
+    }
+  }
 #+end_src 
 
 A /var/ holds a pointer to an Object, everything is passed around as

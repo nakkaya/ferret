@@ -1373,7 +1373,7 @@ Initialize function arguments. Clojure style list structuring is supported.
     (-> (create-view
          "$lambdas: {lambda|
            $if(!lambda.stack)$
-            class $lambda.name$ final : public Lambda{
+            class $lambda.name$ final : public lambda_i{
            $else$
             class $lambda.name$  \\{
            $endif$
@@ -1877,7 +1877,7 @@ Java.
      "return pointer.cast<Pointer>()->stream_console();")
     (fns
      ("explicit HeavyPointer(var p, var gc) : pointer(p), gc_fn(gc) {}")
-     ("~HeavyPointer" "" "gc_fn.cast<Lambda>()->invoke(runtime::list(pointer));")
+     ("~HeavyPointer" "" "gc_fn.cast<lambda_i>()->invoke(runtime::list(pointer));")
      ("var container" "" "return pointer;"))
     (force-type))
 
@@ -2081,7 +2081,7 @@ Linked list container implementing the seekable interface.
 #+name: runtime-clojure-sequence-object
 #+begin_src clojure :tangle no
   (defobject EmptySequence
-    (interface :ISeekable)
+    (interface :seekable_i)
     (equals "(void)o; 
              return obj<Boolean>(true);")
     (stream_console
@@ -2097,7 +2097,7 @@ Linked list container implementing the seekable interface.
     (force-type))
 
   (defobject Sequence
-    (interface :ISeekable)
+    (interface :seekable_i)
     (data "var data;"
           "var next;")
     (equals
@@ -2153,7 +2153,7 @@ A lazy list container implementing the seekable interface.
 #+name: runtime-clojure-sequence-object
 #+begin_src clojure :tangle no
   (defobject LazySequence
-    (interface :ISeekable)
+    (interface :seekable_i)
     (data "var head;"
           "var thunk;")
     (equals
@@ -2205,7 +2205,7 @@ Strings are represented as a linked list of characters.
 #+name: runtime-clojure-string-object
 #+begin_src clojure :tangle no
   (defobject String
-    (interface :ISeekable)
+    (interface :seekable_i)
     (data "var data;")
     (equals "return obj<Boolean>(container().equals(o.cast<String>()->container()));")
     (stream_console
@@ -2315,7 +2315,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
      ("var swap" "var f,var args"
       "FERRET_WITH_LOCK(lock,{
          args = runtime::cons(data, args);
-         data = f.cast<Lambda>()->invoke(args);
+         data = f.cast<lambda_i>()->invoke(args);
        });
       return data;")
      ("var deref" ""
@@ -2350,7 +2350,7 @@ containers.
 
 #+name: runtime-clojure-seekable-interface
 #+begin_src clojure :tangle no
-  (defobject ISeekable
+  (defobject seekable_i
     (interfaces "var cons(var x)"
                 "var first()"
                 "var rest()"))
@@ -2406,14 +2406,14 @@ Range-based for loop support for seekable containers.
       if (coll.is_nil())
         return nil();
       else
-        return coll.cast<ISeekable>()->first();
+        return coll.cast<seekable_i>()->first();
     }
 
     var rest(var coll){
       if (coll.is_nil())
         return runtime::list();
       else
-        return coll.cast<ISeekable>()->rest();
+        return coll.cast<seekable_i>()->rest();
     }
 
     var cons(var x, var seq){
@@ -2421,7 +2421,7 @@ Range-based for loop support for seekable containers.
         return runtime::list(x);
       if (seq.equals(runtime::list()) == true)
         return runtime::list(x);
-      return seq.cast<ISeekable>()->cons(x);
+      return seq.cast<seekable_i>()->cons(x);
     }
 
     var nth(var seq, int index){
@@ -2457,16 +2457,16 @@ Range-based for loop support for seekable containers.
 
 **** Lambda
 
-Every lambda object implements the /Lambda/ interface. All lambdas are
+Every lambda object implements the /lambda_i/ interface. All lambdas are
 executed via /invoke/ method that takes a sequence of vars as argument
 or /nil()/ if there are non, this allows us to execute them in a
 uniform fashion.
 
 #+name: runtime-clojure-lambda-interface
 #+begin_src clojure :tangle no
-  (defobject Lambda
+  (defobject lambda_i
     (interfaces "var invoke(var args) const")
-    (equals "return obj<Boolean>(this == o.cast<Lambda>());")
+    (equals "return obj<Boolean>(this == o.cast<lambda_i>());")
     (stream_console
      "runtime::print(\"lambda\"); return nil();")
     (force-type))
@@ -2500,12 +2500,12 @@ Function invocation,
 
   template<>
   inline var run(var fn) {
-    return fn.cast<Lambda>()->invoke(nil());
+    return fn.cast<lambda_i>()->invoke(nil());
   }
 
   template<typename... Args>
   inline var run(var fn, Args... args) {
-    return fn.cast<Lambda>()->invoke(runtime::list(args...));
+    return fn.cast<lambda_i>()->invoke(runtime::list(args...));
   }
 #+end_src
 
@@ -3841,7 +3841,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn apply [f args] "__result = f.cast<Lambda>()->invoke(args);")
+  (defn apply [f args] "__result = f.cast<lambda_i>()->invoke(args);")
 #+end_src
 
 *** conj
@@ -4895,7 +4895,7 @@ examples.
     (println "\tLazySequence:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(LazySequence));"))
     (println "\tString:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(String));"))
     (println "\tBoolean:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Boolean));"))
-    (println "\tLambda:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Lambda));"))
+    (println "\tlambda_i:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(lambda_i));"))
     (println "\tAtom:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Atom));"))
     (println "\tPIDController<real_t>:\t"
              (cxx "__result = obj<Number>((number_t)sizeof(PIDController<real_t>));"))

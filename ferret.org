@@ -2005,8 +2005,7 @@ number Object,
     (stream_console
      "runtime::print(_word); return nil();")
     (fns
-     ("explicit number(number_t x) : _word((real_t)x) {}")
-     ("explicit number(real_t x) : _word(x) {}")
+     ("template<typename T> explicit number(T x) : _word((real_t)x) {}")
      ("real_t word" "" "return _word;")
      ("template<typename T> T as" "" "T::unimplemented_function;")
      ;; Math Ops

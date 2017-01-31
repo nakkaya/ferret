@@ -2072,7 +2072,7 @@ Linked list container implementing the seekable interface.
 
 #+name: runtime-clojure-sequence-object
 #+begin_src clojure :tangle no
-  (defobject EmptySequence
+  (defobject empty_sequence
     (interface :seekable_i)
     (equals "(void)o; 
              return obj<Boolean>(true);")
@@ -2088,7 +2088,7 @@ Linked list container implementing the seekable interface.
       "return nil();"))
     (force-type))
 
-  (defobject Sequence
+  (defobject sequence
     (interface :seekable_i)
     (data "var data;"
           "var next;")
@@ -2115,24 +2115,24 @@ Linked list container implementing the seekable interface.
       runtime::print(\")\");
       return nil();")
     (fns
-     ("explicit Sequence(var d = var(), var n = var()) : data(d), next(n) {}")
+     ("explicit sequence(var d = var(), var n = var()) : data(d), next(n) {}")
      ("var cons" "var x"
-      "return obj<Sequence>(x, var(this));")
+      "return obj<sequence>(x, var(this));")
      ("var first" ""
       "return data;")
      ("var rest" ""
       "return next;"))
     (post-code "namespace runtime {
                  inline var list() { 
-                   return obj<EmptySequence>();
+                   return obj<empty_sequence>();
                  }
                  inline var list(var v) { 
-                   return obj<Sequence>(v,nil());
+                   return obj<sequence>(v,nil());
                  }
         
                  template <typename... Args>
                  inline var list(var first, Args... args) { 
-                   return obj<Sequence>(first, list(args...));
+                   return obj<sequence>(first, list(args...));
                  }
                }")
     (force-type))
@@ -2438,7 +2438,7 @@ Range-based for loop support for seekable containers.
     }
 
     var is_seqable(var seq){
-      if(seq.is_type(runtime::type::Sequence) || 
+      if(seq.is_type(runtime::type::sequence) || 
          seq.is_type(runtime::type::LazySequence))
         return obj<Boolean>(true);
       else
@@ -3791,7 +3791,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn list? [x] "__result = obj<Boolean>(x.is_type(runtime::type::Sequence));")
+  (defn list? [x] "__result = obj<Boolean>(x.is_type(runtime::type::sequence));")
 #+end_src
 
 *** empty?
@@ -4883,7 +4883,7 @@ examples.
     (println "\tpointer:\t\t" (cxx "__result = obj<number>((number_t)sizeof(pointer));"))
     (println "\tnumber:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(number));"))
     (println "\tkeyword:\t\t" (cxx "__result = obj<number>((number_t)sizeof(keyword));"))
-    (println "\tSequence:\t\t" (cxx "__result = obj<number>((number_t)sizeof(Sequence));"))
+    (println "\tsequence:\t\t" (cxx "__result = obj<number>((number_t)sizeof(sequence));"))
     (println "\tLazySequence:\t\t" (cxx "__result = obj<number>((number_t)sizeof(LazySequence));"))
     (println "\tString:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(String));"))
     (println "\tBoolean:\t\t" (cxx "__result = obj<number>((number_t)sizeof(Boolean));"))
@@ -6154,7 +6154,7 @@ Create some dummy libs under /test/modules/,
   - Implement *Range-based for loop* for seekable containers.
   - *Benchmarking* - Add a benchmarking function.
   - *Memory Pool* - Functions report in bytes.
-  - *Sequence* - Remove size from object.
+  - *sequence* - Remove size from object.
   - *memory_pool* - Enable Locking, make it thread safe.
     - Removed - Wasted to much memory.
   - *Lazy Sequence* - Should cache the result of *rest* and return it

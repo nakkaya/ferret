@@ -5723,6 +5723,17 @@ Create some dummy libs under /test/modules/,
 #+end_src
 
 ** Data Structures
+*** Number
+    :PROPERTIES:
+    :noweb-ref: number-test
+    :END:
+
+#+begin_src clojure
+  (deftest number-test
+    (is (= 3501  0xDAD))
+    (is (= 2748  0xABC)))
+#+end_src
+
 *** Sequence
     :PROPERTIES:
     :noweb-ref: sequence-test
@@ -6484,6 +6495,7 @@ Create some dummy libs under /test/modules/,
   (configure-runtime! FERRET_PROGRAM_MAIN run_tests)
 
   <<special-forms-test>>
+  <<number-test>>
   <<sequence-test>>
   <<destructuring-test>>
   <<lazy-seq-test>>

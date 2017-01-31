@@ -2226,7 +2226,7 @@ strings are represented as a linked list of characters.
       "return runtime::rest(data);")
 
      ("template <typename T>
-       static T to" "var v" "T::unimplemented_function;"))
+       static T to" "var" "T::unimplemented_function;"))
     (post-code "#ifdef FERRET_STD_LIB
                   template<>
                   inline var obj<string>(std::string s) {

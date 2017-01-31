@@ -2224,16 +2224,19 @@ strings are represented as a linked list of characters.
      ("var first" ""
       "return runtime::first(data);")
      ("var rest" ""
-      "return runtime::rest(data);"))
+      "return runtime::rest(data);")
+
+     ("template <typename T>
+       static T to" "var v" "T::unimplemented_function;"))
     (post-code "#ifdef FERRET_STD_LIB
                   template<>
                   inline var obj<string>(std::string s) {
                     return var(new string(s.c_str(), s.size()));
                   }
 
-                  template <> ::std::string var::to() { 
+                  template <> ::std::string string::to(var v) { 
                     ::std::stringstream ss;
-                    for(auto it : runtime::range(cast<string>()->container()))
+                    for(auto it : runtime::range(v.cast<string>()->container()))
                       ss << number::to<char>(it);
                     return ss.str();
                   }
@@ -2672,9 +2675,6 @@ count, when it reaches zero it will automatically free the object_t.
     
     template<typename T>
     T* cast() { return static_cast<T*>(m_ptr); }
-
-    template<typename T>
-    T to() { T::unimplemented_function; }
 
     bool is_type(size_t type) { 
       return (static_cast<object_t*>(m_ptr)->type() == type);
@@ -3192,7 +3192,7 @@ Another option is to use the *cxx* macro,
 
 #+begin_src clojure
   (let [msg "Hello World!"]
-    (cxx "::std::cout << msg.to<std::string>() << ::std::endl;"))
+    (cxx "::std::cout << string::to<std::string>(msg) << ::std::endl;"))
 
   (def dac-0 (cxx "__result =  obj<number>(DAC0);"))
 #+end_src
@@ -3383,7 +3383,7 @@ A simple macro for calling inline C++,
   (defnative sh [cmd]
     (on "defined FERRET_STD_LIB"
         ("memory")
-        "::std::shared_ptr<FILE> pipe(popen(cmd.to<std::string>().c_str(), \"r\"), pclose);
+        "::std::shared_ptr<FILE> pipe(popen(string::to<std::string>(cmd).c_str(), \"r\"), pclose);
          if (!pipe) 
             __result = nil();
          char buffer[128];
@@ -5938,7 +5938,7 @@ Create some dummy libs under /test/modules/,
     (let [s1 "Some String"
           s2 "Other String"
           s1-ret (fn [] "__result = obj<string>(\"Some String\");")
-          s1-eq (fn [s] "__result = obj<boolean>((s.to<std::string>() == \"Some String\"))")]
+          s1-eq (fn [s] "__result = obj<boolean>((string::to<std::string>(s) == \"Some String\"))")]
       (is (= false (= s1 s2)))
       (is (= true  (= s1 s1)))
       (is (= false (= s1 3.14)))

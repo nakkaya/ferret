@@ -1036,8 +1036,8 @@ Without preprocessing following forms,
 would evaluate to,
 
 #+begin_example
-  "run(list,obj<Number>(1),obj<Number>(2),obj<Number>(3))"
-  "run(+,obj<Number>(1),obj<Number>(2))"
+  "run(list,obj<number>(1),obj<number>(2),obj<number>(3))"
+  "run(+,obj<number>(1),obj<number>(2))"
   "((<,b,a) ? a : b)"
 #+end_example
 
@@ -1104,13 +1104,13 @@ defined within *ferret* namespace. All Ferret macros starts with
   (defmethod emit :keyword [form state]
     (str "obj<Keyword>(" (reduce (fn[h v] (+ h (int v))) 0 (str form)) ")"))
 
-  (defmethod emit :char [form state] (str "obj<Number>((number_t)" (int form) ")"))
+  (defmethod emit :char [form state] (str "obj<number>((number_t)" (int form) ")"))
 
   (defmethod emit :number [form state]
     (let [number (rationalize form)]
       (if (ratio? number)
-        (str "obj<Number>((real_t)"   number ")")
-        (str "obj<Number>((number_t)" number ")"))))
+        (str "obj<number>((real_t)"   number ")")
+        (str "obj<number>((number_t)" number ")"))))
 #+end_src
 
 **** Special Forms
@@ -1827,7 +1827,7 @@ A /pointer/ object keeps a reference to a C++ pointer.
 #+begin_src clojure
   (let [ptr    (cxx "__result = obj<pointer>(new int(42))")
         value  (cxx "int *ptr = pointer::to_pointer<int>(ptr);
-                     __result = obj<Number>(*ptr)")]
+                     __result = obj<number>(*ptr)")]
     (println value))
 
   ;; => 42
@@ -1900,10 +1900,10 @@ modern C++ libraries that use smart pointers for memory management.
                    };")
 
   (defn make-data [x]
-    "__result = obj<value<data>>(x.to<int>())")
+    "__result = obj<value<data>>(number::to<int>(x))")
 
   (defn get-data [x]
-    "__result = obj<Number>((number_t) value<data>::to_value(x).content());")
+    "__result = obj<number>((number_t) value<data>::to_value(x).content());")
 #+end_src
 
 #+name: runtime-clojure-pointer-object
@@ -1949,10 +1949,10 @@ Default number configuration,
      #define FERRET_REAL_EPSILON   0.00001
   #endif
     
-    typedef FERRET_NUMBER_TYPE           number_t;                   // Whole Number Container.
-    typedef FERRET_REAL_TYPE             real_t;                     // Real Number Container.
+    typedef FERRET_NUMBER_TYPE           number_t;                   // Whole number Container.
+    typedef FERRET_REAL_TYPE             real_t;                     // Real number Container.
   #if !defined(FERRET_DISABLE_STD_OUT)
-    const   size_t                       number_precision = 4;       // Number Format String (fprinf)
+    const   size_t                       number_precision = 4;       // number Format String (fprinf)
   #endif
 
   #ifndef M_PI
@@ -1992,61 +1992,52 @@ Helper functions,
   }
 #+end_src
 
-Number Object,
+number Object,
 
 #+name: runtime-clojure-number-object
 #+begin_src clojure :tangle no
-  (defobject Number
-    (data "real_t _number;")
-    (equals "if (runtime::abs(_number - o.cast<Number>()->number()) < FERRET_REAL_EPSILON)
+  (defobject number
+    (data "real_t _word;")
+    (equals "if (runtime::abs(_word - o.cast<number>()->word()) < FERRET_REAL_EPSILON)
                return obj<Boolean>(true);
              else
                return obj<Boolean>(false);")
     (stream_console
-     "runtime::print(_number); return nil();")
+     "runtime::print(_word); return nil();")
     (fns
-     ("explicit Number(number_t x) : _number((real_t)x) {}")
-     ("explicit Number(real_t x) : _number(x) {}")
-     ("real_t number" "" "return _number;")
+     ("explicit number(number_t x) : _word((real_t)x) {}")
+     ("explicit number(real_t x) : _word(x) {}")
+     ("real_t word" "" "return _word;")
      ("template<typename T> T as" "" "T::unimplemented_function;")
      ;; Math Ops
      ("var add" "var v"
-      "return obj<Number>(_number + v.cast<Number>()->number());")
+      "return obj<number>(_word + v.cast<number>()->word());")
 
      ("var sub" "var v"
-      "return obj<Number>(_number - v.cast<Number>()->number());")
+      "return obj<number>(_word - v.cast<number>()->word());")
 
      ("var mul" "var v"
-      "return obj<Number>(_number * v.cast<Number>()->number());")
+      "return obj<number>(_word * v.cast<number>()->word());")
 
      ("var div" "var v"
-      "return obj<Number>(_number / v.cast<Number>()->number());")
+      "return obj<number>(_word / v.cast<number>()->word());")
 
      ;; Logical Ops
      ("var is_smaller" "var v"
-      "return obj<Boolean>(_number < v.cast<Number>()->number());")
+      "return obj<Boolean>(_word < v.cast<number>()->word());")
 
      ("var is_smaller_equal" "var v"
-      "return obj<Boolean>(_number <= v.cast<Number>()->number());")
+      "return obj<Boolean>(_word <= v.cast<number>()->word());")
      
      ("var is_bigger" "var v"
-      "return obj<Boolean>(_number > v.cast<Number>()->number());")
+      "return obj<Boolean>(_word > v.cast<number>()->word());")
 
      ("var is_bigger_equal" "var v"
-      "return obj<Boolean>(_number >= v.cast<Number>()->number());"))
-    
-    (post-code "template<> real_t Number::as(){
-                   return _number;
-                }
-                template<> number_t Number::as(){
-                   return (number_t)_number;
-                }
-                template<> char Number::as(){
-                   return (char)_number;
-                }
-                template <> number_t var::to() { return cast<Number>()->as<number_t>(); }
-                template <> real_t   var::to() { return cast<Number>()->as<real_t>(); }
-                template <> char     var::to() { return cast<Number>()->as<char>(); }")
+      "return obj<Boolean>(_word >= v.cast<number>()->word());")
+
+     ("template<typename T> static T to" "var v"
+      "return (T)v.cast<number>()->word();"))
+
     (force-type))
 #+end_src
 
@@ -2211,7 +2202,7 @@ Strings are represented as a linked list of characters.
     (equals "return obj<Boolean>(container().equals(o.cast<String>()->container()));")
     (stream_console
      "for(auto it : runtime::range(data))
-       runtime::print(it.to<char>());
+       runtime::print(number::to<char>(it));
       return nil();")
     (fns
      ("explicit String() : data(nullptr) {}")
@@ -2220,11 +2211,11 @@ Strings are represented as a linked list of characters.
            int length = 0;
            for (length = 0; str[length] != '\\0'; ++length);
            for (int i = --length; i >= 0; i--)
-             data = runtime::cons(obj<Number>((number_t)str[i]),data);
+             data = runtime::cons(obj<number>((number_t)str[i]),data);
        }")
      ("explicit String(const char * str,int length) {
            for (int i = --length; i >= 0; i--)
-             data = runtime::cons(obj<Number>((number_t)str[i]),data);
+             data = runtime::cons(obj<number>((number_t)str[i]),data);
        }")
      ("var container" ""
       "return data;")
@@ -2243,7 +2234,7 @@ Strings are represented as a linked list of characters.
                   template <> ::std::string var::to() { 
                     ::std::stringstream ss;
                     for(auto it : runtime::range(cast<String>()->container()))
-                      ss << it.to<char>();
+                      ss << number::to<char>(it);
                     return ss.str();
                   }
                 #endif")
@@ -2436,7 +2427,7 @@ Range-based for loop support for seekable containers.
     }
     
     var nth(var seq, var idx){
-      return nth(seq,idx.to<number_t>());
+      return nth(seq,number::to<number_t>(idx));
     }
     
     size_t count(var seq){
@@ -2568,7 +2559,7 @@ new *var* containing a pointer to an [[Object System][Object]]. *nil* is represe
 *var* pointing to *nullptr*.
 
 #+BEGIN_EXAMPLE
-  var two = obj<Number>(2);
+  var two = obj<number>(2);
   var some_nil = nil();
 #+END_EXAMPLE
 
@@ -3186,7 +3177,7 @@ this will define an *int* called *i* as a global variable. If a
 function only contains a string such as,
 
 #+begin_src clojure
-  (defn inc-int [] "__result =  obj<Number>(i++);")
+  (defn inc-int [] "__result =  obj<number>(i++);")
 #+end_src
 
 It is assumed to be a native function string it is taken as C++
@@ -3203,7 +3194,7 @@ Another option is to use the *cxx* macro,
   (let [msg "Hello World!"]
     (cxx "::std::cout << msg.to<std::string>() << ::std::endl;"))
 
-  (def dac-0 (cxx "__result =  obj<Number>(DAC0);"))
+  (def dac-0 (cxx "__result =  obj<number>(DAC0);"))
 #+end_src
 
 In addition to *defn* form there is also a *defnative* form which
@@ -3213,21 +3204,21 @@ directives,
 #+begin_src clojure
   (defnative get-char []
     (on "defined GNU_GCC"
-        "__result = obj<Number>(getchar());"))
+        "__result = obj<number>(getchar());"))
 #+end_src
 
 This function when compiled on a system that defines =GNU_GCC= will
-return the result of *getchar* as a *Number* , on ANY other system it
+return the result of *getchar* as a *number* , on ANY other system it
 will return *nil*. You can have multiple *on* blocks per *defnative*,
 
 #+begin_src clojure
   (defnative sleep [t]
     (on "defined FERRET_STD_LIB"
         ("chrono" "thread")
-        "auto duration = ::std::chrono::milliseconds(t.to<number_t>());
+        "auto duration = ::std::chrono::milliseconds(number::to<number_t>(t));
          ::std::this_thread::sleep_for(duration);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::delay(t.to<number_t>());"))
+        "::delay(number::to<number_t>(t));"))
 #+end_src
 
 This way a single function can be defined for multiple
@@ -3235,11 +3226,11 @@ systems. Reverse is also possible, since all built in data structures
 are immutable you can freely call Ferret code from C++,
 
 #+begin_src c++
-  var alist = runtime::list(obj<Number>(1),obj<Number>(2),obj<Number>(3));
+  var alist = runtime::list(obj<number>(1),obj<number>(2),obj<number>(3));
 
   int sum = 0;
   for(auto it : runtime::range(alist)){
-    sum += it.to<number_t>();
+    sum += number::to<int>(it);
    }
 
   ::std::cout << sum << ::std::endl;
@@ -3382,7 +3373,7 @@ A simple macro for calling inline C++,
 #+begin_src clojure :tangle no
   (defnative get-char []
     (on "defined FERRET_STD_LIB"
-        "__result = obj<Number>(getchar());"))
+        "__result = obj<number>(getchar());"))
 #+end_src
 
 *** sh
@@ -3408,7 +3399,7 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-console-io
 #+begin_src clojure :tangle no
   (defn system-exit [code]
-    "::std::exit(code.to<number_t>());")
+    "::std::exit(number::to<number_t>(code));")
 #+end_src
 
 *** system-abort
@@ -3485,7 +3476,7 @@ A simple macro for calling inline C++,
     `(~'_dotimes_ ~(second binding)
                   (~'fn [~(first binding)] ~@body)))
 
-  (defn _dotimes_ [t f] "for(number_t i = 0; i < t.to<number_t>(); i++) run(f,obj<Number>(i));")
+  (defn _dotimes_ [t f] "for(number_t i = 0; i < number::to<number_t>(t); i++) run(f,obj<number>(i));")
 #+end_src
 
 ** Conditionals
@@ -3593,7 +3584,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([] true)
     ([x] true)
     ([a b]
-     "__result = a.cast<Number>()->is_smaller(b);")
+     "__result = a.cast<number>()->is_smaller(b);")
     ([a b & more]
      (if (< a b)
        (apply < (cons b more))
@@ -3608,7 +3599,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([] true)
     ([x] true)
     ([a b]
-     "__result = a.cast<Number>()->is_bigger(b);")
+     "__result = a.cast<number>()->is_bigger(b);")
     ([a b & more]
      (if (> a b)
        (apply > (cons b more))
@@ -3623,7 +3614,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([] true)
     ([x] true)
     ([a b]
-     "__result = a.cast<Number>()->is_bigger_equal(b);")
+     "__result = a.cast<number>()->is_bigger_equal(b);")
     ([a b & more]
      (if (>= a b)
        (apply >= (cons b more))
@@ -3638,7 +3629,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([] true)
     ([x] true)
     ([a b]
-     "__result = a.cast<Number>()->is_smaller_equal(b);")
+     "__result = a.cast<number>()->is_smaller_equal(b);")
     ([a b & more]
      (if (<= a b)
        (apply <= (cons b more))
@@ -3927,7 +3918,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([] 0)
     ([x] x)
     ([h v]
-     "__result = h.cast<Number>()->add(v);")
+     "__result = h.cast<number>()->add(v);")
     ([x y & more]
      (reduce + (+ x y) more)))
 #+end_src
@@ -3940,7 +3931,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([x]
      (* -1 x))
     ([h v]
-     "__result = h.cast<Number>()->sub(v);")
+     "__result = h.cast<number>()->sub(v);")
     ([x y & more]
      (reduce - (- x y) more)))
 #+end_src
@@ -3953,7 +3944,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([] 1)
     ([x] x)
     ([h v]
-     "__result = h.cast<Number>()->mul(v);")
+     "__result = h.cast<number>()->mul(v);")
     ([x y & more]
      (reduce * (* x y) more)))
 #+end_src
@@ -3966,7 +3957,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([x]
      (apply / (list 1 x)))
     ([h v]
-     "__result = h.cast<Number>()->div(v);")
+     "__result = h.cast<number>()->div(v);")
     ([x y & more]
      (reduce / (/ x y) more)))
 #+end_src
@@ -4020,7 +4011,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn rem [num div]
-    "__result = obj<Number>(remainder(num.to<real_t>(), div.to<real_t>()));")
+    "__result = obj<number>(remainder(number::to<real_t>(num), number::to<real_t>(div)));")
 #+end_src
 
 *** mod
@@ -4038,7 +4029,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn floor [x] "__result = obj<Number>(x.to<number_t>());")
+  (defn floor [x] "__result = obj<number>(number::to<number_t>(x));")
 #+end_src
 
 *** scale
@@ -4064,42 +4055,42 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-and [x y] "__result = obj<Number>((x.to<number_t>() & y.to<number_t>()));")
+  (defn bit-and [x y] "__result = obj<number>((number::to<number_t>(x) & number::to<number_t>(y)));")
 #+end_src
 
 *** bit-not
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-not [x] "__result = obj<Number>(~x.to<number_t>());")
+  (defn bit-not [x] "__result = obj<number>(~number::to<number_t>(x));")
 #+end_src
 
 *** bit-or
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-or [x y] "__result = obj<Number>((x.to<number_t>() | y.to<number_t>()));")
+  (defn bit-or [x y] "__result = obj<number>((number::to<number_t>(x) | number::to<number_t>(y) ));")
 #+end_src
 
 *** bit-xor
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-xor [x y] "__result = obj<Number>((x.to<number_t>() ^ y.to<number_t>()));")
+  (defn bit-xor [x y] "__result = obj<number>((number::to<number_t>(x) ^ number::to<number_t>(y) ));")
 #+end_src
 
 *** bit-shift-left
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-shift-left [x n] "__result = obj<Number>((x.to<number_t>() << n.to<number_t>()));")
+  (defn bit-shift-left [x n] "__result = obj<number>((number::to<number_t>(x) << number::to<number_t>(n) ));")
 #+end_src
 
 *** bit-shift-right
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-shift-right [x n] "__result = obj<Number>((x.to<number_t>() >> n.to<number_t>()));")
+  (defn bit-shift-right [x n] "__result = obj<number>((number::to<number_t>(x) >> number::to<number_t>(n) ));")
 #+end_src
 
 *** number-split
@@ -4109,11 +4100,11 @@ Split a number into bytes.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn number-split [n]
-    "number_t val = n.to<number_t>();
+    "number_t val = number::to<number_t>(n);
      unsigned char *p = (unsigned char*)&val;
      __result = runtime::list();
      for(size_t i = 0; i < sizeof(number_t); i++)
-       __result = runtime::cons(obj<Number>((number_t)p[i]),__result);")
+       __result = runtime::cons(obj<number>((number_t)p[i]),__result);")
 #+end_src
 
 *** number-combine
@@ -4127,10 +4118,10 @@ Combine a list of bytes to a number.
      for(size_t i = 0; i < sizeof(number_t); i++){
       int idx = (sizeof(number_t) - i - 1);
       var obj = runtime::nth(s,idx);
-      number_t val = obj.to<number_t>();
+      number_t val = number::to<number_t>(obj);
       res |= val << (i * 8);
      }
-     __result = obj<Number>(res);")
+     __result = obj<number>(res);")
 #+end_src
 
 *** sqrt
@@ -4140,7 +4131,7 @@ Square root.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn sqrt [s]
-    "__result = obj<Number>((real_t)::sqrt(s.to<real_t>()));")
+    "__result = obj<number>((real_t)::sqrt(number::to<real_t>(s)));")
 #+end_src
 
 *** pow
@@ -4150,7 +4141,7 @@ Returns base raised to the power exponent:
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn pow [b e]
-    "__result = obj<Number>((real_t)::pow(b.to<real_t>(),e.to<real_t>()));")
+    "__result = obj<number>((real_t)::pow(number::to<real_t>(b), number::to<real_t>(e)));")
 #+end_src
 
 *** cos
@@ -4160,7 +4151,7 @@ Returns the cosine of an angle of x radians.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn cos [s]
-    "__result = obj<Number>((real_t)::cos(s.to<real_t>()));")
+    "__result = obj<number>((real_t)::cos(number::to<real_t>(s)));")
 #+end_src
 
 *** sin
@@ -4170,7 +4161,7 @@ Returns the sine of an angle of x radians.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn sin [s]
-    "__result = obj<Number>((real_t)::sin(s.to<real_t>()));")
+    "__result = obj<number>((real_t)::sin(number::to<real_t>(s)));")
 #+end_src
 
 *** asin
@@ -4180,7 +4171,7 @@ Returns the sine of an angle of x radians.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn asin [x]
-    "__result = obj<Number>((real_t)::asin(x.to<real_t>()));")
+    "__result = obj<number>((real_t)::asin(number::to<real_t>(x)));")
 #+end_src
 
 *** atan2
@@ -4190,7 +4181,7 @@ Returns the principal value of the arc tangent of y/x, expressed in radians.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn atan2 [x y]
-    "__result = obj<Number>((real_t)::atan2(x.to<real_t>(),y.to<real_t>()));")
+    "__result = obj<number>((real_t)::atan2(number::to<real_t>(x),number::to<real_t>(y)));")
 #+end_src
 
 *** to-degrees
@@ -4201,7 +4192,7 @@ angle measured in degrees.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn to-degrees [x]
-    "__result = obj<Number>((real_t) (x.to<real_t>() * 180.0 / M_PI) );")
+    "__result = obj<number>((real_t) (number::to<real_t>(x) * 180.0 / M_PI) );")
 #+end_src
 
 *** to-radians
@@ -4212,7 +4203,7 @@ angle measured in radians.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn to-radians [x]
-    "__result = obj<Number>((real_t) (x.to<real_t>() * M_PI / 180.0) );")
+    "__result = obj<number>((real_t) (number::to<real_t>(x) * M_PI / 180.0) );")
 #+end_src
 
 ** Concurrency
@@ -4240,9 +4231,9 @@ Return current time in milliseconds,
         "auto now = ::std::chrono::system_clock::now();
          auto epoch = now.time_since_epoch();
          auto time = ::std::chrono::duration_cast<::std::chrono::milliseconds>(epoch).count();
-         __result = obj<Number>((number_t) time);")
+         __result = obj<number>((number_t) time);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "__result = obj<Number>((number_t)::millis());"))
+        "__result = obj<number>((number_t)::millis());"))
 #+end_src
 
 *** sleep
@@ -4254,10 +4245,10 @@ Sleep current thread for *t* milliseconds,
   (defnative sleep [t]
     (on "defined FERRET_STD_LIB"
         ("chrono" "thread")
-        "auto duration = ::std::chrono::milliseconds(t.to<number_t>());
+        "auto duration = ::std::chrono::milliseconds(number::to<number_t>(t));
          ::std::this_thread::sleep_for(duration);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::delay(t.to<number_t>());"))
+        "::delay(number::to<number_t>(t));"))
 #+end_src
 
 *** time-fn
@@ -4349,7 +4340,7 @@ Returns a random floating point number between 0 (inclusive) and n
         "::std::random_device ferret_random_device;
          ::std::mt19937_64 ferret_random_generator(ferret_random_device());
          ::std::uniform_real_distribution<ferret::real_t> ferret_random_distribution(0.0,1.0);"
-        "__result = obj<Number>(ferret_random_distribution(ferret_random_generator));"))
+        "__result = obj<number>(ferret_random_distribution(ferret_random_generator));"))
 
   (defn rand
     ([]
@@ -4527,13 +4518,13 @@ Ported from,
           "T result;"
           "T input;")
     (new ("var kp, var ki, var kd, var inMin, var inMax, var outMin, var outMax, var cont"
-          "p = kp.to<T>();
-           i = ki.to<T>();
-           d = kd.to<T>();
-           maximum_output = outMax.to<T>();
-           minimum_output = outMin.to<T>();
-           maximum_input = inMax.to<T>();
-           minimum_input = inMin.to<T>();
+          "p = number::to<T>(kp);
+           i = number::to<T>(ki);
+           d = number::to<T>(kd);
+           maximum_output = number::to<T>(outMax);
+           minimum_output = number::to<T>(outMin);
+           maximum_input = number::to<T>(inMax);
+           minimum_input = number::to<T>(inMin);;
            continuous = cont.cast<Boolean>()->container();
            prev_error = 0;
            total_error = 0;
@@ -4545,7 +4536,7 @@ Ported from,
     (stream_console "runtime::print(\"PIDController\"); return nil();")
     (fns
      ("var update" "var in"
-      "input = in.to<T>();
+      "input = number::to<T>(in);
 
        // Calculate the error signal
        error = setpoint - input;
@@ -4583,10 +4574,10 @@ Ported from,
           result = minimum_output;
        }
 
-       return obj<Number>(result);")
+       return obj<number>(result);")
      
      ("void set_setpoint" "var p"
-      "T sp = p.to<T>();
+      "T sp = number::to<T>(p);
        if (maximum_input > minimum_input) {
           if (sp > maximum_input) {
             setpoint = maximum_input;
@@ -4663,11 +4654,11 @@ output.
 #+begin_src clojure :tangle no
   (defnative pin-mode-input [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::pinMode(pin.to<number_t>(), INPUT);"))
+        "::pinMode(number::to<number_t>(pin), INPUT);"))
 
   (defnative pin-mode-output [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::pinMode(pin.to<number_t>(), OUTPUT);"))
+        "::pinMode(number::to<number_t>(pin), OUTPUT);"))
 
   (defmacro pin-mode [pin mode]
     (if (= mode :input)
@@ -4683,11 +4674,11 @@ Write a HIGH or a LOW value to a digital pin.
 #+begin_src clojure :tangle no
   (defnative digital-write-high [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::digitalWrite(pin.to<number_t>(), HIGH);"))
+        "::digitalWrite(number::to<number_t>(pin), HIGH);"))
 
   (defnative digital-write-low [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::digitalWrite(pin.to<number_t>(), LOW);"))
+        "::digitalWrite(number::to<number_t>(pin), LOW);"))
 
   (defmacro digital-write [pin mode]
     (if (= mode :high)
@@ -4703,7 +4694,7 @@ Reads the value from a specified digital pin, either HIGH or LOW.
 #+begin_src clojure :tangle no
   (defnative digital-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "if (::digitalRead(pin.to<number_t>()) == HIGH)
+        "if (::digitalRead(number::to<number_t>(pin)) == HIGH)
            __result = obj<Boolean>(true);
          else
            __result = obj<Boolean>(false);"))
@@ -4717,7 +4708,7 @@ Writes an analog value (PWM wave) to a pin.
 #+begin_src clojure :tangle no
   (defnative analog-write [pin val]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::analogWrite(pin.to<number_t>(),val.to<number_t>());"))
+        "::analogWrite(number::to<number_t>(pin),number::to<number_t>(val));"))
 #+end_src
 
 *** analog-read
@@ -4728,7 +4719,7 @@ Reads the value from the specified analog pin.
 #+begin_src clojure :tangle no
   (defnative analog-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "__result = obj<Number>((number_t)::analogRead(pin.to<number_t>()));"))
+        "__result = obj<number>((number_t)::analogRead(number::to<number_t>(pin)));"))
 #+end_src
 
 *** analog-write-resolution
@@ -4739,7 +4730,7 @@ Sets the resolution of the *analog-write*
 #+begin_src clojure :tangle no
   (defnative analog-write-resolution [bit]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::analogWriteResolution(bit.to<number_t>());"))
+        "::analogWriteResolution(number::to<number_t>(bit));"))
 #+end_src
 
 *** analog-read-resolution
@@ -4750,7 +4741,7 @@ Sets the size (in bits) of the value returned by *analog-read*.
 #+begin_src clojure :tangle no
   (defnative analog-read-resolution [bit]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::analogReadResolution(bit.to<number_t>());"))
+        "::analogReadResolution(number::to<number_t>(bit));"))
 #+end_src
 
 *** tone/noTone
@@ -4762,14 +4753,14 @@ cycle) on a pin.
 #+begin_src clojure :tangle no
   (defnative tone [pin freq]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::tone(pin.to<number_t>(),freq.to<number_t>());"))
+        "::tone(number::to<number_t>(pin), number::to<number_t>(freq));"))
 #+end_src
 
 #+name: runtime-clojure-gpio
 #+begin_src clojure :tangle no
   (defnative no-tone [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::noTone(pin.to<number_t>());"))
+        "::noTone(number::to<number_t>(pin));"))
 #+end_src
 
 *** definterrupt
@@ -4791,7 +4782,7 @@ Registers an interrupt on the /symbol/ for the given pin and mode. See
   (defmacro definterrupt [callback pin mode]
     (let [pin (if (number? pin)
                 pin
-                (str (symbol-conversion pin) ".to<number_t>()"))
+                (str "number::to<number_t(" (symbol-conversion pin) ")"))
           mode (cond (= mode :low) "LOW"
                      (= mode :change) "CHANGE"
                      (= mode :rising) "RISING"
@@ -4887,21 +4878,21 @@ examples.
 #+begin_src clojure :tangle no
   (defn pr-object-sizes []
     (println "Object Sizes")
-    (println "\tvar:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(var));"))
-    (println "\tObject:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(object_t));"))
-    (println "\tpointer:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(pointer));"))
-    (println "\tNumber:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Number));"))
-    (println "\tKeyword:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Keyword));"))
-    (println "\tSequence:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Sequence));"))
-    (println "\tLazySequence:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(LazySequence));"))
-    (println "\tString:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(String));"))
-    (println "\tBoolean:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Boolean));"))
-    (println "\tlambda_i:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(lambda_i));"))
-    (println "\tAtom:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Atom));"))
+    (println "\tvar:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(var));"))
+    (println "\tObject:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(object_t));"))
+    (println "\tpointer:\t\t" (cxx "__result = obj<number>((number_t)sizeof(pointer));"))
+    (println "\tnumber:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(number));"))
+    (println "\tKeyword:\t\t" (cxx "__result = obj<number>((number_t)sizeof(Keyword));"))
+    (println "\tSequence:\t\t" (cxx "__result = obj<number>((number_t)sizeof(Sequence));"))
+    (println "\tLazySequence:\t\t" (cxx "__result = obj<number>((number_t)sizeof(LazySequence));"))
+    (println "\tString:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(String));"))
+    (println "\tBoolean:\t\t" (cxx "__result = obj<number>((number_t)sizeof(Boolean));"))
+    (println "\tlambda_i:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(lambda_i));"))
+    (println "\tAtom:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(Atom));"))
     (println "\tPIDController<real_t>:\t"
-             (cxx "__result = obj<Number>((number_t)sizeof(PIDController<real_t>));"))
+             (cxx "__result = obj<number>((number_t)sizeof(PIDController<real_t>));"))
     (println "\tPIDController<number_t>:\t"
-             (cxx "__result = obj<Number>((number_t)sizeof(PIDController<number_t>));")))
+             (cxx "__result = obj<number>((number_t)sizeof(PIDController<number_t>));")))
 #+end_src
 
 *** memory-pool-free-space
@@ -4914,7 +4905,7 @@ examples.
          for(int i = 0; i < FERRET_MEMORY_POOL_SIZE; i++)
            if(mem::allocator::program_memory.used[i] == false)
              count++;
-         __result = obj<Number>((number_t)(count*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
+         __result = obj<number>((number_t)(count*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
 #+end_src
 
 *** lock-memory
@@ -5069,7 +5060,7 @@ Tests are run by the CI system for the following compilers,
   (native-declare "ferret::number_t i = 0;")
 
   (defn inc-int []
-    "__result =  obj<Number>(i++);")
+    "__result =  obj<number>(i++);")
 
   (deftest special-forms-test
     (is (= 1                @(atom 1)))
@@ -5648,7 +5639,7 @@ Run import tests.
     (is (= "" (exec-form '((require '[test.modules.module-a :as mod-a])
                            (require '[test.modules.module-b :as mod-b])))))
     (is (= "Call" (exec-form '((require '[test.modules.module-c :as mod-c])
-                               (cxx "__result = obj<Number>((number_t)std::sqrt(100)); 
+                               (cxx "__result = obj<number>((number_t)std::sqrt(100)); 
                                             std::cout << \"Call\"")))))
     (is (= "25" (exec-form '((require '[test.modules.module-c :as mod-c])
                              (cxx "std::cout << dummy_native_fn();"))))))
@@ -5687,7 +5678,7 @@ Create some dummy libs under /test/modules/,
 
   (defnative macro-aux []
     (on "defined FERRET_STD_LIB"
-        "__result = obj<Number>((number_t)42);"))
+        "__result = obj<number>((number_t)42);"))
 
   (defmacro macro-call []
     `(~'do (~'macro-aux)))
@@ -5793,12 +5784,12 @@ Create some dummy libs under /test/modules/,
     (is (= 3 (count (filter false? (list true false true false false)))))
     (is (= 2 (count (filter (fn [x] (not (false? x))) (list true false true false false)))))
 
-    (let [sum (cxx "var alist = runtime::list(obj<Number>(1),obj<Number>(2),obj<Number>(3));
+    (let [sum (cxx "var alist = runtime::list(obj<number>(1),obj<number>(2),obj<number>(3));
                     number_t sum = 0;
                     for(auto it : runtime::range(alist)){
-                      sum += it.to<number_t>();
+                      sum += number::to<number_t>(it);
                     }
-                    __result = obj<Number>(sum);")]
+                    __result = obj<number>(sum);")]
       (is (= 6 sum))))
 #+end_src
 
@@ -5968,10 +5959,10 @@ Create some dummy libs under /test/modules/,
 
      (native-declare "ferret::mem::allocator::memory_pool<size_t,14> tiny_pool;")
      (let [next-page (fn [idx]
-                       "size_t i = (size_t)idx.to<number_t>();
-                        __result = obj<Number>((number_t)tiny_pool.next_page(i))")
+                       "size_t i = number::to<size_t>(idx);
+                        __result = obj<number>((number_t)tiny_pool.next_page(i))")
            malloc (fn [size]
-                    "size_t s = (size_t)size.to<number_t>();
+                    "size_t s = number::to<size_t>(size);;
                      ptr = tiny_pool.allocate(sizeof(size_t) * s);
                      __result = obj<Boolean>((ptr != nullptr));")
            free (fn [] "tiny_pool.free(ptr);")]
@@ -5991,10 +5982,10 @@ Create some dummy libs under /test/modules/,
 
      (native-declare "ferret::mem::allocator::memory_pool<size_t,256> even_pool;")
      (let [next-page (fn [idx]
-                       "size_t i = (size_t)idx.to<number_t>();
-                        __result = obj<Number>((number_t)even_pool.next_page(i))")
+                       "size_t i = (size_t)number::to<size_t>(idx);
+                        __result = obj<number>((number_t)even_pool.next_page(i))")
            malloc (fn [size]
-                    "size_t s = (size_t)size.to<number_t>();
+                    "size_t s = number::to<size_t>(size);
                      ptr = even_pool.allocate(sizeof(size_t) * s);
                      __result = obj<Boolean>((ptr != nullptr));")
            free (fn [] "even_pool.free(ptr);")]
@@ -6009,10 +6000,10 @@ Create some dummy libs under /test/modules/,
 
      (native-declare "ferret::mem::allocator::memory_pool<size_t,255> odd_pool;")
      (let [next-page (fn [idx]
-                       "size_t i = (size_t)idx.to<number_t>();
-                       __result = obj<Number>((number_t)odd_pool.next_page(i))")
+                       "size_t i = number::to<size_t>(idx);
+                       __result = obj<number>((number_t)odd_pool.next_page(i))")
            malloc (fn [size]
-                    "size_t s = (size_t)size.to<number_t>();
+                    "size_t s = number::to<size_t>(size);
                      ptr = odd_pool.allocate(sizeof(size_t) * s);
                      __result = obj<Boolean>((ptr != nullptr));")
            free (fn [] "odd_pool.free(ptr);")]

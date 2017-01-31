@@ -1097,7 +1097,7 @@ defined within *ferret* namespace. All Ferret macros starts with
   (defmethod emit :string [form state]
     (str "obj<String>(\"" (org.apache.commons.lang.StringEscapeUtils/escapeJava form) "\")"))
 
-  (defmethod emit :boolean [form state] (str "obj<Boolean>(" form ")"))
+  (defmethod emit :boolean [form state] (str "obj<boolean>(" form ")"))
 
   (defmethod emit :nil [form state] "nil()")
 
@@ -1838,7 +1838,7 @@ A /pointer/ object keeps a reference to a C++ pointer.
   (defobject pointer
     (data "void* _payload;")
     (equals
-     "return obj<Boolean>(_payload == o.cast<pointer>()->payload());")
+     "return obj<boolean>(_payload == o.cast<pointer>()->payload());")
     (stream_console
      "runtime::print(\"pointer<\");
       runtime::print(_payload);
@@ -1911,7 +1911,7 @@ modern C++ libraries that use smart pointers for memory management.
   (defobject value
     (template "typename T")
     (data "T _payload;")
-    (equals "return obj<Boolean>(this == o.get());")
+    (equals "return obj<boolean>(this == o.get());")
     (stream_console
      "runtime::print(\"value<\");
       runtime::print((void*)&_payload);
@@ -1999,9 +1999,9 @@ number Object,
   (defobject number
     (data "real_t _word;")
     (equals "if (runtime::abs(_word - o.cast<number>()->word()) < FERRET_REAL_EPSILON)
-               return obj<Boolean>(true);
+               return obj<boolean>(true);
              else
-               return obj<Boolean>(false);")
+               return obj<boolean>(false);")
     (stream_console
      "runtime::print(_word); return nil();")
     (fns
@@ -2024,16 +2024,16 @@ number Object,
 
      ;; Logical Ops
      ("var is_smaller" "var v"
-      "return obj<Boolean>(_word < v.cast<number>()->word());")
+      "return obj<boolean>(_word < v.cast<number>()->word());")
 
      ("var is_smaller_equal" "var v"
-      "return obj<Boolean>(_word <= v.cast<number>()->word());")
+      "return obj<boolean>(_word <= v.cast<number>()->word());")
      
      ("var is_bigger" "var v"
-      "return obj<Boolean>(_word > v.cast<number>()->word());")
+      "return obj<boolean>(_word > v.cast<number>()->word());")
 
      ("var is_bigger_equal" "var v"
-      "return obj<Boolean>(_word >= v.cast<number>()->word());")
+      "return obj<boolean>(_word >= v.cast<number>()->word());")
 
      ("template<typename T> static T to" "var v"
       "return (T)v.cast<number>()->word();"))
@@ -2050,7 +2050,7 @@ Each keyword in the program is converted to an /keyword/ object. A
 #+begin_src clojure :tangle no
   (defobject keyword
     (data "number_t _word;")
-    (equals "return obj<Boolean>(_word == o.cast<keyword>()->word());")
+    (equals "return obj<boolean>(_word == o.cast<keyword>()->word());")
     (stream_console
      "runtime::print(_word); return nil();")
     (fns
@@ -2075,7 +2075,7 @@ Linked list container implementing the seekable interface.
   (defobject empty_sequence
     (interface :seekable_i)
     (equals "(void)o; 
-             return obj<Boolean>(true);")
+             return obj<boolean>(true);")
     (stream_console
      "runtime::print(\"()\");
       return nil();")
@@ -2096,14 +2096,14 @@ Linked list container implementing the seekable interface.
      "var itOther = o;
       for(auto it : runtime::range(var(this))){
        if (itOther.is_nil() || it.equals(runtime::first(itOther))  == false)
-         return obj<Boolean>(false);
+         return obj<boolean>(false);
        itOther = runtime::rest(itOther);
       }
 
       if (itOther.is_nil())
-        return obj<Boolean>(true);
+        return obj<boolean>(true);
       else
-        return obj<Boolean>(false);")
+        return obj<boolean>(false);")
     
     (stream_console
      "runtime::print(\"(\");
@@ -2144,7 +2144,7 @@ A lazy list container implementing the seekable interface.
 
 #+name: runtime-clojure-sequence-object
 #+begin_src clojure :tangle no
-  (defobject LazySequence
+  (defobject lazy_sequence
     (interface :seekable_i)
     (data "var head;"
           "var thunk;")
@@ -2152,14 +2152,14 @@ A lazy list container implementing the seekable interface.
      "var itOther = o;
       for(auto it : runtime::range(var(this))){
        if (itOther.is_nil() || it.equals(runtime::first(itOther))  == false)
-         return obj<Boolean>(false);
+         return obj<boolean>(false);
        itOther = runtime::rest(itOther);
       }
 
       if (itOther.is_nil())
-        return obj<Boolean>(true);
+        return obj<boolean>(true);
       else
-        return obj<Boolean>(false);")
+        return obj<boolean>(false);")
     (stream_console
      "runtime::print(\"(\");
       head.stream_console();
@@ -2170,10 +2170,10 @@ A lazy list container implementing the seekable interface.
       runtime::print(\")\");
       return nil();")
     (fns
-     ("explicit LazySequence(var t) : thunk(t) {}")
-     ("explicit LazySequence(var h, var t) : head(h), thunk(t) {}")
+     ("explicit lazy_sequence(var t) : thunk(t) {}")
+     ("explicit lazy_sequence(var h, var t) : head(h), thunk(t) {}")
      ("var cons" "var x"
-      "return obj<LazySequence>(x,thunk);")
+      "return obj<lazy_sequence>(x,thunk);")
      ("var first" ""
       "return head;")
      ("var rest" ""
@@ -2184,7 +2184,7 @@ A lazy list container implementing the seekable interface.
 #+name: runtime-clojure-sequence-object
 #+begin_src clojure :tangle no
   (defn new-lazy-seq [f]
-    "__result = obj<LazySequence>(f);")
+    "__result = obj<lazy_sequence>(f);")
 
   (defmacro lazy-seq [& body]
     `(~'new-lazy-seq (~'fn [] ~@body)))
@@ -2199,7 +2199,7 @@ Strings are represented as a linked list of characters.
   (defobject String
     (interface :seekable_i)
     (data "var data;")
-    (equals "return obj<Boolean>(container().equals(o.cast<String>()->container()));")
+    (equals "return obj<boolean>(container().equals(o.cast<String>()->container()));")
     (stream_console
      "for(auto it : runtime::range(data))
        runtime::print(number::to<char>(it));
@@ -2247,9 +2247,9 @@ A boolean object,
 
 #+name: runtime-clojure-boolean-object
 #+begin_src clojure :tangle no
-  (defobject Boolean
+  (defobject boolean
     (data "bool value;")
-    (equals "return obj<Boolean>(value == (bool)o);")
+    (equals "return obj<boolean>(value == (bool)o);")
     (stream_console
      "if (value)
         runtime::print(\"true\");
@@ -2257,29 +2257,29 @@ A boolean object,
         runtime::print(\"false\");
       return nil();")
     (fns
-     ("explicit Boolean(bool b) : value(b) {}")
+     ("explicit boolean(bool b) : value(b) {}")
      ("bool container" ""
       "return value;"))
     (post-code "var::operator bool() const {
                   if (m_ptr == nullptr)
                     return false;
-                  else if (m_ptr->type() == runtime::type::Boolean)
-                    return static_cast<Boolean*>(m_ptr)->container();
+                  else if (m_ptr->type() == runtime::type::boolean)
+                    return static_cast<boolean*>(m_ptr)->container();
                   else
                     return true;
                  }
                  var var::equals (var rhs){
                    if (get() == nullptr && rhs.get() != nullptr)
-                     return obj<Boolean>(false);
+                     return obj<boolean>(false);
                    if (get() != nullptr && rhs.get() == nullptr)
-                     return obj<Boolean>(false);
+                     return obj<boolean>(false);
 
                    if (get() == rhs.get())
-                     return obj<Boolean>(true);
+                     return obj<boolean>(true);
                    else if (runtime::is_seqable(*this) && runtime::is_seqable(rhs))
                      return get()->equals(rhs);
                    else if (m_ptr->type() != rhs.cast<object_t>()->type())
-                     return obj<Boolean>(false);
+                     return obj<boolean>(false);
                    else
                      return get()->equals(rhs);
                   }")
@@ -2293,17 +2293,17 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
 
 #+name: runtime-clojure-atom-object
 #+begin_src clojure :tangle no
-  (defobject Atom
+  (defobject atom_mutable
     (data "var data;"
           "FERRET_NEW_LOCK(lock)")
-    (equals "return obj<Boolean>(this == o.cast<Atom>());")
+    (equals "return obj<boolean>(this == o.cast<atom_mutable>());")
     (stream_console
      "runtime::print(\"atom <\");
       data.stream_console();
       runtime::print(\">\");
       return nil();")
     (fns
-     ("explicit Atom(var d) : data(d) {}")
+     ("explicit atom_mutable(var d) : data(d) {}")
      ("var swap" "var f,var args"
       "FERRET_WITH_LOCK(lock,{
          args = runtime::cons(data, args);
@@ -2317,21 +2317,21 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
     (force-type))
 #+end_src
 
-Operations on /Atoms/
+Operations on /atoms/
 
 #+name: runtime-clojure-atom-object
 #+begin_src clojure :tangle no
   (defn atom [x]
-    "__result = obj<Atom>(x)")
+    "__result = obj<atom_mutable>(x)")
 
   (defn swap! [a f & args]
-    "__result = a.cast<Atom>()->swap(f,args);")
+    "__result = a.cast<atom_mutable>()->swap(f,args);")
 
   (defn reset! [a newval]
     (swap! a (fn [old curr] curr) newval))
 
   (defn deref [a]
-    "__result = a.cast<Atom>()->deref();")
+    "__result = a.cast<atom_mutable>()->deref();")
 #+end_src
 
 *** Interfaces
@@ -2439,10 +2439,10 @@ Range-based for loop support for seekable containers.
 
     var is_seqable(var seq){
       if(seq.is_type(runtime::type::sequence) || 
-         seq.is_type(runtime::type::LazySequence))
-        return obj<Boolean>(true);
+         seq.is_type(runtime::type::lazy_sequence))
+        return obj<boolean>(true);
       else
-        return obj<Boolean>(false);
+        return obj<boolean>(false);
     }
   }
 #+end_src
@@ -2458,7 +2458,7 @@ uniform fashion.
 #+begin_src clojure :tangle no
   (defobject lambda_i
     (interfaces "var invoke(var args) const")
-    (equals "return obj<Boolean>(this == o.cast<lambda_i>());")
+    (equals "return obj<boolean>(this == o.cast<lambda_i>());")
     (stream_console
      "runtime::print(\"lambda\"); return nil();")
     (force-type))
@@ -3255,7 +3255,7 @@ Once our object system is in place we can define rest of the runtime
   (defn second [x]
     "__result = runtime::first(runtime::rest(x));")
 
-  (defn nil? [x] "__result = obj<Boolean>(x.is_nil())")
+  (defn nil? [x] "__result = obj<boolean>(x.is_nil())")
 #+end_src
 
 We can embed C++ code into our functions, which is how most of the
@@ -3562,10 +3562,10 @@ When test is true, evaluates body with binding-form bound to the value of test.
     "var curr = runtime::first(args);
      for(auto it : runtime::range(runtime::rest(args))){
       if (curr.equals(it) == false)
-        return obj<Boolean>(false);
+        return obj<boolean>(false);
       curr = it;
      }
-     __result = obj<Boolean>(true);")
+     __result = obj<boolean>(true);")
 #+end_src
 
 *** not=
@@ -3664,8 +3664,8 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+begin_src clojure :tangle no
   (defn not [x]
     "if (x)
-       return obj<Boolean>(false);
-     __result = obj<Boolean>(true);")
+       return obj<boolean>(false);
+     __result = obj<boolean>(true);")
 #+end_src
 
 *** true?
@@ -3674,8 +3674,8 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+begin_src clojure :tangle no
   (defn true? [x]
     "if (x)
-       return obj<Boolean>(true);
-     __result = obj<Boolean>(false);")
+       return obj<boolean>(true);
+     __result = obj<boolean>(false);")
 #+end_src
 
 *** false?
@@ -3684,8 +3684,8 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+begin_src clojure :tangle no
   (defn false? [x]
     "if (!x)
-       return obj<Boolean>(true);
-     __result = obj<Boolean>(false);")
+       return obj<boolean>(true);
+     __result = obj<boolean>(false);")
 #+end_src
 
 ** Sequence
@@ -3791,7 +3791,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn list? [x] "__result = obj<Boolean>(x.is_type(runtime::type::sequence));")
+  (defn list? [x] "__result = obj<boolean>(x.is_type(runtime::type::sequence));")
 #+end_src
 
 *** empty?
@@ -4525,14 +4525,14 @@ Ported from,
            minimum_output = number::to<T>(outMin);
            maximum_input = number::to<T>(inMax);
            minimum_input = number::to<T>(inMin);;
-           continuous = cont.cast<Boolean>()->container();
+           continuous = cont.cast<boolean>()->container();
            prev_error = 0;
            total_error = 0;
            setpoint = 0;
            error = 0;
            result = 0;
            input = 0;"))
-    (equals "return obj<Boolean>(this == o.cast<PIDController>());")
+    (equals "return obj<boolean>(this == o.cast<PIDController>());")
     (stream_console "runtime::print(\"PIDController\"); return nil();")
     (fns
      ("var update" "var in"
@@ -4695,9 +4695,9 @@ Reads the value from a specified digital pin, either HIGH or LOW.
   (defnative digital-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "if (::digitalRead(number::to<number_t>(pin)) == HIGH)
-           __result = obj<Boolean>(true);
+           __result = obj<boolean>(true);
          else
-           __result = obj<Boolean>(false);"))
+           __result = obj<boolean>(false);"))
 #+end_src
 
 *** analog-write
@@ -4884,11 +4884,11 @@ examples.
     (println "\tnumber:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(number));"))
     (println "\tkeyword:\t\t" (cxx "__result = obj<number>((number_t)sizeof(keyword));"))
     (println "\tsequence:\t\t" (cxx "__result = obj<number>((number_t)sizeof(sequence));"))
-    (println "\tLazySequence:\t\t" (cxx "__result = obj<number>((number_t)sizeof(LazySequence));"))
+    (println "\tlazy_sequence:\t\t" (cxx "__result = obj<number>((number_t)sizeof(lazy_sequence));"))
     (println "\tString:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(String));"))
-    (println "\tBoolean:\t\t" (cxx "__result = obj<number>((number_t)sizeof(Boolean));"))
+    (println "\tboolean:\t\t" (cxx "__result = obj<number>((number_t)sizeof(boolean));"))
     (println "\tlambda_i:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(lambda_i));"))
-    (println "\tAtom:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(Atom));"))
+    (println "\tAtom:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(atom_mutable));"))
     (println "\tPIDController<real_t>:\t"
              (cxx "__result = obj<number>((number_t)sizeof(PIDController<real_t>));"))
     (println "\tPIDController<number_t>:\t"
@@ -5924,7 +5924,7 @@ Create some dummy libs under /test/modules/,
   (deftest keyword-test
     (is (= true  (= :test :test)))
     (is (= false (= :test :other_test)))
-    (let [ke (fn [k] "__result = obj<Boolean>(k.equals(obj<keyword>(\":space\")))")]
+    (let [ke (fn [k] "__result = obj<boolean>(k.equals(obj<keyword>(\":space\")))")]
       (is (= true (ke :space)))))
 #+end_src
 
@@ -5938,7 +5938,7 @@ Create some dummy libs under /test/modules/,
     (let [s1 "Some String"
           s2 "Other String"
           s1-ret (fn [] "__result = obj<String>(\"Some String\");")
-          s1-eq (fn [s] "__result = obj<Boolean>((s.to<std::string>() == \"Some String\"))")]
+          s1-eq (fn [s] "__result = obj<boolean>((s.to<std::string>() == \"Some String\"))")]
       (is (= false (= s1 s2)))
       (is (= true  (= s1 s1)))
       (is (= false (= s1 3.14)))
@@ -5964,7 +5964,7 @@ Create some dummy libs under /test/modules/,
            malloc (fn [size]
                     "size_t s = number::to<size_t>(size);;
                      ptr = tiny_pool.allocate(sizeof(size_t) * s);
-                     __result = obj<Boolean>((ptr != nullptr));")
+                     __result = obj<boolean>((ptr != nullptr));")
            free (fn [] "tiny_pool.free(ptr);")]
        
        (assert (= 0 (next-page 0)))
@@ -5987,7 +5987,7 @@ Create some dummy libs under /test/modules/,
            malloc (fn [size]
                     "size_t s = number::to<size_t>(size);
                      ptr = even_pool.allocate(sizeof(size_t) * s);
-                     __result = obj<Boolean>((ptr != nullptr));")
+                     __result = obj<boolean>((ptr != nullptr));")
            free (fn [] "even_pool.free(ptr);")]
        
        (assert (= 0 (next-page 0)))
@@ -6005,7 +6005,7 @@ Create some dummy libs under /test/modules/,
            malloc (fn [size]
                     "size_t s = number::to<size_t>(size);
                      ptr = odd_pool.allocate(sizeof(size_t) * s);
-                     __result = obj<Boolean>((ptr != nullptr));")
+                     __result = obj<boolean>((ptr != nullptr));")
            free (fn [] "odd_pool.free(ptr);")]
        
        (assert (= 0 (next-page 0)))

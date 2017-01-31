@@ -2295,17 +2295,17 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
 
 #+name: runtime-clojure-atom-object
 #+begin_src clojure :tangle no
-  (defobject atom_mutable
+  (defobject atomic_reference
     (data "var data;"
           "FERRET_NEW_LOCK(lock)")
-    (equals "return obj<boolean>(this == o.cast<atom_mutable>());")
+    (equals "return obj<boolean>(this == o.cast<atomic_reference>());")
     (stream_console
      "runtime::print(\"atom <\");
       data.stream_console();
       runtime::print(\">\");
       return nil();")
     (fns
-     ("explicit atom_mutable(var d) : data(d) {}")
+     ("explicit atomic_reference(var d) : data(d) {}")
      ("var swap" "var f,var args"
       "FERRET_WITH_LOCK(lock,{
          args = runtime::cons(data, args);
@@ -2324,16 +2324,16 @@ Operations on /atoms/
 #+name: runtime-clojure-atom-object
 #+begin_src clojure :tangle no
   (defn atom [x]
-    "__result = obj<atom_mutable>(x)")
+    "__result = obj<atomic_reference>(x)")
 
   (defn swap! [a f & args]
-    "__result = a.cast<atom_mutable>()->swap(f,args);")
+    "__result = a.cast<atomic_reference>()->swap(f,args);")
 
   (defn reset! [a newval]
     (swap! a (fn [old curr] curr) newval))
 
   (defn deref [a]
-    "__result = a.cast<atom_mutable>()->deref();")
+    "__result = a.cast<atomic_reference>()->deref();")
 #+end_src
 
 *** Interfaces
@@ -4887,7 +4887,7 @@ examples.
     (println "\tstring:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(string));"))
     (println "\tboolean:\t\t" (cxx "__result = obj<number>((number_t)sizeof(boolean));"))
     (println "\tlambda_i:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(lambda_i));"))
-    (println "\tatom:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(atom_mutable));"))
+    (println "\tatom:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(atomic_reference));"))
     (println "\tpid_controller<real_t>:\t"
              (cxx "__result = obj<number>((number_t)sizeof(pid_controller<real_t>));"))
     (println "\tpid_controller<number_t>:\t"

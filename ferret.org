@@ -1227,7 +1227,7 @@ defined within *ferret* namespace. All Ferret macros starts with
   (defn define-object [name body]
     (let [specs (into {} (map #(vector (first %) (rest %)) body))
           interface (if (nil? (specs 'interface))
-                      "Object"
+                      "object_t"
                       (apply str (rest (str (first (specs 'interface))))))
           interface-only (cond (specs 'interface) false
                                (empty? (specs 'new)) true
@@ -1778,43 +1778,45 @@ Interfaces,
 *** Base
 
 All our types are derived from the base Object type. Which is a
-=typedef= of =ObjectBase<FERRET_RC_POLICY,FERRET_ALLOC_POLICY>=. See
+=typedef= of =obj::base<FERRET_RC_POLICY,FERRET_ALLOC_POLICY>=. See
 [[Reference Counting]] for available reference counting policies and
 [[Memory Allocation]] for available allocation policies.
 
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
-  template <typename rc, typename mem>
-  class ObjectBase : public rc, public mem{
-  public:
-    ObjectBase() : rc(0) { }
-    ObjectBase(const ObjectBase& other): rc(other) { }
-    virtual ~ObjectBase() { };
+  namespace object{
+    template <typename rc, typename mem>
+    class base : public rc, public mem{
+    public:
+      base() : rc(0) { }
+      base(const base& other): rc(other) { }
+      virtual ~base() { };
     
-    virtual size_t type() = 0;
+      virtual size_t type() = 0;
     
   #if !defined(FERRET_DISABLE_STD_OUT)
-    virtual var stream_console() = 0;
+      virtual var stream_console() = 0;
   #endif
     
-    virtual var equals(var o) = 0;
-  };
+      virtual var equals(var o) = 0;
+    };
 
-  #if defined(FERRET_DISABLE_MULTI_THREADING)
-    #define FERRET_RC_POLICY mem::gc::rc
-  #elif defined(FERRET_DISABLE_RC)
-    #define FERRET_RC_POLICY mem::gc::no_rc
-  #else
-    #define FERRET_RC_POLICY mem::gc::atomic_rc
-  #endif
+    #if defined(FERRET_DISABLE_MULTI_THREADING)
+      #define FERRET_RC_POLICY mem::gc::rc
+    #elif defined(FERRET_DISABLE_RC)
+      #define FERRET_RC_POLICY mem::gc::no_rc
+    #else
+      #define FERRET_RC_POLICY mem::gc::atomic_rc
+    #endif
 
-  #if defined(FERRET_MEMORY_POOL_SIZE)
-    #define FERRET_ALLOC_POLICY mem::allocator::pool
-  #else
-    #define FERRET_ALLOC_POLICY mem::allocator::system
-  #endif
+    #if defined(FERRET_MEMORY_POOL_SIZE)
+      #define FERRET_ALLOC_POLICY mem::allocator::pool
+    #else
+      #define FERRET_ALLOC_POLICY mem::allocator::system
+    #endif
+  }
 
-  typedef ObjectBase<FERRET_RC_POLICY,FERRET_ALLOC_POLICY> Object;
+  typedef object::base<FERRET_RC_POLICY,FERRET_ALLOC_POLICY> object_t;
 #+end_src
 
 *** Objects
@@ -2284,7 +2286,7 @@ A boolean object,
                      return obj<Boolean>(true);
                    else if (runtime::is_seqable(*this) && runtime::is_seqable(rhs))
                      return get()->equals(rhs);
-                   else if (m_ptr->type() != rhs.cast<Object>()->type())
+                   else if (m_ptr->type() != rhs.cast<object_t>()->type())
                      return obj<Boolean>(false);
                    else
                      return get()->equals(rhs);
@@ -2584,7 +2586,7 @@ new *var* containing a pointer to an [[Object System][Object]]. *nil* is represe
 *** Reference Counting
 
 Garbage collection is handled by reference counting. Reference count
-is kept within the [[Base][ObjectBase]] using one of the following reference
+is kept within the [[Base][obj::base]] using one of the following reference
 counting policies.
 
  - atomic_rc - Atomic reference counting. (using =std::atomic=)
@@ -2633,15 +2635,15 @@ counting policies.
   }
 #+end_src 
 
-A /var/ holds a pointer to an Object, everything is passed around as
+A /var/ holds a pointer to an object_t, everything is passed around as
 /vars/ it is responsible for incrementing/decrementing the reference
-count, when it reaches zero it will automatically free the Object.
+count, when it reaches zero it will automatically free the object_t.
 
 #+name: runtime-native-var
 #+begin_src c++ :tangle no
   class var{
   public:
-    explicit var(Object* ptr = nullptr) : m_ptr(ptr) { inc_ref(); }
+    explicit var(object_t* ptr = nullptr) : m_ptr(ptr) { inc_ref(); }
 
     var(const var& p) : m_ptr(p.m_ptr) { inc_ref(); }
       
@@ -2651,7 +2653,7 @@ count, when it reaches zero it will automatically free the Object.
       return *this = p.m_ptr;
     }
     
-    var& operator= (Object* ptr){
+    var& operator= (object_t* ptr){
       if (m_ptr != ptr){
         dec_ref();
         m_ptr=ptr;
@@ -2674,7 +2676,7 @@ count, when it reaches zero it will automatically free the Object.
     }
   #endif
         
-    Object* get() { return m_ptr; }
+    object_t* get() { return m_ptr; }
     
     template<typename T>
     T* cast() { return static_cast<T*>(m_ptr); }
@@ -2683,7 +2685,7 @@ count, when it reaches zero it will automatically free the Object.
     T to() { T::unimplemented_function; }
 
     bool is_type(size_t type) { 
-      return (static_cast<Object*>(m_ptr)->type() == type);
+      return (static_cast<object_t*>(m_ptr)->type() == type);
     }
 
     bool is_nil() { 
@@ -2707,7 +2709,7 @@ count, when it reaches zero it will automatically free the Object.
       }
     }
       
-    Object* m_ptr;
+    object_t* m_ptr;
   };
 #+end_src
 
@@ -4885,7 +4887,7 @@ examples.
   (defn pr-object-sizes []
     (println "Object Sizes")
     (println "\tvar:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(var));"))
-    (println "\tObject:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Object));"))
+    (println "\tObject:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(object_t));"))
     (println "\tPointer:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Pointer));"))
     (println "\tNumber:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Number));"))
     (println "\tKeyword:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Keyword));"))
@@ -6131,7 +6133,7 @@ Create some dummy libs under /test/modules/,
     - http://www.hboehm.info/gc/
     Implemented =FERRET_DISABLE_RC= option.
   - *Pointer* - A pointer type to handle shared pointers.
-    Implemented Value Object.
+    Implemented Value object_t.
   - *Unit Testing*
     - https://www.cs.northwestern.edu/academics/courses/325/readings/lisp-unit.html
     - https://github.com/fukamachi/prove

@@ -1095,7 +1095,7 @@ defined within *ferret* namespace. All Ferret macros starts with
   (defmethod emit :symbol [form state] (str form))
 
   (defmethod emit :string [form state]
-    (str "obj<String>(\"" (org.apache.commons.lang.StringEscapeUtils/escapeJava form) "\")"))
+    (str "obj<string>(\"" (org.apache.commons.lang.StringEscapeUtils/escapeJava form) "\")"))
 
   (defmethod emit :boolean [form state] (str "obj<boolean>(" form ")"))
 
@@ -2192,28 +2192,28 @@ A lazy list container implementing the seekable interface.
 
 **** String
 
-Strings are represented as a linked list of characters.
+strings are represented as a linked list of characters.
 
 #+name: runtime-clojure-string-object
 #+begin_src clojure :tangle no
-  (defobject String
+  (defobject string
     (interface :seekable_i)
     (data "var data;")
-    (equals "return obj<boolean>(container().equals(o.cast<String>()->container()));")
+    (equals "return obj<boolean>(container().equals(o.cast<string>()->container()));")
     (stream_console
      "for(auto it : runtime::range(data))
        runtime::print(number::to<char>(it));
       return nil();")
     (fns
-     ("explicit String() : data(nullptr) {}")
-     ("explicit String(var s) : data(s) {}")
-     ("explicit String(const char * str) {
+     ("explicit string() : data(nullptr) {}")
+     ("explicit string(var s) : data(s) {}")
+     ("explicit string(const char * str) {
            int length = 0;
            for (length = 0; str[length] != '\\0'; ++length);
            for (int i = --length; i >= 0; i--)
              data = runtime::cons(obj<number>((number_t)str[i]),data);
        }")
-     ("explicit String(const char * str,int length) {
+     ("explicit string(const char * str,int length) {
            for (int i = --length; i >= 0; i--)
              data = runtime::cons(obj<number>((number_t)str[i]),data);
        }")
@@ -2227,13 +2227,13 @@ Strings are represented as a linked list of characters.
       "return runtime::rest(data);"))
     (post-code "#ifdef FERRET_STD_LIB
                   template<>
-                  inline var obj<String>(std::string s) {
-                    return var(new String(s.c_str(), s.size()));
+                  inline var obj<string>(std::string s) {
+                    return var(new string(s.c_str(), s.size()));
                   }
 
                   template <> ::std::string var::to() { 
                     ::std::stringstream ss;
-                    for(auto it : runtime::range(cast<String>()->container()))
+                    for(auto it : runtime::range(cast<string>()->container()))
                       ss << number::to<char>(it);
                     return ss.str();
                   }
@@ -3102,7 +3102,7 @@ Clojure interpreter and then terminating its execution. If
 
      #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_CLI_ARGS)
       for (int i = argc - 1; i > -1 ; i--)
-        _star_command_line_args_star_ =  runtime::cons(obj<String>(argv[i]),_star_command_line_args_star_);
+        _star_command_line_args_star_ =  runtime::cons(obj<string>(argv[i]),_star_command_line_args_star_);
      #endif
 
       program_run();
@@ -3391,7 +3391,7 @@ A simple macro for calling inline C++,
          while (!feof(pipe.get()))
           if (fgets(buffer, 128, pipe.get()) != NULL)
            result += buffer;
-         __result = obj<String>(result);"))
+         __result = obj<string>(result);"))
 #+end_src
 
 *** system-exit
@@ -4501,7 +4501,7 @@ Ported from,
 
 #+name: runtime-clojure-pid-controller
 #+begin_src clojure :tangle no
-  (defobject PIDController
+  (defobject pid_controller
     (template "typename T")
     (data "T p;"
           "T i;"
@@ -4532,8 +4532,8 @@ Ported from,
            error = 0;
            result = 0;
            input = 0;"))
-    (equals "return obj<boolean>(this == o.cast<PIDController>());")
-    (stream_console "runtime::print(\"PIDController\"); return nil();")
+    (equals "return obj<boolean>(this == o.cast<pid_controller>());")
+    (stream_console "runtime::print(\"pid_controller\"); return nil();")
     (fns
      ("var update" "var in"
       "input = number::to<T>(in);
@@ -4599,15 +4599,15 @@ Ported from,
 #+name: runtime-clojure-pid-controller
 #+begin_src clojure :tangle no
   (defn pid-controller-create [kp ki kd in-min in-max out-min out-max continuous]
-    "__result = obj<PIDController<real_t>>(kp, ki, kd, 
+    "__result = obj<pid_controller<real_t>>(kp, ki, kd, 
                                            in_min, in_max, out_min, out_max, 
                                            continuous);")
 
   (defn pid-controller-set-point [controller sp]
-    "controller.cast<PIDController<real_t>>()->set_setpoint(sp);")
+    "controller.cast<pid_controller<real_t>>()->set_setpoint(sp);")
 
   (defn pid-controller-update [controller input]
-    "__result = controller.cast<PIDController<real_t>>()->update(input)")
+    "__result = controller.cast<pid_controller<real_t>>()->update(input)")
 
   (defmacro pid-controller [& options]
     (let [options (apply hash-map options)
@@ -4879,20 +4879,20 @@ examples.
   (defn pr-object-sizes []
     (println "Object Sizes")
     (println "\tvar:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(var));"))
-    (println "\tObject:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(object_t));"))
+    (println "\tobject:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(object_t));"))
     (println "\tpointer:\t\t" (cxx "__result = obj<number>((number_t)sizeof(pointer));"))
     (println "\tnumber:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(number));"))
     (println "\tkeyword:\t\t" (cxx "__result = obj<number>((number_t)sizeof(keyword));"))
     (println "\tsequence:\t\t" (cxx "__result = obj<number>((number_t)sizeof(sequence));"))
     (println "\tlazy_sequence:\t\t" (cxx "__result = obj<number>((number_t)sizeof(lazy_sequence));"))
-    (println "\tString:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(String));"))
+    (println "\tstring:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(string));"))
     (println "\tboolean:\t\t" (cxx "__result = obj<number>((number_t)sizeof(boolean));"))
     (println "\tlambda_i:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(lambda_i));"))
-    (println "\tAtom:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(atom_mutable));"))
-    (println "\tPIDController<real_t>:\t"
-             (cxx "__result = obj<number>((number_t)sizeof(PIDController<real_t>));"))
-    (println "\tPIDController<number_t>:\t"
-             (cxx "__result = obj<number>((number_t)sizeof(PIDController<number_t>));")))
+    (println "\tatom:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(atom_mutable));"))
+    (println "\tpid_controller<real_t>:\t"
+             (cxx "__result = obj<number>((number_t)sizeof(pid_controller<real_t>));"))
+    (println "\tpid_controller<number_t>:\t"
+             (cxx "__result = obj<number>((number_t)sizeof(pid_controller<number_t>));")))
 #+end_src
 
 *** memory-pool-free-space
@@ -5937,7 +5937,7 @@ Create some dummy libs under /test/modules/,
   (deftest string-test
     (let [s1 "Some String"
           s2 "Other String"
-          s1-ret (fn [] "__result = obj<String>(\"Some String\");")
+          s1-ret (fn [] "__result = obj<string>(\"Some String\");")
           s1-eq (fn [s] "__result = obj<boolean>((s.to<std::string>() == \"Some String\"))")]
       (is (= false (= s1 s2)))
       (is (= true  (= s1 s1)))
@@ -6138,7 +6138,7 @@ Create some dummy libs under /test/modules/,
   - *Native Headers* - Make =native-headers= a special form.
   - *Memory Pool* - Allow Multiple Implementations.
     Allow user definable =FERRET_ALLOCATE= - =FERRET_FREE=
-  - *String* - String constructor from std::string.
+  - *string* - string constructor from std::string.
   - *require* - require module without alias.
   - *require* - Only having *require* forms and nothing else causes
     null pointer exception.
@@ -6148,7 +6148,7 @@ Create some dummy libs under /test/modules/,
     - *--release* - CLI option added.
   - *pointer* - Ability to call cleanup function before *GC*
   - *Debugging* - Add some debugging macros, native side.
-  - *PIDController* - Implement Unit Tests.
+  - *pid_controller* - Implement Unit Tests.
   - *Continuous Integration* - Setup Travis CI, automate testing and
     deployment.
   - Implement *Range-based for loop* for seekable containers.

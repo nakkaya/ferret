@@ -1822,12 +1822,12 @@ All our types are derived from the base Object type. Which is a
 *** Objects
 **** Pointer
 
-A /Pointer/ object keeps a reference to a C++ pointer.
+A /pointer/ object keeps a reference to a C++ pointer.
 
 #+begin_src clojure
-  (let [pointer (cxx "__result = obj<Pointer>(new int(42))")
-        value   (cxx "int *ptr = pointer.cast<Pointer>()->pointer<int>();
-                      __result = obj<Number>(*ptr)")]
+  (let [ptr    (cxx "__result = obj<pointer>(new int(42))")
+        value  (cxx "int *ptr = pointer::to_pointer<int>(ptr);
+                     __result = obj<Number>(*ptr)")]
     (println value))
 
   ;; => 42
@@ -1835,31 +1835,32 @@ A /Pointer/ object keeps a reference to a C++ pointer.
 
 #+name: runtime-clojure-pointer-object
 #+begin_src clojure :tangle no
-  (defobject Pointer
-    (data "void* ptr;")
+  (defobject pointer
+    (data "void* _payload;")
     (equals
-     "return obj<Boolean>(ptr == o.cast<Pointer>()->pointer<void>());")
+     "return obj<Boolean>(_payload == o.cast<pointer>()->payload());")
     (stream_console
-     "runtime::print(\"Pointer<\");
-      runtime::print(ptr);
+     "runtime::print(\"pointer<\");
+      runtime::print(_payload);
       runtime::print(\">\");return nil();")
     (fns
-     ("explicit Pointer(void* p) : ptr(p) {}")
-     ("template<typename T> T* pointer" ""
-      "return ((T *)ptr);")
-     ("template<typename T> T& reference" ""
-      "return (*(pointer<T>()));"))
+     ("explicit pointer(void* p) : _payload(p) {}")
+     ("void* payload" "" "return _payload;")
+     ("template<typename T> static T* to_pointer" "var v"
+      "return ((T *) v.cast<pointer>()->payload());")
+     ("template<typename T> static T& to_reference" "var v"
+      "return (*(pointer::to_pointer<T>(v)));"))
     (force-type))
 #+end_src
 
-A /HeavyPointer/ object contains a pointer and a function to be called
+A /heavy_pointer/ object contains a pointer and a function to be called
 right before garbage collection. This is similar to /finalizer/ in
 Java.
 
 #+begin_src clojure
-  (let [val (cxx "__result = obj<Pointer>(new int(0));")
+  (let [val (cxx "__result = obj<pointer>(new int(0));")
         gc (fn []
-             (cxx "delete val.cast<Pointer>()->pointer<int>();")
+             (cxx "delete pointer::to_pointer<int>(val);")
              (println "Cleanup..."))]
     (heavy-pointer val gc))
 
@@ -1868,24 +1869,24 @@ Java.
 
 #+name: runtime-clojure-heavy-pointer-object
 #+begin_src clojure :tangle no
-  (defobject HeavyPointer
-    (data "var pointer;"
+  (defobject heavy_pointer
+    (data "var _payload;"
           "var gc_fn;")
     (equals
-     "return pointer.equals(o.cast<HeavyPointer>()->container());")
+     "return _payload.equals(o.cast<heavy_pointer>()->payload());")
     (stream_console
-     "return pointer.cast<Pointer>()->stream_console();")
+     "return _payload.cast<pointer>()->stream_console();")
     (fns
-     ("explicit HeavyPointer(var p, var gc) : pointer(p), gc_fn(gc) {}")
-     ("~HeavyPointer" "" "gc_fn.cast<lambda_i>()->invoke(runtime::list(pointer));")
-     ("var container" "" "return pointer;"))
+     ("explicit heavy_pointer(var p, var gc) : _payload(p), gc_fn(gc) {}")
+     ("~heavy_pointer" "" "gc_fn.cast<lambda_i>()->invoke(runtime::list(_payload));")
+     ("var payload" "" "return _payload;"))
     (force-type))
 
-  (defn heavy-pointer [ptr gc]
-    "__result = obj<HeavyPointer>(ptr,gc)")
+  (defn new-heavy-pointer [ptr gc]
+    "__result = obj<heavy_pointer>(ptr,gc)")
 #+end_src
 
-A /Value/ object keeps a native object. Useful when working with
+A /value/ object keeps a native object. Useful when working with
 modern C++ libraries that use smart pointers for memory management.
 
 #+name: value-test-helpers
@@ -1899,28 +1900,28 @@ modern C++ libraries that use smart pointers for memory management.
                    };")
 
   (defn make-data [x]
-    "__result = obj<Value<data>>(x.to<int>())")
+    "__result = obj<value<data>>(x.to<int>())")
 
   (defn get-data [x]
-    "__result = obj<Number>((number_t) Value<data>::value(x).content());")
+    "__result = obj<Number>((number_t) value<data>::to_value(x).content());")
 #+end_src
 
 #+name: runtime-clojure-pointer-object
 #+begin_src clojure :tangle no
-  (defobject Value
+  (defobject value
     (template "typename T")
-    (data "T _data;")
+    (data "T _payload;")
     (equals "return obj<Boolean>(this == o.get());")
     (stream_console
-     "runtime::print(\"Value<\");
-      runtime::print((void*)&_data);
+     "runtime::print(\"value<\");
+      runtime::print((void*)&_payload);
       runtime::print(\">\");
       return nil();")
     (fns
      ("template <typename... Args>
-       explicit Value(Args&&... args) : _data(static_cast<Args&&>(args)...) { }")
-     ("T data" "" "return _data;")
-     ("static T value" "var v" "return v.cast<Value<T>>()->data();"))
+       explicit value(Args&&... args) : _payload(static_cast<Args&&>(args)...) { }")
+     ("T payload" "" "return _payload;")
+     ("static T to_value" "var v" "return v.cast<value<T>>()->payload();"))
     (force-type))
 #+end_src
 
@@ -4888,7 +4889,7 @@ examples.
     (println "Object Sizes")
     (println "\tvar:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(var));"))
     (println "\tObject:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(object_t));"))
-    (println "\tPointer:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Pointer));"))
+    (println "\tpointer:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(pointer));"))
     (println "\tNumber:\t\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Number));"))
     (println "\tKeyword:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Keyword));"))
     (println "\tSequence:\t\t" (cxx "__result = obj<Number>((number_t)sizeof(Sequence));"))
@@ -5880,11 +5881,11 @@ Create some dummy libs under /test/modules/,
   (deftest pointer-test
     (let [state (atom false)]
       (let [a-gc-fn (fn [p] (reset! state true))
-            a-ptr (cxx "__result = obj<Pointer>(nullptr);")
-            a-heavy-ptr (heavy-pointer a-ptr a-gc-fn)
-            b-ptr (cxx "__result = obj<Pointer>(new int);")
-            b-gc-fn (fn [p] "delete p.cast<Pointer>()->pointer<int>();")
-            b-heavy-ptr (heavy-pointer b-ptr b-gc-fn)]
+            a-ptr (cxx "__result = obj<pointer>(nullptr);")
+            a-heavy-ptr (new-heavy-pointer a-ptr a-gc-fn)
+            b-ptr (cxx "__result = obj<pointer>(new int);")
+            b-gc-fn (fn [p] "delete pointer::to_pointer<int>(p);")
+            b-heavy-ptr (new-heavy-pointer b-ptr b-gc-fn)]
         (is (= true  (= a-ptr a-ptr)))
         (is (= false (= a-ptr b-ptr)))
         (is (= true  (= a-heavy-ptr a-heavy-ptr)))
@@ -6132,8 +6133,8 @@ Create some dummy libs under /test/modules/,
     - http://www.ravenbrook.com/project/mps
     - http://www.hboehm.info/gc/
     Implemented =FERRET_DISABLE_RC= option.
-  - *Pointer* - A pointer type to handle shared pointers.
-    Implemented Value object_t.
+  - *pointer* - A pointer type to handle shared pointers.
+    Implemented value object_t.
   - *Unit Testing*
     - https://www.cs.northwestern.edu/academics/courses/325/readings/lisp-unit.html
     - https://github.com/fukamachi/prove
@@ -6154,7 +6155,7 @@ Create some dummy libs under /test/modules/,
     each library import requires a require form.
   - *assert* - Strip during release build.
     - *--release* - CLI option added.
-  - *Pointer* - Ability to call cleanup function before *GC*
+  - *pointer* - Ability to call cleanup function before *GC*
   - *Debugging* - Add some debugging macros, native side.
   - *PIDController* - Implement Unit Tests.
   - *Continuous Integration* - Setup Travis CI, automate testing and

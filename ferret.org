@@ -3153,10 +3153,10 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
 #+begin_src c++ :tangle no
   #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)
    #define FERRET_NEW_LOCK(symbol) ::std::mutex symbol;
-   #define FERRET_WITH_LOCK(lock,code)                         \
-     {                                                         \
-     ::std::lock_guard<::std::mutex> ferret_scope_guard(lock); \
-     code;                                                     \
+   #define FERRET_WITH_LOCK(lock,code)                           \
+     {                                                           \
+     ::std::lock_guard< ::std::mutex > ferret_scope_guard(lock); \
+     code;                                                       \
      }
   #else
    #define FERRET_NEW_LOCK(symbol)

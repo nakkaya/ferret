@@ -4781,7 +4781,7 @@ Registers an interrupt on the /symbol/ for the given pin and mode. See
   (defmacro definterrupt [callback pin mode]
     (let [pin (if (number? pin)
                 pin
-                (str "number::to<number_t(" (symbol-conversion pin) ")"))
+                (str "number::to<number_t>(" (symbol-conversion pin) ")"))
           mode (cond (= mode :low) "LOW"
                      (= mode :change) "CHANGE"
                      (= mode :rising) "RISING"
@@ -4797,7 +4797,7 @@ Registers an interrupt on the /symbol/ for the given pin and mode. See
                 "\n}\n"))
          ((~'fn []
             ~(str "::pinMode(" pin " , INPUT_PULLUP);"
-                  "::attachInterrupt(::digitalPinToInterrupt(" pin "), " callback-cpp "_callack , " mode ");"))))))
+                  "::attachInterrupt(digitalPinToInterrupt(" pin "), " callback-cpp "_callack , " mode ");"))))))
 #+end_src
 
 ** Testing

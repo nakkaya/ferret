@@ -2120,7 +2120,12 @@ Linked list container implementing the seekable interface.
      ("var first" ""
       "return data;")
      ("var rest" ""
-      "return next;"))
+      "return next;")
+
+     ("template <typename T>
+       static T to" "var" "T::unimplemented_function;")
+     ("template <typename T>
+       static var from" "T" "T::unimplemented_function;"))
     (post-code "namespace runtime {
                  inline var list() { 
                    return obj<empty_sequence>();
@@ -2133,7 +2138,25 @@ Linked list container implementing the seekable interface.
                  inline var list(var first, Args... args) { 
                    return obj<sequence>(first, list(args...));
                  }
-               }")
+               }
+
+               #ifdef FERRET_STD_LIB
+                 typedef ::std::vector<var>  std_vector;
+
+                 template <> std_vector sequence::to(var v) { 
+                  std_vector ret;
+                  for(auto it : runtime::range(v))
+                    ret.push_back(it);
+                  return ret;
+                 }
+
+                 template <> var sequence::from(std_vector v) { 
+                  var ret;
+                  for(auto it : v)
+                    ret = runtime::cons(it,ret);
+                  return ret;
+                 }
+               #endif")
     (force-type))
 #+end_src
 
@@ -2999,6 +3022,8 @@ indicating platform.
    #include <atomic>
    #include <mutex>
    #include <cmath>
+   #include <vector>
+   #include <algorithm>
   #endif
 
   #ifdef FERRET_HARDWARE_ARDUINO
@@ -3166,20 +3191,30 @@ an embedded platform. (=FERRET_STD_LIB= not defined.)
 
 ** Accessing C,C++ Libraries
 
-You can declare global level things using,
+Ferret's FFI is modeled after Gambit scheme. Whereas Gambit scheme
+lets you embed C into Scheme, Ferret lets you embed C or C++ into
+Clojure.
+
+Native headers can be imported using,
+
+#+begin_src clojure
+  (native-header "thirt_party_header.h")
+#+end_src
+
+Top level statements can be declared using,
 
 #+begin_src clojure
   (native-declare "int i = 0;")
 #+end_src
 
-this will define an *int* called *i* as a global variable. If a
-function only contains a string such as,
+Ferret objects can be created using the /obj/ function. If a function
+only contains a string such as, 
 
 #+begin_src clojure
   (defn inc-int [] "__result =  obj<number>(i++);")
 #+end_src
 
-It is assumed to be a native function string it is taken as C++
+It is assumed to be a native function string, it is taken as C++
 code. You can then use it like any other ferret function.
 
 #+begin_src clojure
@@ -3190,10 +3225,24 @@ code. You can then use it like any other ferret function.
 Another option is to use the *cxx* macro,
 
 #+begin_src clojure
-  (let [msg "Hello World!"]
-    (cxx "::std::cout << string::to<std::string>(msg) << ::std::endl;"))
-
   (def dac-0 (cxx "__result =  obj<number>(DAC0);"))
+#+end_src
+
+Ferret objects can be converted to/from their native counter parts,
+i.e a Ferret sequence can be converted to /std::vector/ to be sorted
+by /std::sort/ using a Ferret function,
+
+#+name: ffi-test-helper
+#+begin_src clojure
+  (defn my-sort [f seq]
+    "std_vector vec = sequence::to<std_vector>(seq);
+     std::sort(vec.begin(), vec.end(), [f](var a, var b) { return run(f,a,b); });
+     __result = sequence::from<std_vector>(vec);")
+#+end_src
+
+#+begin_src clojure
+  (my-sort > (list 1 3 2)) ;; (1.0000 2.0000 3.0000)
+  (my-sort < (list 1 3 2)) ;; (3.0000 2.0000 1.0000)
 #+end_src
 
 In addition to *defn* form there is also a *defnative* form which
@@ -5588,6 +5637,17 @@ Tests are run by the CI system for the following compilers,
        (is (= (list 3 2 1) @st))))
  #+end_src
 
+*** FFI
+    :PROPERTIES:
+    :noweb-ref: ffi-test
+    :END:
+
+ #+begin_src clojure :tangle no
+   (deftest ffi-test
+     (is (= (list 1 2 3) (my-sort > (list 1 3 2))))
+     (is (= (list 3 2 1) (my-sort < (list 1 3 2)))))
+ #+end_src
+
 *** Module System
 
 Run import tests. 
@@ -6512,6 +6572,8 @@ Create some dummy libs under /test/modules/,
   <<threading-test>>
   <<xor-stream-test>>
   <<misc-test>>
+  <<ffi-test-helper>>
+  <<ffi-test>>
 
   (defn ferret-unit-test []
     (run-all-tests))

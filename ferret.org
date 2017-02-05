@@ -2125,7 +2125,7 @@ Linked list container implementing the seekable interface.
      ("template <typename T>
        static T to" "var" "T::unimplemented_function;")
      ("template <typename T>
-       static var from" "T" "T::unimplemented_function;"))
+       static var from" "T" "T::unimplemented_function; return nil();"))
     (post-code "namespace runtime {
                  inline var list() { 
                    return obj<empty_sequence>();

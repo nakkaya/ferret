@@ -3255,6 +3255,30 @@ by /std::sort/ using a Ferret function,
   (my-sort < (list 1 3 2)) ;; (3.0000 2.0000 1.0000)
 #+end_src
 
+#+name: ffi-test-helper
+#+begin_src clojure
+  (defn my-find [item seq]
+    "std_vector vec = sequence::to<std_vector>(seq);
+     std_vector::iterator it = find (vec.begin(), vec.end(), item);
+
+     if(it != vec.end())
+       __result = obj<boolean>(true);")
+#+end_src
+
+#+begin_src clojure
+  (my-find (list 1 2) (list (list 1 2)
+                            (list 2 3)
+                            (list 4 5)))
+
+  ;; true
+
+  (my-find (list 5 5) (list (list 1 2)
+                            (list 2 3)
+                            (list 4 5)))
+
+  ;; false
+#+end_src
+
 In addition to *defn* form there is also a *defnative* form which
 allows you to define different function bodies for different *#define*
 directives,
@@ -5658,6 +5682,18 @@ Tests are run by the CI system for the following compilers,
      (is (= false ((fn [a b] "__result = obj<boolean>((a != b))") (list 1 2) (list 1 2))))
      (is (= true  ((fn [a b] "__result = obj<boolean>((a != b))") (list 1 2) 1)))
      (is (= false ((fn [a b] "__result = obj<boolean>((a == b))") 1          (list 1 2))))
+
+
+
+     (is (=  nil   (my-find (list 5 5) (list (list 1 2)
+                                             (list 2 3)
+                                             (list 4 5)))))
+     (is (=  true  (my-find (list 1 2) (list (list 1 2)
+                                             (list 2 3)
+                                             (list 4 5)))))
+     (is (=  true  (my-find (list 4 5) (list (list 1 2)
+                                             (list 2 3)
+                                             (list 4 5)))))
      
      (is (= (list 1 2 3) (my-sort > (list 1 3 2))))
      (is (= (list 3 2 1) (my-sort < (list 1 3 2)))))

@@ -1476,9 +1476,11 @@ Initialize function arguments. Clojure style list structuring is supported.
 
           // Program Run
           namespace ferret{
-            void program_run(){
+           namespace program{
+            void run(){
              $body:{$it$;} ;separator=\"\n\"$ 
             }
+           }
           }
 
          <<runtime-native-program-run-std-main>>
@@ -2972,9 +2974,9 @@ running in safe mode.
   | FERRET_DISABLE_CLI_ARGS        | false        | Disable command line arguments.                          |
   | FERRET_DISABLE_STD_OUT         | true         | Disables output stream. (Reduces code size.)             |
   | FERRET_DISABLE_MULTI_THREADING | true         | Disable atomic reference counting.                       |
-  | FERRET_DISABLE_STD_MAIN        | false        | Disables auto execution of ferret::program_run()         |
+  | FERRET_DISABLE_STD_MAIN        | false        | Disables auto execution of program::run()                |
   | FERRET_DISABLE_RC              | Not Defined  | Disable Reference Counting. (When using third party GCs) |
-  | FERRET_PROGRAM_MAIN            | Not Defined  | A function to execute after ferret::program_run()        |
+  | FERRET_PROGRAM_MAIN            | Not Defined  | A function to execute after program::run()               |
   | FERRET_UART_RATE               | 9600         | Set default UART rate.                                   |
   | FERRET_NUMBER_TYPE             | int          | Default number_t type.                                   |
   | FERRET_REAL_TYPE               | double       | Default real_t type.                                     |
@@ -3123,12 +3125,12 @@ Setup IO for Arduino boards,
 *** Program Run
 
 Unless =FERRET_DISABLE_STD_MAIN= is *defined* a =main= function is
-defined which is the designated start of the program. =program_run=
-function contains all compiled code. Executing this function has
-equivalent semantics to loading the Clojure source file into a virgin
-Clojure interpreter and then terminating its execution. If
-=FERRET_PROGRAM_MAIN= is defined, it will be called right after
-=program_run=.
+defined which is the designated start of the
+program. =program::run()= function contains all compiled
+code. Executing this function has equivalent semantics to loading the
+Clojure source file into a virgin Clojure interpreter and then
+terminating its execution. If =FERRET_PROGRAM_MAIN= is defined, it
+will be called right after =program::run()=.
 
 #+name: runtime-native-program-run-std-main
 #+begin_src c++ :tangle no
@@ -3146,7 +3148,7 @@ Clojure interpreter and then terminating its execution. If
         _star_command_line_args_star_ =  runtime::cons(obj<string>(argv[i]),_star_command_line_args_star_);
      #endif
 
-      program_run();
+      program::run();
 
      #if defined(FERRET_PROGRAM_MAIN)
       run(FERRET_PROGRAM_MAIN);
@@ -3170,13 +3172,13 @@ procedure.
         runtime::init();
 
       #if defined(FERRET_PROGRAM_MAIN)
-        program_run();
+        program::run();
       #endif
     }
     void loop(){
       using namespace ferret;
       #if !defined(FERRET_PROGRAM_MAIN)
-        program_run();
+        program::run();
       #endif          
 
       #if defined(FERRET_PROGRAM_MAIN)

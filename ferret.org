@@ -6512,7 +6512,11 @@ Create some dummy libs under /test/modules/,
       (compile->cpp form options)
       (compile->binary options)
       (static-check "solution.cpp")
-      (exec-check "./a.out" "42")))
+      (let [out (exec-check "./a.out" "42")]
+        (with-sh-dir "./"
+          (sh "rm" "-rf" "a.out")
+          (sh "rm" "-rf" "solution.cpp"))
+        out)))
 
   (defn report-test-failure [event]
     (let [actual (with-out-str

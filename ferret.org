@@ -3290,9 +3290,10 @@ In addition to *defn* form there is also a *defnative* form which
 allows you to define different function bodies for different *#define*
 directives,
 
+#+name: runtime-clojure-get-char
 #+begin_src clojure
   (defnative get-char []
-    (on "defined GNU_GCC"
+    (on "defined FERRET_STD_LIB"
         "__result = obj<number>(getchar());"))
 #+end_src
 
@@ -3300,6 +3301,7 @@ This function when compiled on a system that defines =GNU_GCC= will
 return the result of *getchar* as a *number* , on ANY other system it
 will return *nil*. You can have multiple *on* blocks per *defnative*,
 
+#+name: runtime-clojure-sleep
 #+begin_src clojure
   (defnative sleep [t]
     (on "defined FERRET_STD_LIB"
@@ -3459,10 +3461,8 @@ A simple macro for calling inline C++,
 *** get-char
 
 #+name: runtime-clojure-console-io
-#+begin_src clojure :tangle no
-  (defnative get-char []
-    (on "defined FERRET_STD_LIB"
-        "__result = obj<number>(getchar());"))
+#+begin_src clojure :tangle no :noweb yes
+  <<runtime-clojure-get-char>>
 #+end_src
 
 *** sh
@@ -4317,6 +4317,7 @@ Return current time in milliseconds,
 #+begin_src clojure :tangle no
   (defnative millis []
     (on "defined FERRET_STD_LIB"
+        ("chrono")
         "auto now = ::std::chrono::system_clock::now();
          auto epoch = now.time_since_epoch();
          auto time = ::std::chrono::duration_cast<::std::chrono::milliseconds>(epoch).count();
@@ -4330,14 +4331,8 @@ Return current time in milliseconds,
 Sleep current thread for *t* milliseconds,
 
 #+name: runtime-clojure-misc
-#+begin_src clojure :tangle no
-  (defnative sleep [t]
-    (on "defined FERRET_STD_LIB"
-        ("chrono" "thread")
-        "auto duration = ::std::chrono::milliseconds(number::to<number_t>(t));
-         ::std::this_thread::sleep_for(duration);")
-    (on "defined FERRET_HARDWARE_ARDUINO"
-        "::delay(number::to<number_t>(t));"))
+#+begin_src clojure :tangle no :noweb yes
+  <<runtime-clojure-sleep>>
 #+end_src
 
 *** time-fn

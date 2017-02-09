@@ -818,24 +818,29 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
      (let [shakeable? (fn [f]
                         (or ((is-form? 'defn) f)
                             ((is-form? 'defnative) f)))
+           header-symbols (->> (select-form header seq?)
+                               flatten
+                               (filter symbol?)
+                               (into #{}))
            header-fns (->> (select-form header shakeable?)
                            (map #(vector (second %) %))
                            (into {}))
-           header-macros (select-form header (is-form? 'defmacro))
-           form-expanded (expand-macros-all (concat header-macros form))
+           header-non-shakeable (remove-form header shakeable?)
+           form-expanded (expand-macros-all (concat header-non-shakeable form))
            fns (atom #{})
-           _ (shake-concat form-expanded header-fns fns header-macros)
+           _ (shake-concat form-expanded header-fns fns header-non-shakeable)
            header-shaked (remove-form header (fn [f]
                                                (and (shakeable? f)
                                                     (not (@fns (second f))))))]
        (concat header-shaked form)))
-    ([form built-in fns macros]
+    ([form built-in fns non-shakeable]
      (morph-form form symbol?
-                 #(do (if-let [f (built-in %)]
-                        (when (not (@fns %))
-                          (swap! fns conj %)
-                          (shake-concat (expand-macros-all (concat macros f))
-                                        built-in fns macros))) %))))
+                 #(do
+                    (if-let [f (built-in %)]
+                      (when (not (@fns %))
+                        (swap! fns conj %)
+                        (shake-concat (expand-macros-all (concat non-shakeable f))
+                                      built-in fns non-shakeable))) %))))
 #+end_src
 
 **** Escape Analysis
@@ -5775,6 +5780,12 @@ Create some dummy libs under /test/modules/,
 
   (defn helper-c []
     (helper-b))
+
+  (defn update-aux []
+    )
+
+  (def update-data
+    (fn-throttler update-aux 1000 :second :blocking))
 #+end_src 
 
 #+begin_src clojure :mkdirp yes :tangle src/test/modules/module-b.clj

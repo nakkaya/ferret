@@ -380,8 +380,10 @@ of mod -> aliases pairs.
 #+begin_src clojure :tangle no
   (defn import-modules-load-modules [package-list]
     (reduce (fn[h [m aliases]]
-              (let [mod (read-clojure-file
-                         (str (.replace (str m) "." "/") ".clj"))
+              (let [mod (-> (str (.replace (str m) "." "/") ".clj")
+                            (read-clojure-file)
+                            (remove-form (is-form? 'configure-runtime!))
+                            (remove-form (is-form? 'configure-ferret!)))
                     macro-symbols (->> (select-form mod (is-form? 'defmacro))
                                        (map second)
                                        (into #{}))
@@ -5768,6 +5770,8 @@ Run import tests.
 Create some dummy libs under /test/modules/,
 
 #+begin_src clojure :mkdirp yes :tangle src/test/modules/module-a.clj
+  (configure-runtime! FERRET_PROGRAM_MAIN "ferret::program_no_exec()")
+
   (defn helper-a []
     (print "Module A"))
 

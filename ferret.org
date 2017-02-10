@@ -4915,8 +4915,25 @@ Support for Clojure style unit testing.
 
 #+name: runtime-clojure-testing
 #+begin_src clojure :tangle no
+  (defn is-aux-expect [ex-fb form-fn form-str]
+    (let [expect (ex-fb)
+          got  (form-fn)]
+      (when (not=  expect got)
+        (println "fail in" form-str "\n expected" expect "\n      got" got))))
+
+  (defn is-aux [f msg]
+    (when (not (f))
+      (println "fail" msg)))
+
   (defmacro is [form]
-    `(~'assert ~form (~'println "FAIL =>" ~(-> form pr-str (clojure.string/escape {\\ "\\\\"})))))
+    (let [check-op (first form)
+          form-str (-> form pr-str (clojure.string/escape {\\ "\\\\"}))]
+
+      (cond (= check-op '=)
+            (let [[_ expected form] form]
+              `(~'is-aux-expect (~'fn [] ~expected) (~'fn [] ~form) ~form-str))
+            
+            :default `(~'is-aux (~'fn [] ~form) ~form-str))))
 
   (defmacro deftest [name & exprs]
     (defonce fir-unit-tests (atom []))
@@ -5824,18 +5841,27 @@ Create some dummy libs under /test/modules/,
   (deftest testing-unit-test
     (is (= "" (exec-form '((assert (= 2 1) (print "fail"))) {:release true})))
     (compare-output
-     (str "FAIL => (= 2 3)\n"
-          "FAIL => false\n"
-          "FAIL => (= 5 (apply + (list 1 2 3)))\n"
-          "FAIL => (= 3 (some-fn))\n")
+     (str "fail in (= 2 3) \n"
+          " expected 2.0000 \n"
+          "      got 3.0000\n"
+          "fail (not (some-true))\n"
+          "fail in (= 5 (apply + (list 1 2 3))) \n"
+          " expected 5.0000 \n"
+          "      got 6.0000\n"
+          "fail in (= 3 (some-fn)) \n"
+          " expected 3.0000 \n" 
+          "      got 2.0000\n")
+     
+     (defn some-true [] true)
+
      (deftest some-test
        (is (= 2 3))
        (is (= 2 2))
-       (is false)
-       (is true))
+       (is (not (some-true)))
+       (is (some-true)))
 
      (defn some-fn [] 2)
-     
+
      (deftest some-other-test
        (is (= 5 (apply + (list 1 2 3))))
        (is (= 6 (apply + (list 1 2 3))))
@@ -6619,8 +6645,6 @@ Create some dummy libs under /test/modules/,
 ** resources/core-test.clj
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/resources/core-test.clj
-  (configure-runtime! FERRET_PROGRAM_MAIN run_tests)
-
   <<special-forms-test>>
   <<number-test>>
   <<sequence-test>>
@@ -6642,10 +6666,7 @@ Create some dummy libs under /test/modules/,
   <<ffi-test-helper>>
   <<ffi-test>>
 
-  (defn ferret-unit-test []
-    (run-all-tests))
-
-  (def run-tests ferret-unit-test)
+  (run-all-tests)
 #+end_src
 
 ** resources/bash_executable_stub.sh

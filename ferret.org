@@ -4911,7 +4911,8 @@ Evaluates expr and aborts if it does not evaluate to logical true.
 
 *** deftest
 
-Support for Clojure style unit testing.
+Support for Clojure style unit testing. See [[Unit Testing]] for more
+information.
 
 #+name: runtime-clojure-testing
 #+begin_src clojure :tangle no
@@ -5048,42 +5049,80 @@ Embed compilations options.
                             "// Ferret Build Configuration End\n")))
 #+end_src
 
-* Tests
+* Testing
   :PROPERTIES:
   :noweb-ref: ferret-unit-tests
   :END:
+** Unit Testing
+  :PROPERTIES:
+  :noweb-ref: ferret-no-tangle
+  :END:
 
-Most tests are done using the built in testing API that mimics
-/clojure.test/ API, but certain tests are easier to do using real
-/clojure.test/ framework by compiling forms using Ferret then
-comparing the their runtime output to their expected output. All
-generated code is statically checked using /cppcheck/ and tested
-against memory leaks using /vallgrind/.
+The reliability and robustness of Ferret is achieved in part by
+thorough and careful testing. Ferret lisp has built-in support for
+unit testing using an api that mimics [[https://clojure.github.io/clojure/clojure.test-api.html][clojure.test]] api.
 
-Tests are run by the CI system for the following compilers,
+The core of the library is the "is" macro, which lets you make
+assertions of any arbitrary expression, which will print a message if
+the assertion fails.
+
+#+begin_src clojure
+  (is (= 42 (meaning-of-life)))
+#+end_src
+
+These assertions can be grouped using a [[deftest]] form which defines a
+test function with no arguments. Tests can be defined separately from
+the rest of the code, even in a different module.
+
+#+begin_src clojure :tangle no
+  (defn meaning-of-life [] 42)
+
+  (deftest life-test
+    (is (= 42 (meaning-of-life))))
+
+  (run-all-tests)
+#+end_src
+
+This creates functions named /life-test/, which can be called like any
+other function.  Therefore, tests can be grouped and composed, in a
+style similar to the test framework in Peter Seibel's "Practical
+Common Lisp" Finally all tests in the current program can be run using
+the [[deftest][run-all-tests]].
+
+** Continuous Integration
+
+Each new commit is tested against a set of assertions.  Tests are run
+by the CI system for the following compilers, 
 
  - GCC 5
  - Clang 3.4
 
-/cxx/ options,
+Most tests are done using the built in unit testing api, but certain
+tests, those that target the workings of the compiler are easier to do
+using /clojure.test/ framework by compiling forms using Ferret then
+comparing the their runtime output to their expected output. All
+generated code is statically checked using /cppcheck/ and tested
+against memory leaks.
 
- - *-std=c++11*
- - *-pedantic*
- - *-Werror*
- - *-Wall*
- - *-Wextra*
- - *-Woverloaded-virtual*
- - *-Wuninitialized*
- - *-Winit-self*
- - *-fsanitize=leak*
- - *-fsanitize=undefined*
+Build options,
 
-/cppcheck/ options,
+ - -std=c++11
+ - -pedantic
+ - -Werror
+ - -Wall
+ - -Wextra
+ - -Woverloaded-virtual
+ - -Wuninitialized
+ - -Winit-self
+ - -fsanitize=leak
+ - -fsanitize=undefined
 
- - *--std=c++11*
- - *--template=gcc*
- - *--enable=all*
- - *--error-exitcode=1*
+Static code analysis (cppcheck) options,
+
+ - --std=c++11
+ - --template=gcc
+ - --enable=all
+ - --error-exitcode=1
 
 ** Compiler
 

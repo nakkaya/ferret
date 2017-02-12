@@ -327,13 +327,13 @@ maintain.
 
 Generates the required runtime for the form by importing the required
 modules and concatenate the required runtime from clojure.core
-(resources/core.clj)
+(src/ferret/runtime.clj)
 
 #+name: core-compilation-embed-ferret-runtime
 #+begin_src clojure :tangle no
   (defn ferret-runtime [form]
     (->> (import-modules-all form)
-         (shake-concat (read-clojure-file-from-url "core.clj"))))
+         (shake-concat (read-clojure-file-from-url "ferret/runtime.clj"))))
 #+end_src
 
 Import other ferret files using,
@@ -455,7 +455,7 @@ Process some supported reader macros, /@/ and /#(some-fn)/ forms.
 #+end_src
 
 Macro expansion is done by reading all the macros present in
-/resources/core.clj/ and combining them with user defined macros. They
+src/ferret/runtime.clj and combining them with user defined macros. They
 are evaluated in a temporary namespace, using /morph-form/ we iterate
 all the macros used in the code that we are compiling and expand them
 in the temporary namespace then the node is replaced with its expanded
@@ -466,7 +466,7 @@ form.
   (declare expand-macros-all)
 
   (defn expand-macros [form]
-    (let [core-macros (->> (read-clojure-file-from-url "core.clj")
+    (let [core-macros (->> (read-clojure-file-from-url "ferret/runtime.clj")
                            (filter (is-form? 'defmacro)))
           core-macro-symbols (into #{} (map second core-macros))
           form-macros (->> (filter (is-form? 'defmacro) form)
@@ -1083,7 +1083,7 @@ defined within *ferret* namespace. All Ferret macros starts with
 
  - Detect Hardware
  - Include files
- - Ferret Header (resources/ferret.h)
+ - Ferret Header (src/ferret/runtime.h)
  - Ferret Native Runtime Prototypes (runtime::first, runtime::rest
    etc.)
  - Native Declarations
@@ -1485,7 +1485,7 @@ Initialize function arguments. Clojure style list structuring is supported.
 
          <<runtime-native-program-run-std-main>>
          <<runtime-native-program-arduino>>\n")
-          (fill-view! "ferret_header"       (read-from-url "ferret.h"))
+          (fill-view! "ferret_header"       (read-from-url "ferret/runtime.h"))
           (fill-view! "native_headers"      native-headers)
           (fill-view! "body"                (filter #(not (empty? %)) body))
           (fill-view! "lambda_classes"      (lambda-definitions lambdas))
@@ -6387,7 +6387,8 @@ Create some dummy libs under /test/modules/,
     :jar-name "interim.jar"
     :uberjar-name "ferret.jar")
 #+end_src 
-** src/ferret/core.clj
+** src/
+*** ferret/core.clj
 #+begin_src clojure :noweb yes :mkdirp yes :tangle src/src/ferret/core.clj
   (ns ferret.core
     (:refer-clojure :exclude [compile])
@@ -6400,8 +6401,7 @@ Create some dummy libs under /test/modules/,
               [clojure.tools.cli :refer [parse-opts]]
               [watchtower.core :as watcher]
               [clojure.term.colors :as color])
-    (:use [ferret.string-template]
-          [ferret.template]
+    (:use [ferret.template]
           [clojure.java.shell]
           [clojure.tools [logging :only [log warn info trace]]])
     (:import (org.apache.commons.io FileUtils)))
@@ -6428,11 +6428,11 @@ Create some dummy libs under /test/modules/,
   <<core-code-generation-emit-source>>
   <<core-code-compile-code>>
 #+end_src 
-** src/ferret/template.clj
+*** ferret/template.clj
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/src/ferret/template.clj
   (ns ferret.template
-    (:use [ferret.string-template])
-    (:import (java.io BufferedReader InputStreamReader)))
+    (:import (java.io BufferedReader InputStreamReader)
+             (org.antlr.stringtemplate StringTemplateGroup StringTemplate)))
 
   (defn read-from-url [f]
     (with-open [in (.getResourceAsStream (ClassLoader/getSystemClassLoader) f)
@@ -6447,61 +6447,12 @@ Create some dummy libs under /test/modules/,
     [s]
     (map vector (iterate inc 0) s))
 
-  <<code-templates>>
-#+end_src 
-** src/ferret/string_template.clj
-#+begin_src clojure :noweb yes :mkdirp yes :tangle src/src/ferret/string_template.clj
-  (ns ferret.string-template
-    (:import org.antlr.stringtemplate.StringTemplateGroup)
-    (:import org.antlr.stringtemplate.StringTemplate)
-    (:use ferret.string-template-internal))
-
-
   (defn create-view "Return new view template - useful as mentioned here:
-    http://hardlikesoftware.com/weblog/2006/12/12/using-json-with-stringtemplate/"
+      http://hardlikesoftware.com/weblog/2006/12/12/using-json-with-stringtemplate/"
     ([]
-      (StringTemplate.))
+     (StringTemplate.))
     ([^String template]
-      (StringTemplate. template)))
-
-
-  (defn get-view-from-classpath "Return the view template from classpath"
-    [^String view-name]
-    (let [st-group (StringTemplateGroup. "default")]
-      (.getInstanceOf st-group view-name)))
-
-
-  (defn get-view-from-dir "Return the view template from specified directory"
-    [^String view-name ^String root-dir]
-    (let [st-group (StringTemplateGroup. "default" root-dir)]
-      (.getInstanceOf st-group view-name)))
-
-
-  (defn reset-view! "Reset view template with supplied content"
-    [^StringTemplate view ^String template]
-    (.setTemplate view template))
-
-
-  (defn fill-view! "Fill view template with key/value pairs"
-    ;;;
-    ;; Fill template with key and value
-    ([^StringTemplate template k v]
-      (.setAttribute template (stringify k) (each-kv-to-sv v))
-      template)
-    ;;;
-    ;; Fill template with key/value from map
-    ([^StringTemplate template kv-map]
-      (.setAttributes template (kv-to-sv kv-map))
-      template))
-
-
-  (defn render-view "Return rendered view for the template"
-    [^StringTemplate template]
-    (.toString template))
-#+end_src
-
-#+begin_src clojure :noweb yes :mkdirp yes :tangle src/src/ferret/string_template_internal.clj
-  (ns ferret.string-template-internal)
+     (StringTemplate. template)))
 
 
   (defn stringify [any]
@@ -6531,21 +6482,127 @@ Create some dummy libs under /test/modules/,
 
   (defn kv-to-sv
     "Transforms keyword-value map {:a 10 :b 20 :c 30}
-     to string-value map {\"a\" 10 \"b\" 20 \"c\" 30}"
+       to string-value map {\"a\" 10 \"b\" 20 \"c\" 30}"
     [mp]
     (let [m (into {} mp)
           k (keys m)
           v (vals m)]
       (zipmap
-        (map stringify k)
-        (scan-kv-to-sv v))))
+       (map stringify k)
+       (scan-kv-to-sv v))))
 
+  (defn get-view-from-classpath "Return the view template from classpath"
+    [^String view-name]
+    (let [st-group (StringTemplateGroup. "default")]
+      (.getInstanceOf st-group view-name)))
+
+
+  (defn get-view-from-dir "Return the view template from specified directory"
+    [^String view-name ^String root-dir]
+    (let [st-group (StringTemplateGroup. "default" root-dir)]
+      (.getInstanceOf st-group view-name)))
+
+
+  (defn reset-view! "Reset view template with supplied content"
+    [^StringTemplate view ^String template]
+    (.setTemplate view template))
+
+
+  (defn fill-view! "Fill view template with key/value pairs"
+      ;;;
+    ;; Fill template with key and value
+    ([^StringTemplate template k v]
+     (.setAttribute template (stringify k) (each-kv-to-sv v))
+     template)
+      ;;;
+    ;; Fill template with key/value from map
+    ([^StringTemplate template kv-map]
+     (.setAttributes template (kv-to-sv kv-map))
+     template))
+
+
+  (defn render-view "Return rendered view for the template"
+    [^StringTemplate template]
+    (.toString template))
+
+  <<code-templates>>
+#+end_src 
+
+*** ferret/runtime.clj
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/src/ferret/runtime.clj
+  <<runtime-clojure-thread-macro>>
+  <<runtime-clojure-fn-macro>>
+  <<runtime-clojure-boolean-object>>
+  <<runtime-clojure-pointer-object>>
+  <<runtime-clojure-number-object>>
+  <<runtime-clojure-seekable-interface>>
+  <<runtime-clojure-lambda-interface>>
+  <<runtime-clojure-keyword-object>>
+  <<runtime-clojure-sequence-object>>
+  <<runtime-clojure-heavy-pointer-object>>
+  <<runtime-clojure-string-object>>
+  <<runtime-clojure-atom-object>>
+  <<runtime-clojure-defn>>
+  <<runtime-clojure-looping>>
+  <<runtime-clojure-first>>
+  <<runtime-clojure-sequence>>
+  <<runtime-clojure-logical-operators>>
+  <<runtime-clojure-conditionals>>
+  <<runtime-clojure-math>>
+  <<runtime-clojure-sequence-lazy>>
+  <<runtime-clojure-bit-operations>>
+  <<runtime-clojure-console-io>>
+  <<runtime-clojure-misc>>
+  <<runtime-clojure-state-machine>>
+  <<runtime-clojure-pid-controller>>
+  <<runtime-clojure-gpio>>
+  <<runtime-clojure-testing>>
 #+end_src
 
-** test/ferret/test/core.clj
+*** ferret/runtime.h
 
-#+begin_src clojure :noweb yes :mkdirp yes :tangle src/test/ferret/test/core.clj
-  (ns ferret.test.core
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/runtime.h
+  // Detect Hardware
+  namespace ferret{
+    <<runtime-native-detect-hardware>>
+  }
+
+  <<runtime-native-program-includes>>
+
+  // Number Configuration
+  <<runtime-native-number-config-macros>>
+
+  // Initialize Hardware
+  namespace ferret{
+    <<runtime-native-hardware-initialize>>
+    <<runtime-native-program-header>>
+  }
+
+  // Locking Macros
+  namespace ferret{
+    <<runtime-native-locking-macros>>
+  }
+
+  // Object System Base
+  namespace ferret{
+    class var;
+    <<runtime-native-memory-system-allocator>>
+    <<runtime-native-memory-pool-allocator-implementation>>
+    <<runtime-native-memory-pool-allocator>>
+    <<runtime-native-reference-counting>>
+    <<runtime-native-object>>
+    <<runtime-native-var>>
+    <<runtime-native-object-allocation>>
+    <<runtime-native-debugging-macros>>
+  }
+#+end_src 
+
+** test/
+*** compiler.clj
+
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/test/compiler.clj
+  (ns compiler
     (:refer-clojure :exclude [compile])
     (:use [ferret.core] :reload)
     (:use [clojure.test]
@@ -6599,7 +6656,7 @@ Create some dummy libs under /test/modules/,
        (is (= ~res (exec-form (quote ~body))))))
 
   (deftest test-core
-    (let [prog-out (exec-form (read-clojure-file "resources/core-test.clj"))]
+    (let [prog-out (exec-form (read-clojure-file "test/runtime.clj"))]
       (binding [clojure.test/report
                 (fn [ev]
                   (inc-report-counter (-> ev :type))
@@ -6611,79 +6668,9 @@ Create some dummy libs under /test/modules/,
   <<ferret-unit-tests>>
 #+end_src 
 
-** resources/ferret.h
+*** runtime.clj
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/resources/ferret.h
-  // Detect Hardware
-  namespace ferret{
-    <<runtime-native-detect-hardware>>
-  }
-
-  <<runtime-native-program-includes>>
-
-  // Number Configuration
-  <<runtime-native-number-config-macros>>
-
-  // Initialize Hardware
-  namespace ferret{
-    <<runtime-native-hardware-initialize>>
-    <<runtime-native-program-header>>
-  }
-
-  // Locking Macros
-  namespace ferret{
-    <<runtime-native-locking-macros>>
-  }
-
-  // Object System Base
-  namespace ferret{
-    class var;
-    <<runtime-native-memory-system-allocator>>
-    <<runtime-native-memory-pool-allocator-implementation>>
-    <<runtime-native-memory-pool-allocator>>
-    <<runtime-native-reference-counting>>
-    <<runtime-native-object>>
-    <<runtime-native-var>>
-    <<runtime-native-object-allocation>>
-    <<runtime-native-debugging-macros>>
-  }
-#+end_src 
-
-** resources/core.clj
-
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/resources/core.clj
-  <<runtime-clojure-thread-macro>>
-  <<runtime-clojure-fn-macro>>
-  <<runtime-clojure-boolean-object>>
-  <<runtime-clojure-pointer-object>>
-  <<runtime-clojure-number-object>>
-  <<runtime-clojure-seekable-interface>>
-  <<runtime-clojure-lambda-interface>>
-  <<runtime-clojure-keyword-object>>
-  <<runtime-clojure-sequence-object>>
-  <<runtime-clojure-heavy-pointer-object>>
-  <<runtime-clojure-string-object>>
-  <<runtime-clojure-atom-object>>
-  <<runtime-clojure-defn>>
-  <<runtime-clojure-looping>>
-  <<runtime-clojure-first>>
-  <<runtime-clojure-sequence>>
-  <<runtime-clojure-logical-operators>>
-  <<runtime-clojure-conditionals>>
-  <<runtime-clojure-math>>
-  <<runtime-clojure-sequence-lazy>>
-  <<runtime-clojure-bit-operations>>
-  <<runtime-clojure-console-io>>
-  <<runtime-clojure-misc>>
-  <<runtime-clojure-state-machine>>
-  <<runtime-clojure-pid-controller>>
-  <<runtime-clojure-gpio>>
-  <<runtime-clojure-testing>>
-#+end_src
-
-** resources/core-test.clj
-
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/resources/core-test.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/runtime.clj
   <<special-forms-test>>
   <<number-test>>
   <<sequence-test>>
@@ -6708,7 +6695,8 @@ Create some dummy libs under /test/modules/,
   (run-all-tests)
 #+end_src
 
-** resources/bash_executable_stub.sh
+** resources/
+*** bash_executable_stub.sh
 
 #+begin_src sh :mkdirp yes :tangle src/resources/bash_executable_stub.sh :padline no
   #!/usr/bin/env sh
@@ -6721,7 +6709,7 @@ Create some dummy libs under /test/modules/,
   exec "$java" $java_args -jar $MYSELF "$@"
   exit 1 
 #+end_src
-** resources/ferret-mode.el
+*** ferret-mode.el
 
 #+begin_src emacs-lisp :mkdirp yes :tangle src/resources/ferret-mode.el :padline no :results none
   (define-derived-mode ferret-mode

@@ -4868,6 +4868,21 @@ Registers an interrupt function for the given pin and mode. See
                "::attachInterrupt(int_pin, [](){ run(" cb-sym ");}, " mode ");")))))
 #+end_src
 
+*** no-interrupt
+
+Executes critical section with interrupts disabled.
+
+#+name: runtime-clojure-gpio
+#+begin_src clojure :tangle no
+  (defmacro no-interrupt [& body]
+    `(~'no-interrupt-aux  (~'fn [] ~@body)))
+
+  (defn no-interrupt-aux [f]
+    "noInterrupts();
+     __result = run(f);
+     interrupts();")
+#+end_src
+
 *** detach-interrupt
 
 Turns off the given interrupt.

@@ -102,9 +102,9 @@ Boards]] for more info on how to use Ferret lisp on Arduino boards.)
   (pin-mode 13 :output)
 
   (forever
-   (digital-write 13 :high)
+   (digital-write 13 1)
    (sleep 500)
-   (digital-write 13 :low)
+   (digital-write 13 0)
    (sleep 500))
 #+end_src
 
@@ -4738,18 +4738,12 @@ output.
 
 #+name: runtime-clojure-gpio
 #+begin_src clojure :tangle no
-  (defnative pin-mode-input [pin]
-    (on "defined FERRET_HARDWARE_ARDUINO"
-        "::pinMode(number::to<number_t>(pin), INPUT);"))
-
-  (defnative pin-mode-output [pin]
-    (on "defined FERRET_HARDWARE_ARDUINO"
-        "::pinMode(number::to<number_t>(pin), OUTPUT);"))
-
   (defmacro pin-mode [pin mode]
-    (if (= mode :input)
-      `(~'pin-mode-input  ~pin)
-      `(~'pin-mode-output ~pin)))
+    (let [pin (if (number? pin)
+                pin
+                (str "number::to<number_t>(" (symbol-conversion pin) ")"))
+          mode (-> mode name .toUpperCase)]
+      `(~'cxx ~(str "::pinMode(" pin ", " mode ");"))))
 #+end_src
 
 *** digital-write
@@ -4758,18 +4752,9 @@ Write a HIGH or a LOW value to a digital pin.
 
 #+name: runtime-clojure-gpio
 #+begin_src clojure :tangle no
-  (defnative digital-write-high [pin]
+  (defnative digital-write [pin val]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::digitalWrite(number::to<number_t>(pin), HIGH);"))
-
-  (defnative digital-write-low [pin]
-    (on "defined FERRET_HARDWARE_ARDUINO"
-        "::digitalWrite(number::to<number_t>(pin), LOW);"))
-
-  (defmacro digital-write [pin mode]
-    (if (= mode :high)
-      `(~'digital-write-high ~pin)
-      `(~'digital-write-low  ~pin)))
+        "::digitalWrite(number::to<number_t>(pin), number::to<number_t>(val));"))
 #+end_src
 
 *** digital-read
@@ -4780,10 +4765,7 @@ Reads the value from a specified digital pin, either HIGH or LOW.
 #+begin_src clojure :tangle no
   (defnative digital-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "if (::digitalRead(number::to<number_t>(pin)) == HIGH)
-           __result = obj<boolean>(true);
-         else
-           __result = obj<boolean>(false);"))
+        "__result = obj<number>(::digitalRead(number::to<number_t>(pin)));"))
 #+end_src
 
 *** analog-write
@@ -4849,42 +4831,59 @@ cycle) on a pin.
         "::noTone(number::to<number_t>(pin));"))
 #+end_src
 
-*** definterrupt
+*** attach-interrupt
 
-Registers an interrupt on the /symbol/ for the given pin and mode. See
+Registers an interrupt function for the given pin and mode. See
 [[https://www.arduino.cc/en/Reference/AttachInterrupt][attachInterrupt()]] for more information.
 
-#+BEGIN_EXAMPLE
-  (defn control-light []
-    (if (digital-read input-pin)
-      (digital-write debug-pin :high)
-      (digital-write debug-pin :low)))
+#+begin_src clojure
+  (def input-pin  3)
+  (def debug-pin 13)
 
-  (definterrupt control-light input-pin :change)
+  (pin-mode debug-pin :output)
+
+  (defn control-light []
+    (->> (digital-read  input-pin)
+         (digital-write debug-pin)))
+
+  (attach-interrupt control-light input-pin :change)
+
+  (forever
+   (sleep 100))
+#+end_src
+
+#+name: runtime-clojure-gpio
+#+begin_src clojure :tangle no
+  (defmacro attach-interrupt [callback pin mode]
+    (let [pin (if (number? pin)
+                pin
+                (str "number::to<number_t>(" (symbol-conversion pin) ")"))
+          mode (-> mode name .toUpperCase)
+          cb-sym (gensym)]
+      `(~'do
+        (~'def ~cb-sym ~callback)
+        (~'cxx
+         ~(str "::pinMode(" pin " , INPUT_PULLUP);\n"
+               "auto int_pin = digitalPinToInterrupt(" pin ");\n"
+               "::attachInterrupt(int_pin, [](){ run(" cb-sym ");}, " mode ");")))))
+#+end_src
+
+*** detach-interrupt
+
+Turns off the given interrupt.
+
+#+BEGIN_EXAMPLE
+  (detach-interrupt input-pin)
 #+END_EXAMPLE
 
 #+name: runtime-clojure-gpio
 #+begin_src clojure :tangle no
-  (defmacro definterrupt [callback pin mode]
+  (defmacro detach-interrupt [pin]
     (let [pin (if (number? pin)
                 pin
-                (str "number::to<number_t>(" (symbol-conversion pin) ")"))
-          mode (cond (= mode :low) "LOW"
-                     (= mode :change) "CHANGE"
-                     (= mode :rising) "RISING"
-                     (= mode :falling) "FALLING"
-                     (= mode :high) "HIGH")
-          callback-cpp  (symbol-conversion callback)
-          callback-clj (symbol (str callback "-callback-fn"))]
-      `(~'do
-         (~'def ~callback-clj ~callback)
-         (~'native-declare
-          ~(str "\n void " callback-cpp "_callack" "(){\n"
-                "run(ferret::" (symbol-conversion callback-clj) ");"
-                "\n}\n"))
-         ((~'fn []
-            ~(str "::pinMode(" pin " , INPUT_PULLUP);"
-                  "::attachInterrupt(digitalPinToInterrupt(" pin "), " callback-cpp "_callack , " mode ");"))))))
+                (str "number::to<number_t>(" (symbol-conversion pin) ")"))]
+      `(~'cxx
+        ~(str "::detachInterrupt(digitalPinToInterrupt(" pin "));"))))
 #+end_src
 
 ** Testing

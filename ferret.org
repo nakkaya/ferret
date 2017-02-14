@@ -1273,7 +1273,7 @@ defined within *ferret* namespace. All Ferret macros starts with
 
          $if(stream_console)$
          #if !defined(FERRET_DISABLE_STD_OUT)
-          var stream_console(){
+          var stream_console() const {
            $stream_console$
           }
          #endif
@@ -1804,7 +1804,7 @@ All our types are derived from the base Object type. Which is a
       virtual size_t type() const = 0;
     
   #if !defined(FERRET_DISABLE_STD_OUT)
-      virtual var stream_console() = 0;
+      virtual var stream_console() const = 0;
   #endif
     
       virtual var equals(var o) = 0;
@@ -2194,7 +2194,7 @@ A lazy list container implementing the seekable interface.
     (stream_console
      "runtime::print(\"(\");
       head.stream_console();
-      for(auto i : runtime::range(runtime::rest(var(this)))){
+      for(auto i : runtime::range(run(thunk))){
        runtime::print(\" \");
        i.stream_console();
       }
@@ -2703,7 +2703,7 @@ count, when it reaches zero it will automatically free the object_t.
     operator bool() const;
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() {
+    var stream_console() const {
       if (m_ptr != nullptr )
         m_ptr->stream_console();
       else
@@ -2715,7 +2715,7 @@ count, when it reaches zero it will automatically free the object_t.
     object_t* get() { return m_ptr; }
     
     template<typename T>
-    T* cast() { return static_cast<T*>(m_ptr); }
+    T* cast() const { return static_cast<T*>(m_ptr); }
 
     bool is_type(size_t type) const { 
       return (static_cast<object_t*>(m_ptr)->type() == type);

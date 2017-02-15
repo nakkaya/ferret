@@ -1881,7 +1881,7 @@ A /pointer/ object keeps a reference to a C++ pointer.
 
     explicit pointer(void* p) : _payload(p) {} 
 
-    void* payload(){
+    void* payload() const {
       return _payload;
     }
     template<typename T> static T* to_pointer(var v){
@@ -1939,7 +1939,7 @@ Java.
     ~heavy_pointer(){
       gc_fn.cast<lambda_i>()->invoke(runtime::list(_payload));
     }
-    var payload(){
+    var payload() const {
       return _payload;
     }
   };
@@ -1995,7 +1995,7 @@ modern C++ libraries that use smart pointers for memory management.
     template <typename... Args>
     explicit value(Args&&... args) : _payload(static_cast<Args&&>(args)...) { } 
 
-    T payload(){
+    T payload() const {
       return _payload;
     }
     static T to_value(var v){
@@ -2102,40 +2102,44 @@ number Object,
 
     template<typename T> explicit number(T x) : _word((real_t)x) {} 
 
-    real_t word(){
+    real_t word() const {
       return _word;
     }
-    template<typename T> T as(){
+    
+    template<typename T> T as() const {
       T::unimplemented_function;
     }
-    var add(var v){
+    
+    var add(var v) const {
       return obj<number>(_word + v.cast<number>()->word());
     }
-    var sub(var v){
+    var sub(var v) const {
       return obj<number>(_word - v.cast<number>()->word());
     }
-    var mul(var v){
+    var mul(var v) const {
       return obj<number>(_word * v.cast<number>()->word());
     }
-    var div(var v){
+    var div(var v) const {
       return obj<number>(_word / v.cast<number>()->word());
     }
-    var is_smaller(var v){
+    var is_smaller(var v) const {
       return obj<boolean>(_word < v.cast<number>()->word());
     }
-    var is_smaller_equal(var v){
+    var is_smaller_equal(var v) const {
       return obj<boolean>(_word <= v.cast<number>()->word());
     }
-    var is_bigger(var v){
+    var is_bigger(var v) const {
       return obj<boolean>(_word > v.cast<number>()->word());
     }
-    var is_bigger_equal(var v){
+    var is_bigger_equal(var v) const {
       return obj<boolean>(_word >= v.cast<number>()->word());
     }
+    
     template<typename T> static T to(var v){
       return (T)v.cast<number>()->word();
     }
   };
+
 #+end_src
 
 **** Keyword
@@ -2176,7 +2180,7 @@ Each keyword in the program is converted to an /keyword/ object. A
       }
     } 
 
-    number_t word(){
+    number_t word() const {
       return _word;
     }
   };
@@ -2424,7 +2428,7 @@ strings are represented as a linked list of characters.
         data = runtime::cons(obj<number>((number_t)str[i]),data);
     } 
 
-    var container(){
+    var container() const {
       return data;
     }
     var cons(var x){
@@ -2491,7 +2495,7 @@ A boolean object,
 
     explicit boolean(bool b) : value(b) {} 
 
-    bool container(){
+    bool container() const {
       return value;
     }
   };

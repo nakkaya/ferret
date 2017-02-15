@@ -1231,7 +1231,7 @@ defined within *ferret* namespace. All Ferret macros starts with
 
 #+name: code-templates
 #+begin_src clojure :tangle no
-  (defn define-object [name body]
+  (defn define-object-depricated [name body]
     (let [specs (into {} (map #(vector (first %) (rest %)) body))
           interface (if (nil? (specs 'interface))
                       "object_t"
@@ -1310,6 +1310,21 @@ defined within *ferret* namespace. All Ferret macros starts with
           (fill-view! "raw_fns"        raw-fns)
           (fill-view! "ifdef_fns"      (filter #(= 4 (count %)) (specs 'fns)))
           (fill-view! "post_code"      (first (specs 'post_code)))
+          (render-view))))
+
+  (defn define-object [name f]
+    (if (not (string? (first f)))
+      (define-object-depricated name f)
+      (-> (create-view "namespace runtime {
+                         namespace type {
+                          const size_t $type$ = $type_val$;
+                         }
+                        }
+
+                        $body$")
+          (fill-view! "type"     (str name))
+          (fill-view! "type_val" (gensym ""))
+          (fill-view! "body"     (read-from-url (first f)))
           (render-view))))
 #+end_src    
 
@@ -1833,33 +1848,49 @@ All our types are derived from the base Object type. Which is a
 
 A /pointer/ object keeps a reference to a C++ pointer.
 
-#+begin_src clojure
-  (let [ptr    (cxx "__result = obj<pointer>(new int(42))")
-        value  (cxx "int *ptr = pointer::to_pointer<int>(ptr);
-                     __result = obj<number>(*ptr)")]
-    (println value))
-
-  ;; => 42
+#+begin_src c++
+  var num = obj<pointer>(new int(42));
+  int *ptr = pointer::to_pointer<int>(ptr);
 #+end_src
 
 #+name: runtime-clojure-pointer-object
 #+begin_src clojure :tangle no
-  (defobject pointer
-    (data "void* _payload;")
-    (equals
-     "return obj<boolean>(_payload == o.cast<pointer>()->payload());")
-    (stream_console
-     "runtime::print(\"pointer<\");
+  (defobject pointer "ferret/obj/pointer_o.h")
+#+end_src
+
+#+name: runtime-clojure-pointer-implementation
+#+begin_src c++ :tangle no
+  class pointer : public object_t {
+    void* _payload;
+  public:
+
+
+    size_t type() const { return runtime::type::pointer; }
+
+    var equals(var o){
+      return obj<boolean>(_payload == o.cast<pointer>()->payload());
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      runtime::print("pointer<");
       runtime::print(_payload);
-      runtime::print(\">\");return nil();")
-    (fns
-     ("explicit pointer(void* p) : _payload(p) {}")
-     ("void* payload" "" "return _payload;")
-     ("template<typename T> static T* to_pointer" "var v"
-      "return ((T *) v.cast<pointer>()->payload());")
-     ("template<typename T> static T& to_reference" "var v"
-      "return (*(pointer::to_pointer<T>(v)));"))
-    (force-type))
+      runtime::print(">");return nil();
+    }
+  #endif
+
+    explicit pointer(void* p) : _payload(p) {} 
+
+    void* payload(){
+      return _payload;
+    }
+    template<typename T> static T* to_pointer(var v){
+      return ((T *) v.cast<pointer>()->payload());
+    }
+    template<typename T> static T& to_reference(var v){
+      return (*(pointer::to_pointer<T>(v)));
+    }
+  };
 #+end_src
 
 A /heavy_pointer/ object contains a pointer and a function to be called
@@ -1878,21 +1909,40 @@ Java.
 
 #+name: runtime-clojure-heavy-pointer-object
 #+begin_src clojure :tangle no
-  (defobject heavy_pointer
-    (data "var _payload;"
-          "var gc_fn;")
-    (equals
-     "return _payload.equals(o.cast<heavy_pointer>()->payload());")
-    (stream_console
-     "return _payload.cast<pointer>()->stream_console();")
-    (fns
-     ("explicit heavy_pointer(var p, var gc) : _payload(p), gc_fn(gc) {}")
-     ("~heavy_pointer" "" "gc_fn.cast<lambda_i>()->invoke(runtime::list(_payload));")
-     ("var payload" "" "return _payload;"))
-    (force-type))
+  (defobject heavy_pointer "ferret/obj/heavy_pointer_o.h")
 
   (defn new-heavy-pointer [ptr gc]
     "__result = obj<heavy_pointer>(ptr,gc)")
+#+end_src
+
+#+name: runtime-clojure-heavy-pointer-implementation
+#+begin_src c++ :tangle no
+  class heavy_pointer : public object_t {
+    var _payload;
+    var gc_fn;
+  public:
+
+    size_t type() const { return runtime::type::heavy_pointer; }
+
+    var equals(var o){
+      return _payload.equals(o.cast<heavy_pointer>()->payload());
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      return _payload.cast<pointer>()->stream_console();
+    }
+  #endif
+
+    explicit heavy_pointer(var p, var gc) : _payload(p), gc_fn(gc) {} 
+
+    ~heavy_pointer(){
+      gc_fn.cast<lambda_i>()->invoke(runtime::list(_payload));
+    }
+    var payload(){
+      return _payload;
+    }
+  };
 #+end_src
 
 A /value/ object keeps a native object. Useful when working with
@@ -1917,21 +1967,41 @@ modern C++ libraries that use smart pointers for memory management.
 
 #+name: runtime-clojure-pointer-object
 #+begin_src clojure :tangle no
-  (defobject value
-    (template "typename T")
-    (data "T _payload;")
-    (equals "return obj<boolean>(this == o.get());")
-    (stream_console
-     "runtime::print(\"value<\");
+  (defobject value "ferret/obj/value_o.h")
+#+end_src
+
+#+name: runtime-clojure-value-implementation
+#+begin_src c++ :tangle no
+  template <typename T>
+  class value : public object_t {
+    T _payload;
+  public:
+
+    size_t type() const { return runtime::type::value; }
+
+    var equals(var o){
+      return obj<boolean>(this == o.get());
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      runtime::print("value<");
       runtime::print((void*)&_payload);
-      runtime::print(\">\");
-      return nil();")
-    (fns
-     ("template <typename... Args>
-       explicit value(Args&&... args) : _payload(static_cast<Args&&>(args)...) { }")
-     ("T payload" "" "return _payload;")
-     ("static T to_value" "var v" "return v.cast<value<T>>()->payload();"))
-    (force-type))
+      runtime::print(">");
+      return nil();
+    }
+  #endif
+
+    template <typename... Args>
+    explicit value(Args&&... args) : _payload(static_cast<Args&&>(args)...) { } 
+
+    T payload(){
+      return _payload;
+    }
+    static T to_value(var v){
+      return v.cast<value<T>>()->payload();
+    }
+  };
 #+end_src
 
 **** Number
@@ -2005,48 +2075,67 @@ number Object,
 
 #+name: runtime-clojure-number-object
 #+begin_src clojure :tangle no
-  (defobject number
-    (data "real_t _word;")
-    (equals "if (runtime::abs(_word - o.cast<number>()->word()) < FERRET_REAL_EPSILON)
-               return obj<boolean>(true);
-             else
-               return obj<boolean>(false);")
-    (stream_console
-     "runtime::print(_word); return nil();")
-    (fns
-     ("template<typename T> explicit number(T x) : _word((real_t)x) {}")
-     ("real_t word" "" "return _word;")
-     ("template<typename T> T as" "" "T::unimplemented_function;")
-     ;; Math Ops
-     ("var add" "var v"
-      "return obj<number>(_word + v.cast<number>()->word());")
+  (defobject number "ferret/obj/number_o.h")
+#+end_src
 
-     ("var sub" "var v"
-      "return obj<number>(_word - v.cast<number>()->word());")
+#+name: runtime-clojure-number-implementation
+#+begin_src c++ :tangle no
+  class number : public object_t {
+    real_t _word;
+  public:
 
-     ("var mul" "var v"
-      "return obj<number>(_word * v.cast<number>()->word());")
 
-     ("var div" "var v"
-      "return obj<number>(_word / v.cast<number>()->word());")
+    size_t type() const { return runtime::type::number; }
 
-     ;; Logical Ops
-     ("var is_smaller" "var v"
-      "return obj<boolean>(_word < v.cast<number>()->word());")
+    var equals(var o){
+      if (runtime::abs(_word - o.cast<number>()->word()) < FERRET_REAL_EPSILON)
+        return obj<boolean>(true);
+      else
+        return obj<boolean>(false);
+    }
 
-     ("var is_smaller_equal" "var v"
-      "return obj<boolean>(_word <= v.cast<number>()->word());")
-     
-     ("var is_bigger" "var v"
-      "return obj<boolean>(_word > v.cast<number>()->word());")
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      runtime::print(_word); return nil();
+    }
+  #endif
 
-     ("var is_bigger_equal" "var v"
-      "return obj<boolean>(_word >= v.cast<number>()->word());")
+    template<typename T> explicit number(T x) : _word((real_t)x) {} 
 
-     ("template<typename T> static T to" "var v"
-      "return (T)v.cast<number>()->word();"))
-
-    (force-type))
+    real_t word(){
+      return _word;
+    }
+    template<typename T> T as(){
+      T::unimplemented_function;
+    }
+    var add(var v){
+      return obj<number>(_word + v.cast<number>()->word());
+    }
+    var sub(var v){
+      return obj<number>(_word - v.cast<number>()->word());
+    }
+    var mul(var v){
+      return obj<number>(_word * v.cast<number>()->word());
+    }
+    var div(var v){
+      return obj<number>(_word / v.cast<number>()->word());
+    }
+    var is_smaller(var v){
+      return obj<boolean>(_word < v.cast<number>()->word());
+    }
+    var is_smaller_equal(var v){
+      return obj<boolean>(_word <= v.cast<number>()->word());
+    }
+    var is_bigger(var v){
+      return obj<boolean>(_word > v.cast<number>()->word());
+    }
+    var is_bigger_equal(var v){
+      return obj<boolean>(_word >= v.cast<number>()->word());
+    }
+    template<typename T> static T to(var v){
+      return (T)v.cast<number>()->word();
+    }
+  };
 #+end_src
 
 **** Keyword
@@ -2056,22 +2145,41 @@ Each keyword in the program is converted to an /keyword/ object. A
 
 #+name: runtime-clojure-keyword-object
 #+begin_src clojure :tangle no
-  (defobject keyword
-    (data "number_t _word;")
-    (equals "return obj<boolean>(_word == o.cast<keyword>()->word());")
-    (stream_console
-     "runtime::print(_word); return nil();")
-    (fns
-     ("explicit keyword(number_t w) : _word(w) {}")
-     ("explicit keyword(const char * str){
-           _word = 0;
-           for (number_t i = 0; str[i] != '\\0'; i++){
-             _word = _word + (number_t)str[i];
-           }
-       }")
-     ("number_t word" ""
-      "return _word;"))
-    (force-type))
+  (defobject keyword "ferret/obj/keyword_o.h")
+#+end_src
+
+#+name: runtime-clojure-keyword-implementation
+#+begin_src c++ :tangle no
+  class keyword : public object_t {
+    number_t _word;
+    
+  public:
+
+
+    size_t type() const { return runtime::type::keyword; }
+
+    var equals(var o){
+      return obj<boolean>(_word == o.cast<keyword>()->word());
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      runtime::print(_word); return nil();
+    }
+  #endif
+
+    explicit keyword(number_t w) : _word(w) {} 
+    explicit keyword(const char * str){
+      _word = 0;
+      for (number_t i = 0; str[i] != '\0'; i++){
+        _word = _word + (number_t)str[i];
+      }
+    } 
+
+    number_t word(){
+      return _word;
+    }
+  };
 #+end_src
 
 **** Sequence
@@ -2080,93 +2188,129 @@ Linked list container implementing the seekable interface.
 
 #+name: runtime-clojure-sequence-object
 #+begin_src clojure :tangle no
-  (defobject empty_sequence
-    (interface :seekable_i)
-    (equals "(void)o; 
-             return obj<boolean>(true);")
-    (stream_console
-     "runtime::print(\"()\");
-      return nil();")
-    (fns
-     ("var cons" "var"
-      "return var(this);")
-     ("var first" ""
-      "return nil();")
-     ("var rest" ""
-      "return nil();"))
-    (force-type))
+  (defobject empty_sequence "ferret/obj/empty_sequence_o.h")
+  (defobject sequence "ferret/obj/sequence_o.h")
+#+end_src
 
-  (defobject sequence
-    (interface :seekable_i)
-    (data "var data;"
-          "var next;")
-    (equals
-     "var itOther = o;
+#+name: runtime-clojure-empty-sequence-implementation
+#+begin_src c++ :tangle no
+  class empty_sequence : public seekable_i {
+  public:
+
+    size_t type() const { return runtime::type::empty_sequence; }
+
+    var equals(var o){
+      (void)o; 
+      return obj<boolean>(true);
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      runtime::print("()");
+      return nil();
+    }
+  #endif
+
+    var cons(var){
+      return var(this);
+    }
+    var first(){
+      return nil();
+    }
+    var rest(){
+      return nil();
+    }
+  };
+#+end_src
+
+#+name: runtime-clojure-sequence-implementation
+#+begin_src c++ :tangle no
+  class sequence : public seekable_i {
+    var data;
+    var next;
+  public:
+
+    size_t type() const { return runtime::type::sequence; }
+
+    var equals(var o){
+      var itOther = o;
       for(auto it : runtime::range(var(this))){
-       if (itOther.is_nil() || it.equals(runtime::first(itOther))  == false)
-         return obj<boolean>(false);
-       itOther = runtime::rest(itOther);
+        if (itOther.is_nil() || it.equals(runtime::first(itOther))  == false)
+          return obj<boolean>(false);
+        itOther = runtime::rest(itOther);
       }
 
       if (itOther.is_nil())
         return obj<boolean>(true);
       else
-        return obj<boolean>(false);")
-    
-    (stream_console
-     "runtime::print(\"(\");
-        data.stream_console();
-        for(auto i : runtime::range(next)){
-         runtime::print(\" \");
-         i.stream_console();
-        }
-      runtime::print(\")\");
-      return nil();")
-    (fns
-     ("explicit sequence(var d = var(), var n = var()) : data(d), next(n) {}")
-     ("var cons" "var x"
-      "return obj<sequence>(x, var(this));")
-     ("var first" ""
-      "return data;")
-     ("var rest" ""
-      "return next;")
+        return obj<boolean>(false);
+    }
 
-     ("template <typename T>
-       static T to" "var" "T::unimplemented_function;")
-     ("template <typename T>
-       static var from" "T" "T::unimplemented_function; return nil();"))
-    (post-code "namespace runtime {
-                 inline var list() { 
-                   return obj<empty_sequence>();
-                 }
-                 inline var list(var v) { 
-                   return obj<sequence>(v,nil());
-                 }
-        
-                 template <typename... Args>
-                 inline var list(var first, Args... args) { 
-                   return obj<sequence>(first, list(args...));
-                 }
-               }
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      runtime::print("(");
+      data.stream_console();
+      for(auto i : runtime::range(next)){
+        runtime::print(" ");
+        i.stream_console();
+      }
+      runtime::print(")");
+      return nil();
+    }
+  #endif
 
-               #ifdef FERRET_STD_LIB
-                 typedef ::std::vector<var>  std_vector;
+    explicit sequence(var d = var(), var n = var()) : data(d), next(n) {} 
 
-                 template <> std_vector sequence::to(var v) { 
-                  std_vector ret;
-                  for(auto it : runtime::range(v))
-                    ret.push_back(it);
-                  return ret;
-                 }
+    var cons(var x){
+      return obj<sequence>(x, var(this));
+    }
+    var first(){
+      return data;
+    }
+    var rest(){
+      return next;
+    }
+    template <typename T>
+    static T to(var){
+      T::unimplemented_function;
+    }
+    template <typename T>
+    static var from(T){
+      T::unimplemented_function; return nil();
+    }
 
-                 template <> var sequence::from(std_vector v) { 
-                  var ret;
-                  for(auto it : v)
-                    ret = runtime::cons(it,ret);
-                  return ret;
-                 }
-               #endif")
-    (force-type))
+  };
+  namespace runtime {
+    inline var list() { 
+      return obj<empty_sequence>();
+    }
+    inline var list(var v) { 
+      return obj<sequence>(v,nil());
+    }
+                      
+    template <typename... Args>
+    inline var list(var first, Args... args) { 
+      return obj<sequence>(first, list(args...));
+    }
+  }
+
+  #ifdef FERRET_STD_LIB
+  typedef ::std::vector<var>  std_vector;
+
+  template <> std_vector sequence::to(var v) { 
+    std_vector ret;
+    for(auto it : runtime::range(v))
+      ret.push_back(it);
+    return ret;
+  }
+
+  template <> var sequence::from(std_vector v) { 
+    var ret;
+    for(auto it : v)
+      ret = runtime::cons(it,ret);
+    return ret;
+  }
+  #endif
 #+end_src
 
 **** Lazy Sequence
@@ -2175,41 +2319,58 @@ A lazy list container implementing the seekable interface.
 
 #+name: runtime-clojure-sequence-object
 #+begin_src clojure :tangle no
-  (defobject lazy_sequence
-    (interface :seekable_i)
-    (data "var head;"
-          "var thunk;")
-    (equals
-     "var itOther = o;
+  (defobject lazy_sequence "ferret/obj/lazy_sequence_o.h")
+#+end_src
+
+#+name: runtime-clojure-lazy-sequence-implementation
+#+begin_src c++ :tangle no
+  class lazy_sequence : public seekable_i {
+    var head;
+    var thunk;
+  public:
+
+    size_t type() const { return runtime::type::lazy_sequence; }
+
+    var equals(var o){
+      var itOther = o;
       for(auto it : runtime::range(var(this))){
-       if (itOther.is_nil() || it.equals(runtime::first(itOther))  == false)
-         return obj<boolean>(false);
-       itOther = runtime::rest(itOther);
+        if (itOther.is_nil() || it.equals(runtime::first(itOther))  == false)
+          return obj<boolean>(false);
+        itOther = runtime::rest(itOther);
       }
 
       if (itOther.is_nil())
         return obj<boolean>(true);
       else
-        return obj<boolean>(false);")
-    (stream_console
-     "runtime::print(\"(\");
+        return obj<boolean>(false);
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      runtime::print("(");
       head.stream_console();
       for(auto i : runtime::range(run(thunk))){
-       runtime::print(\" \");
-       i.stream_console();
+        runtime::print(" ");
+        i.stream_console();
       }
-      runtime::print(\")\");
-      return nil();")
-    (fns
-     ("explicit lazy_sequence(var t) : thunk(t) {}")
-     ("explicit lazy_sequence(var h, var t) : head(h), thunk(t) {}")
-     ("var cons" "var x"
-      "return obj<lazy_sequence>(x,thunk);")
-     ("var first" ""
-      "return head;")
-     ("var rest" ""
-      "return run(thunk);"))
-    (force-type))
+      runtime::print(")");
+      return nil();
+    }
+  #endif
+
+    explicit lazy_sequence(var t) : thunk(t) {} 
+    explicit lazy_sequence(var h, var t) : head(h), thunk(t) {} 
+
+    var cons(var x){
+      return obj<lazy_sequence>(x,thunk);
+    }
+    var first(){
+      return head;
+    }
+    var rest(){
+      return run(thunk);
+    }
+  };
 #+end_src
 
 #+name: runtime-clojure-sequence-object
@@ -2227,52 +2388,74 @@ strings are represented as a linked list of characters.
 
 #+name: runtime-clojure-string-object
 #+begin_src clojure :tangle no
-  (defobject string
-    (interface :seekable_i)
-    (data "var data;")
-    (equals "return obj<boolean>(container().equals(o.cast<string>()->container()));")
-    (stream_console
-     "for(auto it : runtime::range(data))
-       runtime::print(number::to<char>(it));
-      return nil();")
-    (fns
-     ("explicit string() : data(nullptr) {}")
-     ("explicit string(var s) : data(s) {}")
-     ("explicit string(const char * str) {
-           int length = 0;
-           for (length = 0; str[length] != '\\0'; ++length);
-           for (int i = --length; i >= 0; i--)
-             data = runtime::cons(obj<number>((number_t)str[i]),data);
-       }")
-     ("explicit string(const char * str,int length) {
-           for (int i = --length; i >= 0; i--)
-             data = runtime::cons(obj<number>((number_t)str[i]),data);
-       }")
-     ("var container" ""
-      "return data;")
-     ("var cons" "var x"
-      "return runtime::cons(x,data);")
-     ("var first" ""
-      "return runtime::first(data);")
-     ("var rest" ""
-      "return runtime::rest(data);")
+  (defobject string "ferret/obj/string_o.h")
+#+end_src
 
-     ("template <typename T>
-       static T to" "var" "T::unimplemented_function;"))
-    (post-code "#ifdef FERRET_STD_LIB
-                  template<>
-                  inline var obj<string>(std::string s) {
-                    return var(new string(s.c_str(), s.size()));
-                  }
+#+name: runtime-clojure-string-implementation
+#+begin_src c++ :tangle no
+  class string : public seekable_i {
+    var data;
+  public:
 
-                  template <> ::std::string string::to(var v) { 
-                    ::std::stringstream ss;
-                    for(auto it : runtime::range(v.cast<string>()->container()))
-                      ss << number::to<char>(it);
-                    return ss.str();
-                  }
-                #endif")
-    (force-type))
+    size_t type() const { return runtime::type::string; }
+
+    var equals(var o){
+      return obj<boolean>(container().equals(o.cast<string>()->container()));
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      for(auto it : runtime::range(data))
+        runtime::print(number::to<char>(it));
+      return nil();
+    }
+  #endif
+
+    explicit string() : data(nullptr) {} 
+    explicit string(var s) : data(s) {} 
+    explicit string(const char * str) {
+      int length = 0;
+      for (length = 0; str[length] != '\0'; ++length);
+      for (int i = --length; i >= 0; i--)
+        data = runtime::cons(obj<number>((number_t)str[i]),data);
+    } 
+    explicit string(const char * str,int length) {
+      for (int i = --length; i >= 0; i--)
+        data = runtime::cons(obj<number>((number_t)str[i]),data);
+    } 
+
+    var container(){
+      return data;
+    }
+    var cons(var x){
+      return runtime::cons(x,data);
+    }
+    var first(){
+      return runtime::first(data);
+    }
+    var rest(){
+      return runtime::rest(data);
+    }
+    template <typename T>
+    static T to(var){
+      T::unimplemented_function;
+    }
+
+  };
+
+  #ifdef FERRET_STD_LIB
+  template<>
+  inline var obj<string>(std::string s) {
+    return var(new string(s.c_str(), s.size()));
+  }
+
+  template <> ::std::string string::to(var v) { 
+    ::std::stringstream ss;
+    for(auto it : runtime::range(v.cast<string>()->container()))
+      ss << number::to<char>(it);
+    return ss.str();
+  }
+  #endif
 #+end_src
 
 **** Boolean
@@ -2281,43 +2464,62 @@ A boolean object,
 
 #+name: runtime-clojure-boolean-object
 #+begin_src clojure :tangle no
-  (defobject boolean
-    (data "bool value;")
-    (equals "return obj<boolean>(value == (bool)o);")
-    (stream_console
-     "if (value)
-        runtime::print(\"true\");
-      else
-        runtime::print(\"false\");
-      return nil();")
-    (fns
-     ("explicit boolean(bool b) : value(b) {}")
-     ("bool container" ""
-      "return value;"))
-    (post-code "var::operator bool() const {
-                  if (m_ptr == nullptr)
-                    return false;
-                  else if (m_ptr->type() == runtime::type::boolean)
-                    return static_cast<boolean*>(m_ptr)->container();
-                  else
-                    return true;
-                 }
-                 var var::equals (var rhs){
-                   if (get() == nullptr && rhs.get() != nullptr)
-                     return obj<boolean>(false);
-                   if (get() != nullptr && rhs.get() == nullptr)
-                     return obj<boolean>(false);
+  (defobject boolean "ferret/obj/boolean_o.h")
+#+end_src
 
-                   if (get() == rhs.get())
-                     return obj<boolean>(true);
-                   else if (runtime::is_seqable(*this) && runtime::is_seqable(rhs))
-                     return get()->equals(rhs);
-                   else if (m_ptr->type() != rhs.cast<object_t>()->type())
-                     return obj<boolean>(false);
-                   else
-                     return get()->equals(rhs);
-                  }")
-    (force-type))
+#+name: runtime-clojure-boolean-implementation
+#+begin_src c++ :tangle no
+  class boolean : public object_t {
+    bool value;
+  public:
+
+    size_t type() const { return runtime::type::boolean; }
+
+    var equals(var o){
+      return obj<boolean>(value == (bool)o);
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      if (value)
+        runtime::print("true");
+      else
+        runtime::print("false");
+      return nil();
+    }
+  #endif
+
+    explicit boolean(bool b) : value(b) {} 
+
+    bool container(){
+      return value;
+    }
+  };
+
+  var::operator bool() const {
+    if (m_ptr == nullptr)
+      return false;
+    else if (m_ptr->type() == runtime::type::boolean)
+      return static_cast<boolean*>(m_ptr)->container();
+    else
+      return true;
+  }
+
+  var var::equals (var rhs){
+    if (get() == nullptr && rhs.get() != nullptr)
+      return obj<boolean>(false);
+    if (get() != nullptr && rhs.get() == nullptr)
+      return obj<boolean>(false);
+
+    if (get() == rhs.get())
+      return obj<boolean>(true);
+    else if (runtime::is_seqable(*this) && runtime::is_seqable(rhs))
+      return get()->equals(rhs);
+    else if (m_ptr->type() != rhs.cast<object_t>()->type())
+      return obj<boolean>(false);
+    else
+      return get()->equals(rhs);
+  }
 #+end_src
 
 **** Atom
@@ -2327,29 +2529,49 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
 
 #+name: runtime-clojure-atom-object
 #+begin_src clojure :tangle no
-  (defobject atomic_reference
-    (data "var data;"
-          "FERRET_NEW_LOCK(lock)")
-    (equals "return obj<boolean>(this == o.cast<atomic_reference>());")
-    (stream_console
-     "runtime::print(\"atom <\");
-      data.stream_console();
-      runtime::print(\">\");
-      return nil();")
-    (fns
-     ("explicit atomic_reference(var d) : data(d) {}")
-     ("var swap" "var f,var args"
-      "FERRET_WITH_LOCK(lock,{
-         args = runtime::cons(data, args);
-         data = f.cast<lambda_i>()->invoke(args);
-       });
-      return data;")
-     ("var deref" ""
-      "FERRET_WITH_LOCK(lock,{
-         return data;
-       });"))
-    (force-type))
+  (defobject atomic_reference "ferret/obj/atom_o.h")
 #+end_src
+
+#+name: runtime-clojure-atom-implementation
+#+begin_src c++ :tangle no
+  class atomic_reference : public object_t {
+    var data;
+    FERRET_NEW_LOCK(lock)
+    public:
+
+
+    size_t type() const { return runtime::type::atomic_reference; }
+
+    var equals(var o){
+      return obj<boolean>(this == o.cast<atomic_reference>());
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      runtime::print("atom <");
+      data.stream_console();
+      runtime::print(">");
+      return nil();
+    }
+  #endif
+
+    explicit atomic_reference(var d) : data(d) {} 
+
+    var swap(var f,var args){
+      FERRET_WITH_LOCK(lock,{
+          args = runtime::cons(data, args);
+          data = f.cast<lambda_i>()->invoke(args);
+        });
+      return data;
+    }
+    var deref(){
+      FERRET_WITH_LOCK(lock,{
+          return data;
+        });
+    }
+  };
+#+end_src
+
 
 Operations on /atoms/
 
@@ -2376,10 +2598,19 @@ containers.
 
 #+name: runtime-clojure-seekable-interface
 #+begin_src clojure :tangle no
-  (defobject seekable_i
-    (interfaces "var cons(var x)"
-                "var first()"
-                "var rest()"))
+  (defobject seekable_i "ferret/obj/seekable_i.h")
+#+end_src
+
+#+name: runtime-clojure-seekable-i-implementation
+#+begin_src c++ :tangle no
+  class seekable_i : public object_t {
+
+  public:
+
+    virtual var cons(var x) = 0;
+    virtual var first() = 0;
+    virtual var rest() = 0;
+  };
 #+end_src
 
 C++ API for the interface,
@@ -2490,12 +2721,27 @@ uniform fashion.
 
 #+name: runtime-clojure-lambda-interface
 #+begin_src clojure :tangle no
-  (defobject lambda_i
-    (interfaces "var invoke(var args) const")
-    (equals "return obj<boolean>(this == o.cast<lambda_i>());")
-    (stream_console
-     "runtime::print(\"lambda\"); return nil();")
-    (force-type))
+  (defobject lambda_i "ferret/obj/lambda_i.h")
+#+end_src
+
+#+name: runtime-clojure-lambda-i-implementation
+#+begin_src c++ :tangle no
+  class lambda_i : public object_t {
+   public:
+    virtual var invoke(var args) const = 0;
+
+    size_t type() const { return runtime::type::lambda_i; }
+
+    var equals(var o){
+      return obj<boolean>(this == o.cast<lambda_i>());
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      runtime::print("lambda"); return nil();
+    }
+  #endif
+  };
 #+end_src
 
 Function invocation,
@@ -6610,6 +6856,85 @@ Create some dummy libs under /test/modules/,
     <<runtime-native-object-allocation>>
     <<runtime-native-debugging-macros>>
   }
+#+end_src 
+
+*** obj
+**** ferret/obj/keyword_o.h
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/keyword_o.h
+  <<runtime-clojure-keyword-implementation>>
+#+end_src 
+
+**** ferret/obj/lambda_i.h
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lambda_i.h
+  <<runtime-clojure-lambda-i-implementation>>
+#+end_src 
+
+**** ferret/obj/seekable_i.h
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/seekable_i.h
+  <<runtime-clojure-seekable-i-implementation>>
+#+end_src 
+
+**** ferret/obj/value_o.h
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/value_o.h
+  <<runtime-clojure-value-implementation>>
+#+end_src 
+
+**** ferret/obj/heavy_pointer_o.h
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/heavy_pointer_o.h
+  <<runtime-clojure-heavy-pointer-implementation>>
+#+end_src 
+
+**** ferret/obj/pointer_o.h
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/pointer_o.h
+  <<runtime-clojure-pointer-implementation>>
+#+end_src 
+
+**** ferret/obj/number_o.h
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/number_o.h
+  <<runtime-clojure-number-implementation>>
+#+end_src 
+
+**** ferret/obj/atom_o.h
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/atom_o.h
+  <<runtime-clojure-atom-implementation>>
+#+end_src 
+
+**** ferret/obj/boolean_o.h
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/boolean_o.h
+  <<runtime-clojure-boolean-implementation>>
+#+end_src 
+
+**** ferret/obj/string_o.h
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/string_o.h
+  <<runtime-clojure-string-implementation>>
+#+end_src 
+
+**** ferret/obj/lazy_sequence_o.h
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lazy_sequence_o.h
+  <<runtime-clojure-lazy-sequence-implementation>>
+#+end_src 
+
+**** ferret/obj/sequence_o.h
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/sequence_o.h
+  <<runtime-clojure-sequence-implementation>>
+#+end_src 
+
+**** ferret/obj/empty_sequence_o.h
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
+  <<runtime-clojure-empty-sequence-implementation>>
 #+end_src 
 
 ** test/

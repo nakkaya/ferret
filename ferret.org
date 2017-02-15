@@ -2203,8 +2203,7 @@ Linked list container implementing the seekable interface.
 
     size_t type() const { return runtime::type::empty_sequence; }
 
-    var equals(var o){
-      (void)o; 
+    var equals(var){
       return obj<boolean>(true);
     }
 
@@ -2215,13 +2214,13 @@ Linked list container implementing the seekable interface.
     }
   #endif
 
-    var cons(var){
-      return var(this);
+    var cons(var v){
+      return runtime::list(v);
     }
-    var first(){
+    var first() const {
       return nil();
     }
-    var rest(){
+    var rest() const {
       return nil();
     }
   };
@@ -2268,10 +2267,10 @@ Linked list container implementing the seekable interface.
     var cons(var x){
       return obj<sequence>(x, var(this));
     }
-    var first(){
+    var first() const {
       return data;
     }
-    var rest(){
+    var rest() const {
       return next;
     }
     template <typename T>
@@ -2353,7 +2352,7 @@ A lazy list container implementing the seekable interface.
     var stream_console() const {
       runtime::print("(");
       head.stream_console();
-      for(auto i : runtime::range(run(thunk))){
+      for(auto i : runtime::range(rest())){
         runtime::print(" ");
         i.stream_console();
       }
@@ -2368,10 +2367,10 @@ A lazy list container implementing the seekable interface.
     var cons(var x){
       return obj<lazy_sequence>(x,thunk);
     }
-    var first(){
+    var first() const {
       return head;
     }
-    var rest(){
+    var rest() const {
       return run(thunk);
     }
   };
@@ -2434,10 +2433,10 @@ strings are represented as a linked list of characters.
     var cons(var x){
       return runtime::cons(x,data);
     }
-    var first(){
+    var first() const {
       return runtime::first(data);
     }
-    var rest(){
+    var rest() const {
       return runtime::rest(data);
     }
     template <typename T>
@@ -2613,8 +2612,8 @@ containers.
     size_t type() const { return runtime::type::seekable_i; }
 
     virtual var cons(var x) = 0;
-    virtual var first() = 0;
-    virtual var rest() = 0;
+    virtual var first() const = 0;
+    virtual var rest() const = 0;
   };
 #+end_src
 
@@ -2623,6 +2622,11 @@ C++ API for the interface,
 #+name: runtime-native-prototypes
 #+begin_src c++ :tangle no
   namespace runtime {
+    var list(var v);
+    var list(var v);
+    template <typename... Args>
+    var list(var first, Args... args);
+
     var first(var coll);
     var rest(var coll);
     var cons(var x, var seq);

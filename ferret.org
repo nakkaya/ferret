@@ -2236,14 +2236,17 @@ Linked list container implementing the seekable interface.
     size_t type() const { return runtime::type::sequence; }
 
     var equals(var o){
-      var itOther = o;
-      for(auto it : runtime::range(var(this))){
-        if (itOther.is_nil() || it.equals(runtime::first(itOther))  == false)
+      if(data != runtime::first(o))
+        return obj<boolean>(false);
+      
+      var other = runtime::rest(o);
+      for(auto it : runtime::range(rest())){
+        if (other.is_nil() || it != runtime::first(other))
           return obj<boolean>(false);
-        itOther = runtime::rest(itOther);
+        other = runtime::rest(other);
       }
 
-      if (itOther.is_nil())
+      if (other.is_nil())
         return obj<boolean>(true);
       else
         return obj<boolean>(false);
@@ -2335,8 +2338,12 @@ A lazy list container implementing the seekable interface.
     size_t type() const { return runtime::type::lazy_sequence; }
 
     var equals(var o){
-      var itOther = o;
-      for(auto it : runtime::range(var(this))){
+      
+      if(!head.equals(runtime::first(o)))
+        return obj<boolean>(false);
+      
+      var itOther = runtime::rest(o);
+      for(auto it : runtime::range(rest())){
         if (itOther.is_nil() || it.equals(runtime::first(itOther))  == false)
           return obj<boolean>(false);
         itOther = runtime::rest(itOther);
@@ -2402,8 +2409,8 @@ strings are represented as a linked list of characters.
 
     size_t type() const { return runtime::type::string; }
 
-    var equals(var o){
-      return obj<boolean>(container().equals(o.cast<string>()->container()));
+    var equals(var other){
+      return obj<boolean>(container() == other.cast<string>()->container());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)

@@ -2606,6 +2606,7 @@ containers.
   class seekable_i : public object_t {
 
   public:
+    size_t type() const { return runtime::type::seekable_i; }
 
     virtual var cons(var x) = 0;
     virtual var first() = 0;

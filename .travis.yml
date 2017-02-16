@@ -17,6 +17,7 @@ before_install:
   - wget https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein
   - chmod +x lein
   - sudo mv lein /usr/bin/
+  - lein
 script:
   - ./build > /dev/null
   - cd src/

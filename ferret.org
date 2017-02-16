@@ -333,7 +333,13 @@ modules and concatenate the required runtime from clojure.core
 #+begin_src clojure :tangle no
   (defn ferret-runtime [form]
     (->> (import-modules-all form)
-         (shake-concat (read-clojure-file-from-url "ferret/runtime.clj"))))
+         (shake-concat (read-clojure-file-from-url "ferret/runtime.clj"))
+         ;; tag form with the build info
+         (cons `(~'native-define ~(try
+                                    (let [version (read-from-url "build.info")]
+                                      (str "// ferret-lisp build:" version))
+                                    (catch Exception e
+                                      (str "// ferret-lisp")))))))
 #+end_src
 
 Import other ferret files using,
@@ -1538,7 +1544,7 @@ Initialize function arguments. Clojure style list structuring is supported.
       (try
         (let [program (slurp file)
               options (->> program
-                           (re-seq #"(?s)Ferret Build Configuration Begin.*?//(.*?)// Ferret Build Configuration")
+                           (re-seq #"(?s)build-conf-begin.*?//(.*?)// build-conf-end")
                            (map second)
                            (map #(.replaceAll % "//" ""))
                            (map #(.replaceAll % "\n" " "))
@@ -1706,7 +1712,13 @@ Initialize function arguments. Clojure style list structuring is supported.
              {:keys [help input watch-input]} (:options args)]
 
          (when help
-           (println "Ferret Compiler")
+           (try
+             (let [version (read-from-url "build.info")]
+               (print "ferret-lisp build:" version))
+             (catch Exception e
+               (print "ferret-lisp")))
+           (println )
+           (println )
            (println (:summary args))
            (System/exit 0))
 
@@ -5320,9 +5332,9 @@ Embed compilations options.
 #+name: runtime-clojure-defn
 #+begin_src clojure :tangle no
   (defmacro configure-ferret! [& body]
-    `(~'native-define ~(str "// Ferret Build Configuration Begin\n"
+    `(~'native-define ~(str "// build-conf-begin\n"
                             "//" (str (apply hash-map body)) "\n"
-                            "// Ferret Build Configuration End\n")))
+                            "// build-conf-end\n")))
 #+end_src
 
 * Testing
@@ -6658,6 +6670,11 @@ Create some dummy libs under /test/modules/,
     :repl-options {:host "0.0.0.0"
                    :port 7888
                    :init-ns ferret.core}
+
+    :filespecs [{:type :bytes :path "build.info"
+                 :bytes ~(:out (clojure.java.shell/sh
+                                "git" "rev-parse" "--short" "HEAD"))}]
+    
     :main ferret.core
     :aot [ferret.core]
     :jar-name "interim.jar"

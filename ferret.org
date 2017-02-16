@@ -2516,14 +2516,14 @@ A boolean object,
   }
 
   var var::equals (var rhs){
-    if (get() == nullptr && rhs.get() != nullptr)
-      return obj<boolean>(false);
-    if (get() != nullptr && rhs.get() == nullptr)
+    if ( ( is_nil() && !rhs.is_nil()) ||
+         (!is_nil() &&  rhs.is_nil()))
       return obj<boolean>(false);
 
     if (get() == rhs.get())
       return obj<boolean>(true);
-    else if (runtime::is_seqable(*this) && runtime::is_seqable(rhs))
+    
+    if (runtime::is_seqable(*this) && runtime::is_seqable(rhs))
       return get()->equals(rhs);
     else if (m_ptr->type() != rhs.cast<object_t>()->type())
       return obj<boolean>(false);
@@ -2891,8 +2891,8 @@ counting policies.
         explicit atomic_rc(size_t start) : ref_count(start) { }
         explicit atomic_rc(const atomic_rc& other){ ref_count.exchange(other.ref_count); }
       
-        void inc_ref() { ref_count++; }
-        bool dec_ref() { return (--ref_count == 0); }
+        inline void inc_ref() { ref_count++; }
+        inline bool dec_ref() { return (--ref_count == 0); }
       
       private:
         ::std::atomic<size_t> ref_count;
@@ -2904,8 +2904,8 @@ counting policies.
         explicit rc(size_t start) : ref_count(start) { }
         explicit rc(const rc& other){ ref_count = other.ref_count; }
       
-        void inc_ref() { ref_count++; }
-        bool dec_ref() { return (--ref_count == 0); }
+        inline void inc_ref() { ref_count++; }
+        inline bool dec_ref() { return (--ref_count == 0); }
       
       private:
         size_t ref_count;
@@ -2916,8 +2916,8 @@ counting policies.
         explicit no_rc(size_t) { }
         explicit no_rc(const no_rc& ){ }
       
-        void inc_ref() { }
-        bool dec_ref() { return false; }
+        inline void inc_ref() { }
+        inline bool dec_ref() { return false; }
       };
     }
   }
@@ -2974,26 +2974,26 @@ count, when it reaches zero it will automatically free the object_t.
     }
   #endif
         
-    object_t* get() { return m_ptr; }
+    inline object_t* get() const { return m_ptr; }
     
     template<typename T>
-    T* cast() const { return static_cast<T*>(m_ptr); }
+    inline T* cast() const { return static_cast<T*>(m_ptr); }
 
-    bool is_type(size_t type) const { 
+    inline bool is_type(size_t type) const { 
       return (static_cast<object_t*>(m_ptr)->type() == type);
     }
 
-    bool is_nil() const { 
+    inline bool is_nil() const { 
       return (m_ptr == nullptr);
     }
 
   private:
-    void inc_ref(){
+    inline void inc_ref(){
       // Only change if non-null
       if (m_ptr) m_ptr->inc_ref();
     }
       
-    void dec_ref(){
+    inline void dec_ref(){
       // Only change if non-null
       if (m_ptr){
         // Subtract and test if this was the last pointer.

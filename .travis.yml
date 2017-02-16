@@ -14,17 +14,19 @@ before_install:
   - sudo make install > /dev/null 2>&1
   - cd ../
   - sudo apt-get install --allow-unauthenticated -y -qq g++-6 clang-3.4 leiningen cppcheck  > /dev/null 2>&1
-  - ./build > /dev/null
 script:
+  - ./build > /dev/null
   - cd src/
   #- sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 50
   #- lein test
   - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/clang++-3.4 60
   - lein test
+  # Tests passed prepare release
   - cd ../
   - mkdir release
   - mkdir release/builds/
   - mv ferret release/builds/
+  - cp src/ferret.jar ferret-`git rev-parse --short HEAD`.jar
   - mv src/ferret.jar release/builds/
   - mv ferret-manual.html release/index.html
   - mv org-mode-assets release/ferret-styles

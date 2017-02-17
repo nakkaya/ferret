@@ -5497,8 +5497,8 @@ Static code analysis (cppcheck) options,
     (is (= 3                (#(+ 1 2))))
     (is (= 11               ((fn [n] (+ n 1)) 10)))
     (is (= 3               (((fn [n] (fn [n] n)) 3) 3)))
-    (let [args (list "./a.out" "42")]
-      (is (= args *command-line-args*)))
+    (let [args (list "1" "2")]
+      (is (= args (rest *command-line-args*))))
 
     (let [a 1]
       (is (= 1 a)))
@@ -6048,59 +6048,41 @@ Static code analysis (cppcheck) options,
  #+end_src
 
 *** Module System
+    :PROPERTIES:
+    :noweb-ref: import-module-test
+    :END:
 
 Run import tests. 
 
 #+begin_src clojure :tangle no
-  (deftest import-module-test
-    (is (= "Module AModule C 10.0000 11.0000 1.0000 42.0000"
-           (exec-form '((require '[test.modules.module-a :as mod-a])
-                        (require '[test.modules.module-b :as mod-b])
-                        (mod-a/helper-a)
-                        (mod-b/helper-b)
-                        (print " ")
-                        (print ((mod-a/ten-fn))
-                               ((mod-b/eleven-fn))
-                               (mod-a/helper-c)
-                               (mod-b/macro-call))))))
-    (is (= "Module AModule C 10.0000 11.0000 1.0000 42.0000"
-           (exec-form '((require '[test.modules.module-a :as mod-a]
-                                 '[test.modules.module-b :as mod-b])
-                        (mod-a/helper-a)
-                        (mod-b/helper-b)
-                        (print " ")
-                        (print ((mod-a/ten-fn))
-                               ((mod-b/eleven-fn))
-                               (mod-a/helper-c)
-                               (mod-b/macro-call))))))
-    (is (= "Module AModule C 10.0000 11.0000 1.0000 42.0000"
-           (exec-form '((require 'test.modules.module-a
-                                 'test.modules.module-b)
-                        (test.modules.module-a/helper-a)
-                        (test.modules.module-b/helper-b)
-                        (print " ")
-                        (print ((test.modules.module-a/ten-fn))
-                               ((test.modules.module-b/eleven-fn))
-                               (test.modules.module-a/helper-c)
-                               (test.modules.module-b/macro-call))))))
-    (is (= "Module AModule C 10.0000 11.0000 1.0000 42.0000"
-           (exec-form '((require '[test.modules.module-a :as mod-a]
-                                 'test.modules.module-b)
-                        (mod-a/helper-a)
-                        (test.modules.module-b/helper-b)
-                        (print " ")
-                        (print ((mod-a/ten-fn))
-                               ((test.modules.module-b/eleven-fn))
-                               (mod-a/helper-c)
-                               (test.modules.module-b/macro-call))))))
-    (is (= "" (exec-form '((require '[test.modules.module-a :as mod-a])))))
-    (is (= "" (exec-form '((require '[test.modules.module-a :as mod-a])
-                           (require '[test.modules.module-b :as mod-b])))))
-    (is (= "Call" (exec-form '((require '[test.modules.module-c :as mod-c])
-                               (cxx "__result = obj<number>((number_t)std::sqrt(100)); 
-                                            std::cout << \"Call\"")))))
-    (is (= "25" (exec-form '((require '[test.modules.module-c :as mod-c])
-                             (cxx "std::cout << dummy_native_fn();"))))))
+  (require '[test.modules.module-a :as mod-a]
+           '[test.modules.module-b :as mod-b])
+
+  (deftest module-test-load-as
+    (is (= 10  (mod-a/helper-a)))
+    (is (= 1   (mod-a/helper-b)))
+    (is (= 10  ((mod-a/ten-fn))))
+    (is (= 11  ((mod-b/eleven-fn))))
+    (is (= 1   (mod-a/helper-c)))
+    (is (= 42  (mod-b/macro-call))))
+
+  (require 'test.modules.module-a
+           'test.modules.module-b)
+
+  (require '[test.modules.module-c :as mod-c]
+           'test.modules.module-d)
+
+  (deftest module-test-load
+    (is (= 10  (test.modules.module-a/helper-a)))
+    (is (= 1   (test.modules.module-a/helper-b)))
+    (is (= 10  ((test.modules.module-a/ten-fn))))
+    (is (= 11  ((test.modules.module-b/eleven-fn))))
+    (is (= 1   (test.modules.module-a/helper-c)))
+    (is (= 42  (test.modules.module-b/macro-call)))
+    (is (= 25  (cxx " __result = obj<number>(dummy_native_fn());")))
+    (is (= 2   (cxx "__result = obj<number>((number_t)std::sqrt(4));"))))
+
+  (run-all-tests)
 #+end_src
 
 **** Dummy Modules
@@ -6108,16 +6090,25 @@ Run import tests.
      :noweb-ref: ferret-tests-modules-no-export
      :END:  
 
+Create some dummy programs under /test/,
+
+#+begin_src clojure :mkdirp yes :tangle src/test/import_module_empty_aux_a.clj
+  (require '[test.modules.module-a :as mod-a])
+#+end_src 
+
+#+begin_src clojure :mkdirp yes :tangle src/test/import_module_empty_aux_b.clj
+  (require '[test.modules.module-a :as mod-a])
+  (require '[test.modules.module-b :as mod-b])
+#+end_src 
+
 Create some dummy libs under /test/modules/,
 
 #+begin_src clojure :mkdirp yes :tangle src/test/modules/module-a.clj
   (configure-runtime! FERRET_PROGRAM_MAIN "ferret::program_no_exec()")
 
-  (defn helper-a []
-    (print "Module A"))
+  (defn helper-a [] 10)
 
-  (defmacro ten-fn []
-    `(~'fn [] 10))
+  (defmacro ten-fn [] `(~'fn [] 10))
 
   (defmacro helper-b []
     (reduce (fn [a b] (+ a b)) (list 1 2 3))
@@ -6153,13 +6144,15 @@ Create some dummy libs under /test/modules/,
 #+begin_src clojure :mkdirp yes :tangle src/test/modules/module-c.clj
   (native-header "cmath")
 
-  (native-declare "int dummy_native_fn(){ return 25; }")
-
   (defn helper-c []
     (print "Module C"))
 
   (defmacro eleven-fn []
     `(~'fn [] 11))
+#+end_src 
+
+#+begin_src clojure :mkdirp yes :tangle src/test/modules/module-d.clj
+  (native-declare "int dummy_native_fn(){ return 25; }")
 #+end_src 
 
 *** Testing
@@ -6435,72 +6428,72 @@ Create some dummy libs under /test/modules/,
 #+end_src
 
 *** Memory Pool
+    :PROPERTIES:
+    :noweb-ref: memory-pool-test
+    :END:
 
 #+begin_src clojure
-  (deftest native-core-memory-pool
-    (compare-output
-     ""
-     (native-define "#define FERRET_MEMORY_POOL_SIZE 4194304") ;; 4 MB
-     (native-declare "void* ptr;")
+  (native-define "#define FERRET_MEMORY_POOL_SIZE 4194304") ;; 4 MB
+  (native-declare "void* ptr;")
 
-     (native-declare "ferret::mem::allocator::memory_pool<size_t,14> tiny_pool;")
-     (let [next-page (fn [idx]
-                       "size_t i = number::to<size_t>(idx);
-                        __result = obj<number>((number_t)tiny_pool.next_page(i))")
-           malloc (fn [size]
-                    "size_t s = number::to<size_t>(size);;
-                     ptr = tiny_pool.allocate(sizeof(size_t) * s);
-                     __result = obj<boolean>((ptr != nullptr));")
-           free (fn [] "tiny_pool.free(ptr);")]
-       
-       (assert (= 0 (next-page 0)))
-       (assert (malloc 2))
-       (assert (= 3 (next-page 0)))
-       (assert (malloc 4))
-       (assert (= 8 (next-page 2)))
-       (free)
-       (assert (= 3 (next-page 2)))
-       (assert (false? (malloc 40)))
-       (assert (malloc 6))
-       (assert (malloc 1))
-       (assert (malloc 1))
-       (assert (false? (malloc 10))))
+  (native-declare "ferret::mem::allocator::memory_pool<size_t,14> tiny_pool;")
+  (let [next-page (fn [idx]
+                    "size_t i = number::to<size_t>(idx);
+                          __result = obj<number>((number_t)tiny_pool.next_page(i))")
+        malloc (fn [size]
+                 "size_t s = number::to<size_t>(size);;
+                       ptr = tiny_pool.allocate(sizeof(size_t) * s);
+                       __result = obj<boolean>((ptr != nullptr));")
+        free (fn [] "tiny_pool.free(ptr);")]
+    
+    (assert (= 0 (next-page 0)))
+    (assert (malloc 2))
+    (assert (= 3 (next-page 0)))
+    (assert (malloc 4))
+    (assert (= 8 (next-page 2)))
+    (free)
+    (assert (= 3 (next-page 2)))
+    (assert (false? (malloc 40)))
+    (assert (malloc 6))
+    (assert (malloc 1))
+    (assert (malloc 1))
+    (assert (false? (malloc 10))))
 
-     (native-declare "ferret::mem::allocator::memory_pool<size_t,256> even_pool;")
-     (let [next-page (fn [idx]
-                       "size_t i = (size_t)number::to<size_t>(idx);
-                        __result = obj<number>((number_t)even_pool.next_page(i))")
-           malloc (fn [size]
-                    "size_t s = number::to<size_t>(size);
-                     ptr = even_pool.allocate(sizeof(size_t) * s);
-                     __result = obj<boolean>((ptr != nullptr));")
-           free (fn [] "even_pool.free(ptr);")]
-       
-       (assert (= 0 (next-page 0)))
-       (assert (malloc 255))
-       (assert (= 256 (next-page 0)))
-       (free)
-       (assert (= 0 (next-page 0)))
-       (assert (false? (malloc 256)))
-       (assert (= 0 (next-page 0))))
+  (native-declare "ferret::mem::allocator::memory_pool<size_t,256> even_pool;")
+  (let [next-page (fn [idx]
+                    "size_t i = (size_t)number::to<size_t>(idx);
+                          __result = obj<number>((number_t)even_pool.next_page(i))")
+        malloc (fn [size]
+                 "size_t s = number::to<size_t>(size);
+                       ptr = even_pool.allocate(sizeof(size_t) * s);
+                       __result = obj<boolean>((ptr != nullptr));")
+        free (fn [] "even_pool.free(ptr);")]
+    
+    (assert (= 0 (next-page 0)))
+    (assert (malloc 255))
+    (assert (= 256 (next-page 0)))
+    (free)
+    (assert (= 0 (next-page 0)))
+    (assert (false? (malloc 256)))
+    (assert (= 0 (next-page 0))))
 
-     (native-declare "ferret::mem::allocator::memory_pool<size_t,255> odd_pool;")
-     (let [next-page (fn [idx]
-                       "size_t i = number::to<size_t>(idx);
-                       __result = obj<number>((number_t)odd_pool.next_page(i))")
-           malloc (fn [size]
-                    "size_t s = number::to<size_t>(size);
-                     ptr = odd_pool.allocate(sizeof(size_t) * s);
-                     __result = obj<boolean>((ptr != nullptr));")
-           free (fn [] "odd_pool.free(ptr);")]
-       
-       (assert (= 0 (next-page 0)))
-       (assert (malloc 254))
-       (assert (= 255 (next-page 0)))
-       (free)
-       (assert (= 0 (next-page 0)))
-       (assert (false? (malloc 255)))
-       (assert (= 0 (next-page 0))))))
+  (native-declare "ferret::mem::allocator::memory_pool<size_t,255> odd_pool;")
+  (let [next-page (fn [idx]
+                    "size_t i = number::to<size_t>(idx);
+                         __result = obj<number>((number_t)odd_pool.next_page(i))")
+        malloc (fn [size]
+                 "size_t s = number::to<size_t>(size);
+                       ptr = odd_pool.allocate(sizeof(size_t) * s);
+                       __result = obj<boolean>((ptr != nullptr));")
+        free (fn [] "odd_pool.free(ptr);")]
+    
+    (assert (= 0 (next-page 0)))
+    (assert (malloc 254))
+    (assert (= 255 (next-page 0)))
+    (free)
+    (assert (= 0 (next-page 0)))
+    (assert (false? (malloc 255)))
+    (assert (= 0 (next-page 0))))
 #+end_src
 
 * Roadmap
@@ -6981,7 +6974,7 @@ Create some dummy libs under /test/modules/,
           [clojure.java.shell]
           [clojure.tools [logging :only [log warn info]]]))
 
-  (set-log-level! :warn)
+  (set-log-level! :info)
 
   (defn exec-check [& cmd]
     (let [ret (with-sh-dir "./" (apply sh cmd))]
@@ -6995,19 +6988,65 @@ Create some dummy libs under /test/modules/,
     (exec-check
      "cppcheck" "-q" "--std=c++11" "--template=gcc" "--enable=all" "--error-exitcode=1" f))
 
-  (def cxx-options ["-std=c++11" "-pedantic"
-                    "-Werror" "-Wall" "-Wextra"
-                    "-Woverloaded-virtual" "-Wuninitialized" "-Winit-self"
-                    "-fsanitize=leak" "-fsanitize=undefined"
-                    "-pthread"])
+
+  (def cxx-opts-common ["-std=c++11" "-pedantic" "-Werror" "-Wall" "-Wextra"
+                        "-Woverloaded-virtual" "-Wuninitialized" "-Winit-self"
+                        "-pthread"])
+
+  (def cxx-llvm-opts ["-fsanitize=leak" "-fsanitize=undefined"])
+
+  (def cxx [["/usr/bin/g++"         cxx-opts-common]
+            ["/usr/bin/clang++-3.4" (concat cxx-opts-common cxx-llvm-opts)]])
+
+  (defn test-file-aux [f]
+    (info (str "testing " f))
+    (let [f-name (gensym)
+          file (str f-name ".cpp")
+          specs (-> ((build-specs f {}))
+                    (assoc :output-path "./")
+                    (assoc :base-name   f-name))]
+      (compile->cpp (read-clojure-file f) specs)
+      (static-check file)
+      (let [output (reduce (fn[h [cxx flags]]
+                             (if (.exists (clojure.java.io/as-file cxx))
+                               (do (compile->binary
+                                    (assoc specs
+                                           :compiler cxx
+                                           :compiler-options (concat flags ["-o" f-name])))
+                                   (let [output (exec-check (str "./" f-name) "1" "2")]
+                                     (when (not (empty? output))
+                                       (println )
+                                       (println output))
+                                     (conj h output)))
+                               h))
+                           [] cxx)]
+        (with-sh-dir "./"
+          (sh "rm" "-f" file)
+          (sh "rm" "-f" (str f-name)))
+        (filter #(not (empty? %)) output))))
+
+  (defn test-file [f]
+    (binding [clojure.test/report
+              (fn [ev]
+                (inc-report-counter (-> ev :type))
+                (when (= (-> ev :type) :fail)
+                  (warn (str "test file failed => " f))))]
+      (is (empty? (test-file-aux f)))))
+
+  (deftest test-ferret
+    (test-file "test/import_module_main.clj")
+    (test-file "test/import_module_empty_aux_a.clj")
+    (test-file "test/import_module_empty_aux_b.clj")
+    (test-file "test/runtime.clj")
+    (test-file "test/memory_pool.clj"))
 
   (defn exec-form [form & [opts]]
-    (let [options (compile-options {:compiler-options cxx-options})
+    (let [options (compile-options {:compiler-options cxx-opts-common})
           options (merge options opts)]
       (compile->cpp form options)
       (compile->binary options)
       (static-check "solution.cpp")
-      (let [out (exec-check "./a.out" "42")]
+      (let [out (exec-check "./a.out" "1" "2")]
         (with-sh-dir "./"
           (sh "rm" "-rf" "a.out")
           (sh "rm" "-rf" "solution.cpp"))
@@ -7026,16 +7065,6 @@ Create some dummy libs under /test/modules/,
   (defmacro compare-output [res & body]
     `(binding [clojure.test/report report-test-failure]
        (is (= ~res (exec-form (quote ~body))))))
-
-  (deftest test-core
-    (let [prog-out (exec-form (read-clojure-file "test/runtime.clj"))]
-      (binding [clojure.test/report
-                (fn [ev]
-                  (inc-report-counter (-> ev :type))
-                  (when (= (-> ev :type) :fail)
-                    (warn (str "core test failure" \newline \newline))
-                    (println prog-out)))]
-        (is (= "" prog-out)))))
 
   <<ferret-unit-tests>>
 #+end_src 
@@ -7065,6 +7094,18 @@ Create some dummy libs under /test/modules/,
   <<ffi-test>>
 
   (run-all-tests)
+#+end_src
+
+*** memory_pool.clj
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/memory_pool.clj
+  <<memory-pool-test>>
+#+end_src
+
+*** module_import.clj
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/import_module_main.clj
+  <<import-module-test>>
 #+end_src
 
 ** resources/

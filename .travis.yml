@@ -24,9 +24,6 @@ before_install:
 script:
   - ./build > /dev/null
   - cd src/
-  #- sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 50
-  #- lein test
-  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/clang++-3.4 60
   - lein test
   # Tests passed prepare release
   - cd ../

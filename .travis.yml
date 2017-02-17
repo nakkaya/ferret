@@ -17,6 +17,7 @@ before_install:
   - sudo make install > /dev/null 2>&1
   - cd ../
   - sudo apt-get install --allow-unauthenticated -y -qq g++-6 clang-3.4 cppcheck  > /dev/null 2>&1
+  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 50
   - wget https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein
   - chmod +x lein
   - sudo mv lein /usr/bin/

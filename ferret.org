@@ -312,7 +312,7 @@ maintain.
 #+name: core-compilation-process
 #+begin_src clojure :tangle no
   (defn compile [form options]
-    (->> (ferret-runtime form)
+    (->> (ferret-runtime form options)
          (remove-assertions options)
          (expand-macros-all)
          (let->fn)
@@ -331,8 +331,8 @@ modules and concatenate the required runtime from clojure.core
 
 #+name: core-compilation-embed-ferret-runtime
 #+begin_src clojure :tangle no
-  (defn ferret-runtime [form]
-    (->> (import-modules-all form)
+  (defn ferret-runtime [form options]
+    (->> (import-modules-all form options)
          (shake-concat (read-clojure-file-from-url "ferret/runtime.clj"))
          ;; tag form with the build info
          (cons `(~'native-define ~(try
@@ -384,9 +384,9 @@ of mod -> aliases pairs.
 
 #+name: core-compilation-embed-ferret-core
 #+begin_src clojure :tangle no
-  (defn import-modules-load-modules [package-list]
+  (defn import-modules-load-modules [package-list options]
     (reduce (fn[h [m aliases]]
-              (let [mod (-> (str (.replace (str m) "." "/") ".clj")
+              (let [mod (-> (str (:path options) (.replace (str m) "." "/") ".clj")
                             (read-clojure-file)
                             (remove-form (is-form? 'configure-runtime!))
                             (remove-form (is-form? 'configure-ferret!)))
@@ -431,16 +431,16 @@ modules names. So =helper-a= defined in module =util.db= becomes
 
 #+name: core-compilation-embed-ferret-core
 #+begin_src clojure :tangle no
-  (defn import-modules [form]
+  (defn import-modules [form options]
     (let [package-list (import-modules-select-require form)
           form (remove-form form (is-form? 'require))
-          modules (import-modules-load-modules package-list)
+          modules (import-modules-load-modules package-list options)
           form (import-modules-convert-alias-to-module package-list form)]
       (shake-concat modules form)))
 
-  (defn import-modules-all [form]
+  (defn import-modules-all [form options]
     (loop [f form]
-      (let [expanded (import-modules f)]
+      (let [expanded (import-modules f options)]
         (if (= f expanded)
           expanded
           (recur expanded)))))
@@ -1674,8 +1674,8 @@ Initialize function arguments. Clojure style list structuring is supported.
            (trace "install clang-format for formatted output (optional)"))))
 
      (defn build-solution [spec-fn]
-       (let [{:keys [input-file compile-program format-code]} (spec-fn)]
-         (info "dir =>" (System/getProperty "user.dir"))
+       (let [{:keys [input-file compile-program format-code path]} (spec-fn)]
+         (info "dir =>" path)
          (info "file =>" input-file)
          
          (compile->cpp (read-clojure-file input-file) (spec-fn))
@@ -6055,8 +6055,8 @@ Static code analysis (cppcheck) options,
 Run import tests. 
 
 #+begin_src clojure :tangle no
-  (require '[test.modules.module-a :as mod-a]
-           '[test.modules.module-b :as mod-b])
+  (require '[modules.module-a :as mod-a]
+           '[modules.module-b :as mod-b])
 
   (deftest module-test-load-as
     (is (= 10  (mod-a/helper-a)))
@@ -6066,19 +6066,19 @@ Run import tests.
     (is (= 1   (mod-a/helper-c)))
     (is (= 42  (mod-b/macro-call))))
 
-  (require 'test.modules.module-a
-           'test.modules.module-b)
+  (require 'modules.module-a
+           'modules.module-b)
 
-  (require '[test.modules.module-c :as mod-c]
-           'test.modules.module-d)
+  (require '[modules.module-c :as mod-c]
+           'modules.module-d)
 
   (deftest module-test-load
-    (is (= 10  (test.modules.module-a/helper-a)))
-    (is (= 1   (test.modules.module-a/helper-b)))
-    (is (= 10  ((test.modules.module-a/ten-fn))))
-    (is (= 11  ((test.modules.module-b/eleven-fn))))
-    (is (= 1   (test.modules.module-a/helper-c)))
-    (is (= 42  (test.modules.module-b/macro-call)))
+    (is (= 10  (modules.module-a/helper-a)))
+    (is (= 1   (modules.module-a/helper-b)))
+    (is (= 10  ((modules.module-a/ten-fn))))
+    (is (= 11  ((modules.module-b/eleven-fn))))
+    (is (= 1   (modules.module-a/helper-c)))
+    (is (= 42  (modules.module-b/macro-call)))
     (is (= 25  (cxx " __result = obj<number>(dummy_native_fn());")))
     (is (= 2   (cxx "__result = obj<number>((number_t)std::sqrt(4));"))))
 
@@ -6093,12 +6093,12 @@ Run import tests.
 Create some dummy programs under /test/,
 
 #+begin_src clojure :mkdirp yes :tangle src/test/import_module_empty_aux_a.clj
-  (require '[test.modules.module-a :as mod-a])
+  (require '[modules.module-a :as mod-a])
 #+end_src 
 
 #+begin_src clojure :mkdirp yes :tangle src/test/import_module_empty_aux_b.clj
-  (require '[test.modules.module-a :as mod-a])
-  (require '[test.modules.module-b :as mod-b])
+  (require '[modules.module-a :as mod-a])
+  (require '[modules.module-b :as mod-b])
 #+end_src 
 
 Create some dummy libs under /test/modules/,
@@ -6125,7 +6125,7 @@ Create some dummy libs under /test/modules/,
 #+end_src 
 
 #+begin_src clojure :mkdirp yes :tangle src/test/modules/module-b.clj
-  (require '[test.modules.module-c :as mod-c])
+  (require '[modules.module-c :as mod-c])
 
   (defn helper-b []
     (mod-c/helper-c))

@@ -30,8 +30,8 @@ script:
   - mkdir release
   - mkdir release/builds/
   - mv ferret release/builds/
-  - cp src/ferret.jar release/builds/ferret-`git rev-parse --short HEAD`.jar
-  - mv src/ferret.jar release/builds/
+  - cp src/target/ferret.jar release/builds/ferret-`git rev-parse --short HEAD`.jar
+  - mv src/target/ferret.jar release/builds/
   - mv ferret-manual.html release/index.html
   - mv org-mode-assets release/ferret-styles
 deploy:

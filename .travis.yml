@@ -1,6 +1,9 @@
 language: generic
 git:
   depth: 1
+branches:
+  only:
+    - master
 before_install:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test > /dev/null 2>&1
   - sudo add-apt-repository -y ppa:h-rayflood/llvm > /dev/null 2>&1

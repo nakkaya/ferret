@@ -4862,99 +4862,122 @@ Ported from,
 
 #+name: runtime-clojure-pid-controller
 #+begin_src clojure :tangle no
-  (defobject pid_controller
-    (template "typename T")
-    (data "T p;"
-          "T i;"
-          "T d;"
-          "T maximum_output;"
-          "T minimum_output;"
-          "T maximum_input;"
-          "T minimum_input;"
-          "bool continuous;"
-          "T prev_error;"
-          "T total_error;"
-          "T setpoint;"
-          "T error;"
-          "T result;"
-          "T input;")
-    (new ("var kp, var ki, var kd, var inMin, var inMax, var outMin, var outMax, var cont"
-          "p = number::to<T>(kp);
-           i = number::to<T>(ki);
-           d = number::to<T>(kd);
-           maximum_output = number::to<T>(outMax);
-           minimum_output = number::to<T>(outMin);
-           maximum_input = number::to<T>(inMax);
-           minimum_input = number::to<T>(inMin);;
-           continuous = cont.cast<boolean>()->container();
-           prev_error = 0;
-           total_error = 0;
-           setpoint = 0;
-           error = 0;
-           result = 0;
-           input = 0;"))
-    (equals "return obj<boolean>(this == o.cast<pid_controller>());")
-    (stream_console "runtime::print(\"pid_controller\"); return nil();")
-    (fns
-     ("var update" "var in"
-      "input = number::to<T>(in);
+  (defobject pid_controller "ferret/obj/pid_controller_o.h")
+#+end_src
 
-       // Calculate the error signal
-       error = setpoint - input;
+#+name: runtime-clojure-pid-implementation
+#+begin_src c++ :tangle no
+  template <typename T>
+  class pid_controller : public object_t {
+    T p;
+    T i;
+    T d;
+    T maximum_output;
+    T minimum_output;
+    T maximum_input;
+    T minimum_input;
+    bool continuous;
+    T prev_error;
+    T total_error;
+    T setpoint;
+    T error;
+    T result;
+    T input;
+  public:
 
-       // If continuous is set to true allow wrap around
-       if (continuous) {
-          if (runtime::abs(error) > ((maximum_input - minimum_input) / 2)) {
-            if (error > 0) {
-                  error = (error - maximum_input) + minimum_input;
-            } else {
-                  error = (error + maximum_input) - minimum_input;
-            }
-          }
-       }
-       
-       /*
-        ,* Integrate the errors as long as the upcoming integrator does
-        ,* not exceed the minimum and maximum output thresholds
-        ,*/
-       if ((((total_error + error) * i) < maximum_output) &&
-            (((total_error + error) * i) > minimum_output)) {
-          total_error += error;
-       }
-       
-       // Perform the primary PID calculation
-       result = ((p * error) + (i * total_error) + (d * (error - prev_error)));
-       
-       // Set the current error to the previous error for the next cycle
-       prev_error = error;
-       
-       // Make sure the final result is within bounds
-       if (result > maximum_output) {
-          result = maximum_output;
-       } else if (result < minimum_output) {
-          result = minimum_output;
-       }
+    pid_controller(var kp, var ki, var kd,
+                   var inMin, var inMax, var outMin, var outMax,
+                   var cont){
+      p = number::to<T>(kp);
+      i = number::to<T>(ki);
+      d = number::to<T>(kd);
+      maximum_output = number::to<T>(outMax);
+      minimum_output = number::to<T>(outMin);
+      maximum_input = number::to<T>(inMax);
+      minimum_input = number::to<T>(inMin);;
+      continuous = cont.cast<boolean>()->container();
+      prev_error = 0;
+      total_error = 0;
+      setpoint = 0;
+      error = 0;
+      result = 0;
+      input = 0;
+    }
 
-       return obj<number>(result);")
-     
-     ("void set_setpoint" "var p"
-      "T sp = number::to<T>(p);
-       if (maximum_input > minimum_input) {
-          if (sp > maximum_input) {
-            setpoint = maximum_input;
-          } else if (sp < minimum_input) {
-            setpoint = minimum_input;
+    size_t type() const { return runtime::type::pid_controller; }
+
+    var equals(var o){
+      return obj<boolean>(this == o.cast<pid_controller>());
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      runtime::print("pid_controller"); return nil();
+    }
+  #endif
+
+
+    var update(var in){
+      input = number::to<T>(in);
+
+      // Calculate the error signal
+      error = setpoint - input;
+
+      // If continuous is set to true allow wrap around
+      if (continuous) {
+        if (runtime::abs(error) > ((maximum_input - minimum_input) / 2)) {
+          if (error > 0) {
+            error = (error - maximum_input) + minimum_input;
           } else {
-            setpoint = sp;
+            error = (error + maximum_input) - minimum_input;
           }
-       } else {
+        }
+      }
+                                
+      /*
+       ,* Integrate the errors as long as the upcoming integrator does
+       ,* not exceed the minimum and maximum output thresholds
+       ,*/
+      if ((((total_error + error) * i) < maximum_output) &&
+          (((total_error + error) * i) > minimum_output)) {
+        total_error += error;
+      }
+                                
+      // Perform the primary PID calculation
+      result = ((p * error) + (i * total_error) + (d * (error - prev_error)));
+                                
+      // Set the current error to the previous error for the next cycle
+      prev_error = error;
+                                
+      // Make sure the final result is within bounds
+      if (result > maximum_output) {
+        result = maximum_output;
+      } else if (result < minimum_output) {
+        result = minimum_output;
+      }
+
+      return obj<number>(result);
+    }
+    void set_setpoint(var p){
+      T sp = number::to<T>(p);
+      if (maximum_input > minimum_input) {
+        if (sp > maximum_input) {
+          setpoint = maximum_input;
+        } else if (sp < minimum_input) {
+          setpoint = minimum_input;
+        } else {
           setpoint = sp;
-       }")
-     
-     ("void reset" ""
-      "prev_error = 0;
-       total_error = 0;
-       result = 0;")))
+        }
+      } else {
+        setpoint = sp;
+      }
+    }
+    void reset(){
+      prev_error = 0;
+      total_error = 0;
+      result = 0;
+    }
+  };
 #+end_src
 
 #+name: runtime-clojure-pid-controller
@@ -6962,6 +6985,12 @@ Create some dummy libs under /test/modules/,
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
   <<runtime-clojure-empty-sequence-implementation>>
+#+end_src 
+
+**** ferret/obj/pid_controller_o.h
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/pid_controller_o.h
+  <<runtime-clojure-pid-implementation>>
 #+end_src 
 
 ** test/

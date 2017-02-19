@@ -3251,7 +3251,7 @@ Check for supported hardware or platform. If running on a known
 hardware or platform break out of *Safe Mode* and set a flag
 indicating platform.
 
-#+name: runtime-native-detect-hardware
+#+name: runtime-native-hardware-detect
 #+begin_src c++ :tangle no
   # define FERRET_CONFIG_SAFE_MODE TRUE
 
@@ -3289,7 +3289,7 @@ indicating platform.
 
 *** Import libraries
 
-#+name: runtime-native-program-includes
+#+name: runtime-native-hardware-includes
 #+begin_src c++ :tangle no
   #ifdef FERRET_STD_LIB
    #include <iostream>
@@ -3320,10 +3320,12 @@ indicating platform.
 #+end_src
 
 *** Initialize Hardware
+    :PROPERTIES:
+    :noweb-ref: runtime-native-hardware-initialize
+    :END:
 
 Default UART rate (if supported),
 
-#+name: runtime-native-hardware-initialize
 #+begin_src c++ :tangle no
   #if !defined(FERRET_UART_RATE)
     # define FERRET_UART_RATE 9600
@@ -3332,7 +3334,6 @@ Default UART rate (if supported),
 
 Setup dummy IO,
 
-#+name: runtime-native-hardware-initialize
 #+begin_src c++ :tangle no
   #if defined(FERRET_DISABLE_STD_OUT)
      namespace runtime{
@@ -3346,7 +3347,6 @@ Setup dummy IO,
 
 Setup IO for general purpose OS,
 
-#+name: runtime-native-hardware-initialize
 #+begin_src c++ :tangle no
   #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_STD_OUT)
     namespace runtime{
@@ -3365,7 +3365,6 @@ Setup IO for general purpose OS,
 
 Setup IO for Arduino boards,
 
-#+name: runtime-native-hardware-initialize
 #+begin_src c++ :tangle no
   #if defined(FERRET_HARDWARE_ARDUINO) && !defined(FERRET_DISABLE_STD_OUT) 
     namespace runtime{
@@ -6817,10 +6816,10 @@ Create some dummy libs under /test/modules/,
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/runtime.h
   // Detect Hardware
   namespace ferret{
-    <<runtime-native-detect-hardware>>
+    <<runtime-native-hardware-detect>>
   }
 
-  <<runtime-native-program-includes>>
+  <<runtime-native-hardware-includes>>
 
   // Number Configuration
   <<runtime-native-number-config-macros>>
@@ -6846,7 +6845,6 @@ Create some dummy libs under /test/modules/,
     <<runtime-native-object>>
     <<runtime-native-var>>
     <<runtime-native-object-allocation>>
-    <<runtime-native-debugging-macros>>
   }
 #+end_src 
 

@@ -1233,9 +1233,11 @@ defined within *ferret* namespace. All Ferret macros starts with
 #+end_src
 
 *** Code Templates
+  :PROPERTIES:
+  :noweb-ref: code-templates
+  :END:
 **** Objects
 
-#+name: code-templates
 #+begin_src clojure :tangle no
   (defn define-object-depricated [name body]
     (let [specs (into {} (map #(vector (first %) (rest %)) body))
@@ -1336,7 +1338,6 @@ defined within *ferret* namespace. All Ferret macros starts with
 
 **** Lambdas
 
-#+name: code-templates
 #+begin_src clojure :tangle no
   (let [env (fn [[_ _ & env]]
               (->> env
@@ -1365,7 +1366,6 @@ defined within *ferret* namespace. All Ferret macros starts with
 
 Initialize function arguments. Clojure style list structuring is supported.
 
-#+name: code-templates
 #+begin_src clojure :tangle no
   (let [set-var (fn [val arg accesor]
                   (str "var " val " = "
@@ -1395,7 +1395,6 @@ Initialize function arguments. Clojure style list structuring is supported.
             (set-var (last va-args) name (repeat (count args) "runtime::rest")))]))))
 #+end_src
 
-#+name: code-templates
 #+begin_src clojure :tangle no
   (defn lambda-definitions [lambdas]
     (-> (create-view
@@ -1441,7 +1440,6 @@ Initialize function arguments. Clojure style list structuring is supported.
 
 **** Program
 
-#+name: code-templates
 #+begin_src clojure :tangle no :noweb yes
   (defn solution-template [source]
     (let [{:keys [body lambdas symbol-table native-headers objects
@@ -1871,8 +1869,7 @@ A /pointer/ object keeps a reference to a C++ pointer.
   (defobject pointer "ferret/obj/pointer_o.h")
 #+end_src
 
-#+name: runtime-clojure-pointer-implementation
-#+begin_src c++ :tangle no
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/pointer_o.h
   class pointer : public object_t {
     void* _payload;
   public:
@@ -1928,8 +1925,7 @@ Java.
     "__result = obj<heavy_pointer>(ptr,gc)")
 #+end_src
 
-#+name: runtime-clojure-heavy-pointer-implementation
-#+begin_src c++ :tangle no
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/heavy_pointer_o.h
   class heavy_pointer : public object_t {
     var _payload;
     var gc_fn;
@@ -1983,8 +1979,7 @@ modern C++ libraries that use smart pointers for memory management.
   (defobject value "ferret/obj/value_o.h")
 #+end_src
 
-#+name: runtime-clojure-value-implementation
-#+begin_src c++ :tangle no
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/value_o.h
   template <typename T>
   class value : public object_t {
     T _payload;
@@ -2091,8 +2086,7 @@ number Object,
   (defobject number "ferret/obj/number_o.h")
 #+end_src
 
-#+name: runtime-clojure-number-implementation
-#+begin_src c++ :tangle no
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/number_o.h
   class number : public object_t {
     real_t _word;
   public:
@@ -2165,8 +2159,7 @@ Each keyword in the program is converted to an /keyword/ object. A
   (defobject keyword "ferret/obj/keyword_o.h")
 #+end_src
 
-#+name: runtime-clojure-keyword-implementation
-#+begin_src c++ :tangle no
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/keyword_o.h
   class keyword : public object_t {
     number_t _word;
     
@@ -2209,8 +2202,7 @@ Linked list container implementing the seekable interface.
   (defobject sequence "ferret/obj/sequence_o.h")
 #+end_src
 
-#+name: runtime-clojure-empty-sequence-implementation
-#+begin_src c++ :tangle no
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
   class empty_sequence : public seekable_i {
   public:
 
@@ -2239,8 +2231,7 @@ Linked list container implementing the seekable interface.
   };
 #+end_src
 
-#+name: runtime-clojure-sequence-implementation
-#+begin_src c++ :tangle no
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/sequence_o.h
   class sequence : public seekable_i {
     var data;
     var next;
@@ -2341,8 +2332,7 @@ A lazy list container implementing the seekable interface.
   (defobject lazy_sequence "ferret/obj/lazy_sequence_o.h")
 #+end_src
 
-#+name: runtime-clojure-lazy-sequence-implementation
-#+begin_src c++ :tangle no
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lazy_sequence_o.h
   class lazy_sequence : public seekable_i {
     var head;
     var thunk;
@@ -2414,8 +2404,7 @@ strings are represented as a linked list of characters.
   (defobject string "ferret/obj/string_o.h")
 #+end_src
 
-#+name: runtime-clojure-string-implementation
-#+begin_src c++ :tangle no
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/string_o.h
   class string : public seekable_i {
     var data;
   public:
@@ -2490,8 +2479,7 @@ A boolean object,
   (defobject boolean "ferret/obj/boolean_o.h")
 #+end_src
 
-#+name: runtime-clojure-boolean-implementation
-#+begin_src c++ :tangle no
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/boolean_o.h
   class boolean : public object_t {
     bool value;
   public:
@@ -2555,8 +2543,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
   (defobject atomic_reference "ferret/obj/atom_o.h")
 #+end_src
 
-#+name: runtime-clojure-atom-implementation
-#+begin_src c++ :tangle no
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/atom_o.h
   class atomic_reference : public object_t {
     var data;
     FERRET_NEW_LOCK(lock)
@@ -2624,8 +2611,7 @@ containers.
   (defobject seekable_i "ferret/obj/seekable_i.h")
 #+end_src
 
-#+name: runtime-clojure-seekable-i-implementation
-#+begin_src c++ :tangle no
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/seekable_i.h
   class seekable_i : public object_t {
 
   public:
@@ -2753,8 +2739,7 @@ uniform fashion.
   (defobject lambda_i "ferret/obj/lambda_i.h")
 #+end_src
 
-#+name: runtime-clojure-lambda-i-implementation
-#+begin_src c++ :tangle no
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lambda_i.h
   class lambda_i : public object_t {
    public:
     virtual var invoke(var args) const = 0;
@@ -4865,8 +4850,7 @@ Ported from,
   (defobject pid_controller "ferret/obj/pid_controller_o.h")
 #+end_src
 
-#+name: runtime-clojure-pid-implementation
-#+begin_src c++ :tangle no
+#+begin_src c++ :mkdirp yes :tangle src/src/ferret/obj/pid_controller_o.h
   template <typename T>
   class pid_controller : public object_t {
     T p;
@@ -6673,6 +6657,7 @@ Create some dummy libs under /test/modules/,
 
 * Files                                                            :noexport:
 ** project.clj
+
 #+begin_src clojure :mkdirp yes :tangle src/project.clj
   (defproject ferret "1.0.0-SNAPSHOT"
     :dependencies [[org.clojure/clojure "1.7.0"]
@@ -6697,8 +6682,10 @@ Create some dummy libs under /test/modules/,
     :jar-name "interim.jar"
     :uberjar-name "ferret.jar")
 #+end_src 
+
 ** src/
 *** ferret/core.clj
+
 #+begin_src clojure :noweb yes :mkdirp yes :tangle src/src/ferret/core.clj
   (ns ferret.core
     (:refer-clojure :exclude [compile])
@@ -6738,7 +6725,9 @@ Create some dummy libs under /test/modules/,
   <<core-code-generation-emit-source>>
   <<core-code-compile-code>>
 #+end_src 
+
 *** ferret/template.clj
+
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/src/ferret/template.clj
   (ns ferret.template
     (:import (java.io BufferedReader InputStreamReader)
@@ -6908,91 +6897,6 @@ Create some dummy libs under /test/modules/,
   }
 #+end_src 
 
-*** obj
-**** ferret/obj/keyword_o.h
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/keyword_o.h
-  <<runtime-clojure-keyword-implementation>>
-#+end_src 
-
-**** ferret/obj/lambda_i.h
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lambda_i.h
-  <<runtime-clojure-lambda-i-implementation>>
-#+end_src 
-
-**** ferret/obj/seekable_i.h
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/seekable_i.h
-  <<runtime-clojure-seekable-i-implementation>>
-#+end_src 
-
-**** ferret/obj/value_o.h
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/value_o.h
-  <<runtime-clojure-value-implementation>>
-#+end_src 
-
-**** ferret/obj/heavy_pointer_o.h
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/heavy_pointer_o.h
-  <<runtime-clojure-heavy-pointer-implementation>>
-#+end_src 
-
-**** ferret/obj/pointer_o.h
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/pointer_o.h
-  <<runtime-clojure-pointer-implementation>>
-#+end_src 
-
-**** ferret/obj/number_o.h
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/number_o.h
-  <<runtime-clojure-number-implementation>>
-#+end_src 
-
-**** ferret/obj/atom_o.h
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/atom_o.h
-  <<runtime-clojure-atom-implementation>>
-#+end_src 
-
-**** ferret/obj/boolean_o.h
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/boolean_o.h
-  <<runtime-clojure-boolean-implementation>>
-#+end_src 
-
-**** ferret/obj/string_o.h
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/string_o.h
-  <<runtime-clojure-string-implementation>>
-#+end_src 
-
-**** ferret/obj/lazy_sequence_o.h
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lazy_sequence_o.h
-  <<runtime-clojure-lazy-sequence-implementation>>
-#+end_src 
-
-**** ferret/obj/sequence_o.h
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/sequence_o.h
-  <<runtime-clojure-sequence-implementation>>
-#+end_src 
-
-**** ferret/obj/empty_sequence_o.h
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
-  <<runtime-clojure-empty-sequence-implementation>>
-#+end_src 
-
-**** ferret/obj/pid_controller_o.h
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/pid_controller_o.h
-  <<runtime-clojure-pid-implementation>>
-#+end_src 
-
 ** test/
 *** compiler.clj
 
@@ -7152,6 +7056,7 @@ Create some dummy libs under /test/modules/,
   exec "$java" $java_args -jar $MYSELF "$@"
   exit 1 
 #+end_src
+
 *** ferret-mode.el
 
 #+begin_src emacs-lisp :mkdirp yes :tangle src/resources/ferret-mode.el :padline no :results none

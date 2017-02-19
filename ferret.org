@@ -5293,11 +5293,11 @@ examples.
 #+begin_src clojure :tangle no
   (defnative memory-pool-free-space []
     (on "defined FERRET_MEMORY_POOL_SIZE"
-        "int count = 0;
-         for(int i = 0; i < FERRET_MEMORY_POOL_SIZE; i++)
-           if(mem::allocator::program_memory.used[i] == false)
-             count++;
-         __result = obj<number>((number_t)(count*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
+        "size_t acc = 0;
+         for(size_t i = 0; i < FERRET_MEMORY_POOL_PAGE_COUNT; i++)
+           if(mem::allocator::program_memory.used.get(i) == false)
+             acc++;
+         __result = obj<number>((acc*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
 #+end_src
 
 *** lock-memory

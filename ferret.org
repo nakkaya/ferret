@@ -5349,9 +5349,10 @@ Embed compilations options.
   :PROPERTIES:
   :noweb-ref: ferret-unit-tests
   :END:
+
 ** Unit Testing
   :PROPERTIES:
-  :noweb-ref: ferret-no-tangle
+  :noweb-ref: file-no-tangle
   :END:
 
 The reliability and robustness of Ferret is achieved in part by
@@ -5421,6 +5422,9 @@ Static code analysis (cppcheck) options,
  - --error-exitcode=1
 
 ** Compiler
+  :PROPERTIES:
+  :noweb-ref: clojure-unit-tests
+  :END:
 
 #+begin_src clojure :tangle no
   (deftest compiler-core
@@ -5476,9 +5480,6 @@ Static code analysis (cppcheck) options,
 
 ** Core
 *** Special Forms
-    :PROPERTIES:
-    :noweb-ref: special-forms-test
-    :END:
 
 #+begin_src clojure :tangle no
   (def make-adder
@@ -5536,9 +5537,6 @@ Static code analysis (cppcheck) options,
 #+end_src
 
 *** Destructuring
-    :PROPERTIES:
-    :noweb-ref: destructuring-test
-    :END:
 
 #+begin_src clojure :tangle no
   (defn destructure-test-1 [[a b c]]
@@ -5606,9 +5604,6 @@ Static code analysis (cppcheck) options,
 #+end_src
 
 *** Conditionals
-    :PROPERTIES:
-    :noweb-ref: conditionals-test
-    :END:
 
 #+begin_src clojure
   (deftest conditionals-test
@@ -5632,9 +5627,6 @@ Static code analysis (cppcheck) options,
 #+end_src
 
 *** Logical Operators
-    :PROPERTIES:
-    :noweb-ref: logical-operators-test
-    :END:
 
 #+begin_src clojure
   (defn pos-neg-or-zero [n]
@@ -5698,9 +5690,6 @@ Static code analysis (cppcheck) options,
 #+end_src
 
 *** Math
-    :PROPERTIES:
-    :noweb-ref: math-test
-    :END:
 
 #+begin_src clojure :tangle no
   (deftest math-test
@@ -5798,9 +5787,6 @@ Static code analysis (cppcheck) options,
 #+end_src
 
 *** Control
-    :PROPERTIES:
-    :noweb-ref: control-test
-    :END:
 
 #+begin_src clojure :tangle no
   (deftest pid-controller-test
@@ -5920,9 +5906,6 @@ Static code analysis (cppcheck) options,
 #+end_src
 
 *** Threading
-    :PROPERTIES:
-    :noweb-ref: threading-test
-    :END:
 
 #+begin_src clojure :tangle no
   (deftest threading-test
@@ -5965,9 +5948,6 @@ Static code analysis (cppcheck) options,
 #+end_src
 
 *** XOR Stream
-    :PROPERTIES:
-    :noweb-ref: xor-stream-test
-    :END:
 
 #+begin_src clojure :tangle no
   (def xor-stream-state (atom nil))
@@ -6011,9 +5991,6 @@ Static code analysis (cppcheck) options,
  #+end_src
  
 *** Misc
-    :PROPERTIES:
-    :noweb-ref: misc-test
-    :END:
 
  #+begin_src clojure :tangle no
    (deftest doto-test
@@ -6028,9 +6005,6 @@ Static code analysis (cppcheck) options,
  #+end_src
 
 *** FFI
-    :PROPERTIES:
-    :noweb-ref: ffi-test
-    :END:
 
  #+begin_src clojure :tangle no
    (deftest ffi-test
@@ -6056,9 +6030,9 @@ Static code analysis (cppcheck) options,
  #+end_src
 
 *** Module System
-    :PROPERTIES:
-    :noweb-ref: import-module-test
-    :END:
+  :PROPERTIES:
+  :noweb-ref: import-module-test
+  :END:
 
 Run import tests. 
 
@@ -6164,6 +6138,9 @@ Create some dummy libs under /test/modules/,
 #+end_src 
 
 *** Testing
+  :PROPERTIES:
+  :noweb-ref: clojure-unit-tests
+  :END:
 
 #+begin_src clojure :tangle no
   (deftest testing-unit-test
@@ -6201,9 +6178,6 @@ Create some dummy libs under /test/modules/,
 
 ** Data Structures
 *** Number
-    :PROPERTIES:
-    :noweb-ref: number-test
-    :END:
 
 #+begin_src clojure
   (deftest number-test
@@ -6212,9 +6186,6 @@ Create some dummy libs under /test/modules/,
 #+end_src
 
 *** Sequence
-    :PROPERTIES:
-    :noweb-ref: sequence-test
-    :END:
 
 #+begin_src clojure :tangle no
   (deftest sequence-test
@@ -6281,9 +6252,6 @@ Create some dummy libs under /test/modules/,
 #+end_src
 
 *** Lazy Sequence
-    :PROPERTIES:
-    :noweb-ref: lazy-seq-test
-    :END:
 
 #+begin_src clojure
   (defn lazy-countdown [n]
@@ -6327,9 +6295,6 @@ Create some dummy libs under /test/modules/,
 #+end_src
 
 *** Lambda
-    :PROPERTIES:
-    :noweb-ref: lambda-test
-    :END:
 
 #+begin_src clojure
   (deftest lambda-test
@@ -6351,9 +6316,6 @@ Create some dummy libs under /test/modules/,
 #+end_src
 
 *** Pointer
-    :PROPERTIES:
-    :noweb-ref: pointer-test
-    :END:
 
 #+begin_src clojure
   (deftest pointer-test
@@ -6384,9 +6346,6 @@ Create some dummy libs under /test/modules/,
 #+end_src
 
 *** Atom
-    :PROPERTIES:
-    :noweb-ref: atom-test
-    :END:
 
 #+begin_src clojure
   (deftest atom-test
@@ -6403,9 +6362,6 @@ Create some dummy libs under /test/modules/,
 #+end_src
 
 *** Keyword
-    :PROPERTIES:
-    :noweb-ref: keyword-test
-    :END:
 
 #+begin_src clojure
   (deftest keyword-test
@@ -6416,9 +6372,6 @@ Create some dummy libs under /test/modules/,
 #+end_src
 
 *** String
-    :PROPERTIES:
-    :noweb-ref: string-test
-    :END:
 
 #+begin_src clojure
   (deftest string-test
@@ -7000,32 +6953,15 @@ Create some dummy libs under /test/modules/,
     `(binding [clojure.test/report report-test-failure]
        (is (= ~res (exec-form (quote ~body))))))
 
-  <<ferret-unit-tests>>
+  <<clojure-unit-tests>>
 #+end_src 
 
 *** runtime.clj
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/runtime.clj
-  <<special-forms-test>>
-  <<number-test>>
-  <<sequence-test>>
-  <<destructuring-test>>
-  <<lazy-seq-test>>
-  <<lambda-test>>
   <<value-test-helpers>>
-  <<pointer-test>>
-  <<atom-test>>
-  <<keyword-test>>
-  <<string-test>>
-  <<conditionals-test>>
-  <<logical-operators-test>>
-  <<math-test>>
-  <<control-test>>
-  <<threading-test>>
-  <<xor-stream-test>>
-  <<misc-test>>
   <<ffi-test-helper>>
-  <<ffi-test>>
+  <<ferret-unit-tests>>
 
   (run-all-tests)
 #+end_src

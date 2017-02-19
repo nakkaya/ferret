@@ -1578,6 +1578,9 @@ Initialize function arguments. Clojure style list structuring is supported.
         (let [base-name (org.apache.commons.io.FilenameUtils/getBaseName input)
               path (str (org.apache.commons.io.FilenameUtils/getPrefix input)
                         (org.apache.commons.io.FilenameUtils/getPath input))
+              path (if (empty? path)
+                     "./"
+                     path)
               default-compiled-file (file (str path base-name ".cpp"))
               default-options (compile-options-parse-source default-compiled-file)]
           (-> default-options
@@ -1640,9 +1643,7 @@ Initialize function arguments. Clojure style list structuring is supported.
     (defn compile->binary [options]
       (let [command (cxx-command options)]
         (info "building" "=>" (apply str (interpose " " command)))
-        (let [build-dir (if (empty? (:output-path options))
-                          "./"
-                          (:output-path options))
+        (let [build-dir (:output-path options)
               ret (try
                     (with-sh-dir build-dir
                       (apply sh command))

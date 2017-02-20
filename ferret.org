@@ -123,6 +123,7 @@ Then upload as usual.
 ** Examples
 *** Projects
 
+ - [[https://nakkaya.com/2017/02/15/bare-metal-lisp-rc-control-using-ferret/][Bare Metal Lisp - RC Control using Ferret]]
  - [[http://nakkaya.com/2016/06/10/ferret-a-hard-real-time-clojure-for-lisp-machines/][Ferret - A Hard Real-Time Clojure for Lisp Machines]] -
    Implementation of a line following robot in Ferret.
  - [[https://git.nakkaya.com/nakkaya/solarcar-tracker][solarcar-tracker]] - A Tracking device for the [[http://solarcar.neu.edu.tr][Ra27 solar car]]. (GPS,

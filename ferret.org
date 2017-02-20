@@ -2340,19 +2340,25 @@ A lazy list container implementing the seekable interface.
 
     size_t type() const { return runtime::type::lazy_sequence; }
 
-    var equals(var o){
+    var sval() const {
+      if (head.is_nil())
+        return runtime::first(run(thunk));
       
-      if(!head.equals(runtime::first(o)))
+      return head;
+    }
+
+    var equals(var o){
+      if(sval() != runtime::first(o))
         return obj<boolean>(false);
       
-      var itOther = runtime::rest(o);
+      var other = runtime::rest(o);
       for(auto it : runtime::range(rest())){
-        if (itOther.is_nil() || it.equals(runtime::first(itOther))  == false)
+        if (other.is_nil() || it != runtime::first(other))
           return obj<boolean>(false);
-        itOther = runtime::rest(itOther);
+        other = runtime::rest(other);
       }
 
-      if (itOther.is_nil())
+      if (other.is_nil())
         return obj<boolean>(true);
       else
         return obj<boolean>(false);
@@ -2361,7 +2367,7 @@ A lazy list container implementing the seekable interface.
   #if !defined(FERRET_DISABLE_STD_OUT)
     var stream_console() const {
       runtime::print("(");
-      head.stream_console();
+      sval().stream_console();
       for(auto i : runtime::range(rest())){
         runtime::print(" ");
         i.stream_console();
@@ -2378,9 +2384,12 @@ A lazy list container implementing the seekable interface.
       return obj<lazy_sequence>(x,thunk);
     }
     var first() const {
-      return head;
+      return sval();
     }
     var rest() const {
+      if (head.is_nil())
+        return runtime::rest(run(thunk));
+      
       return run(thunk);
     }
   };
@@ -5348,7 +5357,6 @@ Embed compilations options.
   :PROPERTIES:
   :noweb-ref: ferret-unit-tests
   :END:
-
 ** Unit Testing
   :PROPERTIES:
   :noweb-ref: file-no-tangle
@@ -6260,6 +6268,13 @@ Create some dummy libs under /test/modules/,
   (defn ints-from [n]
     (cons n (lazy-seq (ints-from (inc n)))))
 
+  (defn fib-seq
+    ([]
+     (fib-seq 0 1))
+    ([a b]
+     (lazy-seq
+      (cons b (fib-seq b (+ a b))))))
+
   (deftest lazy-seq-test
     (is (= false (= (range 10) (range 15))))
     (is (= false (= (range 15) (range 10))))
@@ -6289,8 +6304,11 @@ Create some dummy libs under /test/modules/,
     (is (= (list -2 -1 0 1 2)    (take-while #(< % 3) (list -2 -1 0 1 2 3))))
     (is (= (list -2 -1 0 1 2 3)  (take-while #(<= % 3) (list -2 -1 0 1 2 3))))
     (is (= (list -2 -1 0 1 2 3)  (take-while #(<= % 4) (list -2 -1 0 1 2 3))))
+   
+    (is (empty? (concat)))
     
-    (is (empty? (concat))))
+    (= (list 1 1 2 3 5) (take 5 (fib-seq)))
+    (= 12 (apply + (take 5 (fib-seq)))))
 #+end_src
 
 *** Lambda

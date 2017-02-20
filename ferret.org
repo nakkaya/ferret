@@ -3279,6 +3279,7 @@ indicating platform.
     #if defined(__SAM3X8E__)                                  || \
       defined(__AVR__)                                        || \
       (defined(ARDUINO_SAMD_ZERO) && defined(__SAMD21G18A__)) || \
+      defined(TEENSYDUINO)                                    || \
       defined(_VARIANT_ARDUINO_101_X_)
 
       # define FERRET_HARDWARE_ARDUINO TRUE

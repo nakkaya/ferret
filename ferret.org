@@ -1456,7 +1456,6 @@ Initialize function arguments. Clojure style list structuring is supported.
           // Runtime Prototypes
           namespace ferret{
            <<runtime-native-prototypes>>
-           <<runtime-native-ranged-for>>
           }
 
           // Objects
@@ -2655,18 +2654,17 @@ C++ API for the interface,
 
 Range-based for loop support for seekable containers.
 
-#+name: runtime-native-ranged-for
-#+begin_src c++ :tangle no
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
   namespace runtime {
     struct range{
       var p;
 
       explicit range(var v) : p(v) { }
       inline range begin() const { return range(p); }
-      inline range end() const { return range(var()); }
+      inline range end()   const { return range(nil()); }
 
-      inline bool operator!=(const range& other){
-        return (p != other.p);
+      inline bool operator!=(const range&){
+        return ( runtime::rest(p) != obj<empty_sequence>() );
       }
 
       inline const range& operator++(){

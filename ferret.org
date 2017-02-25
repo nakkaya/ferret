@@ -1456,7 +1456,6 @@ Initialize function arguments. Clojure style list structuring is supported.
           // Runtime Prototypes
           namespace ferret{
            <<runtime-native-prototypes>>
-           <<runtime-native-ranged-for>>
           }
 
           // Objects
@@ -2655,18 +2654,17 @@ C++ API for the interface,
 
 Range-based for loop support for seekable containers.
 
-#+name: runtime-native-ranged-for
-#+begin_src c++ :tangle no
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
   namespace runtime {
     struct range{
       var p;
 
       explicit range(var v) : p(v) { }
       inline range begin() const { return range(p); }
-      inline range end() const { return range(var()); }
+      inline range end()   const { return range(obj<empty_sequence>()); }
 
       inline bool operator!=(const range& other){
-        return (p != other.p);
+        return !p.is_nil() && (p != other.p);
       }
 
       inline const range& operator++(){
@@ -5510,6 +5508,11 @@ Static code analysis (cppcheck) options,
   (defn inc-int []
     "__result =  obj<number>(i++);")
 
+  (def nested-multi-call (do (fn
+                               ([]    0)
+                               ([x]   1)
+                               ([x y] 2))))
+
   (deftest special-forms-test
     (is (= 1                @(atom 1)))
     (is (= 3                (#(+ 1 2))))
@@ -5538,6 +5541,10 @@ Static code analysis (cppcheck) options,
           b 2]
       (let []
         (is (= 3 (+ a b)))))
+
+    (is (= 0 (nested-multi-call)))
+    (is (= 1 (nested-multi-call 1)))
+    (is (= 2 (nested-multi-call 1 2)))
     
     (is (= 10 (adder 9)))
     (is (= 89 (fibo 10)))

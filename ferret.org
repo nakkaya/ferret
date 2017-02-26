@@ -1112,7 +1112,7 @@ defined within *ferret* namespace. All Ferret macros starts with
   (defmethod emit :symbol [form state] (str form))
 
   (defmethod emit :string [form state]
-    (str "obj<string>(\"" (org.apache.commons.lang.StringEscapeUtils/escapeJava form) "\")"))
+    (str "obj<string>(\"" (org.apache.commons.lang.StringEscapeUtils/escapeJava form) "\"," (count form) ")"))
 
   (defmethod emit :boolean [form state] (str "obj<boolean>(" form ")"))
 

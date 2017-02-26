@@ -6164,6 +6164,7 @@ Create some dummy libs under /test/modules/,
 #+begin_src clojure :tangle no
   (deftest testing-unit-test
     (is (= "" (exec-form '((assert (= 2 1) (print "fail"))) {:release true})))
+    (compare-output "" (run-all-tests))
     (compare-output
      (str "fail in (= 2 3) \n"
           " expected 2.0000 \n"

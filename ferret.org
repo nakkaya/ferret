@@ -5249,7 +5249,9 @@ information.
     `(def ~name (~'fn [] ~@exprs)))
 
   (defmacro run-all-tests []
-    `(~'do ~@(map #(list %) @fir-unit-tests)))
+    (if (bound? #'fir-unit-tests)
+      `(~'do ~@(map #(list %) @fir-unit-tests))
+      `(~'do )))
 #+end_src
 
 ** Native

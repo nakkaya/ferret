@@ -3243,8 +3243,8 @@ running in safe mode.
   |--------------------------------+--------------+----------------------------------------------------------|
   | FERRET_SAFE_MODE               | false        | Force Safe Mode.                                         |
   | FERRET_DISABLE_CLI_ARGS        | false        | Disable command line arguments.                          |
-  | FERRET_DISABLE_STD_OUT         | true         | Disables output stream. (Reduces code size.)             |
-  | FERRET_DISABLE_MULTI_THREADING | true         | Disable atomic reference counting.                       |
+  | FERRET_DISABLE_STD_OUT         | false        | Disables output stream. (Reduces code size.)             |
+  | FERRET_DISABLE_MULTI_THREADING | false        | Disable atomic reference counting.                       |
   | FERRET_DISABLE_STD_MAIN        | false        | Disables auto execution of program::run()                |
   | FERRET_DISABLE_RC              | Not Defined  | Disable Reference Counting. (When using third party GCs) |
   | FERRET_PROGRAM_MAIN            | Not Defined  | A function to execute after program::run()               |

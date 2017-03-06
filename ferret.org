@@ -117,7 +117,40 @@ Boards]] for more info on how to use Ferret lisp on Arduino boards.)
   $ mv blink.cpp blink/blink.ino
 #+END_EXAMPLE
 
-Then upload as usual. 
+Then upload as usual. Following is another example, showing the usage
+of [[Memory Pooling]]. Program will blink two LEDs simultaneously at
+different frequencies (Yellow LED at 5 hz Blue LED at 20 hz). It uses
+a memory pool of 512 bytes allocated at compile time instead of
+calling malloc/free at runtime.
+
+#+begin_src clojure
+  (configure-ferret! :command "mv ferret-multi-led.cpp ferret-multi-led.ino")
+
+  (configure-runtime! FERRET_MEMORY_POOL_SIZE 512
+                      FERRET_MEMORY_POOL_PAGE_TYPE char)
+
+  (def yellow-led 13)
+  (def blue-led   12)
+
+  (pin-mode yellow-led :output)
+  (pin-mode blue-led   :output)
+
+  (defn make-led-toggler [pin]
+    (fn []
+      (->> (digital-read pin)
+           (bit-xor 1)
+           (digital-write pin))))
+
+  (def job-one
+    (fn-throttler (make-led-toggler yellow-led) 5 :second :non-blocking))
+
+  (def job-two
+    (fn-throttler (make-led-toggler blue-led)  20 :second :non-blocking))
+
+  (forever
+   (job-one)
+   (job-two))
+#+end_src
 
 ** Support
 

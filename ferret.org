@@ -4815,16 +4815,17 @@ DSL,
   (def two-state-machine
     (state-machine 
      (states
-      (off (println "Off"))
-      (on (println "On")))
+      (off :off)
+      (on  :on))
      (transitions
-      (off
-       (fn [] true) on)
-      (on
-       (fn [] true) off))))
+      (off (fn [] true) on)
+      (on  (fn [] true) off))))
 
   (dotimes [i 10]
-    (two-state-machine))
+    (let [state (two-state-machine)]
+      (if (= state :off)
+        (println "Off")
+        (println "On"))))
 #+end_src
 
 Each transition takes a list of /fn/ /state/ pairs first function that
@@ -4833,20 +4834,28 @@ returns true, returns the next state.
 #+name: runtime-clojure-state-machine
 #+begin_src clojure :tangle no
   (defmacro state-machine [[_ & states] [_ & transitions]]
-    (let [transitions (reduce
-                       (fn [h v]
-                         (let [[state & conds] v
-                               conds (->> (partition 2 conds)
-                                          (reduce (fn [h v]
-                                                    (conj h `(~(first v)) (second v)))
-                                                  ['cond]))]
-                           (conj h (list '= 'state state) (concat conds [true state]))))
-                       ['cond] transitions)]
-      `(let [~@(reduce (fn [h v] (conj h (first v) `(~'fn [] ~@(rest v)))) [] states)
-             machine-state# (~'atom ~(-> states first first))]
+    (let [states (reduce (fn [h v]
+                           (let [[name & body] v]
+                             (conj h name `(~'fn [] ~@body))))
+                         [] states)
+          transitions (->> transitions
+                           (map (fn [v]
+                                  (let [[state & conds] v
+                                        conds (->> (partition 2 conds)
+                                                   (reduce (fn [h v]
+                                                             (let [[check state] v]
+                                                               (conj h `(~check) state))) []))]
+                                    `((~'= ~'state ~state) (~'cond ~@conds true ~state)))))
+                           (reduce (fn [h v]
+                                     (let [[check transition] v]
+                                       (conj h check transition)))
+                                   ['cond]))]
+      `(let [~@states
+             machine-state# (~'atom ~(first states))]
          (~'fn []
-           ((~'deref machine-state#))
-           (~'swap! machine-state# (~'fn [~'state] (~@transitions)))))))
+          (~'let [ret# ((~'deref machine-state#))]
+           (~'swap! machine-state# (~'fn [~'state] (~@transitions)))
+           ret#)))))
 #+end_src
 
 *** PID Control
@@ -5899,15 +5908,18 @@ Static code analysis (cppcheck) options,
     (let [state (atom 0)
           machine (state-machine
                    (states
-                    (off (swap! state inc))
-                    (on  (swap! state inc)))
+                    (off (swap! state inc) :off)
+                    (on  (swap! state inc) :on))
                    (transitions
-                    (off
-                     (fn [] true) on)
-                    (on
-                     (fn [] true) off)))]
-      (dotimes [_ 10]
+                    (off (fn [] true) on)
+                    (on  (fn [] true) off)))]
+      
+      (is (= :off (machine)))
+      (is (= :on  (machine)))
+      
+      (dotimes [_ 8]
         (machine))
+      
       (is (= 10 (deref state))))
 
     (let [state (atom 0)
@@ -5920,13 +5932,13 @@ Static code analysis (cppcheck) options,
                    (transitions
                     (a
                      (fn [] false) no-op
-                     (fn [] true) b)
+                     (fn [] true)  b)
                     (b
-                     (fn [] true) c)
+                     (fn [] true)  c)
                     (c
                      (fn [] false) no-op
                      (fn [] false) no-op
-                     (fn [] true) a
+                     (fn [] true)  a
                      (fn [] false) no-op)))]
       (dotimes [_ 10]
         (machine))

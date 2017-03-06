@@ -1832,6 +1832,8 @@ code. (ie. printing on different embedded systems.)
 
 All Ferret objects derive from a [[Base]] class.
 
+Built in objects,
+
  - [[Pointer]]
  - [[Number]]
  - [[Keyword]] 
@@ -1841,7 +1843,7 @@ All Ferret objects derive from a [[Base]] class.
  - [[Boolean]]
  - [[Atom]] - Mimics Clojure atoms.
 
-Interfaces,
+Built in interfaces,
 
  - [[Lambda]] - Provides *invoke* for callable objects.
  - [[Seekable]] - Provides *first*, *rest*, *cons* for [[Seekable]]
@@ -1940,7 +1942,7 @@ A /pointer/ object keeps a reference to a C++ pointer.
   };
 #+end_src
 
-A /heavy_pointer/ object contains a pointer and a function to be called
+A =heavy_pointer= object contains a pointer and a function to be called
 right before garbage collection. This is similar to /finalizer/ in
 Java.
 
@@ -2647,6 +2649,11 @@ Operations on /atoms/
 #+end_src
 
 *** Interfaces
+
+Just like Clojure, Ferret is written in terms of
+abstractions. Currently there are abstractions for sequences,
+collections and callability.
+
 **** Seekable
 
 All sequence functions use this interface to iterate seekable

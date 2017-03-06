@@ -133,6 +133,7 @@ Then upload as usual.
    IMU etc.) (Raspberry Pi)
  - [[https://git.nakkaya.com/nakkaya/solarcar-turn-indicator/tree/master][solarcar-turn-indicator]] - Controller for the turn indicator
    assembly on the [[http://solarcar.neu.edu.tr][Ra27 solar car]]. (Atmega MCU)
+ - [[https://git.nakkaya.com/nakkaya/ferret-qt-hello-world][ferret-qt-hello-world]] - QT Hello World FFI Example in Ferret Lisp
 
 *** Wrappers
 

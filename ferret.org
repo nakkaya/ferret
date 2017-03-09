@@ -5039,7 +5039,8 @@ Ported from,
     "__result = controller.cast<pid_controller<real_t>>()->update(input)")
 
   (defmacro pid-controller [& options]
-    (let [options (apply hash-map options)
+    (let [defaults {:kp 0 :ki 0 :kd 0 :set-point 0 :bounds [-1 1 -1 1] :continuous false}
+          options (merge defaults (apply hash-map options))
           {:keys [container kp ki kd set-point bounds continuous]} options
           [in-min in-max out-min out-max] bounds]
       (if (symbol? set-point)

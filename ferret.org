@@ -170,12 +170,15 @@ calling malloc/free at runtime.
 
 *** Wrappers
 
+ - [[https://git.nakkaya.com/nakkaya/ferret-teensy-flight-sim][ferret-teensy-flight-sim]] - Wrapper for Teensy flight sim controls.
  - [[https://git.nakkaya.com/nakkaya/ferret-arduino-keypad][ferret-arduino-keypad]] - Arduino Keypad library bindings.
  - [[https://git.nakkaya.com/nakkaya/ferret-arduino-adafruit-pcd8544][ferret-arduino-adafruit-pcd8544]] - Adafruit Arduino PCD8544 screen
    library bindings most commonly found in Nokia 5110.
  - [[https://git.nakkaya.com/nakkaya/ferret-boost][ferret-boost]] - Boost bindings.
  - [[https://git.nakkaya.com/nakkaya/ferret-websocket][ferret-websocket]] - WebSocket++ bindigns.
  - [[https://git.nakkaya.com/nakkaya/ferret-logging][ferret-logging]] - easyloggingpp bindigns.
+ - [[https://git.nakkaya.com/nakkaya/ferret-great-circle-navigation][ferret-great-circle-navigation]] - Utils for great circle
+   navigation.
 
 ** License
 

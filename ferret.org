@@ -1172,7 +1172,7 @@ defined within *ferret* namespace. All Ferret macros starts with
   (defmethod emit :number [form state]
     (let [number (rationalize form)]
       (if (ratio? number)
-        (str "obj<number>((real_t)"   form ")")
+        (str "obj<number>((real_t)"   (double form) ")")
         (str "obj<number>((number_t)" form ")"))))
 #+end_src
 
@@ -6269,8 +6269,10 @@ Create some dummy libs under /test/modules/,
 
 #+begin_src clojure
   (deftest number-test
-    (is (= 3501  0xDAD))
-    (is (= 2748  0xABC)))
+    (is (= 0.5       1/2))
+    (is (= 0.33333   1/3))
+    (is (= 3501      0xDAD))
+    (is (= 2748      0xABC)))
 #+end_src
 
 *** Sequence

@@ -2955,7 +2955,12 @@ counting policies.
       
         inline void inc_ref() { ref_count++; }
         inline bool dec_ref() { return (--ref_count == 0); }
-      
+
+        atomic_rc &operator=(const atomic_rc &other) {
+          ref_count.exchange(other.ref_count);
+          return *this;
+        }
+        
       private:
         ::std::atomic<size_t> ref_count;
       };
@@ -2968,6 +2973,8 @@ counting policies.
       
         inline void inc_ref() { ref_count++; }
         inline bool dec_ref() { return (--ref_count == 0); }
+
+        rc &operator=(const rc &other) { ref_count = other.ref_count; return *this; }
       
       private:
         size_t ref_count;
@@ -2980,6 +2987,8 @@ counting policies.
       
         inline void inc_ref() { }
         inline bool dec_ref() { return false; }
+
+        no_rc &operator=(const no_rc &) { return *this; }
       };
     }
   }

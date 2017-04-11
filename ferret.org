@@ -4608,6 +4608,24 @@ Returns the principal value of the arc tangent of y/x, expressed in radians.
     "__result = obj<number>((real_t)::atan2(number::to<real_t>(x),number::to<real_t>(y)));")
 #+end_src
 
+*** log / log10
+
+Returns the natural logarithm of x.
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn log [x]
+    "__result = obj<number>((real_t)::log(number::to<real_t>(x)));")
+#+end_src
+
+Returns the natural logarithm of x.
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn log10 [x]
+    "__result = obj<number>((real_t)::log10(number::to<real_t>(x)));")
+#+end_src
+
 *** to-degrees
 
 Converts an angle measured in radians to an approximately equivalent
@@ -5858,6 +5876,9 @@ Static code analysis (cppcheck) options,
     (is (= 0.98279    (atan2 45 30)))
     (is (= 180.19522  (to-degrees 3.145)))
     (is (= 3.14159    (to-radians 180)))
+
+    (is (= 2.30258    (log 10)))
+    (is (= 2          (log10 100)))
 
     (let [a 1
           b 2]

@@ -4246,6 +4246,21 @@ When test is true, evaluates body with binding-form bound to the value of test.
   (defn nth [coll index] "__result = runtime::nth(coll,index);")
 #+end_src
 
+*** nthrest
+
+Returns the nth rest of coll, coll when n is 0.
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
+  (defn nthrest [coll n]
+    "__result = coll;
+     for(number_t i = 0; i < number::to<number_t>(n); i++)
+       __result = runtime::rest(__result);
+
+     if (__result.is_nil())
+       __result = runtime::list();")
+#+end_src
+
 *** cons
 
 #+name: runtime-clojure-sequence
@@ -4307,6 +4322,28 @@ When test is true, evaluates body with binding-form bound to the value of test.
   (defn repeatedly
     ([f] (cons (f) (lazy-seq (repeatedly f))))
     ([n f] (take n (repeatedly f))))
+#+end_src
+
+*** partition
+
+#+name: runtime-clojure-sequence-lazy
+#+begin_src clojure :tangle no
+  (defn partition
+    ([n coll]
+     (partition n n coll))
+    ([n step coll]
+     (lazy-seq
+      (if (not (empty? coll))
+        (let [p (take n coll)]
+          (when (= n (count p))
+            (cons p (partition n step (nthrest coll step))))))))
+    ([n step pad coll]
+     (lazy-seq
+      (if (not (empty? coll))
+        (let [p (take n coll)]
+          (if (= n (count p))
+            (cons p (partition n step pad (nthrest coll step)))
+            (list (take n (concat p pad)))))))))
 #+end_src
 
 ** Math
@@ -6340,6 +6377,10 @@ Create some dummy libs under /test/modules/,
     (is (= 3   (nth (list 1 2 3) 2)))
     (is (= nil (nth (list 1 2 3) 10)))
     (is (= nil (nth (list 1 2 3) -10)))
+
+    (is (= (list 0 1 2 3 4 5 6 7 8 9)  (nthrest (range 10) 0)))
+    (is (= (list )                     (nthrest (range 10) 20)))
+    (is (= (list 5 6 7 8 9)            (nthrest (range 10) 5)))
     
     (is (= (list 1 2 3 4) (drop 0 (list 1 2 3 4))))
     (is (= (list 2 3 4)   (drop 1 (list 1 2 3 4))))
@@ -6417,11 +6458,17 @@ Create some dummy libs under /test/modules/,
     (is (= (list -2 -1 0 1 2)    (take-while #(< % 3) (list -2 -1 0 1 2 3))))
     (is (= (list -2 -1 0 1 2 3)  (take-while #(<= % 3) (list -2 -1 0 1 2 3))))
     (is (= (list -2 -1 0 1 2 3)  (take-while #(<= % 4) (list -2 -1 0 1 2 3))))
-   
+    
     (is (empty? (concat)))
     
     (= (list 1 1 2 3 5) (take 5 (fib-seq)))
-    (= 12 (apply + (take 5 (fib-seq)))))
+    (= 12 (apply + (take 5 (fib-seq))))
+
+    (is (= (list (list 0 1 2 3) (list 4 5 6 7))                              (partition 4 (range 10))))
+    (is (= (list (list 0 1 2 3) (list 4 5 6 7))                              (partition 4 (range 8))))
+    (is (= (list (list 0 1 2 3) (list 6 7 8 9) (list 12 13 14 15))           (partition 4 6 (range 20))))
+    (is (= (list (list 0 1 2) (list 6 7 8) (list 12 13 14) (list 18 19 42))  (partition 3 6 (list 42) (range 20))))
+    (is (= (list (list 0 1 2 3) (list 6 7 8 9) (list 12 13 14 15) (list 18 19 42 43)) (partition 4 6 (list 42 43 44 45) (range 20)))))
 #+end_src
 
 *** Lambda

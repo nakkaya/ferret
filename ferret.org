@@ -5141,6 +5141,7 @@ approximate a K sample moving average. This filter approximates a
 moving average of the last K samples by setting the value of alpha to
 1/K.
 
+#+name: runtime-clojure-filter
 #+begin_src clojure :tangle no
   (defn moving-average-filter [alpha average data]
     (+ (* alpha data)
@@ -6985,6 +6986,7 @@ Create some dummy libs under /test/modules/,
   <<runtime-clojure-misc>>
   <<runtime-clojure-state-machine>>
   <<runtime-clojure-pid-controller>>
+  <<runtime-clojure-filter>>
   <<runtime-clojure-gpio>>
   <<runtime-clojure-testing>>
 #+end_src

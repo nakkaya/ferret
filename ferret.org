@@ -3103,8 +3103,8 @@ Ferret supports various memory allocation schemes,
     namespace allocator{
       class system{
       public:
-        void* operator new(size_t size){ return ::malloc(size); }
-        void  operator delete(void * ptr){ ::free(ptr); }
+        inline void* operator new(size_t size){ return ::malloc(size); }
+        inline void  operator delete(void * ptr){ ::free(ptr); }
       };
     }
   }
@@ -3139,8 +3139,8 @@ requirements.
 
       class pool{
       public:
-        void* operator new(size_t size){ return program_memory.allocate(size); }
-        void  operator delete(void * ptr){ program_memory.free(ptr); }
+        inline void* operator new(size_t size){ return program_memory.allocate(size); }
+        inline void  operator delete(void * ptr){ program_memory.free(ptr); }
       };
     }
   }

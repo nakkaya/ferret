@@ -3955,14 +3955,14 @@ A simple macro for calling inline C++,
 #+begin_src clojure :tangle no
   (defmacro if-let
     ([bindings then]
-     `(if-let ~bindings ~then nil))
+     `(~'if-let ~bindings ~then nil))
     ([bindings then else & oldform]
      (let [form (bindings 0) tst (bindings 1)]
-       `(let [temp# ~tst]
-          (if temp#
-            (let [~form temp#]
-              ~then)
-            ~else)))))
+       `(~'let* [temp# ~tst]
+                (~'if temp#
+                  (~'let* [~form temp#]
+                          ~then)
+                  ~else)))))
 #+end_src
 
 *** when-let
@@ -3974,10 +3974,10 @@ When test is true, evaluates body with binding-form bound to the value of test.
   (defmacro when-let
     [bindings & body]
     (let [form (bindings 0) tst (bindings 1)]
-      `(let [temp# ~tst]
-         (when temp#
-           (let [~form temp#]
-             ~@body)))))
+      `(~'let* [temp# ~tst]
+               (~'when temp#
+                 (~'let* [~form temp#]
+                         ~@body)))))
 #+end_src
 
 ** Logical Operators
@@ -5766,8 +5766,10 @@ Static code analysis (cppcheck) options,
     (is (= 2   (if nil 1 2)))
     (is (= nil (if-let [a nil] a)))
     (is (= 5   (if-let [a 5] a)))
+    (is (= 2   (if-let [[_ a] (list 1 2)] a)))
     (is (= nil (when-let [a nil] a)))
     (is (= 5   (when-let [a 5] a)))
+    (is (= 2   (when-let [[_ a] (list 1 2)] a)))
 
     (is (= 1     (when (< 2 3) 1)))
     (is (= true  (let [a 1] (and (> a 0) (< a 10)))))

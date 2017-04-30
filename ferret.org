@@ -1963,7 +1963,7 @@ Java.
         gc (fn []
              (cxx "delete pointer::to_pointer<int>(val);")
              (println "Cleanup..."))]
-    (heavy-pointer val gc))
+    (new-heavy-pointer val gc))
 
   ;; => Cleanup...
 #+end_src

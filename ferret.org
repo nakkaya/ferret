@@ -170,6 +170,9 @@ calling malloc/free at runtime.
 
 *** Wrappers
 
+ - [[https://git.nakkaya.com/nakkaya/ferret-opencv][ferret-opencv]] - Ferret bindings for OpenCV
+ - [[https://git.nakkaya.com/nakkaya/ferret-genann][ferret-genann]] - Ferret bindings for [[https://codeplea.com/genann][genann]] - simple neural
+   network library in ANSI C.
  - [[https://git.nakkaya.com/nakkaya/ferret-teensy-flight-sim][ferret-teensy-flight-sim]] - Wrapper for Teensy flight sim controls.
  - [[https://git.nakkaya.com/nakkaya/ferret-arduino-keypad][ferret-arduino-keypad]] - Arduino Keypad library bindings.
  - [[https://git.nakkaya.com/nakkaya/ferret-arduino-adafruit-pcd8544][ferret-arduino-adafruit-pcd8544]] - Adafruit Arduino PCD8544 screen

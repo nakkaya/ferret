@@ -3303,21 +3303,22 @@ running in safe mode.
 #+END_EXAMPLE
 
 #+BEGIN_EXAMPLE
-  |--------------------------------+--------------+----------------------------------------------------------|
-  | Define                         | Defult Value | Description                                              |
-  |--------------------------------+--------------+----------------------------------------------------------|
-  | FERRET_SAFE_MODE               | false        | Force Safe Mode.                                         |
-  | FERRET_DISABLE_CLI_ARGS        | false        | Disable command line arguments.                          |
-  | FERRET_DISABLE_STD_OUT         | false        | Disables output stream. (Reduces code size.)             |
-  | FERRET_DISABLE_MULTI_THREADING | false        | Disable atomic reference counting.                       |
-  | FERRET_DISABLE_STD_MAIN        | false        | Disables auto execution of program::run()                |
-  | FERRET_DISABLE_RC              | Not Defined  | Disable Reference Counting. (When using third party GCs) |
-  | FERRET_PROGRAM_MAIN            | Not Defined  | A function to execute after program::run()               |
-  | FERRET_UART_RATE               | 9600         | Set default UART rate.                                   |
-  | FERRET_NUMBER_TYPE             | int          | Default number_t type.                                   |
-  | FERRET_REAL_TYPE               | double       | Default real_t type.                                     |
-  | FERRET_REAL_EPSILON            | 0.00001      | Least significant digit representable.                   |
-  |--------------------------------+--------------+----------------------------------------------------------|
+  |------------------------------------+--------------+----------------------------------------------------------|
+  | Define                             | Defult Value | Description                                              |
+  |------------------------------------+--------------+----------------------------------------------------------|
+  | FERRET_SAFE_MODE                   | false        | Force Safe Mode.                                         |
+  | FERRET_DISABLE_CLI_ARGS            | false        | Disable command line arguments.                          |
+  | FERRET_DISABLE_STD_OUT             | false        | Disables output stream. (Reduces code size.)             |
+  | FERRET_DISABLE_MULTI_THREADING     | false        | Disable atomic reference counting.                       |
+  | FERRET_DISABLE_STD_MAIN            | false        | Disables auto execution of program::run()                |
+  | FERRET_DISABLE_RC                  | Not Defined  | Disable Reference Counting. (When using third party GCs) |
+  | FERRET_PROGRAM_MAIN                | Not Defined  | A function to execute after program::run()               |
+  | FERRET_UART_RATE                   | 9600         | Set default UART rate.                                   |
+  | FERRET_HARDWARE_ARDUINO_UART_PORT  | Serial       | Set default UART port.                                   |
+  | FERRET_NUMBER_TYPE                 | int          | Default number_t type.                                   |
+  | FERRET_REAL_TYPE                   | double       | Default real_t type.                                     |
+  | FERRET_REAL_EPSILON                | 0.00001      | Least significant digit representable.                   |
+  |------------------------------------+--------------+----------------------------------------------------------|
 #+END_EXAMPLE
 
 ** Initialization
@@ -3349,6 +3350,7 @@ indicating platform.
       defined(_VARIANT_ARDUINO_101_X_)
 
       # define FERRET_HARDWARE_ARDUINO TRUE
+      # define FERRET_HARDWARE_ARDUINO_UART_PORT Serial
     #endif
     
     #if defined(FERRET_HARDWARE_ARDUINO)
@@ -3445,14 +3447,14 @@ Setup IO for Arduino boards,
 #+begin_src c++ :tangle no
   #if defined(FERRET_HARDWARE_ARDUINO) && !defined(FERRET_DISABLE_STD_OUT) 
     namespace runtime{
-      void init(){ Serial.begin(FERRET_UART_RATE); }
+      void init(){ FERRET_HARDWARE_ARDUINO_UART_PORT.begin(FERRET_UART_RATE); }
 
       template <typename T>
-      void print(const T t){ Serial.print(t); }
+      void print(const T t){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(t); }
 
       template <>
       void print(void* p){
-        Serial.print((size_t)p,HEX);
+        FERRET_HARDWARE_ARDUINO_UART_PORT.print((size_t)p,HEX);
       }
      }
   #endif

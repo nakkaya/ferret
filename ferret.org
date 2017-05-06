@@ -3350,7 +3350,10 @@ indicating platform.
       defined(_VARIANT_ARDUINO_101_X_)
 
       # define FERRET_HARDWARE_ARDUINO TRUE
-      # define FERRET_HARDWARE_ARDUINO_UART_PORT Serial
+
+      #if !defined(FERRET_HARDWARE_ARDUINO_UART_PORT)
+        # define FERRET_HARDWARE_ARDUINO_UART_PORT Serial
+      #endif
     #endif
     
     #if defined(FERRET_HARDWARE_ARDUINO)

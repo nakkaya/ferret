@@ -4753,6 +4753,21 @@ Sleep current thread for *t* milliseconds,
   <<runtime-clojure-sleep>>
 #+end_src
 
+*** sleep-micros
+
+Sleep current thread for *t* microseconds,
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no :noweb yes
+  (defnative sleep-micros [t]
+    (on "defined FERRET_STD_LIB"
+        ("chrono" "thread")
+        "auto duration = ::std::chrono::microseconds(number::to<number_t>(t));
+         ::std::this_thread::sleep_for(duration);")
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "::delayMicroseconds(number::to<number_t>(t));"))
+#+end_src
+
 *** time-fn
 
 Takes a function *f* and returns the number of milliseconds it takes

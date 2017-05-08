@@ -4727,6 +4727,23 @@ Return current time in milliseconds,
         "__result = obj<number>(::millis());"))
 #+end_src
 
+*** micros
+
+Return current time in microseconds,
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no
+  (defnative micros []
+    (on "defined FERRET_STD_LIB"
+        ("chrono")
+        "auto now = ::std::chrono::high_resolution_clock::now();
+         auto epoch = now.time_since_epoch();
+         auto time = ::std::chrono::duration_cast<::std::chrono::microseconds>(epoch).count();
+         __result = obj<number>(time);")
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "__result = obj<number>(::micros());"))
+#+end_src
+
 *** sleep
 
 Sleep current thread for *t* milliseconds,

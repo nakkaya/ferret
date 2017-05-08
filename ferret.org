@@ -1796,13 +1796,16 @@ Initialize function arguments. Clojure style list structuring is supported.
                          (format
                            [^java.util.logging.LogRecord record]
                            (let [level (-> record .getLevel .toString clojure.string/lower-case)
+                                 level (if (or (= :unix (os-name))
+                                               (= :mac (os-name))
+                                               (= :solaris (os-name)))
+                                         (if (= level "warning")
+                                           (color/red level)
+                                           (color/green level))
+                                         level)
                                  now (.getTime (java.util.Calendar/getInstance))
                                  frmtr (java.text.SimpleDateFormat. "HH:mm:ss")]
-                             (str (.format frmtr now) " "
-                                  (if (= level "warning")
-                                    (color/red level)
-                                    (color/green level)) " "
-                                    (.getMessage record) "\n")))))
+                             (str (.format frmtr now) " " level " " (.getMessage record) "\n")))))
 
     (def log-handler (proxy [java.util.logging.Handler] []
                        (publish [^java.util.logging.LogRecord record]
@@ -6843,6 +6846,15 @@ Create some dummy libs under /test/modules/,
           [clojure.java.shell]
           [clojure.tools [logging :only [log warn info trace]]])
     (:import (org.apache.commons.io FileUtils)))
+
+  (defn os-name []
+    (let [os (-> (System/getProperty "os.name") .toLowerCase)]
+      (cond (.contains os "win")      :windows
+            (.contains os "mac")      :mac
+            (or (.contains os "nix")
+                (.contains os "nux")
+                (.contains os "aix")) :unix
+            (.contains os "sunos")    :solaris)))
 
   <<core-logging>>
   <<core-code-generation-misc>>

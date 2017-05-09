@@ -1172,11 +1172,7 @@ defined within *ferret* namespace. All Ferret macros starts with
 
   (defmethod emit :char [form state] (str "obj<number>((number_t)" (int form) ")"))
 
-  (defmethod emit :number [form state]
-    (let [number (rationalize form)]
-      (if (ratio? number)
-        (str "obj<number>((real_t)"   (double form) ")")
-        (str "obj<number>((number_t)" form ")"))))
+  (defmethod emit :number [form state] (str "obj<number>((real_t)" (double form) ")"))
 #+end_src
 
 **** Special Forms

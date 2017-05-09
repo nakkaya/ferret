@@ -27,12 +27,17 @@ script:
   - cd src/
   - lein test
   # Tests passed prepare release
+  - bash resources/platform_builds.sh
   - cd ../
   - mkdir release
   - mkdir release/builds/
+  # move packages to builds/
   - mv ferret release/builds/
   - cp src/target/ferret.jar release/builds/ferret-`git rev-parse --short HEAD`.jar
   - mv src/target/ferret.jar release/builds/
+  - mv src/ferret-linux-amd64.zip release/builds/
+  - mv src/ferret-macosx-x86_64.zip release/builds/
+  - mv src/ferret-windows-amd64.zip release/builds/
   - mv ferret-manual.html release/index.html
   - mv org-mode-assets release/ferret-styles
 deploy:

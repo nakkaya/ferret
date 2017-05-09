@@ -4761,7 +4761,7 @@ Sleep current thread for *t* microseconds,
         "auto duration = ::std::chrono::microseconds(number::to<number_t>(t));
          ::std::this_thread::sleep_for(duration);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::delayMicroseconds(number::to<number_t>(t));"))
+        "::delayMicroseconds(number::to<real_t>(t));"))
 #+end_src
 
 *** time-fn

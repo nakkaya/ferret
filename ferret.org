@@ -4872,34 +4872,28 @@ function *f* to run in milliseconds,
 
 #+name: runtime-clojure-misc
 #+begin_src clojure :tangle no
-  (defn fn-throttler-aux-blocking [f rate-ms t-last-run]
+  (defn fn-throttler-aux-blocking [timer f rate]
     (fn [& args]
-      (let [elapsed (- (micros) @t-last-run)
-            left-to-wait (- rate-ms elapsed)]
-        (when (pos? left-to-wait)
-          (sleep-micros left-to-wait)))
-      (let [ret (apply f args)]
-        (reset! t-last-run (micros))
-        ret)))
+      (let [wait (- rate (elapsed-micros-now timer))]
+        (elapsed-micros-reset timer)
+        (sleep-micros wait)
+        (apply f args))))
 
-  (defn fn-throttler-aux-non-blocking [f rate-ms t-last-run]
+  (defn fn-throttler-aux-non-blocking [timer f rate]
     (fn [& args]
-      (let [now (micros)]
-        (when (>= (- now @t-last-run) rate-ms)
-          (let [ret (apply f args)]
-            (reset! t-last-run now)
-            ret)))))
+      (when (elapsed-micros? timer rate)
+        (elapsed-micros-reset timer)
+        (apply f args))))
 
   (defmacro fn-throttler [f rate unit policy]
     (let [unit->ms {:microsecond 1 :millisecond 1000
                     :second 1000000 :minute 60000000
                     :hour 3600000000 :day 86400000000
                     :month 2678400000000}
-          rate-ms (/ (unit->ms unit) rate)
-          state '(atom (micros))]
+          rate (/ (unit->ms unit) rate)]
       (if (= policy :blocking)
-        `(~'fn-throttler-aux-blocking ~f ~rate-ms ~state)
-        `(~'fn-throttler-aux-non-blocking ~f ~rate-ms ~state))))
+        `(~'fn-throttler-aux-blocking     (~'new-elapsed-micros) ~f ~rate)
+        `(~'fn-throttler-aux-non-blocking (~'new-elapsed-micros) ~f ~rate))))
 #+end_src
 
 ** Misc

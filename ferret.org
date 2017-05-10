@@ -4761,6 +4761,73 @@ Sleep current thread for *t* microseconds,
         "::delayMicroseconds(number::to<real_t>(t));"))
 #+end_src
 
+*** elapsed-micros
+
+Port of Teensy elapsedMicros API,
+
+#+name: runtime-clojure-misc
+#+begin_src clojure :tangle no :noweb yes
+  (defobject elapsed_micros "ferret/obj/elapsed_micros_o.h")
+
+  (defn new-elapsed-micros []
+    "__result = obj<elapsed_micros>();")
+
+  (defn elapsed-micros? [t r]
+    "__result = obj<boolean>(t.cast<elapsed_micros>()->is_elapsed(number::to<real_t>(r)));")
+
+  (defn elapsed-micros-now [t]
+    "__result = obj<boolean>(t.cast<elapsed_micros>()->elapsed());")
+
+  (defn elapsed-micros-reset [t]
+    "t.cast<elapsed_micros>()->reset()")
+#+end_src
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/elapsed_micros_o.h
+  class elapsed_micros : public object_t {
+   private:
+    unsigned long us;
+   public:
+
+    elapsed_micros(void) { us = now(); }
+    void reset() { us = now(); }
+    
+    size_t type() const { return runtime::type::elapsed_micros; }
+
+    var equals(var o){
+      return obj<boolean>(this == o.cast<elapsed_micros>());
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      runtime::print("elapsed_micros<");
+      runtime::print(us);
+      runtime::print(">");
+      return nil();
+    }
+  #endif
+
+  #if defined(FERRET_HARDWARE_ARDUINO)
+    inline unsigned long now() const{
+      return ::micros();
+    }
+  #elif defined(FERRET_STD_LIB)
+    inline unsigned long now() const{
+      auto now = ::std::chrono::high_resolution_clock::now();
+      auto epoch = now.time_since_epoch();
+      return ::std::chrono::duration_cast<::std::chrono::microseconds>(epoch).count();
+    }
+  #else
+    inline unsigned long now() const{
+      T::unimplemented_function;
+    }  
+  #endif
+
+    inline unsigned long _elapsed() const { return (now() - us); }
+    inline var elapsed() const { return obj<number>(_elapsed()); }
+    inline bool is_elapsed(real_t t) const { return (_elapsed() >= t); }
+  };
+#+end_src
+
 *** time-fn
 
 Takes a function *f* and returns the number of milliseconds it takes

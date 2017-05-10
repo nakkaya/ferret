@@ -4776,7 +4776,7 @@ Port of Teensy elapsedMicros API,
     "__result = obj<boolean>(t.cast<elapsed_micros>()->is_elapsed(number::to<real_t>(r)));")
 
   (defn elapsed-micros-now [t]
-    "__result = obj<boolean>(t.cast<elapsed_micros>()->elapsed());")
+    "__result = obj<number>(t.cast<elapsed_micros>()->elapsed());")
 
   (defn elapsed-micros-reset [t]
     "t.cast<elapsed_micros>()->reset()")

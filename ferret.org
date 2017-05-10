@@ -3384,6 +3384,8 @@ indicating platform.
    #include <cmath>
    #include <vector>
    #include <algorithm>
+   #include <chrono>
+   #include <thread>
   #endif
 
   #ifdef FERRET_HARDWARE_ARDUINO
@@ -3647,7 +3649,6 @@ will return *nil*. You can have multiple *on* blocks per *defnative*,
 #+begin_src clojure
   (defnative sleep [t]
     (on "defined FERRET_STD_LIB"
-        ("chrono" "thread")
         "auto duration = ::std::chrono::milliseconds(number::to<number_t>(t));
          ::std::this_thread::sleep_for(duration);")
     (on "defined FERRET_HARDWARE_ARDUINO"
@@ -4701,7 +4702,6 @@ Runs the given lambda in a thread,
 #+begin_src clojure :tangle no
   (defnative thread [f]
     (on "defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)"
-        ("thread")
         "::std::thread ([f](){return run(f);}).detach();"))
 #+end_src
 
@@ -4714,7 +4714,6 @@ Return current time in milliseconds,
 #+begin_src clojure :tangle no
   (defnative millis []
     (on "defined FERRET_STD_LIB"
-        ("chrono")
         "auto now = ::std::chrono::system_clock::now();
          auto epoch = now.time_since_epoch();
          auto time = ::std::chrono::duration_cast<::std::chrono::milliseconds>(epoch).count();
@@ -4731,7 +4730,6 @@ Return current time in microseconds,
 #+begin_src clojure :tangle no
   (defnative micros []
     (on "defined FERRET_STD_LIB"
-        ("chrono")
         "auto now = ::std::chrono::high_resolution_clock::now();
          auto epoch = now.time_since_epoch();
          auto time = ::std::chrono::duration_cast<::std::chrono::microseconds>(epoch).count();
@@ -4757,7 +4755,6 @@ Sleep current thread for *t* microseconds,
 #+begin_src clojure :tangle no :noweb yes
   (defnative sleep-micros [t]
     (on "defined FERRET_STD_LIB"
-        ("chrono" "thread")
         "auto duration = ::std::chrono::microseconds(number::to<number_t>(t));
          ::std::this_thread::sleep_for(duration);")
     (on "defined FERRET_HARDWARE_ARDUINO"

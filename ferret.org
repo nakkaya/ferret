@@ -4800,7 +4800,7 @@ Port of Teensy elapsedMicros API,
   #if !defined(FERRET_DISABLE_STD_OUT)
     var stream_console() const {
       runtime::print("elapsed_micros<");
-      runtime::print(us);
+      runtime::print(_elapsed());
       runtime::print(">");
       return nil();
     }

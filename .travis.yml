@@ -5,10 +5,14 @@ branches:
   only:
     - master
 before_install:
+  # Install Compiler Toolchains
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test > /dev/null 2>&1
   - sudo add-apt-repository -y ppa:h-rayflood/llvm > /dev/null 2>&1
   - sudo apt-get update -qq
   - sudo apt-get -qq -y build-dep emacs > /dev/null 2>&1
+  - sudo apt-get install --allow-unauthenticated -y -qq g++-5 clang-3.4 cppcheck  > /dev/null 2>&1
+  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 50
+  # Install Emacs
   - wget -q http://ftp.gnu.org/gnu/emacs/emacs-24.5.tar.gz
   - tar xf emacs-24.5.tar.gz
   - cd emacs-24.5
@@ -16,22 +20,22 @@ before_install:
   - make > /dev/null 2>&1
   - sudo make install > /dev/null 2>&1
   - cd ../
-  - sudo apt-get install --allow-unauthenticated -y -qq g++-5 clang-3.4 cppcheck  > /dev/null 2>&1
-  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 50
+  # Install Clojure Toolchain
   - wget https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein
   - chmod +x lein
   - sudo mv lein /usr/bin/
   - lein
 script:
+  # Build and Test Ferret
   - ./build > /dev/null
   - cd src/
   - lein test
-  # Tests passed prepare release
+  # Prepare Platform Releases
   - bash resources/platform_builds.sh
   - cd ../
   - mkdir release
   - mkdir release/builds/
-  # move packages to builds/
+  # Move Packages to builds/
   - mv ferret release/builds/
   - cp src/target/ferret.jar release/builds/ferret-`git rev-parse --short HEAD`.jar
   - mv src/target/ferret.jar release/builds/

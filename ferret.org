@@ -6916,8 +6916,8 @@ Create some dummy libs under /test/modules/,
   - *Co-Operative Multitasking* - For Embedded Systems.
     - https://forum.pjrc.com/threads/25628-Lightweight-Teensy3-x-Fibers-Library-%28C-%29-Available
     - https://github.com/ve3wwg/teensy3_fibers/blob/1ba0c1e79a423f097e12e6c4176b40cf9d4f44e4/fibers.cpp
-  - *memory_pool* - Option for enabling allocation profiling.
-  - *memory_pool* - Ability to run functions on different Memory Pools.
+  - *memory\_pool* - Option for enabling allocation profiling.
+  - *memory\_pool* - Ability to run functions on different Memory Pools.
     - Improved data locality and safety.
     - Optionally disable reference counting to improve performance since
       whole pool can be garbage collected when done.

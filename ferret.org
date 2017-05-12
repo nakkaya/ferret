@@ -1920,6 +1920,8 @@ All our types are derived from the base Object type. Which is a
 
     #if defined(FERRET_MEMORY_POOL_SIZE)
       #define FERRET_ALLOC_POLICY mem::allocator::pool
+    #elif defined(FERRET_MEMORY_BOEHM_GC)
+      #define FERRET_ALLOC_POLICY mem::allocator::gc
     #else
       #define FERRET_ALLOC_POLICY mem::allocator::system
     #endif
@@ -2900,6 +2902,8 @@ memory management schemes,
    fragmentation and calling malloc/free. Effectively running with
    no heap, allocating all memory at compile time on the stack.
  - *Third party allocators* (i.e tcmalloc)
+ - *Third party garbage collectors* (i.e The Boehm-Demers-Weiser
+   conservative garbage collector.)
 
 To enable memory pooling,
 
@@ -2931,6 +2935,19 @@ Then from your program you can link to it using,
   (configure-ferret! :compiler-options ["-std=c++11"
                                         "-L/usr/local/Cellar/gperftools/2.4/lib/"
                                         "-ltcmalloc"])
+#+end_src
+
+Steps for using *Boehm garbage collector* on Linux, install dependencies,
+
+#+BEGIN_EXAMPLE
+  apt-get install libgc-dev
+#+END_EXAMPLE
+
+Enable and configure GC
+
+#+begin_src clojure
+  (configure-runtime! FERRET_MEMORY_BOEHM_GC TRUE)
+  (configure-ferret! :command "g++ -std=c++11 core.cpp -lgc")
 #+end_src
 
 *** Object Allocation
@@ -3083,11 +3100,14 @@ count, when it reaches zero it will automatically free the object_t.
 
   private:
     inline void inc_ref(){
+  #if !defined(FERRET_DISABLE_RC)
       // Only change if non-null
       if (m_ptr) m_ptr->inc_ref();
+  #endif
     }
       
     inline void dec_ref(){
+  #if !defined(FERRET_DISABLE_RC)
       // Only change if non-null
       if (m_ptr){
         // Subtract and test if this was the last pointer.
@@ -3096,6 +3116,7 @@ count, when it reaches zero it will automatically free the object_t.
           m_ptr = nullptr;
         }
       }
+  #endif
     }
       
     object_t* m_ptr;
@@ -3302,6 +3323,43 @@ to each other in the array which improves data locality.
   #endif
 #+end_src
 
+**** LibGC
+
+When =FERRET_MEMORY_GC= is defined Ferret programs will use
+Boehm-Demers-Weiser's GC is a garbage collecting storage
+allocator. The collector automatically recycles memory when it
+determines that it can no longer be used. 
+
+Code must be linked against the GC library. On most UNIX platforms,
+depending on how the collector is built, this will be gc.a or
+libgc.{a,so}.
+
+#+name: runtime-native-memory-pool-allocator
+#+begin_src c++ :tangle no
+  #ifdef FERRET_MEMORY_BOEHM_GC
+
+  #define FERRET_DISABLE_RC true
+
+  namespace mem{
+    namespace allocator{
+      class gc{
+      public:
+        inline void* operator new(size_t size){
+          
+  #ifdef FERRET_DISABLE_MULTI_THREADING
+          return GC_MALLOC(size);
+  #else
+          return GC_MALLOC_ATOMIC(size);
+  #endif
+          
+        }
+        inline void  operator delete(void * ptr){ }
+      };
+    }
+  }
+  #endif
+#+end_src 
+
 ** Configuration
 
 Ferret defaults to running in safe mode, which means 
@@ -3409,6 +3467,10 @@ indicating platform.
    #include <thread>
   #endif
 
+  #ifdef FERRET_MEMORY_BOEHM_GC
+   #include <gc.h>
+  #endif
+
   #ifdef FERRET_HARDWARE_ARDUINO
    #include <Arduino.h>
    #include <stdio.h>
@@ -3504,6 +3566,11 @@ will be called right after =program::run()=.
     int main(int argc, char* argv[])
    #endif
     {
+      
+  #ifdef FERRET_MEMORY_BOEHM_GC
+      GC_INIT();
+  #endif
+          
       using namespace ferret;
 
      #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_CLI_ARGS)

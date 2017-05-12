@@ -4719,11 +4719,27 @@ angle measured in radians.
 
 Runs the given lambda in a thread,
 
-#+name: runtime-clojure-bit-operations
+#+name: runtime-clojure-concurrency
 #+begin_src clojure :tangle no
   (defnative thread [f]
     (on "defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)"
         "::std::thread ([f](){return run(f);}).detach();"))
+#+end_src
+
+*** synchronized
+
+Executes exprs in an implicit do, while holding a std::mutex. Will
+release the mutex in all circumstances.
+
+#+name: runtime-clojure-concurrency
+#+begin_src clojure :tangle no
+  (defmacro synchronized [& body]
+    `(~'_synchronized_ (~'fn [] ~@body)))
+
+  (defn _synchronized_ [f]
+    "static std::mutex mtx;
+     std::unique_lock<std::mutex> lock(mtx);
+     __result = run(f);")
 #+end_src
 
 ** Timing
@@ -6219,6 +6235,13 @@ Static code analysis (cppcheck) options,
       (throttled-ping)
       (is (nil? (throttled-ping)))
       (is (< (- (millis) begin) 1000))))
+
+  (deftest synchronized-test
+    (let [s (atom 0)]
+      (dotimes [_ 10]
+        (thread #(synchronized (swap! s inc))))
+      (sleep 1000)
+      (is (= @s 10))))
 #+end_src
 
 *** XOR Stream
@@ -7109,6 +7132,7 @@ Create some dummy libs under /test/modules/,
   <<runtime-clojure-conditionals>>
   <<runtime-clojure-math>>
   <<runtime-clojure-sequence-lazy>>
+  <<runtime-clojure-concurrency>>
   <<runtime-clojure-bit-operations>>
   <<runtime-clojure-console-io>>
   <<runtime-clojure-misc>>

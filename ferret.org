@@ -1645,7 +1645,7 @@ Initialize function arguments. Clojure style list structuring is supported.
                                  "cpp")
               base-name (org.apache.commons.io.FilenameUtils/getBaseName output)
               input-path (file-path input)
-              default-compiled-file (file (str output-path base-name output-extension))
+              default-compiled-file (file (str output-path base-name "." output-extension))
               default-options (compile-options-parse-source default-compiled-file)]
           
           (-> default-options

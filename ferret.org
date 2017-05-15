@@ -5319,6 +5319,12 @@ Ported from,
           options (merge defaults (apply hash-map options))
           {:keys [container kp ki kd set-point bounds continuous]} options
           [in-min in-max out-min out-max] bounds]
+
+      (if (or (< in-max in-min)
+              (< out-max out-min))
+        (do (println "pid-controller invalid bounds")
+            (System/exit 1)))
+      
       (if (symbol? set-point)
         `(~'let [pid# (~'pid-controller-create
                        ~kp ~ki ~kd ~in-min ~in-max ~out-min ~out-max ~continuous)]

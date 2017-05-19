@@ -1874,9 +1874,10 @@ Built in objects,
  - [[Keyword]] 
  - [[Sequence]]
  - [[Lazy Sequence]]
- - [[String]] - As [[Sequence]] of [[Number]]s
+ - [[String]]
  - [[Boolean]]
- - [[Atom]] - Mimics Clojure atoms.
+ - [[Atom]]
+ - [[Future]]
 
 Built in interfaces,
 
@@ -2629,6 +2630,81 @@ Operations on /atoms/
 
   (defn reset! [a newval]
     (swap! a (fn [old curr] curr) newval))
+#+end_src
+
+**** Future
+
+Takes a body of expressions and yields a future object that will
+invoke the body in another thread, and will cache the result and
+return it on all subsequent calls to deref/@. If the computation has
+not yet finished, calls to deref/@ will block.
+
+#+name: runtime-clojure-async-object
+#+begin_src clojure :tangle no
+  (defobject async "ferret/obj/async_o.h")
+
+  (defmacro future [& body]
+    `(~'_future_ (~'fn [] ~@body)))
+
+  (defn _future_ [f] "__result = obj<async>(f);")
+
+  (defn future-done? [f] "__result = obj<boolean>(f.cast<async>()->is_ready());")
+#+end_src
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/async_o.h
+  #ifdef FERRET_STD_LIB
+  class async : public deref_i {
+    var fn;
+    bool cached;
+    std::future<var> task;
+    var value;
+    FERRET_NEW_LOCK(lock)
+    
+    public:
+
+
+    size_t type() const { return runtime::type::async; }
+
+    var equals(var o){
+      return obj<boolean>(this == o.cast<async>());
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      runtime::print("future <");
+      fn.stream_console();
+      runtime::print(">");
+      return nil();
+    }
+  #endif
+
+    explicit async(var f) : fn(f) {
+      cached = false;
+      task = std::async(std::launch::async, [this](){ return run(fn); });
+      value = nil();
+    }
+
+    bool is_ready(){
+      FERRET_WITH_LOCK(lock,{
+          if (cached)
+            return true;
+          return task.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+        });
+    }
+
+    void get(){
+      if (!cached){
+        value = task.get();
+        cached = true;
+      }
+    }
+
+    var deref() {
+      FERRET_WITH_LOCK(lock,{ get(); });
+      return value;
+    }
+  };
+  #endif
 #+end_src
 
 *** Interfaces
@@ -3489,6 +3565,7 @@ indicating platform.
    #include <algorithm>
    #include <chrono>
    #include <thread>
+   #include <future>
   #endif
 
   #ifdef FERRET_MEMORY_BOEHM_GC
@@ -6306,6 +6383,15 @@ Static code analysis (cppcheck) options,
       (sleep 30)
       (is (= (list 2 1) (deref state)))))
 
+
+  (deftest future-test
+    (is (= 42    @(future (+ 41 1))))
+    (is (= 42    @(future (sleep 100) (+ 40 2))))
+    (is (= false  (future-done? (future (sleep 100) :false))))
+    (is (= true   (let [f (future :true)]
+                    (deref f)
+                    (future-done? f)))))
+
   (deftest timing-test
     (let [now (millis)]
       (sleep 150)
@@ -7215,6 +7301,7 @@ Create some dummy libs under /test/modules/,
   <<runtime-clojure-heavy-pointer-object>>
   <<runtime-clojure-string-object>>
   <<runtime-clojure-atom-object>>
+  <<runtime-clojure-async-object>>
   <<runtime-clojure-defn>>
   <<runtime-clojure-looping>>
   <<runtime-clojure-first>>

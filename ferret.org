@@ -2901,6 +2901,13 @@ To enable memory pooling,
 This will create a pool object as a global variable that holds an
 array of *256 / sizeof(long)*. 
 
+Pool sizes can also be defined using user-defined suffixes.
+
+#+BEGIN_EXAMPLE
+  (configure-runtime! FERRET_MEMORY_POOL_SIZE "4_MB")   ;; Allocate 4 mega bytes of memory.
+  (configure-runtime! FERRET_MEMORY_POOL_SIZE "512_KB") ;; Allocate 512 kilo bytes of memory.
+#+END_EXAMPLE
+
 By default page size is =sizeof(long)=. This can be changed using,
 
 #+BEGIN_EXAMPLE
@@ -7255,6 +7262,12 @@ Create some dummy libs under /test/modules/,
 *** ferret/runtime.h
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/runtime.h
+  // Literals
+  namespace ferret{
+    constexpr auto operator "" _MB( unsigned long long const x ) -> long { return 1024L*1024L*x; }
+    constexpr auto operator "" _KB( unsigned long long const x ) -> long { return 1024L*x; }
+  }
+
   // Detect Hardware
   namespace ferret{
     <<runtime-native-hardware-detect>>

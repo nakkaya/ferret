@@ -1883,6 +1883,7 @@ Built in interfaces,
  - [[Lambda]] - Provides *invoke* for callable objects.
  - [[Seekable]] - Provides *first*, *rest*, *cons* for [[Seekable]]
    containers.
+ - [[Deref]]
 
 *** Base
 
@@ -2577,7 +2578,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/atom_o.h
-  class atomic_reference : public object_t {
+  class atomic_reference : public deref_i {
     var data;
     FERRET_NEW_LOCK(lock)
     public:
@@ -2607,7 +2608,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
         });
       return data;
     }
-    var deref(){
+    var deref() {
       FERRET_WITH_LOCK(lock,{
           return data;
         });
@@ -2628,9 +2629,6 @@ Operations on /atoms/
 
   (defn reset! [a newval]
     (swap! a (fn [old curr] curr) newval))
-
-  (defn deref [a]
-    "__result = a.cast<atomic_reference>()->deref();")
 #+end_src
 
 *** Interfaces
@@ -2830,6 +2828,28 @@ Function invocation,
   inline var run(var fn, Args... args) {
     return fn.cast<lambda_i>()->invoke(runtime::list(args...));
   }
+#+end_src
+
+**** Deref
+
+#+name: runtime-clojure-deref-interface
+#+begin_src clojure :tangle no
+  (defobject deref_i "ferret/obj/deref_i.h")
+#+end_src
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/deref_i.h
+  class deref_i : public object_t {
+   public:
+    virtual var deref() = 0;
+  };
+#+end_src
+
+Operations on =deref_i=
+
+#+name: runtime-clojure-deref-interface
+#+begin_src clojure :tangle no
+  (defn deref [a]
+    "__result = a.cast<deref_i>()->deref();")
 #+end_src
 
 ** Memory Management
@@ -7189,6 +7209,7 @@ Create some dummy libs under /test/modules/,
   <<runtime-clojure-number-object>>
   <<runtime-clojure-seekable-interface>>
   <<runtime-clojure-lambda-interface>>
+  <<runtime-clojure-deref-interface>>
   <<runtime-clojure-keyword-object>>
   <<runtime-clojure-sequence-object>>
   <<runtime-clojure-heavy-pointer-object>>

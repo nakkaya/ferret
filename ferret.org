@@ -2102,9 +2102,13 @@ Default number configuration,
     const   size_t                       number_precision = 4;       // number Format String (fprinf)
   #endif
 
-  #ifndef M_PI
-    #define M_PI 3.14159265358979323846
-  #endif
+    constexpr auto operator "" _pi(long double x) -> real_t {
+      return 3.14159265358979323846 * x;
+    }
+      
+    constexpr auto operator "" _pi(unsigned long long int  x) -> real_t {
+      return 1.0_pi * x;
+    }
   }
 #+end_src
 
@@ -4810,7 +4814,7 @@ angle measured in degrees.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn to-degrees [x]
-    "__result = obj<number>((real_t) (number::to<real_t>(x) * 180.0 / M_PI) );")
+    "__result = obj<number>((real_t) (number::to<real_t>(x) * 180.0 / 1_pi) );")
 #+end_src
 
 *** to-radians
@@ -4821,7 +4825,7 @@ angle measured in radians.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn to-radians [x]
-    "__result = obj<number>((real_t) (number::to<real_t>(x) * M_PI / 180.0) );")
+    "__result = obj<number>((real_t) (number::to<real_t>(x) * 1_pi / 180.0) );")
 #+end_src
 
 ** Concurrency

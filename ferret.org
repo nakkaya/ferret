@@ -1963,57 +1963,6 @@ A /pointer/ object keeps a reference to a C++ pointer.
   };
 #+end_src
 
-A =heavy_pointer= object contains a pointer and a function to be called
-right before garbage collection. This is similar to /finalizer/ in
-Java.
-
-#+begin_src clojure
-  (let [val (cxx "__result = obj<pointer>(new int(0));")
-        gc (fn []
-             (cxx "delete pointer::to_pointer<int>(val);")
-             (println "Cleanup..."))]
-    (new-heavy-pointer val gc))
-
-  ;; => Cleanup...
-#+end_src
-
-#+name: runtime-clojure-heavy-pointer-object
-#+begin_src clojure :tangle no
-  (defobject heavy_pointer "ferret/obj/heavy_pointer_o.h")
-
-  (defn new-heavy-pointer [ptr gc]
-    "__result = obj<heavy_pointer>(ptr,gc)")
-#+end_src
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/heavy_pointer_o.h
-  class heavy_pointer : public object_t {
-    var _payload;
-    var gc_fn;
-  public:
-
-    size_t type() const { return runtime::type::heavy_pointer; }
-
-    var equals(var o){
-      return _payload.equals(o.cast<heavy_pointer>()->payload());
-    }
-
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
-      return _payload.cast<pointer>()->stream_console();
-    }
-  #endif
-
-    explicit heavy_pointer(var p, var gc) : _payload(p), gc_fn(gc) {} 
-
-    ~heavy_pointer(){
-      gc_fn.cast<lambda_i>()->invoke(runtime::list(_payload));
-    }
-    var payload() const {
-      return _payload;
-    }
-  };
-#+end_src
-
 A /value/ object keeps a native object. Useful when working with
 modern C++ libraries that use smart pointers for memory management.
 
@@ -6767,20 +6716,11 @@ Create some dummy libs under /test/modules/,
 
 #+begin_src clojure
   (deftest pointer-test
-    (let [state (atom false)]
-      (let [a-gc-fn (fn [p] (reset! state true))
-            a-ptr (cxx "__result = obj<pointer>(nullptr);")
-            a-heavy-ptr (new-heavy-pointer a-ptr a-gc-fn)
-            b-ptr (cxx "__result = obj<pointer>(new int);")
-            b-gc-fn (fn [p] "delete pointer::to_pointer<int>(p);")
-            b-heavy-ptr (new-heavy-pointer b-ptr b-gc-fn)]
-        (is (= true  (= a-ptr a-ptr)))
-        (is (= false (= a-ptr b-ptr)))
-        (is (= true  (= a-heavy-ptr a-heavy-ptr)))
-        (is (= false (= a-heavy-ptr b-heavy-ptr)))
-        (is (= false (= b-heavy-ptr a-heavy-ptr)))
-        (is (= true  (= b-heavy-ptr b-heavy-ptr))))
-      (is (= true (deref state)))))
+    (let [a-ptr (cxx "__result = obj<pointer>(nullptr);")
+          b-ptr (cxx "__result = obj<pointer>(new int);")]
+      (is (= true  (= a-ptr a-ptr)))
+      (is (= false (= a-ptr b-ptr)))
+      (is (= true (= b-ptr b-ptr)))))
 
   (deftest value-test
     (let [obj-42 (make-data 42)

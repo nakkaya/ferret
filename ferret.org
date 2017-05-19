@@ -1917,14 +1917,6 @@ All our types are derived from the base Object type. Which is a
     #else
       #define FERRET_RC_POLICY mem::gc::atomic_rc
     #endif
-
-    #if defined(FERRET_MEMORY_POOL_SIZE)
-      #define FERRET_ALLOC_POLICY mem::allocator::pool
-    #elif defined(FERRET_MEMORY_BOEHM_GC)
-      #define FERRET_ALLOC_POLICY mem::allocator::gc
-    #else
-      #define FERRET_ALLOC_POLICY mem::allocator::system
-    #endif
   }
 
   typedef object::base<FERRET_RC_POLICY,FERRET_ALLOC_POLICY> object_t;
@@ -3140,21 +3132,32 @@ Ferret supports various memory allocation schemes,
  - *Third party garbage collectors* (i.e The Boehm-Demers-Weiser
    conservative garbage collector.)
 
-**** Default Allocator
+**** System Allocator
 
-[[Object]]s are allocated from system implementation.
+[[Object]]s are allocated from system implementation. (Default memory
+allocator used.)
 
 #+name: runtime-native-memory-system-allocator
 #+begin_src c++ :tangle no
+  #if !defined(FERRET_ALLOC_POLICY)
+
+  #define FERRET_ALLOC_POLICY mem::allocator::system
+
   namespace mem{
     namespace allocator{
+      
       class system{
       public:
-        inline void* operator new(size_t size){ return ::malloc(size); }
-        inline void  operator delete(void * ptr){ ::free(ptr); }
+
+        static inline void* allocate(size_t size){ return ::malloc(size); }
+        static inline void  free(void * ptr){ ::free(ptr); } 
+        
+        inline void* operator new(size_t size){ return allocate(size); }
+        inline void  operator delete(void * ptr){ free(ptr); }
       };
     }
   }
+  #endif
 #+end_src 
 
 **** Pool Allocator
@@ -3168,9 +3171,22 @@ limited amount of memory, such as micro controllers where you want
 complete control over the memory and you need deterministic timing
 requirements.
 
+This allocator uses a bit-map to keep track of the used and unused
+memory locations for its book-keeping purposes.  This allocator will
+make use of 1 single bit to keep track of whether it has been
+allocated or not. A bit 0 indicates free, while 1 indicates
+allocated. This has been done so that you can easily check a
+collection of bits for a free block. This kind of Bitmapped strategy
+works best for single object allocations ,we do not need to choose any
+size for the block which will be represented by a single bit. This
+will be the size of the parameter around which the allocator has been
+parameterized. Thus, close to optimal performance will result.
+
 #+name: runtime-native-memory-pool-allocator
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_POOL_SIZE
+
+   #define FERRET_ALLOC_POLICY mem::allocator::pool
 
    #if !defined(FERRET_MEMORY_POOL_PAGE_TYPE)
     #define FERRET_MEMORY_POOL_PAGE_TYPE long
@@ -3182,12 +3198,17 @@ requirements.
 
   namespace mem{
     namespace allocator{
+
       memory_pool<FERRET_MEMORY_POOL_PAGE_TYPE, FERRET_MEMORY_POOL_PAGE_COUNT> program_memory;
 
       class pool{
       public:
-        inline void* operator new(size_t size){ return program_memory.allocate(size); }
-        inline void  operator delete(void * ptr){ program_memory.free(ptr); }
+
+        static inline void*  allocate(size_t size){ return program_memory.allocate(size); }
+        static inline void   free(void * ptr){ program_memory.free(ptr); }
+
+        inline void* operator new(size_t size){ return allocate(size); }
+        inline void  operator delete(void * ptr){ free(ptr); }
       };
     }
   }
@@ -3337,26 +3358,31 @@ Code must be linked against the GC library. On most UNIX platforms,
 depending on how the collector is built, this will be gc.a or
 libgc.{a,so}.
 
-#+name: runtime-native-memory-pool-allocator
+#+name: runtime-native-gc-allocator
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_BOEHM_GC
 
+  #define FERRET_ALLOC_POLICY mem::allocator::gc
   #define FERRET_DISABLE_RC true
 
   namespace mem{
     namespace allocator{
+      
       class gc{
       public:
-        inline void* operator new(size_t size){
-          
+
+        static inline void* allocate(size_t size){
   #ifdef FERRET_DISABLE_MULTI_THREADING
           return GC_MALLOC(size);
   #else
           return GC_MALLOC_ATOMIC(size);
   #endif
-          
         }
-        inline void  operator delete(void * ptr){ }
+      
+        static inline void  free(void * ptr){ }
+        
+        inline void* operator new(size_t size){ return allocate(size); }
+        inline void  operator delete(void * ptr){ free(ptr); }
       };
     }
   }
@@ -7246,9 +7272,10 @@ Create some dummy libs under /test/modules/,
   // Object System Base
   namespace ferret{
     class var;
-    <<runtime-native-memory-system-allocator>>
     <<runtime-native-memory-pool-allocator-implementation>>
     <<runtime-native-memory-pool-allocator>>
+    <<runtime-native-gc-allocator>>
+    <<runtime-native-memory-system-allocator>>
     <<runtime-native-reference-counting>>
     <<runtime-native-object>>
     <<runtime-native-var>>

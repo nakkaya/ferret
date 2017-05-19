@@ -6717,10 +6717,12 @@ Create some dummy libs under /test/modules/,
 #+begin_src clojure
   (deftest pointer-test
     (let [a-ptr (cxx "__result = obj<pointer>(nullptr);")
-          b-ptr (cxx "__result = obj<pointer>(new int);")]
+          b-ptr (cxx "__result = obj<pointer>(new int);")
+          gc    (fn [p] "delete pointer::to_pointer<int>(p);")]
       (is (= true  (= a-ptr a-ptr)))
       (is (= false (= a-ptr b-ptr)))
-      (is (= true (= b-ptr b-ptr)))))
+      (is (= true  (= b-ptr b-ptr)))
+      (gc b-ptr)))
 
   (deftest value-test
     (let [obj-42 (make-data 42)

@@ -2916,6 +2916,7 @@ Function invocation,
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/deref_i.h
   class deref_i : public object_t {
    public:
+    size_t type() const { return runtime::type::deref_i; }
     virtual var deref() = 0;
   };
 #+end_src

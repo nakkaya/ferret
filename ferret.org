@@ -5727,21 +5727,21 @@ examples.
 #+begin_src clojure :tangle no
   (defn pr-object-sizes []
     (println "Object Sizes")
-    (println "\tvar:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(var));"))
-    (println "\tobject:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(object_t));"))
-    (println "\tpointer:\t\t" (cxx "__result = obj<number>((number_t)sizeof(pointer));"))
-    (println "\tnumber:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(number));"))
-    (println "\tkeyword:\t\t" (cxx "__result = obj<number>((number_t)sizeof(keyword));"))
-    (println "\tsequence:\t\t" (cxx "__result = obj<number>((number_t)sizeof(sequence));"))
-    (println "\tlazy_sequence:\t\t" (cxx "__result = obj<number>((number_t)sizeof(lazy_sequence));"))
-    (println "\tstring:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(string));"))
-    (println "\tboolean:\t\t" (cxx "__result = obj<number>((number_t)sizeof(boolean));"))
-    (println "\tlambda_i:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(lambda_i));"))
-    (println "\tatom:\t\t\t" (cxx "__result = obj<number>((number_t)sizeof(atomic_reference));"))
+    (println "\tvar:\t\t\t" (cxx "__result = obj<number>(sizeof(var));"))
+    (println "\tobject:\t\t\t" (cxx "__result = obj<number>(sizeof(object_t));"))
+    (println "\tpointer:\t\t" (cxx "__result = obj<number>(sizeof(pointer));"))
+    (println "\tnumber:\t\t\t" (cxx "__result = obj<number>(sizeof(number));"))
+    (println "\tkeyword:\t\t" (cxx "__result = obj<number>(sizeof(keyword));"))
+    (println "\tempty_sequence:\t\t" (cxx "__result = obj<number>(sizeof(empty_sequence));"))
+    (println "\tsequence:\t\t" (cxx "__result = obj<number>(sizeof(sequence));"))
+    (println "\tlazy_sequence:\t\t" (cxx "__result = obj<number>(sizeof(lazy_sequence));"))
+    (println "\tstring:\t\t\t" (cxx "__result = obj<number>(sizeof(string));"))
+    (println "\tboolean:\t\t" (cxx "__result = obj<number>(sizeof(boolean));"))
+    (println "\tlambda_i:\t\t" (cxx "__result = obj<number>(sizeof(lambda_i));"))
+    (println "\tatom:\t\t\t" (cxx "__result = obj<number>(sizeof(atomic_reference));"))
+    (println "\telapsed_micros:\t\t" (cxx "__result = obj<number>(sizeof(elapsed_micros));"))
     (println "\tpid_controller<real_t>:\t"
-             (cxx "__result = obj<number>((number_t)sizeof(pid_controller<real_t>));"))
-    (println "\tpid_controller<number_t>:\t"
-             (cxx "__result = obj<number>((number_t)sizeof(pid_controller<number_t>));")))
+             (cxx "__result = obj<number>(sizeof(pid_controller<real_t>));")))
 #+end_src
 
 *** memory-pool-free-space

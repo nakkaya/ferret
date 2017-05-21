@@ -2966,7 +2966,7 @@ Pool sizes can also be defined using user-defined suffixes.
   (configure-runtime! FERRET_MEMORY_POOL_SIZE "512_KB") ;; Allocate 512 kilo bytes of memory.
 #+END_EXAMPLE
 
-By default page size is =sizeof(long)=. This can be changed using,
+By default page size is =sizeof(size_t)=. This can be changed using,
 
 #+BEGIN_EXAMPLE
   (configure-runtime! FERRET_MEMORY_POOL_PAGE_TYPE char)
@@ -3261,7 +3261,7 @@ parameterized. Thus, close to optimal performance will result.
    #define FERRET_ALLOC_POLICY mem::allocator::pool
 
    #if !defined(FERRET_MEMORY_POOL_PAGE_TYPE)
-    #define FERRET_MEMORY_POOL_PAGE_TYPE long
+    #define FERRET_MEMORY_POOL_PAGE_TYPE size_t
     #define FERRET_MEMORY_POOL_PAGE_COUNT                                   \
       (FERRET_MEMORY_POOL_SIZE / sizeof(FERRET_MEMORY_POOL_PAGE_TYPE))
    #else

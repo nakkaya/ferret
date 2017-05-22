@@ -1461,7 +1461,7 @@ Initialize function arguments. Clojure style list structuring is supported.
            $else$
             class $lambda.name$  \\{
            $endif$
-             $lambda.env:{var $it$;} ;separator=\"\n\"$
+             $lambda.env:{const var $it$;} ;separator=\"\n\"$
            public:
              $if(lambda.env)$
                explicit $lambda.name$ ($lambda.env:{var $it$} ;separator=\",\"$) :

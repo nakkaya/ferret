@@ -4380,9 +4380,9 @@ When test is true, evaluates body with binding-form bound to the value of test.
        acc = run(f, acc, i);
       __result = acc;")
     ([f acc coll]
-     "for (auto i : runtime::range(coll))
-       acc = run(f, acc, i);
-      __result = acc;"))
+     "__result = acc;
+      for (auto i : runtime::range(coll))
+       __result = run(f, __result, i);"))
 #+end_src
 
 *** list

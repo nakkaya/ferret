@@ -1331,7 +1331,7 @@ defined within *ferret* namespace. All Ferret macros starts with
          $endif$
 
          $if(equals)$
-          var equals(var o){
+          var equals(var o) const {
            $equals$
           }
          $endif$
@@ -1909,7 +1909,7 @@ All our types are derived from the base Object type. Which is a
       virtual var stream_console() const = 0;
   #endif
     
-      virtual var equals(var o) = 0;
+      virtual var equals(var o) const = 0;
     };
   }
 
@@ -1939,7 +1939,7 @@ A /pointer/ object keeps a reference to a C++ pointer.
 
     size_t type() const { return runtime::type::pointer; }
 
-    var equals(var o){
+    var equals(var o) const {
       return obj<boolean>(_payload == o.cast<pointer>()->payload());
     }
 
@@ -1998,7 +1998,7 @@ modern C++ libraries that use smart pointers for memory management.
 
     size_t type() const { return runtime::type::value; }
 
-    var equals(var o){
+    var equals(var o) const {
       return obj<boolean>(this == o.get());
     }
 
@@ -2117,7 +2117,7 @@ number Object,
 
     size_t type() const { return runtime::type::number; }
 
-    var equals(var o){
+    var equals(var o) const {
       if (runtime::abs(_word - o.cast<number>()->word()) < FERRET_REAL_EPSILON)
         return obj<boolean>(true);
       else
@@ -2199,7 +2199,7 @@ Each keyword in the program is converted to an /keyword/ object. A
 
     size_t type() const { return runtime::type::keyword; }
 
-    var equals(var o){
+    var equals(var o) const {
       return obj<boolean>(_word == o.cast<keyword>()->word());
     }
 
@@ -2234,7 +2234,7 @@ Linked list container implementing the seekable interface.
 
     size_t type() const { return runtime::type::empty_sequence; }
 
-    var equals(var){
+    var equals(var) const {
       return obj<boolean>(true);
     }
 
@@ -2265,7 +2265,7 @@ Linked list container implementing the seekable interface.
 
     size_t type() const { return runtime::type::sequence; }
 
-    var equals(var o){
+    var equals(var o) const {
       if(first() != runtime::first(o))
         return obj<boolean>(false);
       
@@ -2373,7 +2373,7 @@ A lazy list container implementing the seekable interface.
       return head;
     }
 
-    var equals(var o){
+    var equals(var o) const {
       if(sval() != runtime::first(o))
         return obj<boolean>(false);
       
@@ -2446,7 +2446,7 @@ strings are represented as a linked list of characters.
 
     size_t type() const { return runtime::type::string; }
 
-    var equals(var other){
+    var equals(var other) const {
       return obj<boolean>(container() == other.cast<string>()->container());
     }
 
@@ -2521,7 +2521,7 @@ A boolean object,
 
     size_t type() const { return runtime::type::boolean; }
 
-    var equals(var o){
+    var equals(var o) const {
       return obj<boolean>(value == (bool)o);
     }
 
@@ -2587,7 +2587,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
 
     size_t type() const { return runtime::type::atomic_reference; }
 
-    var equals(var o){
+    var equals(var o) const {
       return obj<boolean>(this == o.cast<atomic_reference>());
     }
 
@@ -2665,7 +2665,7 @@ not yet finished, calls to deref/@ will block.
 
     size_t type() const { return runtime::type::async; }
 
-    var equals(var o){
+    var equals(var o) const {
       return obj<boolean>(this == o.cast<async>());
     }
 
@@ -2857,7 +2857,7 @@ uniform fashion.
 
     size_t type() const { return runtime::type::lambda_i; }
 
-    var equals(var o){
+    var equals(var o) const {
       return obj<boolean>(this == o.cast<lambda_i>());
     }
 
@@ -4985,7 +4985,7 @@ Port of Teensy elapsedMicros API,
     
     size_t type() const { return runtime::type::elapsed_micros; }
 
-    var equals(var o){
+    var equals(var o) const {
       return obj<boolean>(this == o.cast<elapsed_micros>());
     }
 
@@ -5315,7 +5315,7 @@ Ported from,
 
     size_t type() const { return runtime::type::pid_controller; }
 
-    var equals(var o){
+    var equals(var o) const {
       return obj<boolean>(this == o.cast<pid_controller>());
     }
 

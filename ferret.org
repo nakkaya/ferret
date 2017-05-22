@@ -2551,7 +2551,7 @@ A boolean object,
       return true;
   }
 
-  var var::equals (var rhs){
+  var var::equals (var rhs) const {
     if ( ( is_nil() && !rhs.is_nil()) ||
          (!is_nil() &&  rhs.is_nil()))
       return obj<boolean>(false);
@@ -3130,13 +3130,13 @@ count, when it reaches zero it will automatically free the object_t.
       return *this;
     }
 
-    var equals (var rhs);
+    var equals (var rhs) const;
 
-    bool operator==(const var& other) {
+    bool operator==(const var& other) const {
       return (bool)equals(other);
     }
 
-    bool operator!=(const var& other) {
+    bool operator!=(const var& other) const {
       return !((bool)equals(other));
     }
     

@@ -2751,7 +2751,7 @@ C++ API for the interface,
     var nth(var seq, var index);
     var nth(var seq, int index);
     size_t count(var seq);
-    var is_seqable(var seq);
+    bool is_seqable(var seq);
   }
 #+end_src
 
@@ -2828,12 +2828,12 @@ Range-based for loop support for seekable containers.
       return acc;
     }
 
-    var is_seqable(var seq){
+    bool is_seqable(var seq){
       if(seq.is_type(runtime::type::sequence) || 
          seq.is_type(runtime::type::lazy_sequence))
-        return obj<boolean>(true);
+        return true;
       else
-        return obj<boolean>(false);
+        return false;
     }
   }
 #+end_src

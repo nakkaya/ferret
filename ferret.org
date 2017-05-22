@@ -6848,10 +6848,9 @@ Create some dummy libs under /test/modules/,
 
 #+begin_src clojure
   (deftest keyword-test
-    (is (= true  (= :test :test)))
-    (is (= false (= :test :other_test)))
-    (let [ke (fn [k] "__result = obj<boolean>(k.equals(obj<keyword>(\":space\")))")]
-      (is (= true (ke :space)))))
+    (is (= true  (= :test  :test)))
+    (is (= false (= :test  :other_test)))
+    (is (= true  (= :space (cxx "__result = obj<keyword>(\":space\")")))))
 #+end_src
 
 *** String

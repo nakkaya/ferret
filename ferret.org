@@ -2522,7 +2522,7 @@ A boolean object,
     size_t type() const { return runtime::type::boolean; }
 
     var equals(var o) const {
-      return obj<boolean>(value == (bool)o);
+      return obj<boolean>(value == o.cast<boolean>()->container());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -2802,7 +2802,7 @@ Range-based for loop support for seekable containers.
     var cons(var x, var seq){
       if (seq.is_nil())
         return runtime::list(x);
-      if (seq.equals(runtime::list()) == true)
+      if (seq == runtime::list())
         return runtime::list(x);
       return seq.cast<seekable_i>()->cons(x);
     }
@@ -4169,7 +4169,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
   (defn = [& args]
     "var curr = runtime::first(args);
      for(auto it : runtime::range(runtime::rest(args))){
-      if (curr.equals(it) == false)
+      if (curr != it)
         return obj<boolean>(false);
       curr = it;
      }

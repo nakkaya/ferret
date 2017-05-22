@@ -1331,7 +1331,7 @@ defined within *ferret* namespace. All Ferret macros starts with
          $endif$
 
          $if(equals)$
-          var equals(var o) const {
+          bool equals(var o) const {
            $equals$
           }
          $endif$
@@ -1909,7 +1909,7 @@ All our types are derived from the base Object type. Which is a
       virtual var stream_console() const = 0;
   #endif
     
-      virtual var equals(var o) const = 0;
+      virtual bool equals(var o) const = 0;
     };
   }
 
@@ -1939,8 +1939,8 @@ A /pointer/ object keeps a reference to a C++ pointer.
 
     size_t type() const { return runtime::type::pointer; }
 
-    var equals(var o) const {
-      return obj<boolean>(_payload == o.cast<pointer>()->payload());
+    bool equals(var o) const {
+      return (_payload == o.cast<pointer>()->payload());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -1998,8 +1998,8 @@ modern C++ libraries that use smart pointers for memory management.
 
     size_t type() const { return runtime::type::value; }
 
-    var equals(var o) const {
-      return obj<boolean>(this == o.get());
+    bool equals(var o) const {
+      return (this == o.get());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -2117,11 +2117,11 @@ number Object,
 
     size_t type() const { return runtime::type::number; }
 
-    var equals(var o) const {
+    bool equals(var o) const {
       if (runtime::abs(_word - o.cast<number>()->word()) < FERRET_REAL_EPSILON)
-        return obj<boolean>(true);
+        return true;
       else
-        return obj<boolean>(false);
+        return false;
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -2199,8 +2199,8 @@ Each keyword in the program is converted to an /keyword/ object. A
 
     size_t type() const { return runtime::type::keyword; }
 
-    var equals(var o) const {
-      return obj<boolean>(_word == o.cast<keyword>()->word());
+    bool equals(var o) const {
+      return (_word == o.cast<keyword>()->word());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -2234,8 +2234,8 @@ Linked list container implementing the seekable interface.
 
     size_t type() const { return runtime::type::empty_sequence; }
 
-    var equals(var) const {
-      return obj<boolean>(true);
+    bool equals(var) const {
+      return true;
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -2265,21 +2265,21 @@ Linked list container implementing the seekable interface.
 
     size_t type() const { return runtime::type::sequence; }
 
-    var equals(var o) const {
+    bool equals(var o) const {
       if(first() != runtime::first(o))
-        return obj<boolean>(false);
+        return false;
       
       var other = runtime::rest(o);
       for(auto it : runtime::range(rest())){
         if (other.is_nil() || it != runtime::first(other))
-          return obj<boolean>(false);
+          return false;
         other = runtime::rest(other);
       }
 
       if (other.is_nil())
-        return obj<boolean>(true);
+        return true;
       else
-        return obj<boolean>(false);
+        return false;
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -2373,21 +2373,21 @@ A lazy list container implementing the seekable interface.
       return head;
     }
 
-    var equals(var o) const {
+    bool equals(var o) const {
       if(sval() != runtime::first(o))
-        return obj<boolean>(false);
+        return false;
       
       var other = runtime::rest(o);
       for(auto it : runtime::range(rest())){
         if (other.is_nil() || it != runtime::first(other))
-          return obj<boolean>(false);
+          return false;
         other = runtime::rest(other);
       }
 
       if (other.is_nil())
-        return obj<boolean>(true);
+        return true;
       else
-        return obj<boolean>(false);
+        return false;
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -2446,8 +2446,8 @@ strings are represented as a linked list of characters.
 
     size_t type() const { return runtime::type::string; }
 
-    var equals(var other) const {
-      return obj<boolean>(container() == other.cast<string>()->container());
+    bool equals(var other) const {
+      return (container() == other.cast<string>()->container());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -2521,8 +2521,8 @@ A boolean object,
 
     size_t type() const { return runtime::type::boolean; }
 
-    var equals(var o) const {
-      return obj<boolean>(value == o.cast<boolean>()->container());
+    bool equals(var o) const {
+      return (value == o.cast<boolean>()->container());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -2551,18 +2551,18 @@ A boolean object,
       return true;
   }
 
-  var var::equals (var rhs) const {
+  bool var::equals (var rhs) const {
     if ( ( is_nil() && !rhs.is_nil()) ||
          (!is_nil() &&  rhs.is_nil()))
-      return obj<boolean>(false);
+      return false;
 
     if (get() == rhs.get())
-      return obj<boolean>(true);
+      return true;
     
     if (runtime::is_seqable(*this) && runtime::is_seqable(rhs))
       return get()->equals(rhs);
     else if (m_ptr->type() != rhs.cast<object_t>()->type())
-      return obj<boolean>(false);
+      return false;
     else
       return get()->equals(rhs);
   }
@@ -2587,8 +2587,8 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
 
     size_t type() const { return runtime::type::atomic_reference; }
 
-    var equals(var o) const {
-      return obj<boolean>(this == o.cast<atomic_reference>());
+    bool equals(var o) const {
+      return (this == o.cast<atomic_reference>());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -2665,8 +2665,8 @@ not yet finished, calls to deref/@ will block.
 
     size_t type() const { return runtime::type::async; }
 
-    var equals(var o) const {
-      return obj<boolean>(this == o.cast<async>());
+    bool equals(var o) const {
+      return (this == o.cast<async>());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -2857,8 +2857,8 @@ uniform fashion.
 
     size_t type() const { return runtime::type::lambda_i; }
 
-    var equals(var o) const {
-      return obj<boolean>(this == o.cast<lambda_i>());
+    bool equals(var o) const {
+      return (this == o.cast<lambda_i>());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -3130,14 +3130,14 @@ count, when it reaches zero it will automatically free the object_t.
       return *this;
     }
 
-    var equals (var rhs) const;
+    bool equals (var rhs) const;
 
     bool operator==(const var& other) const {
-      return (bool)equals(other);
+      return equals(other);
     }
 
     bool operator!=(const var& other) const {
-      return !((bool)equals(other));
+      return !equals(other);
     }
     
     operator bool() const;
@@ -4985,8 +4985,8 @@ Port of Teensy elapsedMicros API,
     
     size_t type() const { return runtime::type::elapsed_micros; }
 
-    var equals(var o) const {
-      return obj<boolean>(this == o.cast<elapsed_micros>());
+    bool equals(var o) const {
+      return (this == o.cast<elapsed_micros>());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -5315,8 +5315,8 @@ Ported from,
 
     size_t type() const { return runtime::type::pid_controller; }
 
-    var equals(var o) const {
-      return obj<boolean>(this == o.cast<pid_controller>());
+    bool equals(var o) const {
+      return (this == o.cast<pid_controller>());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)

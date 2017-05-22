@@ -1425,7 +1425,7 @@ Initialize function arguments. Clojure style list structuring is supported.
 
 #+begin_src clojure :tangle no
   (let [set-var (fn [val arg accesor]
-                  (str "var " val " = "
+                  (str "const var " val " = "
                        (reduce (fn[h v] (str v "(" h ")")) arg accesor)))
         nth (fn [pos]
               (flatten [(repeat pos "runtime::rest") "runtime::first"]))]

@@ -1033,10 +1033,26 @@ suggests and removes the node when predicate returns true.
     (fn [f]
       (and (seq? f)
            (some true? (map #(= % (first f)) s)))))
+
+  (defn is-special-form? [s f]
+    (and (seq? f)
+         (= (first f) s)))
 #+end_src
 
-#+name: core-code-generation-misc
+*** File I/O
+
+#+name: core-file-io
 #+begin_src clojure :tangle no
+  (ns ferret.io
+    (:use [clojure.java.io]
+          [clojure.tools [logging :only [log warn]]])
+    (:import (org.apache.commons.io FileUtils)
+             (java.io BufferedReader InputStreamReader)))
+
+  (defn read-from-url [f]
+    (with-open [in (.getResourceAsStream (ClassLoader/getSystemClassLoader) f)
+                rdr (BufferedReader. (InputStreamReader. in))]
+      (apply str (interpose \newline (line-seq rdr)))))
 
   (defn read-clojure-file [f]
     (try
@@ -1052,9 +1068,32 @@ suggests and removes the node when predicate returns true.
         (warn "error reading =>" f)
         (System/exit 1))))
 
-  (defn is-special-form? [s f]
-    (and (seq? f)
-         (= (first f) s)))
+  (defn write-to-file [f s]
+    (FileUtils/writeStringToFile (file f) (.trim s)))
+
+  (defn escape-string [s]
+    (org.apache.commons.lang.StringEscapeUtils/escapeJava s))
+
+  (defn file-path [file]
+    (let [path (str (org.apache.commons.io.FilenameUtils/getPrefix file)
+                    (org.apache.commons.io.FilenameUtils/getPath file))]
+      (if (empty? path)
+        "./"
+        path)))
+
+  (def default-cpp-extension "cpp")
+
+  (defn file-extension [f]
+    (org.apache.commons.io.FilenameUtils/getExtension f))
+
+  (defn file-base-name [f]
+    (org.apache.commons.io.FilenameUtils/getBaseName f))
+
+  (defn file-exists [f]
+    (.exists (file f)))
+
+  (defn make-file [p n e]
+    (file (str p n "." e)))
 #+end_src
 
 ** Code Generation
@@ -1169,7 +1208,7 @@ defined within *ferret* namespace. All Ferret macros starts with
   (defmethod emit :symbol [form state] (str form))
 
   (defmethod emit :string [form state]
-    (str "obj<string>(\"" (org.apache.commons.lang.StringEscapeUtils/escapeJava form) "\"," (count form) ")"))
+    (str "obj<string>(\"" (escape-string form) "\"," (count form) ")"))
 
   (defmethod emit :boolean [form state] (str "obj<boolean>(" form ")"))
 
@@ -1582,7 +1621,7 @@ Initialize function arguments. Clojure style list structuring is supported.
     (defn compile-options [& [options]]
       (merge {:compiler "g++"
               :compiler-options ["-std=c++11"]
-              :source-extension "cpp"
+              :source-extension default-cpp-extension
               :base-name "solution"}
              options))
 
@@ -1627,13 +1666,6 @@ Initialize function arguments. Clojure style list structuring is supported.
 
   #+name: core-code-compile-code
   #+begin_src clojure
-    (defn file-path [file]
-      (let [path (str (org.apache.commons.io.FilenameUtils/getPrefix file)
-                      (org.apache.commons.io.FilenameUtils/getPath file))]
-        (if (empty? path)
-          "./"
-          path)))
-
     (defn build-specs [input args]
       (fn []
         (let [output (if (->> args :options :output)
@@ -1641,11 +1673,11 @@ Initialize function arguments. Clojure style list structuring is supported.
                        input)
               output-path (file-path output)
               output-extension (if (->> args :options :output)
-                                 (org.apache.commons.io.FilenameUtils/getExtension output)
-                                 "cpp")
-              base-name (org.apache.commons.io.FilenameUtils/getBaseName output)
+                                 (file-extension output)
+                                 default-cpp-extension)
+              base-name (file-base-name output)
               input-path (file-path input)
-              default-compiled-file (file (str output-path base-name "." output-extension))
+              default-compiled-file (make-file output-path base-name output-extension)
               default-options (compile-options-parse-source default-compiled-file)]
           
           (-> default-options
@@ -1677,7 +1709,7 @@ Initialize function arguments. Clojure style list structuring is supported.
       (let [file-name (cpp-file-name options)
             source (emit-source form options)
             solution (solution-template source)]
-        (FileUtils/writeStringToFile (file file-name) (.trim solution))
+        (write-to-file file-name solution)
         (info "compiled" "=>" file-name)
         true))
   #+end_src
@@ -1697,7 +1729,7 @@ Initialize function arguments. Clojure style list structuring is supported.
               cxx-options (concat (map #(str %) (:compiler-options options))
                                   (if (System/getenv "CXXFLAGS")
                                     (seq (.split (System/getenv "CXXFLAGS") " "))))
-              source-files (map #(let [extension (org.apache.commons.io.FilenameUtils/getExtension %)]
+              source-files (map #(let [extension (file-extension %)]
                                    [(cond (= extension "c") ["-x" "c"]
                                           (= extension "c++") ["-x" "c++"]
                                           :default "")
@@ -1790,7 +1822,7 @@ Initialize function arguments. Clojure style list structuring is supported.
            (println (:summary args))
            (System/exit 0))
 
-         (when (not (.exists (file input)))
+         (when (not (file-exists input))
            (warn "no input file")
            (System/exit 1))
 
@@ -7133,10 +7165,10 @@ Create some dummy libs under /test/modules/,
               [clojure.tools.cli :refer [parse-opts]]
               [watchtower.core :as watcher]
               [clojure.term.colors :as color])
-    (:use [ferret.template]
+    (:use [ferret.io]
+          [ferret.template]
           [clojure.java.shell]
-          [clojure.tools [logging :only [log warn info trace]]])
-    (:import (org.apache.commons.io FileUtils)))
+          [clojure.tools [logging :only [log warn info trace]]]))
 
   (defn os-name []
     (let [os (-> (System/getProperty "os.name") .toLowerCase)]
@@ -7174,13 +7206,8 @@ Create some dummy libs under /test/modules/,
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/src/ferret/template.clj
   (ns ferret.template
-    (:import (java.io BufferedReader InputStreamReader)
-             (org.antlr.stringtemplate StringTemplateGroup StringTemplate)))
-
-  (defn read-from-url [f]
-    (with-open [in (.getResourceAsStream (ClassLoader/getSystemClassLoader) f)
-                rdr (BufferedReader. (InputStreamReader. in))]
-      (apply str (interpose \newline (line-seq rdr)))))
+    (:use [ferret.io])
+    (:import (org.antlr.stringtemplate StringTemplateGroup StringTemplate)))
 
   (defn indexed
     "Returns a lazy sequence of [index, item] pairs, where items come
@@ -7351,12 +7378,19 @@ Create some dummy libs under /test/modules/,
   }
 #+end_src 
 
+*** ferret/io.clj
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/src/ferret/io.clj
+  <<core-file-io>>
+#+end_src 
+
 ** test/
 *** compiler.clj
 
 #+begin_src clojure :noweb yes :mkdirp yes :tangle src/test/compiler.clj
   (ns compiler
     (:refer-clojure :exclude [compile])
+    (:use [ferret.io] :reload)
     (:use [ferret.core] :reload)
     (:use [clojure.test]
           [clojure.java.shell]
@@ -7398,7 +7432,7 @@ Create some dummy libs under /test/modules/,
       (compile->cpp (read-clojure-file f) specs)
       (static-check file)
       (let [output (reduce (fn[h [cxx flags]]
-                             (if (.exists (clojure.java.io/as-file cxx))
+                             (if (file-exists cxx)
                                (do (compile->binary
                                     (assoc specs
                                            :compiler cxx

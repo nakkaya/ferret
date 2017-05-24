@@ -2782,7 +2782,7 @@ C++ API for the interface,
     var rest(var coll);
     var cons(var x, var seq);
     var nth(var seq, var index);
-    var nth(var seq, int index);
+    var nth(var seq, size_t index);
     size_t count(var seq);
     bool is_seqable(var seq);
   }
@@ -2815,6 +2815,40 @@ Range-based for loop support for seekable containers.
   }
 #+end_src
 
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
+  namespace runtime {
+    struct range_indexed_pair{
+      size_t index;
+      var value;
+
+      explicit range_indexed_pair(size_t i = 0, var v = nil()) : index(i) , value(v) { }
+    };
+    
+    struct range_indexed{
+      var p;
+      size_t index;
+
+      explicit range_indexed(var v) : p(v) , index(0) { }
+      inline range_indexed begin() const { return range_indexed(p); }
+      inline range_indexed end()   const { return range_indexed(obj<empty_sequence>()); }
+
+      inline bool operator!=(const range_indexed& other){
+        return !p.is_nil() && (p != other.p);
+      }
+
+      inline const range_indexed& operator++(){
+        p = runtime::rest(p);
+        index++;
+        return *this;
+      }
+
+      inline range_indexed_pair operator*(){
+        return range_indexed_pair(index, runtime::first(p));
+      }
+    };
+  }
+#+end_src
+
 #+name: runtime-native-implementations
 #+begin_src c++ :tangle no
   namespace runtime{
@@ -2840,13 +2874,11 @@ Range-based for loop support for seekable containers.
       return seq.cast<seekable_i>()->cons(x);
     }
 
-    var nth(var seq, int index){
-      int itIdx = 0;
-      for(auto it : runtime::range(seq)){
-        if (index == itIdx)
-          return it;
-        itIdx++;
-      }
+    var nth(var seq, size_t index){
+      for(auto i : range_indexed(seq))
+        if (index == i.index)
+          return i.value;
+
       return nil();
     }
     
@@ -4794,7 +4826,7 @@ Combine a list of bytes to a number.
   (defn number-combine [s]
     "number_t res = 0;
      for(size_t i = 0; i < sizeof(number_t); i++){
-      int idx = (sizeof(number_t) - i - 1);
+      size_t idx = (sizeof(number_t) - i - 1);
       var obj = runtime::nth(s,idx);
       number_t val = number::to<number_t>(obj);
       res |= val << (i * 8);

@@ -394,10 +394,10 @@ modules and concatenate the required runtime from clojure.core
 #+begin_src clojure :tangle no
   (defn ferret-runtime [form options]
     (->> (import-modules-all form options)
-         (shake-concat (read-clojure-file-from-url "ferret/runtime.clj"))
+         (shake-concat (read-clojure-file "ferret/runtime.clj"))
          ;; tag form with the build info
          (cons `(~'native-define ~(try
-                                    (let [version (read-from-url "build.info")]
+                                    (let [version (read-file-from-url "build.info")]
                                       (str "// ferret-lisp build:" version))
                                     (catch Exception e
                                       (str "// ferret-lisp")))))))
@@ -533,7 +533,7 @@ form.
   (declare expand-macros-all)
 
   (defn expand-macros [form]
-    (let [core-macros (->> (read-clojure-file-from-url "ferret/runtime.clj")
+    (let [core-macros (->> (read-clojure-file "ferret/runtime.clj")
                            (filter (is-form? 'defmacro)))
           core-macro-symbols (into #{} (map second core-macros))
           form-macros (->> (filter (is-form? 'defmacro) form)
@@ -1049,24 +1049,25 @@ suggests and removes the node when predicate returns true.
     (:import (org.apache.commons.io FileUtils)
              (java.io BufferedReader InputStreamReader)))
 
-  (defn read-from-url [f]
+  (defn read-file-from-url [f]
     (with-open [in (.getResourceAsStream (ClassLoader/getSystemClassLoader) f)
                 rdr (BufferedReader. (InputStreamReader. in))]
       (apply str (interpose \newline (line-seq rdr)))))
 
-  (defn read-clojure-file [f]
+  (defn read-file [f & [options]]
     (try
-      (read-string (str \( (FileUtils/readFileToString (file f)) \)))
-      (catch Exception e
-        (warn "error reading =>" f)
-        (System/exit 1))))
+      (read-file-from-url f)
+      (catch Exception e-url
+        (try
+          (if (nil? options)
+            (FileUtils/readFileToString (file f))
+            (FileUtils/readFileToString (file (str (:path options) f))))
+          (catch Exception e-path
+            (warn "error reading =>" f)
+            (System/exit 1))))))
 
-  (defn read-clojure-file-from-url [f]
-    (try
-      (read-string (str \( (read-from-url f) \)))
-      (catch Exception e
-        (warn "error reading =>" f)
-        (System/exit 1))))
+  (defn read-clojure-file [f]
+    (read-string (str \( (read-file f) \))))
 
   (defn write-to-file [f s]
     (FileUtils/writeStringToFile (file f) (.trim s)))
@@ -1105,7 +1106,7 @@ representation.
 
 #+name: core-code-generation-emit
 #+begin_src clojure :tangle no  
-  (defmulti emit (fn [form _]
+  (defmulti emit (fn [_ form _]
                    (cond (is-special-form? 'fir_define_lambda form) 'fir_define_lambda
                          (is-special-form? 'fir_define_lambda_stack form) 'fir_define_lambda_stack
                          (is-special-form? 'fir_dispatch_lambda form) 'fir_dispatch_lambda
@@ -1128,22 +1129,22 @@ representation.
                          (seq? form) :invoke-lambda)))
 
   (defn emit-ast
-    [ast state]
+    [options ast state]
     (reduce (fn[h v]
-              (conj h (emit v state)))
+              (conj h (emit options v state)))
             [] ast))
 #+end_src
 
 Without preprocessing following forms,
 
 #+begin_src clojure :tangle no
-  (emit '(list 1 2 3) (ref {}))
-  
-  (emit '(+ 1 2) (ref {}))
-  
-  (emit '(if (< a b)
-           b a)
-        (ref {}))
+  (emit options '(list 1 2 3) (ref {}))
+
+  (emit options '(+ 1 2) (ref {}))
+
+  (emit options '(if (< a b)
+                   b a)
+                (ref {}))
 #+end_src
 
 would evaluate to,
@@ -1175,7 +1176,7 @@ C++ skeleton.
                        :lambdas []
                        :native-defines []})
           ast (compile form options)
-          body (emit-ast ast state)]
+          body (emit-ast options ast state)]
       (when (:ast options)
         (pprint/pprint ast))
       (assoc @state :body body)))
@@ -1205,53 +1206,53 @@ defined within *ferret* namespace. All Ferret macros starts with
 
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
-  (defmethod emit :symbol [form state] (str form))
+  (defmethod emit :symbol [_ form state] (str form))
 
-  (defmethod emit :string [form state]
+  (defmethod emit :string [_ form state]
     (str "obj<string>(\"" (escape-string form) "\"," (count form) ")"))
 
-  (defmethod emit :boolean [form state] (str "obj<boolean>(" form ")"))
+  (defmethod emit :boolean [_ form state] (str "obj<boolean>(" form ")"))
 
-  (defmethod emit :nil [form state] "nil()")
+  (defmethod emit :nil [_ form state] "nil()")
 
-  (defmethod emit :keyword [form state]
+  (defmethod emit :keyword [_ form state]
     (str "obj<keyword>(" (reduce (fn[h v] (+ h (int v))) 0 (str form)) ")"))
 
-  (defmethod emit :char [form state] (str "obj<number>((number_t)" (int form) ")"))
+  (defmethod emit :char [_ form state] (str "obj<number>((number_t)" (int form) ")"))
 
-  (defmethod emit :number [form state] (str "obj<number>((real_t)" (double form) ")"))
+  (defmethod emit :number [_ form state] (str "obj<number>((real_t)" (double form) ")"))
 #+end_src
 
 **** Special Forms
 
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
-  (defmethod emit 'def [[_ name & form] state]
+  (defmethod emit 'def [options [_ name & form] state]
     (append-to! state [:symbol-table] name)
-    (str "(" name " = " (apply str (emit-ast form state)) ")"))
+    (str "(" name " = " (apply str (emit-ast options form state)) ")"))
 
-  (defmethod emit 'if [[_ cond t f] state]
-    (let [cond (emit cond state)
-          t (emit t state)
-          f (if (nil? f) "nil()" (emit f state))]
+  (defmethod emit 'if [options [_ cond t f] state]
+    (let [cond (emit options cond state)
+          t (emit options t state)
+          f (if (nil? f) "nil()" (emit options f state))]
       (apply str "(" cond " ? " t " : " f ")")))
 
-  (defmethod emit :invoke-lambda [[fn & args] state]
-    (invoke-lambda (emit fn state) (emit-ast args state)))
+  (defmethod emit :invoke-lambda [options [fn & args] state]
+    (invoke-lambda (emit options fn state) (emit-ast options args state)))
 
-  (defmethod emit 'defobject [[_ name & spec] state]
-    (append-to! state [:objects] (define-object name spec)) "")
+  (defmethod emit 'defobject [options [_ name & spec] state]
+    (append-to! state [:objects] (define-object name spec options)) "")
 
-  (defmethod emit 'fir_define_var [[_ name form] state]
-    (str "var " name " = " (emit form state)))
+  (defmethod emit 'fir_define_var [options [_ name form] state]
+    (str "var " name " = " (emit options form state)))
 
-  (defmethod emit 'native_header [[_ & declarations] state]
+  (defmethod emit 'native_header [_ [_ & declarations] state]
     (append-to! state [:native-headers] declarations) "")
 
-  (defmethod emit 'native_declare [[_ declaration] state]
+  (defmethod emit 'native_declare [_ [_ declaration] state]
     (append-to! state [:native-declarations] declaration) "")
 
-  (defmethod emit 'native_define [[_ define] state]
+  (defmethod emit 'native_define [_ [_ define] state]
     (append-to! state [:native-defines] define) "")
 #+end_src
 
@@ -1259,13 +1260,13 @@ defined within *ferret* namespace. All Ferret macros starts with
 
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
-  (defmethod emit 'fir_lambda_object [f state]
+  (defmethod emit 'fir_lambda_object [_ f state]
     (lambda-object-heap f))
 
-  (defmethod emit 'fir_invoke_lambda_stack [f state]
+  (defmethod emit 'fir_invoke_lambda_stack [_ f state]
     (lambda-object-stack f))
 
-  (defn emit-define-lambda-aux [name env args body state]
+  (defn emit-define-lambda-aux [options name env args body state]
     (let [native-declarations (filter #((is-form? 'native_declare) %) body)
           body (filter #(not ((is-form? 'native_declare) %)) body)
           body (cond  (empty? body)
@@ -1273,7 +1274,7 @@ defined within *ferret* namespace. All Ferret macros starts with
                       (and (= 1 (count body))
                            (seq? (first body))
                            (= 'fir_dispatch_lambda (first (first body))))
-                      [(emit (first body) state) "nil();"]
+                      [(emit options (first body) state) "nil();"]
                       (and (= 1 (count body))
                            (string? (first body)))
                       (let [inline (first body) 
@@ -1285,29 +1286,29 @@ defined within *ferret* namespace. All Ferret macros starts with
                           ["var __result;" body "__result;"]))
                       :default (reduce (fn[h v]
                                          (conj h (str v \;)))
-                                       [] (emit-ast body state)))
+                                       [] (emit-ast options body state)))
           env (->> env
                    (flatten)
                    (filter #(and (not (= '& %))
                                  (not (= '_ %)))))]
       (doseq [dec native-declarations] 
-        (emit dec state))
+        (emit options dec state))
       [name env (lambda-arguments args) body]))
 
-  (defmethod emit 'fir_define_lambda [[_ name env args & body] state]
-    (let [[name env args body] (emit-define-lambda-aux name env args body state)]
+  (defmethod emit 'fir_define_lambda [options [_ name env args & body] state]
+    (let [[name env args body] (emit-define-lambda-aux options name env args body state)]
       (append-to! state [:lambdas]
                   {:name name :env env :args args :body body}) ""))
 
-  (defmethod emit 'fir_define_lambda_stack [[_ name env args & body] state]
-    (let [[name env args body] (emit-define-lambda-aux name env args body state)]
+  (defmethod emit 'fir_define_lambda_stack [options [_ name env args & body] state]
+    (let [[name env args body] (emit-define-lambda-aux options name env args body state)]
       (append-to! state [:lambdas]
                   {:name name :env env :args args :body body :stack true}) ""))
 #+end_src
 
 #+name: core-code-generation-emit-source-methods
 #+begin_src clojure :tangle no
-  (defmethod emit 'fir_dispatch_lambda [[_ args-symbol & fns] state]
+  (defmethod emit 'fir_dispatch_lambda [_ [_ args-symbol & fns] state]
     (let [fns (->> fns
                    (partition 2))
           nil-dispatch (filter #(= (first %) 0) fns)]
@@ -1416,7 +1417,7 @@ defined within *ferret* namespace. All Ferret macros starts with
           (fill-view! "post_code"      (first (specs 'post_code)))
           (render-view))))
 
-  (defn define-object [name f]
+  (defn define-object [name f options]
     (if (not (string? (first f)))
       (define-object-depricated name f)
       (-> (create-view "namespace runtime {
@@ -1428,7 +1429,7 @@ defined within *ferret* namespace. All Ferret macros starts with
                         $body$")
           (fill-view! "type"     (str name))
           (fill-view! "type_val" (gensym ""))
-          (fill-view! "body"     (read-from-url (first f)))
+          (fill-view! "body"     (read-file (first f) options))
           (render-view))))
 #+end_src    
 
@@ -1599,7 +1600,7 @@ Initialize function arguments. Clojure style list structuring is supported.
 
          <<runtime-native-program-run-std-main>>
          <<runtime-native-program-arduino>>\n")
-          (fill-view! "ferret_header"       (read-from-url "ferret/runtime.h"))
+          (fill-view! "ferret_header"       (read-file "ferret/runtime.h"))
           (fill-view! "native_headers"      native-headers)
           (fill-view! "body"                (filter #(not (empty? %)) body))
           (fill-view! "lambda_classes"      (lambda-definitions lambdas))
@@ -1813,7 +1814,7 @@ Initialize function arguments. Clojure style list structuring is supported.
 
          (when help
            (try
-             (let [version (read-from-url "build.info")]
+             (let [version (read-file "build.info")]
                (print "ferret-lisp build:" version))
              (catch Exception e
                (print "ferret-lisp")))

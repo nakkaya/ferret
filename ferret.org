@@ -2302,17 +2302,11 @@ Linked list container implementing the seekable interface.
       if(first() != runtime::first(o))
         return false;
       
-      var other = runtime::rest(o);
-      for(auto const& it : runtime::range(rest())){
-        if (other.is_nil() || it != runtime::first(other))
+      for(auto const& it : runtime::range_pair(rest(),runtime::rest(o)))
+        if (it.first != it.second)
           return false;
-        other = runtime::rest(other);
-      }
 
-      if (other.is_nil())
-        return true;
-      else
-        return false;
+      return true;
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -2410,17 +2404,11 @@ A lazy list container implementing the seekable interface.
       if(sval() != runtime::first(o))
         return false;
       
-      var other = runtime::rest(o);
-      for(auto const& it : runtime::range(rest())){
-        if (other.is_nil() || it != runtime::first(other))
+      for(auto const& it : runtime::range_pair(rest(),runtime::rest(o)))
+        if (it.first != it.second)
           return false;
-        other = runtime::rest(other);
-      }
 
-      if (other.is_nil())
-        return true;
-      else
-        return false;
+      return true;
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -2845,6 +2833,41 @@ for example usage.
 
       inline range_indexed_pair operator*(){
         return range_indexed_pair(index, runtime::first(p));
+      }
+    };
+  }
+#+end_src
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
+  namespace runtime {
+    struct range_pair_pair{
+      var first;
+      var second;
+
+      explicit range_pair_pair(var a = nil(), var b = nil()) : first(a) , second(b) { }
+    };
+      
+    struct range_pair{
+      var first;
+      var second;
+
+      explicit range_pair(var a = nil(), var b = nil()) : first(a) , second(b) { }
+      
+      inline range_pair begin() const { return range_pair(first, second); }
+      inline range_pair end()   const { return range_pair(obj<empty_sequence>(),obj<empty_sequence>()); }
+
+      inline bool operator!=(const range_pair& other){
+        return (first != other.first) && (second != other.second);
+      }
+
+      inline const range_pair& operator++(){
+        first = runtime::rest(first);
+        second = runtime::rest(second);
+        return *this;
+      }
+
+      inline range_pair_pair operator*(){
+        return range_pair_pair(runtime::first(first), runtime::first(second));
       }
     };
   }

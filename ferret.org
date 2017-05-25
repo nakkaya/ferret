@@ -2303,7 +2303,7 @@ Linked list container implementing the seekable interface.
         return false;
       
       var other = runtime::rest(o);
-      for(auto it : runtime::range(rest())){
+      for(auto const& it : runtime::range(rest())){
         if (other.is_nil() || it != runtime::first(other))
           return false;
         other = runtime::rest(other);
@@ -2319,7 +2319,7 @@ Linked list container implementing the seekable interface.
     var stream_console() const {
       runtime::print("(");
       data.stream_console();
-      for(auto i : runtime::range(next)){
+      for(auto const& i : runtime::range(next)){
         runtime::print(" ");
         i.stream_console();
       }
@@ -2368,14 +2368,14 @@ Linked list container implementing the seekable interface.
 
   template <> std_vector sequence::to(var v) { 
     std_vector ret;
-    for(auto it : runtime::range(v))
+    for(auto const& it : runtime::range(v))
       ret.push_back(it);
     return ret;
   }
 
   template <> var sequence::from(std_vector v) { 
     var ret;
-    for(auto it : v)
+    for(auto const& it : v)
       ret = runtime::cons(it,ret);
     return ret;
   }
@@ -2411,7 +2411,7 @@ A lazy list container implementing the seekable interface.
         return false;
       
       var other = runtime::rest(o);
-      for(auto it : runtime::range(rest())){
+      for(auto const& it : runtime::range(rest())){
         if (other.is_nil() || it != runtime::first(other))
           return false;
         other = runtime::rest(other);
@@ -2427,7 +2427,7 @@ A lazy list container implementing the seekable interface.
     var stream_console() const {
       runtime::print("(");
       sval().stream_console();
-      for(auto i : runtime::range(rest())){
+      for(auto const& i : runtime::range(rest())){
         runtime::print(" ");
         i.stream_console();
       }
@@ -2485,7 +2485,7 @@ strings are represented as a linked list of characters.
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     var stream_console() const {
-      for(auto it : runtime::range(data))
+      for(auto const& it : runtime::range(data))
         runtime::print(number::to<char>(it));
       return nil();
     }
@@ -2531,7 +2531,7 @@ strings are represented as a linked list of characters.
 
   template <> ::std::string string::to(var v) { 
     ::std::stringstream ss;
-    for(auto it : runtime::range(v.cast<string>()->container()))
+    for(auto const& it : runtime::range(v.cast<string>()->container()))
       ss << number::to<char>(it);
     return ss.str();
   }
@@ -2876,7 +2876,7 @@ for example usage.
     }
 
     var nth(var seq, size_t index){
-      for(auto i : range_indexed(seq))
+      for(auto const& i : range_indexed(seq))
         if (index == i.index)
           return i.value;
 
@@ -2889,8 +2889,10 @@ for example usage.
     
     size_t count(var seq){
       size_t acc = 0;
-      for(auto it : runtime::range(seq))
-       acc++;
+      for(auto const& v : runtime::range(seq)){
+        (void)v;
+        acc++;
+      }
       return acc;
     }
 
@@ -3905,7 +3907,7 @@ are immutable you can freely call Ferret code from C++,
   var alist = runtime::list(obj<number>(1),obj<number>(2),obj<number>(3));
 
   int sum = 0;
-  for(auto it : runtime::range(alist)){
+  for(auto const& it : runtime::range(alist)){
     sum += number::to<int>(it);
    }
 
@@ -4021,7 +4023,7 @@ A simple macro for calling inline C++,
          var f = runtime::first(more);
          f.stream_console();
          var r = runtime::rest(more);
-         for(auto it : runtime::range(r)){
+         for(auto const& it : runtime::range(r)){
           runtime::print(\" \");
           it.stream_console();
          }"))
@@ -4139,7 +4141,7 @@ A simple macro for calling inline C++,
     `(~'_doseq_ ~(second binding)
                 (~'fn [~(first binding)] ~@body)))
 
-  (defn _doseq_ [seq f] "for(auto it : runtime::range(seq)) run(f,it);")
+  (defn _doseq_ [seq f] "for(auto const& it : runtime::range(seq)) run(f,it);")
 #+end_src
 
 *** dotimes
@@ -4234,7 +4236,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+begin_src clojure :tangle no
   (defn = [& args]
     "var curr = runtime::first(args);
-     for(auto it : runtime::range(runtime::rest(args))){
+     for(auto const& it : runtime::range(runtime::rest(args))){
       if (curr != it)
         return obj<boolean>(false);
       curr = it;
@@ -4442,12 +4444,12 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([f [sf & sr]]
      "var acc = run(f, runtime::first(sr), sf);
       var r = runtime::rest(sr);
-      for (auto i : runtime::range(r))
+      for (auto const& i : runtime::range(r))
        acc = run(f, acc, i);
       __result = acc;")
     ([f acc coll]
      "__result = acc;
-      for (auto i : runtime::range(coll))
+      for (auto const& i : runtime::range(coll))
        __result = run(f, __result, i);"))
 #+end_src
 
@@ -6804,7 +6806,7 @@ Create some dummy libs under /test/modules/,
 
     (let [sum (cxx "var alist = runtime::list(obj<number>(1),obj<number>(2),obj<number>(3));
                     number_t sum = 0;
-                    for(auto it : runtime::range(alist)){
+                    for(auto const& it : runtime::range(alist)){
                       sum += number::to<number_t>(it);
                     }
                     __result = obj<number>(sum);")]

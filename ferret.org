@@ -2788,7 +2788,8 @@ C++ API for the interface,
   }
 #+end_src
 
-Range-based for loop support for seekable containers.
+Range-based for loop support for seekable containers. See [[Accessing C,C++ Libraries]]
+for example usage.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
   namespace runtime {

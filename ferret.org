@@ -1907,6 +1907,7 @@ Built in objects,
  - [[Keyword]] 
  - [[Sequence]]
  - [[Lazy Sequence]]
+ - [[D-List]]
  - [[String]]
  - [[Boolean]]
  - [[Atom]]
@@ -2451,6 +2452,137 @@ A lazy list container implementing the seekable interface.
     `(~'new-lazy-seq (~'fn [] ~@body)))
 #+end_src
 
+**** D-List
+
+D-List, or Detached List, analogous to an A-List or a P-List are  more
+suited to embedded systems. For quite small values of n it is more
+efficient in terms of time and space than more sophisticated
+strategies such as hash tables.
+
+A D-list is a cons of a list of keys and a list of values, i.e.:
+
+#+BEGIN_EXAMPLE
+  ((key1 key2 ...) val1 val2 ...)
+#+END_EXAMPLE
+
+#+name: runtime-clojure-d-list-object
+#+begin_src clojure :tangle no
+  (defobject d-list "ferret/obj/d_list_o.h")
+
+  (defn new-d-list-aux []
+    "__result = obj<d_list>();")
+
+  (defmacro new-d-list [& args]
+    `(~'-> (~'new-d-list-aux)
+           ~@(map (fn [v]
+                    (let [[k v] v]
+                      (list 'assoc k v)))
+                  (partition 2 args))))
+
+  (defn assoc [m k v]
+    "__result = m.cast<d_list>()->assoc(k,v);")
+
+  (defn dissoc [m k]
+    "__result = m.cast<d_list>()->dissoc(k);")
+
+  (defn get [m k]
+    "__result = m.cast<d_list>()->val_at(k);")
+
+  (defn vals [m]
+    "__result = m.cast<d_list>()->vals();")
+
+  (defn keys [m]
+    "__result = m.cast<d_list>()->keys();")
+#+end_src
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/d_list_o.h
+  class d_list : public lambda_i {
+
+    var data;
+
+    number_t val_index(var k) const {
+      var keys = runtime::first(data);
+
+      for(auto i : runtime::range_indexed(keys))
+        if ( i.value == k )
+          return i.index;
+
+      return -1;
+    }
+    
+  public:
+
+    size_t type() const { return runtime::type::d_list; }
+
+    bool equals(var o) const {
+      return (this == o.get());
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      data.stream_console();
+      return nil();
+    }
+  #endif
+
+    explicit d_list() : data(runtime::list(runtime::list())) { }
+    explicit d_list(var l) : data(l) { }
+
+    var assoc(var k, var v) const {
+      var keys = runtime::first(data);
+      var values = runtime::rest(data);
+
+      values = runtime::cons(v,values);
+      keys   = runtime::cons(k,keys);
+      
+      return obj<d_list>(runtime::cons(keys,values));
+    }
+
+    var dissoc(var k) const {
+      number_t idx = val_index(k);
+      
+      if ( idx == -1 )
+        return obj<d_list>(data);
+
+      var keys = runtime::first(data);
+      var values = runtime::rest(data);
+
+      var new_keys;
+      for(auto i : runtime::range_indexed(keys))
+        if ( i.index != idx)
+          new_keys = runtime::cons(i.value, new_keys);
+
+      var new_values;
+      for(auto i : runtime::range_indexed(values))
+        if ( i.index != idx)
+          new_values = runtime::cons(i.value, new_values);
+      
+      return obj<d_list>(runtime::cons(new_keys,new_values));
+    }
+    
+    var val_at(var k) const {
+      var values = runtime::rest(data);
+      number_t idx = val_index(k);
+
+      if ( idx == -1 )
+        return nil();
+
+      for(number_t i = 0; i < idx; i++)
+        values = runtime::rest(values);
+      
+      return runtime::first(values);
+    }
+
+    var invoke(var args) const {
+      var key = runtime::first(args);
+      return val_at(key);
+    }
+
+    var vals () const { return runtime::rest(data);}
+    var keys () const { return runtime::first(data);}
+  };
+#+end_src
+
 **** String
 
 strings are represented as a linked list of characters.
@@ -2770,7 +2902,7 @@ C++ API for the interface,
     var rest(var coll);
     var cons(var x, var seq);
     var nth(var seq, var index);
-    var nth(var seq, size_t index);
+    var nth(var seq, number_t index);
     size_t count(var seq);
     bool is_seqable(var seq);
   }
@@ -2807,7 +2939,7 @@ for example usage.
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
   namespace runtime {
     struct range_indexed_pair{
-      size_t index;
+      number_t index;
       var value;
 
       explicit range_indexed_pair(size_t i = 0, var v = nil()) : index(i) , value(v) { }
@@ -2815,7 +2947,7 @@ for example usage.
     
     struct range_indexed{
       var p;
-      size_t index;
+      number_t index;
 
       explicit range_indexed(var v) : p(v) , index(0) { }
       inline range_indexed begin() const { return range_indexed(p); }
@@ -2898,7 +3030,7 @@ for example usage.
       return seq.cast<seekable_i>()->cons(x);
     }
 
-    var nth(var seq, size_t index){
+    var nth(var seq, number_t index){
       for(auto const& i : range_indexed(seq))
         if (index == i.index)
           return i.value;
@@ -6895,6 +7027,20 @@ Create some dummy libs under /test/modules/,
     (is (= (list (list 0 1 2 3) (list 6 7 8 9) (list 12 13 14 15) (list 18 19 42 43)) (partition 4 6 (list 42 43 44 45) (range 20)))))
 #+end_src
 
+*** Associative Containers
+
+#+begin_src clojure
+  (deftest d-list-test
+    (let [m (new-d-list 0 (list 0 1)
+                        1 (list 1 2))]
+
+      (is (= (list 1 0)                    (keys m)))
+      (is (= (list (list 1 2) (list 0 1))  (vals m)))
+      (is (= (list 1 2)                    (m 1)))
+      (is (= m                             m))
+      (is (= (list 0)                      (keys (dissoc m 1))))))
+#+end_src
+
 *** Lambda
 
 #+begin_src clojure
@@ -7072,14 +7218,6 @@ Create some dummy libs under /test/modules/,
 
 ** Data Structures
 
-  - *Association Lists* as an alternative to maps. More suited to
-    embedded systems. Quoted from Wikipedia, for quite small values of
-    n it is more efficient in terms of time and space than more
-    sophisticated strategies such as hash tables.
-    - D-Lists - https://news.ycombinator.com/item?id=11575540
-    - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/PersistentHashMap.java
-    - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/APersistentMap.java
-  - *Implement Que*
   - *Fixed-point Arithmetic*
     Implement fixed point real number type for embedded systems
     without a FPU.
@@ -7089,6 +7227,7 @@ Create some dummy libs under /test/modules/,
     - [[https://alikhuram.wordpress.com/2013/05/20/implementing-fixed-point-numbers-in-c/][Implementing Fixed-Point Numbers in C++]]
     - https://github.com/johnmcfarlane/fixed_point
     - [[https://www.youtube.com/watch?v=cdaN51rRzSE][CppCon 2016: John McFarlane “fixed_point"]]
+  - *Implement Que*
   - *Unbounded Precision Integers*
     - [[http://www.more-magic.net/posts/numeric-tower-part-2.html][CHICKEN's numeric tower: part 2]]
     - [[https://web.archive.org/web/20101208222557/http://www.mactech.com/articles/mactech/Vol.08/08.03/BigNums/index.html][Arbitrarily Large Bignums]]
@@ -7151,6 +7290,13 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Association Lists* as an alternative to maps. More suited to
+    embedded systems. Quoted from Wikipedia, for quite small values of
+    n it is more efficient in terms of time and space than more
+    sophisticated strategies such as hash tables.
+    - D-Lists - https://news.ycombinator.com/item?id=11575540
+    - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/PersistentHashMap.java
+    - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/APersistentMap.java
   - *Numberic Tower* - Numeric tower is now based on Lua number type.
   - *Pluggable Numbers* - Ability to change the default number type at
     compile time.
@@ -7392,6 +7538,7 @@ Create some dummy libs under /test/modules/,
   <<runtime-clojure-deref-interface>>
   <<runtime-clojure-keyword-object>>
   <<runtime-clojure-sequence-object>>
+  <<runtime-clojure-d-list-object>>
   <<runtime-clojure-heavy-pointer-object>>
   <<runtime-clojure-string-object>>
   <<runtime-clojure-atom-object>>

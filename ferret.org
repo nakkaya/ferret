@@ -3080,7 +3080,7 @@ uniform fashion.
     size_t type() const { return runtime::type::lambda_i; }
 
     bool equals(var o) const {
-      return (this == o.cast<lambda_i>());
+      return (this == o.get());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)

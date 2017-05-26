@@ -7087,6 +7087,8 @@ Create some dummy libs under /test/modules/,
     - [[https://accu.org/index.php/journals/1717][Why Fixed Point Won't Cure Your Floating Point Blues]]
     - http://jet.ro/files/The_neglected_art_of_Fixed_Point_arithmetic_20060913.pdf
     - [[https://alikhuram.wordpress.com/2013/05/20/implementing-fixed-point-numbers-in-c/][Implementing Fixed-Point Numbers in C++]]
+    - https://github.com/johnmcfarlane/fixed_point
+    - [[https://www.youtube.com/watch?v=cdaN51rRzSE][CppCon 2016: John McFarlane “fixed_point"]]
   - *Unbounded Precision Integers*
     - [[http://www.more-magic.net/posts/numeric-tower-part-2.html][CHICKEN's numeric tower: part 2]]
     - [[https://web.archive.org/web/20101208222557/http://www.mactech.com/articles/mactech/Vol.08/08.03/BigNums/index.html][Arbitrarily Large Bignums]]

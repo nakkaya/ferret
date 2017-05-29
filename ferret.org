@@ -7217,6 +7217,9 @@ Create some dummy libs under /test/modules/,
 
 ** Data Structures
 
+  - Warn wrong number of arguments passed to function.
+  - *Convert Data Structures* - Automatically convert unsupported data
+    structures and warn user. i.e. Vector to List.
   - *Fixed-point Arithmetic*
     Implement fixed point real number type for embedded systems
     without a FPU.
@@ -7251,6 +7254,9 @@ Create some dummy libs under /test/modules/,
 
 ** Core
 
+  - *defproject* - Combine *configure-* macros under one macro.
+  - *std::current_exception* - Create wrapper.
+    - http://en.cppreference.com/w/cpp/error/current_exception
   - *Pre/Post conditions* for functions.
     - By default print error and abort. 
     - Let user define a callback function.
@@ -7258,12 +7264,8 @@ Create some dummy libs under /test/modules/,
     Scheme]]. 
     - With a set a macros can provide a DSL like [[https://github.com/tomhrr/dale][Dale]].
     - Cleans up /defobject/ macro.
-  - *Multimethods*
-  - *Co-Operative Multitasking* - For Embedded Systems.
-    - https://forum.pjrc.com/threads/25628-Lightweight-Teensy3-x-Fibers-Library-%28C-%29-Available
-    - https://github.com/ve3wwg/teensy3_fibers/blob/1ba0c1e79a423f097e12e6c4176b40cf9d4f44e4/fibers.cpp
-  - *memory\_pool* - Option for enabling allocation profiling.
-  - *memory\_pool* - Ability to run functions on different Memory Pools.
+  - *Memory Pool* - Option for enabling allocation profiling.
+  - *Memory Pool* - Ability to run functions on different Memory Pools.
     - Improved data locality and safety.
     - Optionally disable reference counting to improve performance since
       whole pool can be garbage collected when done.
@@ -7273,12 +7275,18 @@ Create some dummy libs under /test/modules/,
       determined to be born and die within that sub-stack are
       allocated from that heap. When the stack unwinds past that
       point, the entire local heap can be released in one fell swoop.
+  - *Co-Operative Multitasking* - For Embedded Systems.
+    - https://forum.pjrc.com/threads/25628-Lightweight-Teensy3-x-Fibers-Library-%28C-%29-Available
+    - https://github.com/ve3wwg/teensy3_fibers/blob/1ba0c1e79a423f097e12e6c4176b40cf9d4f44e4/fibers.cpp
+  - *Multimethods*
 
 ** Issues
 
   - *Variadic Templates* - GCC evaluates arguments in reverse order.
     - [[http://stackoverflow.com/questions/14060264/order-of-evaluation-of-elements-in-list-initialization][Order of evaluation of elements in list-initialization]]
     - [[https://blogs.msdn.microsoft.com/vcblog/2016/02/11/compiler-improvements-in-vs-2015-update-2/][Compiler improvements in VS 2015 Update 2]]
+  - *Packr Windows Build* - Does not work.
+    - https://github.com/libgdx/packr/issues/104
 
 ** Hardware
 

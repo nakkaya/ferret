@@ -375,6 +375,7 @@ maintain.
   (defn compile [form options]
     (->> (ferret-runtime form options)
          (remove-assertions options)
+         (data-structure-conversion)
          (expand-macros-all)
          (let->fn)
          (do->fn)
@@ -762,6 +763,17 @@ the free variable problem.
                      (if-let [n (lambda-defined? fns env args body)]
                        n
                        (define-lambda fns env fn-args body)))))))
+#+end_src
+
+*** Data Structure Conversion
+
+Convert =map= reader forms to Ferret =d-list=.  Maps are zero or more
+key/value pairs enclosed in braces: {:a 1 :b 2}
+
+#+name: core-compilation-symbol-conversion
+#+begin_src clojure :tangle no
+  (defn data-structure-conversion [form]
+    (morph-form form map? (fn [x] (cons 'new-d-list (-> x seq flatten)))))
 #+end_src
 
 *** Symbol Conversion
@@ -7031,13 +7043,17 @@ Create some dummy libs under /test/modules/,
 #+begin_src clojure
   (deftest d-list-test
     (let [m (new-d-list 0 (list 0 1)
-                        1 (list 1 2))]
+                        1 (list 1 2))
+          mr {:a 1 :b 2}]
 
       (is (= (list 1 0)                    (keys m)))
       (is (= (list (list 1 2) (list 0 1))  (vals m)))
       (is (= (list 1 2)                    (m 1)))
       (is (= m                             m))
-      (is (= (list 0)                      (keys (dissoc m 1))))))
+      (is (= (list 0)                      (keys (dissoc m 1))))
+      (is (= mr                            mr))
+      (is (= (list :b :a)                  (keys mr)))
+      (is (= (list 2  1)                   (vals mr)))))
 #+end_src
 
 *** Lambda

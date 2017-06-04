@@ -3191,7 +3191,7 @@ To enable memory pooling,
 #+END_EXAMPLE
 
 This will create a pool object as a global variable that holds an
-array of *256 / sizeof(long)*. 
+array of *256 / sizeof(size_t)*. 
 
 Pool sizes can also be defined using user-defined suffixes.
 

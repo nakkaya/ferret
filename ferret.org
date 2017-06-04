@@ -1963,6 +1963,69 @@ All our types are derived from the base Object type. Which is a
 #+end_src
 
 *** Objects
+**** Boolean
+
+A boolean object,
+
+#+name: runtime-clojure-objects
+#+begin_src clojure :tangle no
+  (defobject boolean "ferret/obj/boolean_o.h")
+#+end_src
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/boolean_o.h
+  class boolean : public object_t {
+    const bool value;
+  public:
+
+    size_t type() const { return runtime::type::boolean; }
+
+    bool equals(var o) const {
+      return (value == o.cast<boolean>()->container());
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      if (value)
+        runtime::print("true");
+      else
+        runtime::print("false");
+      return nil();
+    }
+  #endif
+
+    explicit boolean(bool b) : value(b) {} 
+
+    bool container() const {
+      return value;
+    }
+  };
+
+  var::operator bool() const {
+    if (m_ptr == nullptr)
+      return false;
+    else if (m_ptr->type() == runtime::type::boolean)
+      return static_cast<boolean*>(m_ptr)->container();
+    else
+      return true;
+  }
+
+  bool var::equals (var rhs) const {
+    if ( ( is_nil() && !rhs.is_nil()) ||
+         (!is_nil() &&  rhs.is_nil()))
+      return false;
+
+    if (get() == rhs.get())
+      return true;
+    
+    if (runtime::is_seqable(*this) && runtime::is_seqable(rhs))
+      return get()->equals(rhs);
+    else if (m_ptr->type() != rhs.cast<object_t>()->type())
+      return false;
+    else
+      return get()->equals(rhs);
+  }
+#+end_src
+
 **** Pointer
 
 A /pointer/ object keeps a reference to a C++ pointer.
@@ -1972,7 +2035,7 @@ A /pointer/ object keeps a reference to a C++ pointer.
   int *ptr = pointer::to_pointer<int>(ptr);
 #+end_src
 
-#+name: runtime-clojure-pointer-object
+#+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defobject pointer "ferret/obj/pointer_o.h")
 #+end_src
@@ -2031,7 +2094,7 @@ modern C++ libraries that use smart pointers for memory management.
     "__result = obj<number>((number_t) value<data>::to_value(x).content());")
 #+end_src
 
-#+name: runtime-clojure-pointer-object
+#+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defobject value "ferret/obj/value_o.h")
 #+end_src
@@ -2139,7 +2202,7 @@ Helper functions,
 
 number Object,
 
-#+name: runtime-clojure-number-object
+#+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defobject number "ferret/obj/number_o.h")
 #+end_src
@@ -2212,7 +2275,7 @@ number Object,
 Each keyword in the program is converted to an /keyword/ object. A
 /keyword/ holds a simple hash of the keyword as an integer.
 
-#+name: runtime-clojure-keyword-object
+#+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defobject keyword "ferret/obj/keyword_o.h")
 #+end_src
@@ -2257,7 +2320,7 @@ Each keyword in the program is converted to an /keyword/ object. A
 
 Linked list container implementing the seekable interface.
 
-#+name: runtime-clojure-sequence-object
+#+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defobject empty_sequence "ferret/obj/empty_sequence_o.h")
   (defobject sequence "ferret/obj/sequence_o.h")
@@ -2382,7 +2445,7 @@ Linked list container implementing the seekable interface.
 
 A lazy list container implementing the seekable interface.
 
-#+name: runtime-clojure-sequence-object
+#+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defobject lazy_sequence "ferret/obj/lazy_sequence_o.h")
 #+end_src
@@ -2444,7 +2507,7 @@ A lazy list container implementing the seekable interface.
   };
 #+end_src
 
-#+name: runtime-clojure-sequence-object
+#+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defn new-lazy-seq [f]
     "__result = obj<lazy_sequence>(f);")
@@ -2466,7 +2529,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
   ((key1 key2 ...) val1 val2 ...)
 #+END_EXAMPLE
 
-#+name: runtime-clojure-d-list-object
+#+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defobject d-list "ferret/obj/d_list_o.h")
 
@@ -2588,7 +2651,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 
 strings are represented as a linked list of characters.
 
-#+name: runtime-clojure-string-object
+#+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defobject string "ferret/obj/string_o.h")
 #+end_src
@@ -2659,75 +2722,12 @@ strings are represented as a linked list of characters.
   #endif
 #+end_src
 
-**** Boolean
-
-A boolean object,
-
-#+name: runtime-clojure-boolean-object
-#+begin_src clojure :tangle no
-  (defobject boolean "ferret/obj/boolean_o.h")
-#+end_src
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/boolean_o.h
-  class boolean : public object_t {
-    const bool value;
-  public:
-
-    size_t type() const { return runtime::type::boolean; }
-
-    bool equals(var o) const {
-      return (value == o.cast<boolean>()->container());
-    }
-
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
-      if (value)
-        runtime::print("true");
-      else
-        runtime::print("false");
-      return nil();
-    }
-  #endif
-
-    explicit boolean(bool b) : value(b) {} 
-
-    bool container() const {
-      return value;
-    }
-  };
-
-  var::operator bool() const {
-    if (m_ptr == nullptr)
-      return false;
-    else if (m_ptr->type() == runtime::type::boolean)
-      return static_cast<boolean*>(m_ptr)->container();
-    else
-      return true;
-  }
-
-  bool var::equals (var rhs) const {
-    if ( ( is_nil() && !rhs.is_nil()) ||
-         (!is_nil() &&  rhs.is_nil()))
-      return false;
-
-    if (get() == rhs.get())
-      return true;
-    
-    if (runtime::is_seqable(*this) && runtime::is_seqable(rhs))
-      return get()->equals(rhs);
-    else if (m_ptr->type() != rhs.cast<object_t>()->type())
-      return false;
-    else
-      return get()->equals(rhs);
-  }
-#+end_src
-
 **** Atom
 
 Mimics Clojure's /atom/. It is thread safe when used on system where
 =FERRET_STD_LIB= is defined.
 
-#+name: runtime-clojure-atom-object
+#+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defobject atomic "ferret/obj/atomic_o.h")
 #+end_src
@@ -2774,7 +2774,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
 
 Operations on /atoms/
 
-#+name: runtime-clojure-atom-object
+#+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defn atom [x]
     "__result = obj<atomic>(x)")
@@ -2793,7 +2793,7 @@ invoke the body in another thread, and will cache the result and
 return it on all subsequent calls to deref/@. If the computation has
 not yet finished, calls to deref/@ will block.
 
-#+name: runtime-clojure-async-object
+#+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defobject async "ferret/obj/async_o.h")
 
@@ -2872,7 +2872,7 @@ collections and callability.
 All sequence functions (first, second, rest etc.) use this interface
 to iterate seekable containers.
 
-#+name: runtime-clojure-seekable-interface
+#+name: runtime-clojure-interfaces
 #+begin_src clojure :tangle no
   (defobject seekable_i "ferret/obj/seekable_i.h")
 #+end_src
@@ -3069,7 +3069,7 @@ executed via /invoke/ method that takes a sequence of vars as argument
 or /nil()/ if there are non, this allows us to execute them in a
 uniform fashion.
 
-#+name: runtime-clojure-lambda-interface
+#+name: runtime-clojure-interfaces
 #+begin_src clojure :tangle no
   (defobject lambda_i "ferret/obj/lambda_i.h")
 #+end_src
@@ -3132,7 +3132,7 @@ Function invocation,
 
 **** Deref
 
-#+name: runtime-clojure-deref-interface
+#+name: runtime-clojure-interfaces
 #+begin_src clojure :tangle no
   (defobject deref_i "ferret/obj/deref_i.h")
 #+end_src
@@ -3147,7 +3147,7 @@ Function invocation,
 
 Operations on =deref_i=
 
-#+name: runtime-clojure-deref-interface
+#+name: runtime-clojure-interfaces
 #+begin_src clojure :tangle no
   (defn deref [a]
     "__result = a.cast<deref_i>()->deref();")
@@ -4034,7 +4034,7 @@ In addition to *defn* form there is also a *defnative* form which
 allows you to define different function bodies for different *#define*
 directives,
 
-#+name: runtime-clojure-get-char
+#+name: runtime-clojure-core
 #+begin_src clojure
   (defnative get-char []
     (on "defined FERRET_STD_LIB"
@@ -4045,7 +4045,7 @@ This function when compiled on a system that defines =GNU_GCC= will
 return the result of *getchar* as a *number* , on ANY other system it
 will return *nil*. You can have multiple *on* blocks per *defnative*,
 
-#+name: runtime-clojure-sleep
+#+name: runtime-clojure-core
 #+begin_src clojure
   (defnative sleep [t]
     (on "defined FERRET_STD_LIB"
@@ -4081,7 +4081,7 @@ are immutable you can freely call Ferret code from C++,
 Once our object system is in place we can define rest of the runtime
 (functions/macros) using our Clojure subset,
 
-#+name: runtime-clojure-first
+#+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn first [x]
     "__result = runtime::first(x);")
@@ -4096,7 +4096,7 @@ We can embed C++ code into our functions, which is how most of the
 primitive functions are defined such as the /first/ function above,
 once primitives are in place rest can be defined in pure Clojure,
 
-#+name: runtime-clojure-println
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn println [& more]
     (when more
@@ -4110,7 +4110,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 /clojure.core/fn/,
 
 
-#+name: runtime-clojure-defn
+#+name: runtime-clojure-fn-macros
 #+begin_src clojure :tangle no
   (defmacro defn [name & body]
     `(~'def ~name (~'fn ~@body)))
@@ -4140,7 +4140,7 @@ A multi arity function is a function that counts the number of its
 arguments and then dispatches on the number of arguments to each
 implementation.
 
-#+name: runtime-clojure-fn-macro
+#+name: runtime-clojure-fn-macros
 #+begin_src clojure :tangle no
   (defmacro fn [& body]
     (if (vector? (first body))
@@ -4161,7 +4161,7 @@ implementation.
 
 A simple macro for calling inline C++,
 
-#+name: runtime-clojure-fn-macro
+#+name: runtime-clojure-fn-macros
 #+begin_src clojure :tangle no
   (defmacro cxx [str]
     `((~'fn [] ~str)))
@@ -4170,7 +4170,7 @@ A simple macro for calling inline C++,
 ** I/O
 *** print
 
-#+name: runtime-clojure-console-io
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative print [& more]
     (on "!defined(FERRET_DISABLE_STD_OUT)"
@@ -4187,7 +4187,7 @@ A simple macro for calling inline C++,
 
 *** newline
 
-#+name: runtime-clojure-console-io
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative newline [& more]
     (on "!defined(FERRET_DISABLE_STD_OUT)"
@@ -4195,22 +4195,10 @@ A simple macro for calling inline C++,
 #+end_src
 
 *** println
-
-#+name: runtime-clojure-console-io
-#+begin_src clojure :tangle no
-  <<runtime-clojure-println>>
-#+end_src
-
 *** get-char
-
-#+name: runtime-clojure-console-io
-#+begin_src clojure :tangle no :noweb yes
-  <<runtime-clojure-get-char>>
-#+end_src
-
 *** sh
 
-#+name: runtime-clojure-console-io
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative sh [cmd]
     (on "defined FERRET_STD_LIB"
@@ -4228,7 +4216,7 @@ A simple macro for calling inline C++,
 
 *** system-exit
 
-#+name: runtime-clojure-console-io
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn system-exit [code]
     "::std::exit(number::to<number_t>(code));")
@@ -4236,7 +4224,7 @@ A simple macro for calling inline C++,
 
 *** system-abort
 
-#+name: runtime-clojure-console-io
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn system-abort [code]
     "::std::abort();")
@@ -4244,7 +4232,7 @@ A simple macro for calling inline C++,
 
 *** xor-stream-encoder/decoder
 
-#+name: runtime-clojure-console-io
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn xor-stream-encoder [write]
     (fn [seq]
@@ -4258,7 +4246,7 @@ A simple macro for calling inline C++,
         (write checksum))))
 #+end_src
 
-#+name: runtime-clojure-console-io
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn xor-stream-header-ready [read in-waiting]
     (and (>= (in-waiting) 3) (= (read) 0X06) (= (read) 0X85)))
@@ -4291,7 +4279,7 @@ A simple macro for calling inline C++,
 ** Looping
 *** doseq
 
-#+name: runtime-clojure-looping
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defmacro doseq [binding & body]
     `(~'_doseq_ ~(second binding)
@@ -4302,7 +4290,7 @@ A simple macro for calling inline C++,
 
 *** dotimes
 
-#+name: runtime-clojure-looping
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defmacro dotimes [binding & body]
     `(~'_dotimes_ ~(second binding)
@@ -4314,7 +4302,7 @@ A simple macro for calling inline C++,
 ** Conditionals
 *** when
 
-#+name: runtime-clojure-conditionals
+#+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
   (defmacro when [test & body]
     `(~'if ~test (~'do ~@body)))
@@ -4322,7 +4310,7 @@ A simple macro for calling inline C++,
 
 *** cond
 
-#+name: runtime-clojure-conditionals
+#+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
   (defmacro cond [& clauses]
     (when clauses
@@ -4336,7 +4324,7 @@ A simple macro for calling inline C++,
 
 *** while
 
-#+name: runtime-clojure-conditionals
+#+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
   (defn _while_ [pred fn]
     "while(run(pred))
@@ -4348,7 +4336,7 @@ A simple macro for calling inline C++,
 
 *** forever
 
-#+name: runtime-clojure-conditionals
+#+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
   (defmacro forever [& body]
     `(~'while true ~@body))
@@ -4356,7 +4344,7 @@ A simple macro for calling inline C++,
 
 *** if-let
 
-#+name: runtime-clojure-conditionals
+#+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
   (defmacro if-let
     ([bindings then]
@@ -4374,7 +4362,7 @@ A simple macro for calling inline C++,
 
 When test is true, evaluates body with binding-form bound to the value of test.
 
-#+name: runtime-clojure-conditionals
+#+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
   (defmacro when-let
     [bindings & body]
@@ -4523,7 +4511,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 ** Sequence
 *** map
 
-#+name: runtime-clojure-sequence-lazy
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn map [f col]
     (if (not (empty? col))
@@ -4533,7 +4521,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 *** range
 
-#+name: runtime-clojure-sequence-lazy
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn range
     ([high]
@@ -4546,7 +4534,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 *** take
 
-#+name: runtime-clojure-sequence-lazy
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn take [n coll]
     (if (not (empty? coll))
@@ -4557,7 +4545,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 *** take-while
 
-#+name: runtime-clojure-sequence-lazy
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn take-while [pred s]
     (if (and (not (empty? s))
@@ -4567,7 +4555,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 *** drop
 
-#+name: runtime-clojure-sequence-lazy
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn drop [n coll]
     (if (and (pos? n)
@@ -4578,7 +4566,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 *** concat
 
-#+name: runtime-clojure-sequence-lazy
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn concat
     ([]
@@ -4699,20 +4687,9 @@ Returns the nth rest of coll, coll when n is 0.
     (reduce (fn[h v] (cons v h)) (list) s))
 #+end_src
 
-*** count
-
-#+name: runtime-clojure-sequence-count
-#+begin_src clojure :tangle no
-  (defn count [s]
-    (if (or (nil? s)
-            (empty? s))
-      0
-      (reduce inc 0 s)))
-#+end_src
-
 *** filter
 
-#+name: runtime-clojure-sequence-lazy
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn filter [pred coll]
     (if (not (empty? coll))
@@ -4725,7 +4702,7 @@ Returns the nth rest of coll, coll when n is 0.
 
 *** repeatedly
 
-#+name: runtime-clojure-sequence-lazy
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn repeatedly
     ([f] (cons (f) (lazy-seq (repeatedly f))))
@@ -4734,7 +4711,7 @@ Returns the nth rest of coll, coll when n is 0.
 
 *** partition
 
-#+name: runtime-clojure-sequence-lazy
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn partition
     ([n coll]
@@ -4851,7 +4828,11 @@ Returns the nth rest of coll, coll when n is 0.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  <<runtime-clojure-sequence-count>>
+  (defn count [s]
+    (if (or (nil? s)
+            (empty? s))
+      0
+      (reduce inc 0 s)))
 #+end_src
 
 *** min / max
@@ -5098,7 +5079,7 @@ angle measured in radians.
 
 Runs the given lambda in a thread,
 
-#+name: runtime-clojure-concurrency
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative thread [f]
     (on "defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)"
@@ -5110,7 +5091,7 @@ Runs the given lambda in a thread,
 Executes exprs in an implicit do, while holding a std::mutex. Will
 release the mutex in all circumstances.
 
-#+name: runtime-clojure-concurrency
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defmacro synchronized [& body]
     `(~'_synchronized_ (~'fn [] ~@body)))
@@ -5126,7 +5107,7 @@ release the mutex in all circumstances.
 
 Return current time in milliseconds,
 
-#+name: runtime-clojure-misc
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative millis []
     (on "defined FERRET_STD_LIB"
@@ -5142,7 +5123,7 @@ Return current time in milliseconds,
 
 Return current time in microseconds,
 
-#+name: runtime-clojure-misc
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative micros []
     (on "defined FERRET_STD_LIB"
@@ -5158,16 +5139,11 @@ Return current time in microseconds,
 
 Sleep current thread for *t* milliseconds,
 
-#+name: runtime-clojure-misc
-#+begin_src clojure :tangle no :noweb yes
-  <<runtime-clojure-sleep>>
-#+end_src
-
 *** sleep-micros
 
 Sleep current thread for *t* microseconds,
 
-#+name: runtime-clojure-misc
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no :noweb yes
   (defnative sleep-micros [t]
     (on "defined FERRET_STD_LIB"
@@ -5181,7 +5157,7 @@ Sleep current thread for *t* microseconds,
 
 Port of Teensy elapsedMicros API,
 
-#+name: runtime-clojure-misc
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no :noweb yes
   (defobject elapsed_micros "ferret/obj/elapsed_micros_o.h")
 
@@ -5249,7 +5225,7 @@ Port of Teensy elapsedMicros API,
 Takes a function *f* and returns the number of milliseconds it takes
 to run,
 
-#+name: runtime-clojure-misc
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn time-fn [f]
     (let [start (millis)]
@@ -5262,7 +5238,7 @@ to run,
 Runs the function *f* *n* times and return the average time it takes
 function *f* to run in milliseconds,
 
-#+name: runtime-clojure-misc
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn benchmark [f n]
     (let [values (map (fn [_] (time-fn f)) (range n))]
@@ -5286,7 +5262,7 @@ function *f* to run in milliseconds,
    (throttled-ping))
 #+END_EXAMPLE
 
-#+name: runtime-clojure-misc
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn fn-throttler-aux-blocking [timer f rate]
     (fn [& args]
@@ -5318,7 +5294,7 @@ function *f* to run in milliseconds,
 Returns a random floating point number between 0 (inclusive) and n
 (default 1) (exclusive).
 
-#+name: runtime-clojure-misc
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative rand-aux []
     (on "defined FERRET_STD_LIB"
@@ -5339,7 +5315,7 @@ Returns a random floating point number between 0 (inclusive) and n
 
 Returns a random integer between 0 (inclusive) and n (exclusive).
 
-#+name: runtime-clojure-misc
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn rand-int
     [x]
@@ -5348,7 +5324,7 @@ Returns a random integer between 0 (inclusive) and n (exclusive).
 
 *** identity
 
-#+name: runtime-clojure-misc
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn identity [x] x)
 #+end_src
@@ -5360,7 +5336,7 @@ second item in the first form, making a list of it if it is not a
 list already. If there are more forms, inserts the first form as the
 second item in second form, etc.
 
-#+name: runtime-clojure-thread-macro
+#+name: runtime-clojure-threading-macros
 #+begin_src clojure :tangle no
   (defmacro -> [x & forms]
     (loop [x x, forms forms]
@@ -5380,7 +5356,7 @@ last item in the first form, making a list of it if it is not a
 list already. If there are more forms, inserts the first form as the
 last item in second form, etc.
 
-#+name: runtime-clojure-thread-macro
+#+name: runtime-clojure-threading-macros
 #+begin_src clojure :tangle no
   (defmacro ->> [x & forms]
     (loop [x x, forms forms]
@@ -5399,7 +5375,7 @@ Evaluates x then calls all of the methods and functions with the
 value of x supplied at the front of the given arguments.  The forms
 are evaluated in order.  Returns x.
 
-#+name: runtime-clojure-misc
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defmacro doto
     [x & forms]
@@ -5439,7 +5415,7 @@ DSL,
 Each transition takes a list of /fn/ /state/ pairs first function that
 returns true, returns the next state.
 
-#+name: runtime-clojure-state-machine
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defmacro state-machine [[_ & states] [_ & transitions]]
     (let [states (reduce (fn [h v]
@@ -5514,7 +5490,7 @@ Ported from,
    */
 #+end_src
 
-#+name: runtime-clojure-pid-controller
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defobject pid_controller "ferret/obj/pid_controller_o.h")
 #+end_src
@@ -5633,7 +5609,7 @@ Ported from,
   };
 #+end_src
 
-#+name: runtime-clojure-pid-controller
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn pid-controller-create [kp ki kd in-min in-max out-min out-max continuous]
     "__result = obj<pid_controller<real_t>>(kp, ki, kd, 
@@ -5679,7 +5655,7 @@ approximate a K sample moving average. This filter approximates a
 moving average of the last K samples by setting the value of alpha to
 1/K.
 
-#+name: runtime-clojure-filter
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn moving-average-filter [alpha average data]
     (+ (* alpha data)
@@ -5695,7 +5671,7 @@ moving average of the last K samples by setting the value of alpha to
 Configures the specified pin to behave either as an input or an
 output.
 
-#+name: runtime-clojure-gpio
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defmacro pin-mode [pin mode]
     (let [pin (if (number? pin)
@@ -5709,7 +5685,7 @@ output.
 
 Write a HIGH or a LOW value to a digital pin.
 
-#+name: runtime-clojure-gpio
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative digital-write [pin val]
     (on "defined FERRET_HARDWARE_ARDUINO"
@@ -5720,7 +5696,7 @@ Write a HIGH or a LOW value to a digital pin.
 
 Reads the value from a specified digital pin, either HIGH or LOW.
 
-#+name: runtime-clojure-gpio
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative digital-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
@@ -5731,7 +5707,7 @@ Reads the value from a specified digital pin, either HIGH or LOW.
 
 Writes an analog value (PWM wave) to a pin.
 
-#+name: runtime-clojure-gpio
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative analog-write [pin val]
     (on "defined FERRET_HARDWARE_ARDUINO"
@@ -5742,7 +5718,7 @@ Writes an analog value (PWM wave) to a pin.
 
 Reads the value from the specified analog pin.
 
-#+name: runtime-clojure-gpio
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative analog-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
@@ -5753,7 +5729,7 @@ Reads the value from the specified analog pin.
 
 Sets the resolution of the *analog-write*
 
-#+name: runtime-clojure-gpio
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative analog-write-resolution [bit]
     (on "defined FERRET_HARDWARE_ARDUINO"
@@ -5764,7 +5740,7 @@ Sets the resolution of the *analog-write*
 
 Sets the size (in bits) of the value returned by *analog-read*.
 
-#+name: runtime-clojure-gpio
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative analog-read-resolution [bit]
     (on "defined FERRET_HARDWARE_ARDUINO"
@@ -5776,14 +5752,14 @@ Sets the size (in bits) of the value returned by *analog-read*.
 Generates a square wave of the specified frequency (and 50% duty
 cycle) on a pin.
 
-#+name: runtime-clojure-gpio
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative tone [pin freq]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "::tone(number::to<number_t>(pin), number::to<number_t>(freq));"))
 #+end_src
 
-#+name: runtime-clojure-gpio
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative no-tone [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
@@ -5811,7 +5787,7 @@ Registers an interrupt function for the given pin and mode. See
    (sleep 100))
 #+end_src
 
-#+name: runtime-clojure-gpio
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defmacro attach-interrupt [callback pin mode]
     (let [pin (if (number? pin)
@@ -5831,7 +5807,7 @@ Registers an interrupt function for the given pin and mode. See
 
 Executes critical section with interrupts disabled.
 
-#+name: runtime-clojure-gpio
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defmacro no-interrupt [& body]
     `(~'no-interrupt-aux  (~'fn [] ~@body)))
@@ -5850,7 +5826,7 @@ Turns off the given interrupt.
   (detach-interrupt input-pin)
 #+END_EXAMPLE
 
-#+name: runtime-clojure-gpio
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defmacro detach-interrupt [pin]
     (let [pin (if (number? pin)
@@ -5865,7 +5841,7 @@ Turns off the given interrupt.
 
 Evaluates expr and aborts if it does not evaluate to logical true.
 
-#+name: runtime-clojure-testing
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn assert-aux [f msg]
     (when (not (f))
@@ -5887,7 +5863,7 @@ Evaluates expr and aborts if it does not evaluate to logical true.
 Support for Clojure style unit testing. See [[Unit Testing]] for more
 information.
 
-#+name: runtime-clojure-testing
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn is-aux-expect [ex-fb form-fn form-str]
     (let [expect (ex-fb)
@@ -5926,7 +5902,7 @@ information.
 Allows a function to be defined for multiple platforms see [[Accessing C,C++ Libraries]] for
 examples.
 
-#+name: runtime-clojure-defn
+#+name: runtime-clojure-fn-macros
 #+begin_src clojure :tangle no
   (defmacro defnative [name args & form]
     (let [includes (->> (filter #(seq? (nth % 2)) form)
@@ -5953,7 +5929,7 @@ examples.
 
 *** pr-object-sizes
 
-#+name: runtime-clojure-misc
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn pr-object-sizes []
     (println "Object Sizes")
@@ -5976,7 +5952,7 @@ examples.
 
 *** memory-pool-free-space
 
-#+name: runtime-clojure-misc
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative memory-pool-free-space []
     (on "defined FERRET_MEMORY_POOL_SIZE"
@@ -5991,7 +5967,7 @@ examples.
 
 Wraps mlockall - locks the address space of process.
 
-#+name: runtime-clojure-misc
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative lock-memory []
     (on "defined FERRET_STD_LIB"
@@ -6004,7 +5980,7 @@ Wraps mlockall - locks the address space of process.
 
 Configure Ferret Runtime options. See table in [[Configuration]] section.
 
-#+name: runtime-clojure-defn
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defmacro configure-runtime! [& body]
     `(~'native-define ~(->> (partition 2 body)
@@ -6016,7 +5992,7 @@ Configure Ferret Runtime options. See table in [[Configuration]] section.
 
 Embed compilations options.
 
-#+name: runtime-clojure-defn
+#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defmacro configure-ferret! [& body]
     `(~'native-define ~(str "// build-conf-begin\n"
@@ -7547,38 +7523,15 @@ Create some dummy libs under /test/modules/,
 *** ferret/runtime.clj
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/src/ferret/runtime.clj
-  <<runtime-clojure-thread-macro>>
-  <<runtime-clojure-fn-macro>>
-  <<runtime-clojure-boolean-object>>
-  <<runtime-clojure-pointer-object>>
-  <<runtime-clojure-number-object>>
-  <<runtime-clojure-seekable-interface>>
-  <<runtime-clojure-lambda-interface>>
-  <<runtime-clojure-deref-interface>>
-  <<runtime-clojure-keyword-object>>
-  <<runtime-clojure-sequence-object>>
-  <<runtime-clojure-d-list-object>>
-  <<runtime-clojure-heavy-pointer-object>>
-  <<runtime-clojure-string-object>>
-  <<runtime-clojure-atom-object>>
-  <<runtime-clojure-async-object>>
-  <<runtime-clojure-defn>>
-  <<runtime-clojure-looping>>
-  <<runtime-clojure-first>>
+  <<runtime-clojure-threading-macros>>
+  <<runtime-clojure-fn-macros>>
+  <<runtime-clojure-interfaces>>
+  <<runtime-clojure-objects>>
   <<runtime-clojure-sequence>>
   <<runtime-clojure-logical-operators>>
-  <<runtime-clojure-conditionals>>
+  <<runtime-clojure-conditional-operators>>
   <<runtime-clojure-math>>
-  <<runtime-clojure-sequence-lazy>>
-  <<runtime-clojure-concurrency>>
-  <<runtime-clojure-bit-operations>>
-  <<runtime-clojure-console-io>>
-  <<runtime-clojure-misc>>
-  <<runtime-clojure-state-machine>>
-  <<runtime-clojure-pid-controller>>
-  <<runtime-clojure-filter>>
-  <<runtime-clojure-gpio>>
-  <<runtime-clojure-testing>>
+  <<runtime-clojure-core>>
 #+end_src
 
 *** ferret/runtime.h

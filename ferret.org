@@ -1581,7 +1581,6 @@ Initialize function arguments. Clojure style list structuring is supported.
 
           // Runtime Implementations
           namespace ferret{
-           <<runtime-native-math-misc>>
            <<runtime-native-implementations>>
           }
 
@@ -2127,23 +2126,12 @@ Helper functions,
     #undef abs
 
     template<typename T>
-    T min(T a, T b);
-
-    template<typename T>
-    T abs(T a);
-  }
-#+end_src
-
-#+name: runtime-native-math-misc
-#+begin_src c++ :tangle no
-  namespace runtime{
-    template<typename T>
-    T min(T a, T b){
+    constexpr T min(T a, T b){
       return ((a)<(b)?(a):(b));
     }
 
     template<typename T>
-    T abs(T a){
+    constexpr T abs(T a){
       return ((a)<0 ? -(a) : (a));
     }
   }

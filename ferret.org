@@ -3318,7 +3318,7 @@ counting policies.
         explicit atomic_rc(size_t start) : ref_count(start) { }
         explicit atomic_rc(const atomic_rc& other){ ref_count.exchange(other.ref_count); }
       
-        inline void inc_ref() { ref_count++; }
+        inline void inc_ref() { ++ref_count; }
         inline bool dec_ref() { return (--ref_count == 0); }
 
         atomic_rc &operator=(const atomic_rc &other) {

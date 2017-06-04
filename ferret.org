@@ -7296,6 +7296,12 @@ Create some dummy libs under /test/modules/,
     - https://github.com/ve3wwg/teensy3_fibers/blob/1ba0c1e79a423f097e12e6c4176b40cf9d4f44e4/fibers.cpp
   - *Multimethods*
 
+** Libraries
+
+  - [[https://github.com/whoshuu/cpr][cpr]] - C++ Requests: Curl for People
+  - [[https://github.com/cesanta/mongoose/blob/master/examples/mqtt_client/mqtt_client.c][mongoose mqtt]] - Mongoose MQTT Client/Server
+  - [[https://github.com/roboterclubaachen/xpcc][xpcc]] - C++ microcontroller framework
+
 ** Issues
 
   - *Variadic Templates* - GCC evaluates arguments in reverse order.

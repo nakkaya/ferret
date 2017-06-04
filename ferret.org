@@ -1960,6 +1960,108 @@ All our types are derived from the base Object type. Which is a
   typedef object::base<FERRET_RC_POLICY,FERRET_ALLOC_POLICY> object_t;
 #+end_src
 
+A /var/ holds a pointer to an object_t, everything is passed around as
+/vars/ it is responsible for incrementing/decrementing the reference
+count, when it reaches zero it will automatically free the object_t.
+
+#+name: runtime-native-object
+#+begin_src c++ :tangle no
+  class boolean;
+
+  class var{
+  public:
+    explicit var(object_t* ptr = nullptr) : m_ptr(ptr) { inc_ref(); }
+
+    var(const var& p) : m_ptr(p.m_ptr) { inc_ref(); }
+      
+    ~var() { dec_ref(); }
+    
+    var& operator= (const var& p){ return *this = p.m_ptr; }
+    
+    var& operator= (object_t* ptr){
+      if (m_ptr != ptr){
+        dec_ref();
+        m_ptr=ptr;
+        inc_ref();
+      }
+      return *this;
+    }
+
+    bool equals (var rhs) const;
+
+    bool operator==(const var& other) const { return equals(other); }
+
+    bool operator!=(const var& other) const { return !equals(other); }
+    
+    operator bool() const;
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      if (m_ptr != nullptr )
+        m_ptr->stream_console();
+      else
+        runtime::print("nil");
+      return var();
+    }
+  #endif
+        
+    inline object_t* get() const { return m_ptr; }
+    
+    template<typename T>
+    inline T* cast() const { return static_cast<T*>(m_ptr); }
+
+    inline bool is_type(size_t type) const { 
+      return (static_cast<object_t*>(m_ptr)->type() == type);
+    }
+
+    inline bool is_nil() const { return (m_ptr == nullptr); }
+
+  private:
+    inline void inc_ref(){
+  #if !defined(FERRET_DISABLE_RC)
+      // Only change if non-null
+      if (m_ptr) m_ptr->inc_ref();
+  #endif
+    }
+      
+    inline void dec_ref(){
+  #if !defined(FERRET_DISABLE_RC)
+      // Only change if non-null
+      if (m_ptr){
+        // Subtract and test if this was the last pointer.
+        if (m_ptr->dec_ref()){
+          delete m_ptr;
+          m_ptr = nullptr;
+        }
+      }
+  #endif
+    }
+      
+    object_t* m_ptr;
+  };
+#+end_src
+
+All object allocations are done using *obj* function. It will return a
+new *var* containing a pointer to an [[Object System][Object]]. *nil* is represented as a
+*var* pointing to *nullptr*.
+
+#+BEGIN_EXAMPLE
+  var two = obj<number>(2);
+  var some_nil = nil();
+#+END_EXAMPLE
+
+#+name: runtime-native-object
+#+begin_src c++ :tangle no
+  template<typename FT, typename... Args>
+  inline var obj(Args... args) {
+    return var(new FT(args...));
+  }
+
+  inline var nil(){
+    return var();
+  }
+#+end_src
+
 *** Objects
 **** Boolean
 
@@ -3224,194 +3326,6 @@ Enable and configure GC
   (configure-ferret! :command "g++ -std=c++11 core.cpp -lgc")
 #+end_src
 
-*** Object Allocation
-
-All object allocations are done using *obj* function. It will return a
-new *var* containing a pointer to an [[Object System][Object]]. *nil* is represented as a
-*var* pointing to *nullptr*.
-
-#+BEGIN_EXAMPLE
-  var two = obj<number>(2);
-  var some_nil = nil();
-#+END_EXAMPLE
-
-#+name: runtime-native-object-allocation
-#+begin_src c++ :tangle no
-  template<typename FT, typename... Args>
-  inline var obj(Args... args) {
-    return var(new FT(args...));
-  }
-
-  inline var nil(){
-    return var();
-  }
-#+end_src
-
-*** Reference Counting
-
-Garbage collection is handled by reference counting. Reference count
-is kept within the [[Base][obj::base]] using one of the following reference
-counting policies.
-
- - *atomic_rc* - Atomic reference counting. (using =std::atomic=)
- - *rc* - Non Atomic reference counting. (using =size_t=)
- - *no_rc* - No reference counting.
-
-#+name: runtime-native-reference-counting
-#+begin_src c++ :tangle no
-  #if !defined(FERRET_RC_POLICY)
-  namespace mem {
-    namespace gc {
-  #if defined(FERRET_DISABLE_RC)
-
-  #define FERRET_RC_POLICY mem::gc::no_rc
-      
-      class no_rc{
-      public:
-        explicit no_rc(size_t) { }
-        explicit no_rc(const no_rc& ){ }
-      
-        inline void inc_ref() { }
-        inline bool dec_ref() { return false; }
-
-        no_rc &operator=(const no_rc &) { return *this; }
-      };
-  #endif
-
-  #if defined(FERRET_DISABLE_MULTI_THREADING) || !defined(FERRET_STD_LIB)
-
-  #define FERRET_RC_POLICY mem::gc::rc
-      
-      class rc{
-      public:
-        explicit rc(size_t start) : ref_count(start) { }
-        explicit rc(const rc& other){ ref_count = other.ref_count; }
-      
-        inline void inc_ref() { ref_count++; }
-        inline bool dec_ref() { return (--ref_count == 0); }
-
-        rc &operator=(const rc &other) { ref_count = other.ref_count; return *this; }
-      
-      private:
-        size_t ref_count;
-      };
-  #endif
-      
-  #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)
-
-  #define FERRET_RC_POLICY mem::gc::atomic_rc
-      
-      class atomic_rc{
-      public:
-        explicit atomic_rc(size_t start) : ref_count(start) { }
-        explicit atomic_rc(const atomic_rc& other){ ref_count.exchange(other.ref_count); }
-      
-        inline void inc_ref() { ++ref_count; }
-        inline bool dec_ref() { return (--ref_count == 0); }
-
-        atomic_rc &operator=(const atomic_rc &other) {
-          ref_count.exchange(other.ref_count);
-          return *this;
-        }
-        
-      private:
-        ::std::atomic<size_t> ref_count;
-      };
-  #endif
-    }
-  }
-  #endif
-#+end_src 
-
-A /var/ holds a pointer to an object_t, everything is passed around as
-/vars/ it is responsible for incrementing/decrementing the reference
-count, when it reaches zero it will automatically free the object_t.
-
-#+name: runtime-native-var
-#+begin_src c++ :tangle no
-  class boolean;
-
-  class var{
-  public:
-    explicit var(object_t* ptr = nullptr) : m_ptr(ptr) { inc_ref(); }
-
-    var(const var& p) : m_ptr(p.m_ptr) { inc_ref(); }
-      
-    ~var() { dec_ref(); }
-    
-    var& operator= (const var& p){
-      return *this = p.m_ptr;
-    }
-    
-    var& operator= (object_t* ptr){
-      if (m_ptr != ptr){
-        dec_ref();
-        m_ptr=ptr;
-        inc_ref();
-      }
-      return *this;
-    }
-
-    bool equals (var rhs) const;
-
-    bool operator==(const var& other) const {
-      return equals(other);
-    }
-
-    bool operator!=(const var& other) const {
-      return !equals(other);
-    }
-    
-    operator bool() const;
-
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
-      if (m_ptr != nullptr )
-        m_ptr->stream_console();
-      else
-        runtime::print("nil");
-      return var();
-    }
-  #endif
-        
-    inline object_t* get() const { return m_ptr; }
-    
-    template<typename T>
-    inline T* cast() const { return static_cast<T*>(m_ptr); }
-
-    inline bool is_type(size_t type) const { 
-      return (static_cast<object_t*>(m_ptr)->type() == type);
-    }
-
-    inline bool is_nil() const { 
-      return (m_ptr == nullptr);
-    }
-
-  private:
-    inline void inc_ref(){
-  #if !defined(FERRET_DISABLE_RC)
-      // Only change if non-null
-      if (m_ptr) m_ptr->inc_ref();
-  #endif
-    }
-      
-    inline void dec_ref(){
-  #if !defined(FERRET_DISABLE_RC)
-      // Only change if non-null
-      if (m_ptr){
-        // Subtract and test if this was the last pointer.
-        if (m_ptr->dec_ref()){
-          delete m_ptr;
-          m_ptr = nullptr;
-        }
-      }
-  #endif
-    }
-      
-    object_t* m_ptr;
-  };
-#+end_src
-
 *** Memory Allocation
 
 Ferret supports various memory allocation schemes,
@@ -3431,7 +3345,7 @@ Ferret supports various memory allocation schemes,
 [[Object]]s are allocated from system implementation. (Default memory
 allocator used.)
 
-#+name: runtime-native-memory-system-allocator
+#+name: runtime-native-allocators
 #+begin_src c++ :tangle no
   #if !defined(FERRET_ALLOC_POLICY)
 
@@ -3476,7 +3390,7 @@ size for the block which will be represented by a single bit. This
 will be the size of the parameter around which the allocator has been
 parameterized. Thus, close to optimal performance will result.
 
-#+name: runtime-native-memory-pool-allocator
+#+name: runtime-native-allocator-pool
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_POOL_SIZE
 
@@ -3523,7 +3437,7 @@ Memory pool has several advantages, it will avoid fragmentation,
 function related to each other will always keep their data close
 to each other in the array which improves data locality.
 
-#+name: runtime-native-memory-pool-allocator-implementation
+#+name: runtime-native-allocator-pool-implementation
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_POOL_SIZE
   namespace mem{
@@ -3638,7 +3552,7 @@ Code must be linked against the GC library. On most UNIX platforms,
 depending on how the collector is built, this will be gc.a or
 libgc.{a,so}.
 
-#+name: runtime-native-gc-allocator
+#+name: runtime-native-allocators
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_BOEHM_GC
 
@@ -3664,6 +3578,82 @@ libgc.{a,so}.
         inline void* operator new(size_t size){ return allocate(size); }
         inline void  operator delete(void * ptr){ free(ptr); }
       };
+    }
+  }
+  #endif
+#+end_src 
+
+*** Reference Counting
+
+Garbage collection is handled by reference counting. Reference count
+is kept within the [[Base][obj::base]] using one of the following reference
+counting policies.
+
+ - *atomic_rc* - Atomic reference counting. (using =std::atomic=)
+ - *rc* - Non Atomic reference counting. (using =size_t=)
+ - *no_rc* - No reference counting.
+
+#+name: runtime-native-reference-counting
+#+begin_src c++ :tangle no
+  #if !defined(FERRET_RC_POLICY)
+  namespace mem {
+    namespace gc {
+  #if defined(FERRET_DISABLE_RC)
+
+  #define FERRET_RC_POLICY mem::gc::no_rc
+      
+      class no_rc{
+      public:
+        explicit no_rc(size_t) { }
+        explicit no_rc(const no_rc& ){ }
+      
+        inline void inc_ref() { }
+        inline bool dec_ref() { return false; }
+
+        no_rc &operator=(const no_rc &) { return *this; }
+      };
+  #endif
+
+  #if defined(FERRET_DISABLE_MULTI_THREADING) || !defined(FERRET_STD_LIB)
+
+  #define FERRET_RC_POLICY mem::gc::rc
+      
+      class rc{
+      public:
+        explicit rc(size_t start) : ref_count(start) { }
+        explicit rc(const rc& other){ ref_count = other.ref_count; }
+      
+        inline void inc_ref() { ref_count++; }
+        inline bool dec_ref() { return (--ref_count == 0); }
+
+        rc &operator=(const rc &other) { ref_count = other.ref_count; return *this; }
+      
+      private:
+        size_t ref_count;
+      };
+  #endif
+      
+  #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)
+
+  #define FERRET_RC_POLICY mem::gc::atomic_rc
+      
+      class atomic_rc{
+      public:
+        explicit atomic_rc(size_t start) : ref_count(start) { }
+        explicit atomic_rc(const atomic_rc& other){ ref_count.exchange(other.ref_count); }
+      
+        inline void inc_ref() { ++ref_count; }
+        inline bool dec_ref() { return (--ref_count == 0); }
+
+        atomic_rc &operator=(const atomic_rc &other) {
+          ref_count.exchange(other.ref_count);
+          return *this;
+        }
+        
+      private:
+        ::std::atomic<size_t> ref_count;
+      };
+  #endif
     }
   }
   #endif
@@ -3715,7 +3705,7 @@ Check for supported hardware or platform. If running on a known
 hardware or platform break out of *Safe Mode* and set a flag
 indicating platform.
 
-#+name: runtime-native-hardware-detect
+#+name: runtime-native-hardware-setup
 #+begin_src c++ :tangle no
   # define FERRET_CONFIG_SAFE_MODE TRUE
 
@@ -3758,7 +3748,7 @@ indicating platform.
 
 *** Import libraries
 
-#+name: runtime-native-hardware-includes
+#+name: runtime-native-hardware-setup
 #+begin_src c++ :tangle no
   #ifdef FERRET_STD_LIB
    #include <iostream>
@@ -3933,7 +3923,7 @@ procedure.
 Locking macros. They are disabled when running single threaded or on
 an embedded platform. (=FERRET_STD_LIB= not defined.)
 
-#+name: runtime-native-locking-macros
+#+name: runtime-native-hardware-setup
 #+begin_src c++ :tangle no
   #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)
    #define FERRET_NEW_LOCK(symbol) ::std::mutex symbol;
@@ -7528,11 +7518,7 @@ Create some dummy libs under /test/modules/,
   }
 
   // Detect Hardware
-  namespace ferret{
-    <<runtime-native-hardware-detect>>
-  }
-
-  <<runtime-native-hardware-includes>>
+  <<runtime-native-hardware-setup>>
 
   // Number Configuration
   <<runtime-native-number-config-macros>>
@@ -7540,25 +7526,16 @@ Create some dummy libs under /test/modules/,
   // Initialize Hardware
   namespace ferret{
     <<runtime-native-hardware-initialize>>
-    <<runtime-native-program-header>>
-  }
-
-  // Locking Macros
-  namespace ferret{
-    <<runtime-native-locking-macros>>
   }
 
   // Object System Base
   namespace ferret{
     class var;
-    <<runtime-native-memory-pool-allocator-implementation>>
-    <<runtime-native-memory-pool-allocator>>
-    <<runtime-native-gc-allocator>>
-    <<runtime-native-memory-system-allocator>>
+    <<runtime-native-allocator-pool-implementation>>
+    <<runtime-native-allocator-pool>>
+    <<runtime-native-allocators>>
     <<runtime-native-reference-counting>>
     <<runtime-native-object>>
-    <<runtime-native-var>>
-    <<runtime-native-object-allocation>>
   }
 #+end_src 
 

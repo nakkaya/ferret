@@ -2741,20 +2741,20 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
 
 #+name: runtime-clojure-atom-object
 #+begin_src clojure :tangle no
-  (defobject atomic_reference "ferret/obj/atom_o.h")
+  (defobject atomic "ferret/obj/atomic_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/atom_o.h
-  class atomic_reference : public deref_i {
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/atomic_o.h
+  class atomic : public deref_i {
     var data;
     FERRET_NEW_LOCK(lock)
     public:
 
 
-    size_t type() const { return runtime::type::atomic_reference; }
+    size_t type() const { return runtime::type::atomic; }
 
     bool equals(var o) const {
-      return (this == o.cast<atomic_reference>());
+      return (this == o.cast<atomic>());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -2766,7 +2766,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
     }
   #endif
 
-    explicit atomic_reference(var d) : data(d) {} 
+    explicit atomic(var d) : data(d) {} 
 
     var swap(var f,var args){
       FERRET_WITH_LOCK(lock,{
@@ -2789,10 +2789,10 @@ Operations on /atoms/
 #+name: runtime-clojure-atom-object
 #+begin_src clojure :tangle no
   (defn atom [x]
-    "__result = obj<atomic_reference>(x)")
+    "__result = obj<atomic>(x)")
 
   (defn swap! [a f & args]
-    "__result = a.cast<atomic_reference>()->swap(f,args);")
+    "__result = a.cast<atomic>()->swap(f,args);")
 
   (defn reset! [a newval]
     (swap! a (fn [old curr] curr) newval))
@@ -2881,8 +2881,8 @@ collections and callability.
 
 **** Seekable
 
-All sequence functions use this interface to iterate seekable
-containers.
+All sequence functions (first, second, rest etc.) use this interface
+to iterate seekable containers.
 
 #+name: runtime-clojure-seekable-interface
 #+begin_src clojure :tangle no
@@ -3015,6 +3015,8 @@ for example usage.
     };
   }
 #+end_src
+
+Implementations for the C++ Seekable API,
 
 #+name: runtime-native-implementations
 #+begin_src c++ :tangle no
@@ -5978,7 +5980,7 @@ examples.
     (println "\tstring:\t\t\t" (cxx "__result = obj<number>(sizeof(string));"))
     (println "\tboolean:\t\t" (cxx "__result = obj<number>(sizeof(boolean));"))
     (println "\tlambda_i:\t\t" (cxx "__result = obj<number>(sizeof(lambda_i));"))
-    (println "\tatom:\t\t\t" (cxx "__result = obj<number>(sizeof(atomic_reference));"))
+    (println "\tatom:\t\t\t" (cxx "__result = obj<number>(sizeof(atomic));"))
     (println "\telapsed_micros:\t\t" (cxx "__result = obj<number>(sizeof(elapsed_micros));"))
     (println "\tpid_controller<real_t>:\t"
              (cxx "__result = obj<number>(sizeof(pid_controller<real_t>));")))

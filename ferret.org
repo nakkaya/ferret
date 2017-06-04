@@ -370,7 +370,7 @@ are passed to the code generation phase. Each transformation makes a
 separate pass over the form, this makes the compiler easier to
 maintain.
 
-#+name: core-compilation-process
+#+name: core-compiler-emitter
 #+begin_src clojure :tangle no
   (defn compile [form options]
     (->> (ferret-runtime form options)
@@ -387,24 +387,7 @@ maintain.
 
 *** Runtime
 
-Generates the required runtime for the form by importing the required
-modules and concatenate the required runtime from clojure.core
-(src/ferret/runtime.clj)
-
-#+name: core-compilation-embed-ferret-runtime
-#+begin_src clojure :tangle no
-  (defn ferret-runtime [form options]
-    (->> (import-modules-all form options)
-         (shake-concat (read-clojure-file "ferret/runtime.clj"))
-         ;; tag form with the build info
-         (cons `(~'native-define ~(try
-                                    (let [version (read-file-from-url "build.info")]
-                                      (str "// ferret-lisp build:" version))
-                                    (catch Exception e
-                                      (str "// ferret-lisp")))))))
-#+end_src
-
-Import other ferret files using,
+Import all modules in the given form. Supported =require= forms,
 
 #+BEGIN_SRC clojure :tangle no
   (require 'package.io)
@@ -420,7 +403,7 @@ Compiler will look for a file under current working directory called,
 front of the current form with symbols renamed to /some-fn/ =>
 /io/some-function/.
 
-#+name: core-compilation-embed-ferret-core
+#+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn import-modules-select-require [form]
     (let [norm-require (fn [f]
@@ -444,7 +427,7 @@ front of the current form with symbols renamed to /some-fn/ =>
 Extract the list of packages and aliases from the form. Returns a map
 of mod -> aliases pairs.
 
-#+name: core-compilation-embed-ferret-core
+#+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn import-modules-load-modules [package-list options]
     (reduce (fn[h [m aliases]]
@@ -471,7 +454,7 @@ all its symbols are replaced with its module name except /core/
 functions. Module names acts as namespaces. Returns a form that the is
 concatenation of all modules listed in form.
 
-#+name: core-compilation-embed-ferret-core
+#+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn import-modules-convert-alias-to-module [package-list form]
     (let [alias-to-mod (reduce (fn[h [mod aliases]]
@@ -491,7 +474,7 @@ Convert all aliased symbols in the form to their fully qualified
 modules names. So =helper-a= defined in module =util.db= becomes
 =util_db_helper-a=.
 
-#+name: core-compilation-embed-ferret-core
+#+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn import-modules [form options]
     (let [package-list (import-modules-select-require form)
@@ -508,18 +491,44 @@ modules names. So =helper-a= defined in module =util.db= becomes
           (recur expanded)))))
 #+end_src
 
-Import all modules in the given form.
+Generates the required runtime for the form by importing the required
+modules and concatenate the required runtime from clojure.core
+(src/ferret/runtime.clj)
+
+#+name: core-compiler-transformations
+#+begin_src clojure :tangle no
+  (defn ferret-runtime [form options]
+    (->> (import-modules-all form options)
+         (shake-concat (read-clojure-file "ferret/runtime.clj"))
+         ;; tag form with the build info
+         (cons `(~'native-define ~(try
+                                    (let [version (read-file-from-url "build.info")]
+                                      (str "// ferret-lisp build:" version))
+                                    (catch Exception e
+                                      (str "// ferret-lisp")))))))
+#+end_src
 
 *** Expand Macros
 
 Process some supported reader macros, /@/ and /#(some-fn)/ forms.
 
-#+name: core-compilation-expand-macros
+#+name: core-compiler-macro-expansion
 #+begin_src clojure :tangle no
   (defn expand-reader-macros [form]
     (morph-form form
                 (is-form? 'clojure.core/deref)
                 (fn [f] `(~'deref ~@(rest f)))))
+#+end_src
+
+Prepare form /f/ for macro expansion,
+
+#+name: core-compiler-macro-expansion
+#+begin_src clojure :tangle no
+  (defn macro-normalize [f]
+    (morph-form f
+                (is-form? 'let)
+                (fn [[_ bindings & body]]
+                  `(~'let* ~(apply list bindings) ~@body))))
 #+end_src
 
 Macro expansion is done by reading all the macros present in
@@ -529,7 +538,7 @@ all the macros used in the code that we are compiling and expand them
 in the temporary namespace then the node is replaced with its expanded
 form.
 
-#+name: core-compilation-expand-macros
+#+name: core-compiler-macro-expansion
 #+begin_src clojure :tangle no
   (declare expand-macros-all)
 
@@ -573,17 +582,6 @@ form.
   (def expand-macros-all (memoize expand-macros-all-aux))
 #+end_src
 
-Prepare form /f/ for macro expansion,
-
-#+name: core-compilation-normalize
-#+begin_src clojure :tangle no
-  (defn macro-normalize [f]
-    (morph-form f
-                (is-form? 'let)
-                (fn [[_ bindings & body]]
-                  `(~'let* ~(apply list bindings) ~@body))))
-#+end_src
-
 Takes a *fn* form and converts all argument symbols with their unique
 replacements,
 
@@ -593,7 +591,7 @@ replacements,
   (fn [a__1510 b__1511] (list a__1510 b__1511))
 #+end_src
 
-#+name: core-compilation-unique-fn
+#+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn unique-fn [form]
     (let [valid-symbol? (fn [s] (and (not= s '&) (not= s '_)))
@@ -644,7 +642,7 @@ after transformation becomes,
   ((lambda_object G__2710) 1)
 #+end_src
 
-#+name: core-compilation-let-fn
+#+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn let->fn [form]
     (-> form
@@ -678,7 +676,7 @@ that takes no parameters and executed in place.
   ((fn [] (+ 1 1)))
 #+end_src
 
-#+name: core-compilation-do-fn
+#+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn do->fn [form]
     (morph-form form
@@ -725,7 +723,7 @@ constructor. Since every thing is already converted to fns this
 mechanism allows variables to be referenced down the line and solves
 the free variable problem.
 
-#+name: core-compilation-closure-conversion 
+#+name: core-compiler-transformations 
 #+begin_src clojure :tangle no
   (defn lambda-defined? [fns env args body]
     (let [f (concat [env args] body)
@@ -770,7 +768,7 @@ the free variable problem.
 Convert =map= reader forms to Ferret =d-list=.  Maps are zero or more
 key/value pairs enclosed in braces: {:a 1 :b 2}
 
-#+name: core-compilation-symbol-conversion
+#+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn data-structure-conversion [form]
     (morph-form form map? (fn [x] (cons 'new-d-list (-> x seq flatten)))))
@@ -782,7 +780,7 @@ Some symbols valid in Clojure are not valid C++ identifiers. This
 transformation converts all symbols that are not legal C++ identifiers
 into legal ones.
 
-#+name: core-compilation-symbol-conversion
+#+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn symbol-conversion [form]
     (let [c (comp #(symbol (clojure.string/escape
@@ -797,7 +795,7 @@ into legal ones.
 
 *** Remove Assertions
 
-#+name: core-compilation-remove-assertions
+#+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn remove-assertions [options form]
     (if (:release options)
@@ -836,7 +834,7 @@ with the global name for readability.
    ((lambda_object G__3887)))
 #+END_EXAMPLE
 
-#+name: core-compilation-symbol-conversion
+#+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn select-def-fn [form]
     (->> (select-form form (is-form? 'def))
@@ -892,7 +890,7 @@ C++ file, but if you use it, it and everything it uses will be
 defined, in the case of /println/ it will pull /apply/, /print/ and
 /newline/ with it.
 
-#+name: core-compilation-shake-concat
+#+name: core-compiler-tree-shaking
 #+begin_src clojure
   (defn shake-concat
     ([header form]
@@ -930,7 +928,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
      Determines that a certain allocation never escapes the local
      function. This means that allocation can be done on the stack.
 
-#+name: core-compilation-escape-analysis-post
+#+name: core-compiler-transformations
 #+begin_src clojure
   (defn escape-analysis [form]
     (->> (escape-fn-calls form)
@@ -940,7 +938,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 
 ***** Escape Function Calls
 
-#+name: core-compilation-escape-analysis
+#+name: core-compiler-escape-analysis
 #+begin_src clojure
   (defn escape-fn-calls [form]
     (morph-form form
@@ -954,7 +952,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 
 ***** Escape Dispatch Functions
 
-#+name: core-compilation-escape-analysis
+#+name: core-compiler-escape-analysis
 #+begin_src clojure
   (defn escape-fn-dispatch [form]
     (morph-form form
@@ -970,7 +968,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 
 ***** Escape Lambda Classes
 
-#+name: core-compilation-escape-analysis
+#+name: core-compiler-escape-analysis
 #+begin_src clojure
   (defn escape-lambdas [form]
     (let [stack-lambda-pred (fn [f]
@@ -1005,7 +1003,7 @@ passing the current node as an argument and replace that node with
 /f/'s return value, remove-form on the other hand does what its name
 suggests and removes the node when predicate returns true.
 
-#+name: core-compilation-form-fns
+#+name: core-compiler-helpers
 #+begin_src clojure :tangle no
   (defn morph-form [tree pred f]
     (walk/prewalk (fn [x]
@@ -1116,7 +1114,7 @@ transformed Clojure code and outputs C++ code. (a single .cpp file)
 This is done by running /emit/ on the final intermediate
 representation.
 
-#+name: core-code-generation-emit
+#+name: core-compiler-emitter
 #+begin_src clojure :tangle no  
   (defmulti emit (fn [_ form _]
                    (cond (is-special-form? 'fir_define_lambda form) 'fir_define_lambda
@@ -1171,14 +1169,14 @@ So the actual compilation will just map emit to all forms passed and
 /string-template/ will handle the job of putting them into an empty
 C++ skeleton.
 
-#+name: core-code-generation-misc
+#+name: core-compiler-helpers
 #+begin_src clojure :tangle no
   (defn append-to! [r ks v]
     (let [cv (reduce (fn[h v] (v h)) @r ks)]
       (swap! r assoc-in ks (conj cv v))))
 #+end_src
 
-#+name: core-code-generation-emit-source
+#+name: core-compiler-emitter
 #+begin_src clojure :tangle no
   (defn emit-source [form options]
     (let [state (atom {:native-headers []
@@ -1216,7 +1214,7 @@ defined within *ferret* namespace. All Ferret macros starts with
 
 **** Object Types
 
-#+name: core-code-generation-emit-source-methods
+#+name: core-compiler-emitter
 #+begin_src clojure :tangle no
   (defmethod emit :symbol [_ form state] (str form))
 
@@ -1237,7 +1235,7 @@ defined within *ferret* namespace. All Ferret macros starts with
 
 **** Special Forms
 
-#+name: core-code-generation-emit-source-methods
+#+name: core-compiler-emitter
 #+begin_src clojure :tangle no
   (defmethod emit 'def [options [_ name & form] state]
     (append-to! state [:symbol-table] name)
@@ -1270,7 +1268,7 @@ defined within *ferret* namespace. All Ferret macros starts with
 
 **** Lambdas
 
-#+name: core-code-generation-emit-source-methods
+#+name: core-compiler-emitter
 #+begin_src clojure :tangle no
   (defmethod emit 'fir_lambda_object [_ f state]
     (lambda-object-heap f))
@@ -1318,7 +1316,7 @@ defined within *ferret* namespace. All Ferret macros starts with
                   {:name name :env env :args args :body body :stack true}) ""))
 #+end_src
 
-#+name: core-code-generation-emit-source-methods
+#+name: core-compiler-emitter
 #+begin_src clojure :tangle no
   (defmethod emit 'fir_dispatch_lambda [_ [_ args-symbol & fns] state]
     (let [fns (->> fns
@@ -1629,7 +1627,7 @@ Initialize function arguments. Clojure style list structuring is supported.
 
    Default compile options, 
 
-  #+name: core-code-compile-code
+  #+name: core-compiler-main
   #+begin_src clojure
     (defn compile-options [& [options]]
       (merge {:compiler "g++"
@@ -1644,7 +1642,7 @@ Initialize function arguments. Clojure style list structuring is supported.
 
    Read the /cpp/ file parse build options embedded in it.
 
-  #+name: core-code-compile-code
+  #+name: core-compiler-main
   #+begin_src clojure
     (defn compile-options-parse-source [file]
       (try
@@ -1677,7 +1675,7 @@ Initialize function arguments. Clojure style list structuring is supported.
    Takes the compiler CLI arguments and a file name, returns a map of
    build options.
 
-  #+name: core-code-compile-code
+  #+name: core-compiler-main
   #+begin_src clojure
     (defn build-specs [input args]
       (fn []
@@ -1716,7 +1714,7 @@ Initialize function arguments. Clojure style list structuring is supported.
 
    Compile the form to C++,
 
-  #+name: core-code-compile-code
+  #+name: core-compiler-main
   #+begin_src clojure
     (defn compile->cpp [form options]
       (let [file-name (cpp-file-name options)
@@ -1731,7 +1729,7 @@ Initialize function arguments. Clojure style list structuring is supported.
 
    Compile C++ code to binary,
 
-  #+name: core-code-compile-code
+  #+name: core-compiler-main
   #+begin_src clojure
     (defn cxx-command [options]
       (if (:command options)
@@ -1773,7 +1771,7 @@ Initialize function arguments. Clojure style list structuring is supported.
 
     Compile and build program,
 
-   #+name: core-code-compile-code
+   #+name: core-compiler-main
    #+begin_src clojure
      (defn clang-format [options]
        (let [file (cpp-file-name options)
@@ -1803,7 +1801,7 @@ Initialize function arguments. Clojure style list structuring is supported.
 
     Compiler options,
 
-   #+name: core-code-compile-code
+   #+name: core-compiler-main
    #+begin_src clojure
      (def program-options [["-i" "--input FILE" "Input File" :default "./core.clj"]
                            ["-o" "--output FILE" "Output File"]
@@ -1818,7 +1816,7 @@ Initialize function arguments. Clojure style list structuring is supported.
 
    Compiler /main/,
 
-   #+name: core-code-compile-code
+   #+name: core-compiler-main
    #+begin_src clojure
      (defn -main [& args]
        (let [args (parse-opts args program-options)
@@ -1852,7 +1850,7 @@ Initialize function arguments. Clojure style list structuring is supported.
 
 *** Logging
 
-  #+name: core-logging
+  #+name: core-compiler-helpers
   #+begin_src clojure
     (def log-formatter (proxy [java.util.logging.Formatter] []
                          (format
@@ -7401,27 +7399,13 @@ Create some dummy libs under /test/modules/,
                 (.contains os "aix")) :unix
             (.contains os "sunos")    :solaris)))
 
-  <<core-logging>>
-  <<core-code-generation-misc>>
-  <<core-compilation-form-fns>>
-  <<core-compilation-unique-fn>>
-  <<core-compilation-normalize>>
-  <<core-compilation-expand-macros>>
-  <<core-compilation-shake-concat>>
-  <<core-compilation-escape-analysis>>
-  <<core-compilation-escape-analysis-post>>
-  <<core-compilation-embed-ferret-core>>
-  <<core-compilation-embed-ferret-runtime>>
-  <<core-compilation-closure-conversion>>
-  <<core-compilation-symbol-conversion>>
-  <<core-compilation-remove-assertions>>
-  <<core-compilation-do-fn>>
-  <<core-compilation-let-fn>>
-  <<core-compilation-process>>
-  <<core-code-generation-emit>>
-  <<core-code-generation-emit-source-methods>>
-  <<core-code-generation-emit-source>>
-  <<core-code-compile-code>>
+  <<core-compiler-helpers>>
+  <<core-compiler-macro-expansion>>
+  <<core-compiler-tree-shaking>>
+  <<core-compiler-escape-analysis>>
+  <<core-compiler-transformations>>
+  <<core-compiler-emitter>>
+  <<core-compiler-main>>
 #+end_src 
 
 *** ferret/template.clj

@@ -1973,6 +1973,7 @@ count, when it reaches zero it will automatically free the object_t.
     explicit var(object_t* ptr = nullptr) : m_ptr(ptr) { inc_ref(); }
 
     var(const var& p) : m_ptr(p.m_ptr) { inc_ref(); }
+    var(var&& p) : m_ptr(p.m_ptr) { p.m_ptr = nullptr; }
       
     ~var() { dec_ref(); }
     

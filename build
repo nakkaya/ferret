@@ -11,7 +11,7 @@ emacs -nw -Q --batch --eval "
 
  (setq package-archives '((\"elpa\" . \"http://tromey.com/elpa/\")
                           (\"gnu\" . \"http://elpa.gnu.org/packages/\")
-                          (\"marmalade\" . \"http://marmalade-repo.org/packages/\")))
+                          (\"marmalade\" . \"https://marmalade-repo.org/packages/\")))
  (package-initialize)
 
  (unless package-archive-contents

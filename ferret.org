@@ -7209,6 +7209,7 @@ Create some dummy libs under /test/modules/,
     - [[https://alikhuram.wordpress.com/2013/05/20/implementing-fixed-point-numbers-in-c/][Implementing Fixed-Point Numbers in C++]]
     - https://github.com/johnmcfarlane/fixed_point
     - [[https://www.youtube.com/watch?v=cdaN51rRzSE][CppCon 2016: John McFarlane “fixed_point"]]
+  - C++ implementations of Clojure's persistent data structures. - https://github.com/mninja/persistent-data-structures
   - *Implement Que*
   - *Unbounded Precision Integers*
     - [[http://www.more-magic.net/posts/numeric-tower-part-2.html][CHICKEN's numeric tower: part 2]]
@@ -7235,6 +7236,10 @@ Create some dummy libs under /test/modules/,
 ** Core
 
   - *defproject* - Combine *configure-* macros under one macro.
+  - *defproject* - Ability to define dependencies
+    - automatically pull other ferret projects
+    - https://www.reddit.com/r/cpp/comments/3d1vjq/is_there_a_c_package_manager_if_not_how_do_you/ct2s6oy/
+    - https://stackoverflow.com/questions/38657064/package-management-for-c
   - *std::current_exception* - Create wrapper.
     - http://en.cppreference.com/w/cpp/error/current_exception
   - *Pre/Post conditions* for functions.

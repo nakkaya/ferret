@@ -1976,6 +1976,15 @@ count, when it reaches zero it will automatically free the object_t.
     var(var&& p) : m_ptr(p.m_ptr) { p.m_ptr = nullptr; }
       
     ~var() { dec_ref(); }
+
+    var& operator=(var&& other){
+      if (this != &other){
+        dec_ref();
+        m_ptr = other.m_ptr;
+        other.m_ptr = nullptr;
+      }
+      return *this;
+    }
     
     var& operator= (const var& p){ return *this = p.m_ptr; }
     

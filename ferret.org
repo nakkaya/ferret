@@ -1340,11 +1340,9 @@ defined within *ferret* namespace. All Ferret macros starts with
 #+end_src
 
 *** Code Templates
-  :PROPERTIES:
-  :noweb-ref: code-templates
-  :END:
 **** Objects
 
+#+name: code-templates
 #+begin_src clojure :tangle no
   (defn define-object-depricated [name body]
     (let [specs (into {} (map #(vector (first %) (rest %)) body))
@@ -1446,6 +1444,7 @@ defined within *ferret* namespace. All Ferret macros starts with
 
 **** Lambdas
 
+#+name: code-templates
 #+begin_src clojure :tangle no
   (let [env (fn [[_ _ & env]]
               (->> env
@@ -1474,6 +1473,7 @@ defined within *ferret* namespace. All Ferret macros starts with
 
 Initialize function arguments. Clojure style list structuring is supported.
 
+#+name: code-templates
 #+begin_src clojure :tangle no
   (let [set-var (fn [val arg accesor]
                   (str "const var " val " = "
@@ -1503,6 +1503,7 @@ Initialize function arguments. Clojure style list structuring is supported.
             (set-var (last va-args) name (repeat (count args) "runtime::rest")))]))))
 #+end_src
 
+#+name: code-templates
 #+begin_src clojure :tangle no
   (defn lambda-definitions [lambdas]
     (-> (create-view
@@ -1548,6 +1549,7 @@ Initialize function arguments. Clojure style list structuring is supported.
 
 **** Program
 
+#+name: code-templates
 #+begin_src clojure :tangle no :noweb yes
   (defn solution-template [source]
     (let [{:keys [body lambdas symbol-table native-headers objects
@@ -3796,12 +3798,10 @@ indicating platform.
 #+end_src
 
 *** Initialize Hardware
-    :PROPERTIES:
-    :noweb-ref: runtime-native-hardware-initialize
-    :END:
 
 Default UART rate (if supported),
 
+#+name: runtime-native-hardware-initialize
 #+begin_src c++ :tangle no
   #if !defined(FERRET_UART_RATE)
     # define FERRET_UART_RATE 9600
@@ -3810,6 +3810,7 @@ Default UART rate (if supported),
 
 Setup dummy IO,
 
+#+name: runtime-native-hardware-initialize
 #+begin_src c++ :tangle no
   #if defined(FERRET_DISABLE_STD_OUT)
      namespace runtime{
@@ -3823,6 +3824,7 @@ Setup dummy IO,
 
 Setup IO for general purpose OS,
 
+#+name: runtime-native-hardware-initialize
 #+begin_src c++ :tangle no
   #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_STD_OUT)
     namespace runtime{
@@ -3841,6 +3843,7 @@ Setup IO for general purpose OS,
 
 Setup IO for Arduino boards,
 
+#+name: runtime-native-hardware-initialize
 #+begin_src c++ :tangle no
   #if defined(FERRET_HARDWARE_ARDUINO) && !defined(FERRET_DISABLE_STD_OUT) 
     namespace runtime{
@@ -5999,13 +6002,7 @@ Embed compilations options.
 #+end_src
 
 * Testing
-  :PROPERTIES:
-  :noweb-ref: ferret-unit-tests
-  :END:
 ** Unit Testing
-  :PROPERTIES:
-  :noweb-ref: file-no-tangle
-  :END:
 
 The reliability and robustness of Ferret is achieved in part by
 thorough and careful testing. Ferret lisp has built-in support for
@@ -6074,10 +6071,8 @@ Static code analysis (cppcheck) options,
  - --error-exitcode=1
 
 ** Compiler
-  :PROPERTIES:
-  :noweb-ref: clojure-unit-tests
-  :END:
 
+#+name: clojure-unit-tests
 #+begin_src clojure :tangle no
   (deftest compiler-core
     (let [program (compile '((defn one-plus-one []
@@ -6133,6 +6128,7 @@ Static code analysis (cppcheck) options,
 ** Core
 *** Special Forms
 
+#+name: ferret-unit-tests
 #+begin_src clojure :tangle no
   (def make-adder
     (fn [n]
@@ -6199,6 +6195,7 @@ Static code analysis (cppcheck) options,
 
 *** Destructuring
 
+#+name: ferret-unit-tests
 #+begin_src clojure :tangle no
   (defn destructure-test-1 [[a b c]]
     (list a b c))
@@ -6266,6 +6263,7 @@ Static code analysis (cppcheck) options,
 
 *** Conditionals
 
+#+name: ferret-unit-tests
 #+begin_src clojure
   (deftest conditionals-test
     (is (= 2   (if 1 2)))
@@ -6291,6 +6289,7 @@ Static code analysis (cppcheck) options,
 
 *** Logical Operators
 
+#+name: ferret-unit-tests
 #+begin_src clojure
   (defn pos-neg-or-zero [n]
     (cond
@@ -6354,6 +6353,7 @@ Static code analysis (cppcheck) options,
 
 *** Math
 
+#+name: ferret-unit-tests
 #+begin_src clojure :tangle no
   (deftest math-test
     (is (= 0.6 (+ 0.3 0.3)))
@@ -6454,6 +6454,7 @@ Static code analysis (cppcheck) options,
 
 *** Control
 
+#+name: ferret-unit-tests
 #+begin_src clojure :tangle no
   (deftest pid-controller-test
     (let [controller (pid-controller :kp 1
@@ -6576,6 +6577,7 @@ Static code analysis (cppcheck) options,
 
 *** Threading
 
+#+name: ferret-unit-tests
 #+begin_src clojure :tangle no
   (deftest threading-test
     (let [state (atom nil)
@@ -6634,6 +6636,7 @@ Static code analysis (cppcheck) options,
 
 *** XOR Stream
 
+#+name: ferret-unit-tests
 #+begin_src clojure :tangle no
   (def xor-stream-state (atom nil))
 
@@ -6677,50 +6680,50 @@ Static code analysis (cppcheck) options,
  
 *** Misc
 
- #+begin_src clojure :tangle no
-   (deftest doto-test
-     (let [st (atom )
-           add (fn [s v]
-                 (swap! s conj v))]
-       (doto st
-         (add 1)
-         (add 2)
-         (add 3))
-       (is (= (list 3 2 1) @st))))
- #+end_src
+#+name: ferret-unit-tests
+#+begin_src clojure :tangle no
+  (deftest doto-test
+    (let [st (atom )
+          add (fn [s v]
+                (swap! s conj v))]
+      (doto st
+        (add 1)
+        (add 2)
+        (add 3))
+      (is (= (list 3 2 1) @st))))
+#+end_src
 
 *** FFI
 
- #+begin_src clojure :tangle no
-   (deftest ffi-test
-     (is (= true  ((fn [a b] "__result = obj<boolean>((a == b))") (list 1 2) (list 1 2))))
-     (is (= false ((fn [a b] "__result = obj<boolean>((a != b))") (list 1 2) (list 1 2))))
-     (is (= true  ((fn [a b] "__result = obj<boolean>((a != b))") (list 1 2) 1)))
-     (is (= false ((fn [a b] "__result = obj<boolean>((a == b))") 1          (list 1 2))))
+#+name: ferret-unit-tests
+#+begin_src clojure :tangle no
+  (deftest ffi-test
+    (is (= true  ((fn [a b] "__result = obj<boolean>((a == b))") (list 1 2) (list 1 2))))
+    (is (= false ((fn [a b] "__result = obj<boolean>((a != b))") (list 1 2) (list 1 2))))
+    (is (= true  ((fn [a b] "__result = obj<boolean>((a != b))") (list 1 2) 1)))
+    (is (= false ((fn [a b] "__result = obj<boolean>((a == b))") 1          (list 1 2))))
 
 
 
-     (is (=  nil   (my-find (list 5 5) (list (list 1 2)
-                                             (list 2 3)
-                                             (list 4 5)))))
-     (is (=  true  (my-find (list 1 2) (list (list 1 2)
-                                             (list 2 3)
-                                             (list 4 5)))))
-     (is (=  true  (my-find (list 4 5) (list (list 1 2)
-                                             (list 2 3)
-                                             (list 4 5)))))
-     
-     (is (= (list 1 2 3) (my-sort > (list 1 3 2))))
-     (is (= (list 3 2 1) (my-sort < (list 1 3 2)))))
- #+end_src
+    (is (=  nil   (my-find (list 5 5) (list (list 1 2)
+                                            (list 2 3)
+                                            (list 4 5)))))
+    (is (=  true  (my-find (list 1 2) (list (list 1 2)
+                                            (list 2 3)
+                                            (list 4 5)))))
+    (is (=  true  (my-find (list 4 5) (list (list 1 2)
+                                            (list 2 3)
+                                            (list 4 5)))))
+    
+    (is (= (list 1 2 3) (my-sort > (list 1 3 2))))
+    (is (= (list 3 2 1) (my-sort < (list 1 3 2)))))
+#+end_src
 
 *** Module System
-  :PROPERTIES:
-  :noweb-ref: import-module-test
-  :END:
 
 Run import tests. 
 
+#+name: import-module-test
 #+begin_src clojure :tangle no
   (require '[modules.module-a :as mod-a]
            '[modules.module-b :as mod-b])
@@ -6753,9 +6756,6 @@ Run import tests.
 #+end_src
 
 **** Dummy Modules
-     :PROPERTIES:
-     :noweb-ref: ferret-tests-modules-no-export
-     :END:  
 
 Create some dummy programs under /test/,
 
@@ -6823,10 +6823,8 @@ Create some dummy libs under /test/modules/,
 #+end_src 
 
 *** Testing
-  :PROPERTIES:
-  :noweb-ref: clojure-unit-tests
-  :END:
 
+#+name: clojure-unit-tests
 #+begin_src clojure :tangle no
   (deftest testing-unit-test
     (is (= "" (exec-form '((assert (= 2 1) (print "fail"))) {:release true})))
@@ -6865,6 +6863,7 @@ Create some dummy libs under /test/modules/,
 ** Data Structures
 *** Number
 
+#+name: ferret-unit-tests
 #+begin_src clojure
   (deftest number-test
     (is (= 0.5       1/2))
@@ -6875,6 +6874,7 @@ Create some dummy libs under /test/modules/,
 
 *** Sequence
 
+#+name: ferret-unit-tests
 #+begin_src clojure :tangle no
   (deftest sequence-test
     (is (= true  (= (list ) (list ))))
@@ -6945,6 +6945,7 @@ Create some dummy libs under /test/modules/,
 
 *** Lazy Sequence
 
+#+name: ferret-unit-tests
 #+begin_src clojure
   (defn lazy-countdown [n]
     (if (>= n 0)
@@ -7004,6 +7005,7 @@ Create some dummy libs under /test/modules/,
 
 *** Associative Containers
 
+#+name: ferret-unit-tests
 #+begin_src clojure
   (deftest d-list-test
     (let [m (new-d-list 0 (list 0 1)
@@ -7022,6 +7024,7 @@ Create some dummy libs under /test/modules/,
 
 *** Lambda
 
+#+name: ferret-unit-tests
 #+begin_src clojure
   (deftest lambda-test
     (let [f1 (fn [])
@@ -7043,6 +7046,7 @@ Create some dummy libs under /test/modules/,
 
 *** Pointer
 
+#+name: ferret-unit-tests
 #+begin_src clojure
   (deftest pointer-test
     (let [a-ptr (cxx "__result = obj<pointer>(nullptr);")
@@ -7066,6 +7070,7 @@ Create some dummy libs under /test/modules/,
 
 *** Atom
 
+#+name: ferret-unit-tests
 #+begin_src clojure
   (deftest atom-test
     (let [a (atom nil)
@@ -7082,6 +7087,7 @@ Create some dummy libs under /test/modules/,
 
 *** Keyword
 
+#+name: ferret-unit-tests
 #+begin_src clojure
   (deftest keyword-test
     (is (= true  (= :test  :test)))
@@ -7091,6 +7097,7 @@ Create some dummy libs under /test/modules/,
 
 *** String
 
+#+name: ferret-unit-tests
 #+begin_src clojure
   (deftest string-test
     (let [s1 "Some String"
@@ -7107,10 +7114,8 @@ Create some dummy libs under /test/modules/,
 #+end_src
 
 *** Memory Pool
-    :PROPERTIES:
-    :noweb-ref: memory-pool-test
-    :END:
 
+#+name: memory-pool-test
 #+begin_src clojure
   (native-define "#define FERRET_MEMORY_POOL_SIZE 4194304") ;; 4 MB
   (native-declare "void* ptr;")

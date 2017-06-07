@@ -30,6 +30,7 @@ emacs -nw -Q --batch --eval "
  (require 'clojure-mode)
  (require 'clojure-mode-extra-font-locking)
  (setq org-export-with-section-numbers nil)
+ (setq org-babel-use-quick-and-dirty-noweb-expansion t)
 
  (set-face-foreground 'font-lock-string-face \"#990000\")
  (set-face-foreground 'font-lock-keyword-face \"#ff5f00\")

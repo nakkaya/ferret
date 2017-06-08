@@ -1221,7 +1221,10 @@ defined within *ferret* namespace. All Ferret macros starts with
   (defmethod emit :string [_ form state]
     (str "obj<string>(\"" (escape-string form) "\"," (count form) ")"))
 
-  (defmethod emit :boolean [_ form state] (str "obj<boolean>(" form ")"))
+  (defmethod emit :boolean [_ form state]
+    (if (true? form)
+      (str "obj<boolean>(cached::true_t)")
+      (str "obj<boolean>(cached::false_t)")))
 
   (defmethod emit :nil [_ form state] "nil()")
 
@@ -2112,6 +2115,11 @@ A boolean object,
     }
   };
 
+  namespace cached{
+    const var true_t = obj<ferret::boolean>(true);
+    const var false_t = obj<ferret::boolean>(false);
+  }
+
   var::operator bool() const {
     if (m_ptr == nullptr)
       return false;
@@ -2455,6 +2463,10 @@ Linked list container implementing the seekable interface.
     }
   #endif
   };
+
+  namespace cached{
+    const var empty_sequence = obj<ferret::empty_sequence>();
+  }
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/sequence_o.h
@@ -2512,7 +2524,7 @@ Linked list container implementing the seekable interface.
   };
   namespace runtime {
     inline var list() { 
-      return obj<empty_sequence>();
+      return cached::empty_sequence;
     }
     inline var list(var v) { 
       return obj<sequence>(v,nil());
@@ -3019,7 +3031,7 @@ for example usage.
 
       explicit range(var v) : p(v) { }
       inline range begin() const { return range(p); }
-      inline range end()   const { return range(obj<empty_sequence>()); }
+      inline range end()   const { return range(cached::empty_sequence); }
 
       inline bool operator!=(const range& other){
         return !p.is_nil() && (p != other.p);
@@ -3052,7 +3064,7 @@ for example usage.
 
       explicit range_indexed(var v) : p(v) , index(0) { }
       inline range_indexed begin() const { return range_indexed(p); }
-      inline range_indexed end()   const { return range_indexed(obj<empty_sequence>()); }
+      inline range_indexed end()   const { return range_indexed(cached::empty_sequence); }
 
       inline bool operator!=(const range_indexed& other){
         return !p.is_nil() && (p != other.p);
@@ -3087,7 +3099,7 @@ for example usage.
       explicit range_pair(var a = nil(), var b = nil()) : first(a) , second(b) { }
       
       inline range_pair begin() const { return range_pair(first, second); }
-      inline range_pair end()   const { return range_pair(obj<empty_sequence>(),obj<empty_sequence>()); }
+      inline range_pair end()   const { return range_pair(cached::empty_sequence,cached::empty_sequence); }
 
       inline bool operator!=(const range_pair& other){
         return (first != other.first) && (second != other.second);
@@ -4004,7 +4016,7 @@ by /std::sort/ using a Ferret function,
      std_vector::iterator it = find (vec.begin(), vec.end(), item);
 
      if(it != vec.end())
-       __result = obj<boolean>(true);")
+       __result = cached::true_t;")
 #+end_src
 
 #+begin_src clojure
@@ -4373,10 +4385,10 @@ When test is true, evaluates body with binding-form bound to the value of test.
     "var curr = runtime::first(args);
      for(auto const& it : runtime::range(runtime::rest(args))){
       if (curr != it)
-        return obj<boolean>(false);
+        return cached::false_t;
       curr = it;
      }
-     __result = obj<boolean>(true);")
+     __result = cached::true_t;")
 #+end_src
 
 *** not=
@@ -4475,8 +4487,8 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+begin_src clojure :tangle no
   (defn not [x]
     "if (x)
-       return obj<boolean>(false);
-     __result = obj<boolean>(true);")
+       return cached::false_t;
+     __result = cached::true_t;")
 #+end_src
 
 *** true?
@@ -4485,8 +4497,8 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+begin_src clojure :tangle no
   (defn true? [x]
     "if (x)
-       return obj<boolean>(true);
-     __result = obj<boolean>(false);")
+       return cached::true_t;
+     __result = cached::false_t;")
 #+end_src
 
 *** false?
@@ -4495,8 +4507,8 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+begin_src clojure :tangle no
   (defn false? [x]
     "if (!x)
-       return obj<boolean>(true);
-     __result = obj<boolean>(false);")
+       return cached::true_t;
+     __result = cached::false_t;")
 #+end_src
 
 ** Sequence

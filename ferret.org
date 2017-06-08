@@ -2682,7 +2682,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/d_list_o.h
-  class d_list : public lambda_i {
+  class d_list : public lambda_i, public seekable_i {
 
     var data;
 
@@ -2766,6 +2766,28 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 
     var vals () const { return runtime::rest(data);}
     var keys () const { return runtime::first(data);}
+
+    virtual seekable_i* cast_seekable_i() { return this; }
+    
+    var cons(var v){
+      return runtime::list(v,data);
+    }
+    
+    var first() const {
+      var keys = runtime::first(data);
+      var values = runtime::rest(data);
+      return runtime::list(runtime::first(keys),runtime::first(values));
+    }
+    
+    var rest() const {
+      var keys = runtime::first(data);
+      var values = runtime::rest(data);
+
+      if(runtime::rest(keys) == nil())
+        return runtime::list();
+      
+      return obj<d_list>(runtime::cons(runtime::rest(keys),runtime::rest(values)));
+    }
   };
 #+end_src
 
@@ -7025,7 +7047,8 @@ Create some dummy libs under /test/modules/,
   (deftest d-list-test
     (let [m (new-d-list 0 (list 0 1)
                         1 (list 1 2))
-          mr {:a 1 :b 2}]
+          mr {:a 1 :b 2}
+          mn {1 2 3 4}]
 
       (is (= (list 1 0)                    (keys m)))
       (is (= (list (list 1 2) (list 0 1))  (vals m)))
@@ -7034,7 +7057,10 @@ Create some dummy libs under /test/modules/,
       (is (= (list 0)                      (keys (dissoc m 1))))
       (is (= mr                            mr))
       (is (= (list :b :a)                  (keys mr)))
-      (is (= (list 2  1)                   (vals mr)))))
+      (is (= (list 2  1)                   (vals mr)))
+      (is (= 6                             (->> mn
+                                                (map second)
+                                                (apply +))))))
 #+end_src
 
 *** Lambda

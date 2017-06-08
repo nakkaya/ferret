@@ -2439,7 +2439,7 @@ Linked list container implementing the seekable interface.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
-  class empty_sequence : public seekable_i {
+  class empty_sequence : public object_t {
   public:
 
     size_t type() const { return runtime::type::empty_sequence; }
@@ -2454,16 +2454,6 @@ Linked list container implementing the seekable interface.
       return nil();
     }
   #endif
-
-    var cons(var v){
-      return runtime::list(v);
-    }
-    var first() const {
-      return nil();
-    }
-    var rest() const {
-      return nil();
-    }
   };
 #+end_src
 
@@ -3122,7 +3112,7 @@ Implementations for the C++ Seekable API,
 #+begin_src c++ :tangle no
   namespace runtime{
     var first(var coll){
-      if (coll.is_nil())
+      if (coll.is_nil() || coll.is_type(runtime::type::empty_sequence))
         return nil();
       else
         return coll.cast<seekable_i>()->first();
@@ -3131,16 +3121,16 @@ Implementations for the C++ Seekable API,
     var rest(var coll){
       if (coll.is_nil())
         return runtime::list();
-      else
-        return coll.cast<seekable_i>()->rest();
+      if (coll.is_type(runtime::type::empty_sequence))
+        return nil();
+      return coll.cast<seekable_i>()->rest();
     }
 
-    var cons(var x, var seq){
-      if (seq.is_nil())
+    var cons(var x, var coll){
+      if (coll.is_nil() || coll == runtime::list())
         return runtime::list(x);
-      if (seq == runtime::list())
-        return runtime::list(x);
-      return seq.cast<seekable_i>()->cons(x);
+
+      return coll.cast<seekable_i>()->cons(x);
     }
 
     var nth(var seq, number_t index){

@@ -1944,6 +1944,7 @@ All our types are derived from the base Object type. Which is a
 
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
+  class seekable_i;
   namespace object{
     template <typename rc, typename mem>
     class base : public rc, public mem{
@@ -1959,6 +1960,8 @@ All our types are derived from the base Object type. Which is a
   #endif
     
       virtual bool equals(var o) const = 0;
+
+      virtual seekable_i* cast_seekable_i() { return nullptr; }
     };
   }
 
@@ -1971,8 +1974,6 @@ count, when it reaches zero it will automatically free the object_t.
 
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
-  class boolean;
-
   class var{
   public:
     explicit var(object_t* ptr = nullptr) : m_ptr(ptr) { inc_ref(); }
@@ -2054,6 +2055,9 @@ count, when it reaches zero it will automatically free the object_t.
       
     object_t* m_ptr;
   };
+
+  template<>
+  inline seekable_i* var::cast<seekable_i>() const { return m_ptr->cast_seekable_i(); }
 #+end_src
 
 All object allocations are done using *obj* function. It will return a
@@ -2470,7 +2474,7 @@ Linked list container implementing the seekable interface.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/sequence_o.h
-  class sequence : public seekable_i {
+  class sequence : public object_t, public seekable_i {
     const var data;
     const var next;
   public:
@@ -2502,6 +2506,8 @@ Linked list container implementing the seekable interface.
   #endif
 
     explicit sequence(var d = var(), var n = var()) : data(d), next(n) {} 
+
+    virtual seekable_i* cast_seekable_i() { return this; }
 
     var cons(var x){
       return obj<sequence>(x, var(this));
@@ -2565,7 +2571,7 @@ A lazy list container implementing the seekable interface.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lazy_sequence_o.h
-  class lazy_sequence : public seekable_i {
+  class lazy_sequence : public object_t, public seekable_i {
     const var head;
     const var thunk;
   public:
@@ -2605,6 +2611,8 @@ A lazy list container implementing the seekable interface.
 
     explicit lazy_sequence(var t) : thunk(t) {} 
     explicit lazy_sequence(var h, var t) : head(h), thunk(t) {} 
+
+    virtual seekable_i* cast_seekable_i() { return this; }
 
     var cons(var x){
       return obj<lazy_sequence>(x,thunk);
@@ -2771,7 +2779,7 @@ strings are represented as a linked list of characters.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/string_o.h
-  class string : public seekable_i {
+  class string : public object_t, public seekable_i {
     var data;
   public:
 
@@ -2805,15 +2813,21 @@ strings are represented as a linked list of characters.
     var container() const {
       return data;
     }
+
+    virtual seekable_i* cast_seekable_i() { return this; }
+
     var cons(var x){
       return runtime::cons(x,data);
     }
+
     var first() const {
       return runtime::first(data);
     }
+
     var rest() const {
       return runtime::rest(data);
     }
+
     template <typename T>
     static T to(var){
       T::unimplemented_function;
@@ -2992,7 +3006,7 @@ to iterate seekable containers.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/seekable_i.h
-  class seekable_i : public object_t {
+  class seekable_i {
   public:
 
     virtual var cons(var x) = 0;
@@ -3167,8 +3181,7 @@ Implementations for the C++ Seekable API,
     }
 
     bool is_seqable(var seq){
-      if(seq.is_type(runtime::type::sequence) || 
-         seq.is_type(runtime::type::lazy_sequence))
+      if(seq.cast<seekable_i>())
         return true;
       else
         return false;

@@ -1347,102 +1347,19 @@ defined within *ferret* namespace. All Ferret macros starts with
 
 #+name: code-templates
 #+begin_src clojure :tangle no
-  (defn define-object-depricated [name body]
-    (let [specs (into {} (map #(vector (first %) (rest %)) body))
-          interface (if (nil? (specs 'interface))
-                      "object_t"
-                      (apply str (rest (str (first (specs 'interface))))))
-          interface-only (cond (specs 'interface) false
-                               (empty? (specs 'new)) true
-                               :defaul false)
-          fns (specs 'fns)
-          raw-fns (filter #(= 1 (count %)) fns)
-          fns (filter #(= 3 (count %)) fns)]
-      (-> (create-view "
-       $if(object_type)$
-         namespace runtime {
-          namespace type {
-           const size_t $type$ = $type_val$;}}
-       $endif$
-
-       $if(template)$
-         template<$template:{$it$} ;separator=\",\"$>
-       $endif$
-       class $name$ : public $interface$ {
-         $data:{$it$} ;separator=\"\n\"$
-       public:
-         $interfaces:{virtual $it$ = 0;} ;separator=\"\n\"$
-
-         $new:{it | $name$($first(it)$){
-           $first(rest(it))$
-         }} ;separator=\"\n\"$
-
-         $if(object_type)$
-          size_t type() const { return runtime::type::$type$; }
-         $endif$
-
-         $if(equals)$
-          bool equals(var o) const {
-           $equals$
-          }
-         $endif$
-
-         $if(stream_console)$
-         #if !defined(FERRET_DISABLE_STD_OUT)
-          var stream_console() const {
-           $stream_console$
-          }
-         #endif
-         $endif$
-
-         $raw_fns:{it | $it$ } ;separator=\"\n\"$
-
-         $fns:{it | $first(it)$($first(rest(it))$){
-           $first(rest(rest(it)))$
-         }} ;separator=\"\n\"$
-
-         $ifdef_fns:{it | #$first(it)$
-           $first(rest(it))$($first(rest(rest(it)))$){
-           $first(rest(rest(rest(it))))$
-         }
-       #endif} ;separator=\"\n\"$
-       };
-       $post_code$")
-          (fill-view! "name"           name)
-          (fill-view! "template"       (specs 'template))
-          (fill-view! "interface"      interface)
-          (fill-view! "interface_only" interface-only)
-          (fill-view! "object_type"    (cond (specs 'force_type) true
-                                             interface-only false
-                                             :default true))
-          (fill-view! "type"           (str name))
-          (fill-view! "type_val"       (gensym ""))
-          (fill-view! "data"           (specs 'data))
-          (fill-view! "new"            (specs 'new))
-          (fill-view! "equals"         (first (specs 'equals)))
-          (fill-view! "stream_console" (first (specs 'stream_console)))
-          (fill-view! "interfaces"     (specs 'interfaces))
-          (fill-view! "fns"            fns)
-          (fill-view! "raw_fns"        raw-fns)
-          (fill-view! "ifdef_fns"      (filter #(= 4 (count %)) (specs 'fns)))
-          (fill-view! "post_code"      (first (specs 'post_code)))
-          (render-view))))
-
   (defn define-object [name f options]
-    (if (not (string? (first f)))
-      (define-object-depricated name f)
-      (let [def (read-file (first f) options)]
-        (-> (create-view "$if(embed_type)$
+    (let [def (read-file (first f) options)]
+      (-> (create-view "$if(embed_type)$
                           namespace runtime {
                             namespace type {
                               const size_t $type$ = $type_val$;}}
                           $endif$
                         $body$")
-            (fill-view! "embed_type"  (pos? (.indexOf def (str "runtime::type::" name))))
-            (fill-view! "type"        (str name))
-            (fill-view! "type_val"    (gensym ""))
-            (fill-view! "body"        def)
-            (render-view)))))
+          (fill-view! "embed_type"  (pos? (.indexOf def (str "runtime::type::" name))))
+          (fill-view! "type"        (str name))
+          (fill-view! "type_val"    (gensym ""))
+          (fill-view! "body"        def)
+          (render-view))))
 #+end_src    
 
 **** Lambdas

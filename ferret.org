@@ -1219,7 +1219,7 @@ defined within *ferret* namespace. All Ferret macros starts with
   (defmethod emit :symbol [_ form state] (str form))
 
   (defmethod emit :string [_ form state]
-    (str "obj<string>(\"" (escape-string form) "\"," (count form) ")"))
+    (str "obj<string>(\"" (escape-string form) "\",(number_t)" (count form) ")"))
 
   (defmethod emit :boolean [_ form state]
     (if (true? form)
@@ -2204,19 +2204,19 @@ Default number configuration,
   #endif
 
     constexpr auto operator "" _pi(long double x) -> double {
-      return 3.14159265358979323846 * x;
+      return 3.14159265358979323846 * (double)x;
     }
 
     constexpr auto operator "" _pi(unsigned long long int  x) -> double {
-      return 1.0_pi * x;
+      return 1.0_pi * (double)x;
     }
 
     constexpr auto operator "" _deg(long double x) -> double {
-      return (1.0_pi * x) / 180;
+      return (1.0_pi * (double)x) / 180;
     }
 
     constexpr auto operator "" _deg(unsigned long long int  x) -> double {
-      return 1.0_deg * x;
+      return 1.0_deg * (double)x;
     }
   }
 #+end_src
@@ -2737,17 +2737,20 @@ strings are represented as a linked list of characters.
   #endif
 
     explicit string() : data(nullptr) {} 
-    explicit string(var s) : data(s) {} 
+
+    explicit string(var s) : data(s) {}
+
     explicit string(const char * str) {
       int length = 0;
       for (length = 0; str[length] != '\0'; ++length);
       for (int i = --length; i >= 0; i--)
         data = runtime::cons(obj<number>((number_t)str[i]),data);
-    } 
-    explicit string(const char * str,int length) {
+    }
+
+    explicit string(const char * str,number_t length) {
       for (int i = --length; i >= 0; i--)
         data = runtime::cons(obj<number>((number_t)str[i]),data);
-    } 
+    }
 
     var container() const {
       return data;
@@ -2777,7 +2780,7 @@ strings are represented as a linked list of characters.
   #ifdef FERRET_STD_LIB
   template<>
   inline var obj<string>(std::string s) {
-    return var(new string(s.c_str(), s.size()));
+    return var(new string(s.c_str(), (number_t)s.size()));
   }
 
   template <> ::std::string string::to(var v) { 
@@ -3008,7 +3011,7 @@ for example usage.
       number_t index;
       var value;
 
-      explicit range_indexed_pair(size_t i = 0, var v = nil()) : index(i) , value(v) { }
+      explicit range_indexed_pair(number_t i = 0, var v = nil()) : index(i) , value(v) { }
     };
     
     struct range_indexed{
@@ -3466,7 +3469,7 @@ to each other in the array which improves data locality.
               return -1;
           
             if (chunk_usable(begin, end))
-              return begin;
+              return (int)begin;
     
             offset = end;
           }
@@ -3484,8 +3487,8 @@ to each other in the array which improves data locality.
               }
           
               pool[page] = length;
-              offset = page + length;
-              for(size_t i = page; i < offset; i++)
+              offset = (size_t)page + length;
+              for(size_t i = (size_t)page; i < offset; i++)
                 used.set(i);
 
               return &pool[++page];
@@ -3495,9 +3498,9 @@ to each other in the array which improves data locality.
         void free(void *p){
           FERRET_WITH_LOCK(lock,{
               ptrdiff_t begin = (static_cast<page_size*>(p) - pool) - 1;
-              size_t end = begin + pool[begin];
+              page_size end = (page_size)begin + pool[begin];
 
-              for(size_t i = begin ; i < end; i++)
+              for(page_size i = (page_size)begin ; i < end; i++)
                 used.reset(i);
             });
         }
@@ -4922,7 +4925,7 @@ Combine a list of bytes to a number.
     "number_t res = 0;
      for(size_t i = 0; i < sizeof(number_t); i++){
       size_t idx = (sizeof(number_t) - i - 1);
-      var obj = runtime::nth(s,idx);
+      var obj = runtime::nth(s,(number_t)idx);
       number_t val = number::to<number_t>(obj);
       res |= val << (i * 8);
      }
@@ -5161,7 +5164,7 @@ Port of Teensy elapsedMicros API,
     inline unsigned long now() const{
       auto now = ::std::chrono::high_resolution_clock::now();
       auto epoch = now.time_since_epoch();
-      return ::std::chrono::duration_cast<::std::chrono::microseconds>(epoch).count();
+      return (unsigned long)::std::chrono::duration_cast<::std::chrono::microseconds>(epoch).count();
     }
   #else
     inline unsigned long now() const{
@@ -6011,6 +6014,7 @@ Build options,
  - -Werror
  - -Wall
  - -Wextra
+ - -Wconversion
  - -Woverloaded-virtual
  - -Wuninitialized
  - -Winit-self
@@ -7491,8 +7495,8 @@ Create some dummy libs under /test/modules/,
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/runtime.h
   // Literals
   namespace ferret{
-    constexpr auto operator "" _MB( unsigned long long const x ) -> long { return 1024L*1024L*x; }
-    constexpr auto operator "" _KB( unsigned long long const x ) -> long { return 1024L*x; }
+    constexpr auto operator "" _MB( unsigned long long const x ) -> long { return 1024L * 1024L * (long)x; }
+    constexpr auto operator "" _KB( unsigned long long const x ) -> long { return 1024L * (long)x; }
   }
 
   // Detect Hardware
@@ -7550,7 +7554,7 @@ Create some dummy libs under /test/modules/,
      "cppcheck" "-q" "--std=c++11" "--template=gcc" "--enable=all" "--error-exitcode=1" f))
 
 
-  (def cxx-opts-common ["-std=c++11" "-pedantic" "-Werror" "-Wall" "-Wextra"
+  (def cxx-opts-common ["-std=c++11" "-pedantic" "-Werror" "-Wall" "-Wextra" "-Wconversion"
                         "-Woverloaded-virtual" "-Wuninitialized" "-Winit-self"
                         "-pthread"])
 

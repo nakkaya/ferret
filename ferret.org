@@ -2203,19 +2203,19 @@ Default number configuration,
     const   size_t                       number_precision = 4;       // number Format String (fprinf)
   #endif
 
-    constexpr auto operator "" _pi(long double x) -> real_t {
+    constexpr auto operator "" _pi(long double x) -> double {
       return 3.14159265358979323846 * x;
     }
 
-    constexpr auto operator "" _pi(unsigned long long int  x) -> real_t {
+    constexpr auto operator "" _pi(unsigned long long int  x) -> double {
       return 1.0_pi * x;
     }
 
-    constexpr auto operator "" _deg(long double x) -> real_t {
+    constexpr auto operator "" _deg(long double x) -> double {
       return (1.0_pi * x) / 180;
     }
 
-    constexpr auto operator "" _deg(unsigned long long int  x) -> real_t {
+    constexpr auto operator "" _deg(unsigned long long int  x) -> double {
       return 1.0_deg * x;
     }
   }

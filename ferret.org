@@ -3421,9 +3421,9 @@ to each other in the array which improves data locality.
       public:
         bit_array() : bits{ false } { }
 
-        inline void set   (size_t b){         bits[index(b)] |= 1 << (offset(b));    }
-        inline void reset (size_t b){         bits[index(b)] &= ~(1 << (offset(b))); }
-        inline bool test  (size_t b){ return (bits[index(b)] & (1 << (offset(b))));  }
+        inline void set   (size_t b){         bits[index(b)] = (uint8_t)(bits[index(b)] |  (1 << (offset(b))));}
+        inline void reset (size_t b){         bits[index(b)] = (uint8_t)(bits[index(b)] & ~(1 << (offset(b))));}
+        inline bool test  (size_t b){ return (bits[index(b)] & (1 << (offset(b))));}
       };
 
       template<typename page_size, size_t pool_size>

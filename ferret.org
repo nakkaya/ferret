@@ -2199,6 +2199,7 @@ Default number configuration,
     
     typedef FERRET_NUMBER_TYPE           number_t;                   // Whole number Container.
     typedef FERRET_REAL_TYPE             real_t;                     // Real number Container.
+    const   real_t                       real_epsilon(FERRET_REAL_EPSILON);
   #if !defined(FERRET_DISABLE_STD_OUT)
     const   size_t                       number_precision = 4;       // number Format String (fprinf)
   #endif
@@ -2231,12 +2232,12 @@ Helper functions,
 
     template<typename T>
     constexpr T min(T a, T b){
-      return ((a)<(b)?(a):(b));
+      return ((a) < (b) ? (a) : (b));
     }
 
     template<typename T>
     constexpr T abs(T a){
-      return ((a)<0 ? -(a) : (a));
+      return ((a) < (T)0 ? -(a) : (a));
     }
   }
 #+end_src
@@ -2257,7 +2258,7 @@ number Object,
     size_t type() const { return runtime::type::number; }
 
     bool equals(var o) const {
-      if (runtime::abs(_word - o.cast<number>()->word()) < FERRET_REAL_EPSILON)
+      if (runtime::abs(_word - o.cast<number>()->word()) < real_epsilon)
         return true;
       else
         return false;
@@ -2308,7 +2309,105 @@ number Object,
       return (T)v.cast<number>()->word();
     }
   };
+#+end_src
 
+A fixed point number, like a floating point number, is an approximate
+representation of a rational number. Unlike floating point numbers
+exponent in a fixed point numbers is constant, this allows fixed point
+numbers to be represented internally as integers and the operations on
+fixed point numbers can be performed using integer arithmetic. This
+can often improve the speed of arithmetic operation on embedded
+systems without a built in FPU.
+
+Fixed point numbers can be enabled by overriding the
+=FERRET_REAL_TYPE= definition. Following defines fixed point numbers
+as 32 bit integers with 8 bits used as fractional part.
+
+#+begin_src clojure
+  (configure-runtime! FERRET_REAL_TYPE "ferret::fixed_real<32,8>")
+#+end_src
+
+#+name: runtime-native-fixed-point-real
+#+begin_src c++ :tangle no
+  template<int bits> struct fixed_real_container;
+  template<> struct fixed_real_container<8>  { typedef int8_t  base_type;
+                                               typedef int16_t next_type; };
+  template<> struct fixed_real_container<16> { typedef int16_t base_type;
+                                               typedef int32_t next_type; };
+  template<> struct fixed_real_container<32> { typedef int32_t base_type;
+                                               typedef int64_t next_type; };
+  template<> struct fixed_real_container<64> { typedef int64_t base_type;
+                                               typedef int64_t next_type; };
+
+  template<int bits, int exp>
+  class fixed_real{
+    typedef fixed_real fixed;
+    typedef typename fixed_real_container<bits>::base_type base;
+    typedef typename fixed_real_container<bits>::next_type next;
+
+    base m;
+    static const int N      = (exp - 1);
+    static const int factor = 1 << N;
+
+    template<typename T>
+    inline T to_rational() const { return T(m) / factor; }
+
+    template<typename T>
+    inline base from_rational(T d) const { return (base)(d * factor); }
+      
+    template<typename T>
+    inline base from_whole(T i) const { return (i << N); }
+
+    template<typename T>
+    inline T to_whole() const { return (T)(m >> N); }
+      
+  public:
+
+    //from types
+    explicit fixed_real( ) : m(0) { }
+    explicit fixed_real(double d)         : m(from_rational<double>(d)) { }
+    explicit fixed_real(char i)           : m(from_whole<char>(i)) { }
+    explicit fixed_real(int i)            : m(from_whole<int>(i)) { }
+    explicit fixed_real(long i)           : m(from_whole<long>(i)) { }
+    explicit fixed_real(unsigned long i)  : m(from_whole<unsigned long>(i)) { }
+      
+    //to types
+    operator double()         const { return to_rational<double>(); }
+    operator char()           const { return to_whole<char>(); }
+    operator int()            const { return to_whole<int>(); }
+    operator long()           const { return to_whole<long>(); }
+    operator unsigned long()  const { return to_whole<unsigned long>(); }
+      
+    // operations
+    fixed& operator+= (const fixed& x) { m += x.m; return *this; }
+    fixed& operator-= (const fixed& x) { m -= x.m; return *this; }
+    fixed& operator*= (const fixed& x) { m = (base)(((next)m * (next)x.m) >> N); return *this; }
+    fixed& operator/= (const fixed& x) { m = (base)(((next)m << N) / x.m); return *this; }
+    fixed& operator*= (int x)          { m *= x; return *this; }
+    fixed& operator/= (int x)          { m /= x; return *this; }
+    fixed operator-   ( )              { return fixed(-m); }
+      
+    // friend functions
+    friend fixed operator+ (fixed x, const fixed& y) { return x += y; }
+    friend fixed operator- (fixed x, const fixed& y) { return x -= y; }
+    friend fixed operator* (fixed x, const fixed& y) { return x *= y; }
+    friend fixed operator/ (fixed x, const fixed& y) { return x /= y; }
+      
+    // comparison operators
+    friend bool operator== (const fixed& x, const fixed& y) { return x.m == y.m; }
+    friend bool operator!= (const fixed& x, const fixed& y) { return x.m != y.m; }
+    friend bool operator>  (const fixed& x, const fixed& y) { return x.m > y.m; }
+    friend bool operator<  (const fixed& x, const fixed& y) { return x.m < y.m; }
+    friend bool operator>= (const fixed& x, const fixed& y) { return x.m >= y.m; }
+    friend bool operator<= (const fixed& x, const fixed& y) { return x.m <= y.m; }
+
+  #if defined(FERRET_STD_LIB)
+    friend std::ostream& operator<< (std::ostream& stream, const fixed& x) {
+      stream << (double)x;
+      return stream;
+    }
+  #endif
+  };
 #+end_src
 
 **** Keyword
@@ -3810,6 +3909,9 @@ Setup IO for Arduino boards,
       void print(const T t){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(t); }
 
       template <>
+      void print(const real_t d){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(double(d)); }
+      
+      template <>
       void print(void* p){
         FERRET_HARDWARE_ARDUINO_UART_PORT.print((size_t)p,HEX);
       }
@@ -5174,7 +5276,7 @@ Port of Teensy elapsedMicros API,
 
     inline unsigned long _elapsed() const { return (now() - us); }
     inline var elapsed() const { return obj<number>(_elapsed()); }
-    inline bool is_elapsed(real_t t) const { return (_elapsed() >= t); }
+    inline bool is_elapsed(real_t t) const { return (_elapsed() >= (unsigned long)t); }
   };
 #+end_src
 
@@ -6828,6 +6930,52 @@ Create some dummy libs under /test/modules/,
     (is (= 0.33333   1/3))
     (is (= 3501      0xDAD))
     (is (= 2748      0xABC)))
+
+
+  (deftest fixed-real-test
+    (is (= 25          (cxx "char n = 25;
+                             auto x = ferret::fixed_real<32,8>(n);
+                             n = (char)x;
+                             __result = obj<number>((number_t)n)")))
+
+    (is (= 1024        (cxx "int n = 1024;
+                             auto x = ferret::fixed_real<32,8>(n);
+                             n = (int)x;
+                             __result = obj<number>((number_t)n)")))
+
+    (is (= true       (cxx "long n = std::numeric_limits<int>::max() + 1024;
+                             auto x = ferret::fixed_real<64,8>(n);
+                             n = (long)x;
+                             __result = obj<boolean>((n == (std::numeric_limits<int>::max() + 1024)))")))
+
+    (is (= 6.25       (cxx "auto x = ferret::fixed_real<32,8>(0);
+                            for(int i = 0; i < 100; i++)
+                              x += ferret::fixed_real<32,8>(0.0625);
+                            __result = obj<number>((double)x)")))
+    
+    (is (= 35.25       (cxx "auto x = ferret::fixed_real<32,8>(22.75);
+                             auto y = ferret::fixed_real<32,8>(12.5);
+                             __result = obj<number>((double)(x + y))")))
+
+    (is (= (- 0.25)    (cxx "auto x = ferret::fixed_real<32,8>(22.75);
+                             auto y = ferret::fixed_real<32,8>(22.5);
+                             __result = obj<number>((double)(y - x))")))
+
+    (is (= (- 0.0625)  (cxx "auto x = ferret::fixed_real<32,8>(-0.25);
+                             auto y = ferret::fixed_real<32,8>(4);
+                             __result = obj<number>((double)(x / y))")))
+
+    (is (= 9.9375      (cxx "auto x = ferret::fixed_real<32,8>(-0.0625);
+                             auto y = ferret::fixed_real<32,8>(-10);
+                             __result = obj<number>((double)(x - y))")))
+
+    (is (= (- 29.8125) (cxx "auto x = ferret::fixed_real<32,8>(9.9375);
+                             auto y = ferret::fixed_real<32,8>(-3);
+                             __result = obj<number>((double)(x * y))")))
+
+    (is (= (- 30)      (cxx "auto x = ferret::fixed_real<32,8>(-29.8125);
+                             auto y = ferret::fixed_real<32,8>(0.1875);
+                             __result = obj<number>((double)(x - y))"))))
 #+end_src
 
 *** Sequence
@@ -7167,15 +7315,6 @@ Create some dummy libs under /test/modules/,
   - Warn wrong number of arguments passed to function.
   - *Convert Data Structures* - Automatically convert unsupported data
     structures and warn user. i.e. Vector to List.
-  - *Fixed-point Arithmetic*
-    Implement fixed point real number type for embedded systems
-    without a FPU.
-    - [[https://www.reddit.com/r/lisp/comments/51kkym/fixedpoint_arithmetic_in_picolisp/][Fixed-point Arithmetic in Picolisp]]
-    - [[https://accu.org/index.php/journals/1717][Why Fixed Point Won't Cure Your Floating Point Blues]]
-    - http://jet.ro/files/The_neglected_art_of_Fixed_Point_arithmetic_20060913.pdf
-    - [[https://alikhuram.wordpress.com/2013/05/20/implementing-fixed-point-numbers-in-c/][Implementing Fixed-Point Numbers in C++]]
-    - https://github.com/johnmcfarlane/fixed_point
-    - [[https://www.youtube.com/watch?v=cdaN51rRzSE][CppCon 2016: John McFarlane “fixed_point"]]
   - C++ implementations of Clojure's persistent data structures. - https://github.com/mninja/persistent-data-structures
   - *Implement Que*
   - *Unbounded Precision Integers*
@@ -7255,6 +7394,15 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Fixed-point Arithmetic*
+    Implement fixed point real number type for embedded systems
+    without a FPU.
+    - [[https://www.reddit.com/r/lisp/comments/51kkym/fixedpoint_arithmetic_in_picolisp/][Fixed-point Arithmetic in Picolisp]]
+    - [[https://accu.org/index.php/journals/1717][Why Fixed Point Won't Cure Your Floating Point Blues]]
+    - http://jet.ro/files/The_neglected_art_of_Fixed_Point_arithmetic_20060913.pdf
+    - [[https://alikhuram.wordpress.com/2013/05/20/implementing-fixed-point-numbers-in-c/][Implementing Fixed-Point Numbers in C++]]
+    - https://github.com/johnmcfarlane/fixed_point
+    - [[https://www.youtube.com/watch?v=cdaN51rRzSE][CppCon 2016: John McFarlane “fixed_point"]]
   - *Association Lists* as an alternative to maps. More suited to
     embedded systems. Quoted from Wikipedia, for quite small values of
     n it is more efficient in terms of time and space than more
@@ -7501,6 +7649,11 @@ Create some dummy libs under /test/modules/,
 
   // Detect Hardware
   <<runtime-native-hardware-setup>>
+
+  // Fixed Point Real
+  namespace ferret{
+    <<runtime-native-fixed-point-real>>
+  }
 
   // Number Configuration
   <<runtime-native-number-config-macros>>

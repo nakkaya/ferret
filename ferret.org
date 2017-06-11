@@ -2370,7 +2370,7 @@ accuracy using 6 bits for fraction.
     inline base from_rational(T d) const { return (base)(d * factor); }
       
     template<typename T>
-    inline base from_whole(T i) const { return (i << N); }
+    inline base from_whole(T i) const { return ((base)i << N); }
 
     template<typename T>
     inline T to_whole() const { return (T)(m >> N); }

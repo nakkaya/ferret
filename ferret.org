@@ -2382,6 +2382,10 @@ accuracy using 6 bits for fraction.
     explicit fixed_real(int i)            : m(from_whole<int>(i)) { }
     explicit fixed_real(long i)           : m(from_whole<long>(i)) { }
     explicit fixed_real(unsigned long i)  : m(from_whole<unsigned long>(i)) { }
+
+    fixed& operator=(double v) { m = from_rational<double>(v); return *this; }
+    fixed& operator=(int v)    { m = from_whole<int>(v); return *this; }
+    fixed& operator=(long v)   { m = from_whole<long>(v); return *this; }
       
     //to types
     operator double()         const { return to_rational<double>(); }
@@ -5626,8 +5630,8 @@ Ported from,
 
       // If continuous is set to true allow wrap around
       if (continuous) {
-        if (runtime::abs(error) > ((maximum_input - minimum_input) / 2)) {
-          if (error > 0) {
+        if (runtime::abs(error) > ((maximum_input - minimum_input) / (real_t)2)) {
+          if (error > (real_t)0) {
             error = (error - maximum_input) + minimum_input;
           } else {
             error = (error + maximum_input) - minimum_input;
@@ -6955,10 +6959,17 @@ Create some dummy libs under /test/modules/,
                              n = (int)x;
                              __result = obj<number>((number_t)n)")))
 
-    (is (= true       (cxx "long n = std::numeric_limits<int>::max() + 1024;
+    (is (= 10.25       (cxx "auto x = ferret::fixed_real<32,8>();
+                             (void)x;
+                             auto y = ferret::fixed_real<32,8>();
+                             (void)y;
+                             x = 10; y = 0.250;
+                             __result = obj<number>((real_t)(x + y))")))
+
+    (is (= true       (cxx "long n = std::numeric_limits<int>::max() + 1024L;
                              auto x = ferret::fixed_real<64,8>(n);
                              n = (long)x;
-                             __result = obj<boolean>((n == (std::numeric_limits<int>::max() + 1024)))")))
+                             __result = obj<boolean>((n == ((long)std::numeric_limits<int>::max() + 1024L)))")))
 
     (is (= 6.25       (cxx "auto x = ferret::fixed_real<32,8>(0);
                             for(int i = 0; i < 100; i++)

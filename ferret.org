@@ -2327,8 +2327,20 @@ as 32 bit integers with 8 bits used as fractional part.
   (configure-runtime! FERRET_REAL_TYPE "ferret::fixed_real<32,8>")
 #+end_src
 
+or you can automatically calculate required fraction bits using a
+literal. Following defines a 32 bit =fixed_real= with 0.01 fractional
+accuracy using 6 bits for fraction.
+
+#+begin_src clojure
+  (configure-runtime! FERRET_REAL_TYPE "ferret::fixed_real<32,0.01_QN>")
+#+end_src
+
 #+name: runtime-native-fixed-point-real
 #+begin_src c++ :tangle no
+  constexpr auto operator "" _QN(long double x) -> int {
+    return (int)::floor(::log(1.0/(double)x)/::log(2));
+  }
+
   template<int bits> struct fixed_real_container;
   template<> struct fixed_real_container<8>  { typedef int8_t  base_type;
                                                typedef int16_t next_type; };

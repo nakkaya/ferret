@@ -2337,9 +2337,11 @@ accuracy using 6 bits for fraction.
 
 #+name: runtime-native-fixed-point-real
 #+begin_src c++ :tangle no
+  #if !defined(__clang__)
   constexpr auto operator "" _QN(long double x) -> int {
     return (int)::floor(::log(1.0/(double)x)/::log(2));
   }
+  #endif
 
   template<int bits> struct fixed_real_container;
   template<> struct fixed_real_container<8>  { typedef int8_t  base_type;

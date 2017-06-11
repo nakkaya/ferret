@@ -2378,23 +2378,28 @@ accuracy using 6 bits for fraction.
   public:
 
     //from types
-    explicit fixed_real( ) : m(0) { }
-    explicit fixed_real(double d)         : m(from_rational<double>(d)) { }
-    explicit fixed_real(char i)           : m(from_whole<char>(i)) { }
-    explicit fixed_real(int i)            : m(from_whole<int>(i)) { }
-    explicit fixed_real(long i)           : m(from_whole<long>(i)) { }
+    explicit fixed_real( )                : m(0) { }
+    explicit fixed_real(int8_t b)         : m(from_whole<int8_t>(b)) {}
+    explicit fixed_real(int16_t b)        : m(from_whole<int16_t>(b)) {}
+    explicit fixed_real(int32_t b)        : m(from_whole<int32_t>(b)) {}
+    explicit fixed_real(int64_t b)        : m(from_whole<int64_t>(b)) {}
     explicit fixed_real(unsigned long i)  : m(from_whole<unsigned long>(i)) { }
+    explicit fixed_real(double d)         : m(from_rational<double>(d)) { }
 
-    fixed& operator=(double v) { m = from_rational<double>(v); return *this; }
-    fixed& operator=(int v)    { m = from_whole<int>(v); return *this; }
-    fixed& operator=(long v)   { m = from_whole<long>(v); return *this; }
+    fixed& operator=(int8_t v)   { m = from_whole<int8_t>(v);    return *this; }
+    fixed& operator=(int16_t v)  { m = from_whole<int16_t>(v);   return *this; }
+    fixed& operator=(int32_t v)  { m = from_whole<int32_t>(v);   return *this; }
+    fixed& operator=(int64_t v)  { m = from_whole<int64_t>(v);   return *this; }
+    fixed& operator=(double v)   { m = from_rational<double>(v); return *this; }
       
     //to types
-    operator double()         const { return to_rational<double>(); }
-    operator char()           const { return to_whole<char>(); }
-    operator int()            const { return to_whole<int>(); }
-    operator long()           const { return to_whole<long>(); }
+    operator char()           const { return to_whole<char>();    }
+    operator int8_t()         const { return to_whole<int8_t>();    }
+    operator int16_t()        const { return to_whole<int16_t>();   }
+    operator int32_t()        const { return to_whole<int32_t>();   }
+    operator int64_t()        const { return to_whole<int64_t>();   }
     operator unsigned long()  const { return to_whole<unsigned long>(); }
+    operator double()         const { return to_rational<double>(); }
       
     // operations
     fixed& operator+= (const fixed& x) { m += x.m; return *this; }
@@ -2403,7 +2408,7 @@ accuracy using 6 bits for fraction.
     fixed& operator/= (const fixed& x) { m = (base)(((next)m << N) / x.m); return *this; }
     fixed& operator*= (int x)          { m *= x; return *this; }
     fixed& operator/= (int x)          { m /= x; return *this; }
-    fixed operator-   ( )              { return fixed(-m); }
+    fixed  operator-  ( )              { return fixed(-m); }
       
     // friend functions
     friend fixed operator+ (fixed x, const fixed& y) { return x += y; }
@@ -6955,6 +6960,16 @@ Create some dummy libs under /test/modules/,
                              auto x = ferret::fixed_real<32,8>(n);
                              n = (char)x;
                              __result = obj<number>((number_t)n)")))
+
+    (is (= 25          (cxx "long n = 25;
+                             auto x = ferret::fixed_real<64,8>(n);
+                             char v = (char)x;
+                             __result = obj<number>((number_t)v)")))
+
+    (is (= 2500        (cxx "unsigned long n = 2500;
+                             auto x = ferret::fixed_real<64,8>(n);
+                             unsigned long v = (unsigned long)x;
+                             __result = obj<number>((number_t)v)")))
 
     (is (= 1024        (cxx "int n = 1024;
                              auto x = ferret::fixed_real<32,8>(n);

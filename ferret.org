@@ -3044,6 +3044,67 @@ not yet finished, calls to deref/@ will block.
   #endif
 #+end_src
 
+**** Delay
+
+Mimics Clojure's /delay/. It is thread safe when used on system where
+=FERRET_STD_LIB= is defined.
+
+Takes a body of expressions and yields a Delay object that will invoke
+the body only the first time it is forced (with force or deref/@),
+and will cache the result and return it on all subsequent force
+calls.
+
+#+name: runtime-clojure-objects
+#+begin_src clojure :tangle no
+  (defobject delayed "ferret/obj/delayed_o.h")
+
+  (defn _delay_ [f]
+    "__result = obj<delayed>(f)")
+
+  (defmacro delay [& body]
+    `(~'_delay_ (~'fn [] ~@body)))
+
+  (defn delay? [d]
+    "__result = obj<boolean>(d.is_type(runtime::type::delayed));")
+
+  (defn force [d] @d)
+#+end_src
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/delayed_o.h
+  class delayed : public deref_i {
+    var fn;
+    var val;
+    FERRET_NEW_LOCK(lock)
+    
+    public:
+
+    size_t type() const { return runtime::type::delayed; }
+
+    bool equals(var o) const {
+      return (this == o.cast<delayed>());
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    var stream_console() const {
+      runtime::print("delay");
+      return nil();
+    }
+  #endif
+
+    explicit delayed(var f) : fn(f) {} 
+    
+    var deref() {
+      FERRET_WITH_LOCK(lock,{
+          if (!fn.is_nil()){
+            val = fn.cast<lambda_i>()->invoke(nil());
+            fn = nil();
+          }
+          return val;
+        });
+    }
+  };
+#+end_src
+
 *** Interfaces
 
 Just like Clojure, Ferret is written in terms of
@@ -6672,6 +6733,13 @@ Static code analysis (cppcheck) options,
     (is (= true   (let [f (future :true)]
                     (deref f)
                     (future-done? f)))))
+
+  (deftest delay-test
+    (let [d (delay   (+ 1 1))]
+      (is (= true    (delay? d)))
+      (is (= 2       @d))
+      (is (= 2       @d))
+      (is (= 42      (force (delay 42))))))
 
   (deftest timing-test
     (let [now (millis)]

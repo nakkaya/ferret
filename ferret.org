@@ -2378,28 +2378,19 @@ accuracy using 6 bits for fraction.
   public:
 
     //from types
-    explicit fixed_real( )                : m(0) { }
-    explicit fixed_real(int8_t b)         : m(from_whole<int8_t>(b)) {}
-    explicit fixed_real(int16_t b)        : m(from_whole<int16_t>(b)) {}
-    explicit fixed_real(int32_t b)        : m(from_whole<int32_t>(b)) {}
-    explicit fixed_real(int64_t b)        : m(from_whole<int64_t>(b)) {}
-    explicit fixed_real(unsigned long i)  : m(from_whole<unsigned long>(i)) { }
-    explicit fixed_real(double d)         : m(from_rational<double>(d)) { }
+    explicit fixed_real( )           : m(0) { }
+    template<typename T>
+    explicit fixed_real(T v)         : m(from_whole<T>(v)) {}
+    explicit fixed_real(double d)    : m(from_rational<double>(d)) { }
 
-    fixed& operator=(int8_t v)   { m = from_whole<int8_t>(v);    return *this; }
-    fixed& operator=(int16_t v)  { m = from_whole<int16_t>(v);   return *this; }
-    fixed& operator=(int32_t v)  { m = from_whole<int32_t>(v);   return *this; }
-    fixed& operator=(int64_t v)  { m = from_whole<int64_t>(v);   return *this; }
+    template<typename T>
+    fixed& operator=(T v)        { m = from_whole<T>(v); return *this; }
     fixed& operator=(double v)   { m = from_rational<double>(v); return *this; }
       
     //to types
-    operator char()           const { return to_whole<char>();    }
-    operator int8_t()         const { return to_whole<int8_t>();    }
-    operator int16_t()        const { return to_whole<int16_t>();   }
-    operator int32_t()        const { return to_whole<int32_t>();   }
-    operator int64_t()        const { return to_whole<int64_t>();   }
-    operator unsigned long()  const { return to_whole<unsigned long>(); }
-    operator double()         const { return to_rational<double>(); }
+    template<typename T>
+    operator T()           const { return to_whole<T>();    }
+    operator double()      const { return to_rational<double>(); }
       
     // operations
     fixed& operator+= (const fixed& x) { m += x.m; return *this; }

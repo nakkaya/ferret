@@ -3104,8 +3104,10 @@ calls.
     
     var deref() {
       FERRET_WITH_LOCK(lock,{
-          if (!fn.is_nil())
+          if (!fn.is_nil()){
             val = fn.cast<lambda_i>()->invoke(nil());
+            fn = nil();
+          }
           return val;
         });
     }
@@ -6744,6 +6746,7 @@ Static code analysis (cppcheck) options,
   (deftest delay-test
     (let [d (delay   (+ 1 1))]
       (is (= true    (delay? d)))
+      (is (= 2       @d))
       (is (= 2       @d))
       (is (= 42      (force (delay 42))))))
 

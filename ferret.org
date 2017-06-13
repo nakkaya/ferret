@@ -2155,7 +2155,8 @@ modern C++ libraries that use smart pointers for memory management.
   #if !defined(FERRET_DISABLE_STD_OUT)
     var stream_console() const {
       runtime::print("value<");
-      runtime::print((void*)&_payload);
+      const void* addr = &_payload;
+      runtime::print(addr);
       runtime::print(">");
       return nil();
     }
@@ -3987,7 +3988,7 @@ Setup IO for Arduino boards,
       void print(const real_t d){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(double(d)); }
       
       template <>
-      void print(void* p){
+      void print(const void* p){
         FERRET_HARDWARE_ARDUINO_UART_PORT.print((size_t)p,HEX);
       }
      }
@@ -6192,9 +6193,13 @@ Build options,
  - -Wall
  - -Wextra
  - -Wconversion
+ - -Wpointer-arith
+ - -Wcast-qual
+ - -Wmissing-braces
  - -Woverloaded-virtual
  - -Wuninitialized
  - -Winit-self
+ - -fno-rtti
  - -fsanitize=leak
  - -fsanitize=undefined
 
@@ -7809,8 +7814,19 @@ Create some dummy libs under /test/modules/,
      "cppcheck" "-q" "--std=c++11" "--template=gcc" "--enable=all" "--error-exitcode=1" f))
 
 
-  (def cxx-opts-common ["-std=c++11" "-pedantic" "-Werror" "-Wall" "-Wextra" "-Wconversion"
-                        "-Woverloaded-virtual" "-Wuninitialized" "-Winit-self"
+  (def cxx-opts-common ["-std=c++11"
+                        "-pedantic"
+                        "-Werror"
+                        "-Wall"
+                        "-Wextra"
+                        "-Wconversion"
+                        "-Wpointer-arith"
+                        "-Wcast-qual"
+                        "-Wmissing-braces"
+                        "-Woverloaded-virtual"
+                        "-Wuninitialized"
+                        "-Winit-self"
+                        "-fno-rtti"
                         "-pthread"])
 
   (def cxx-llvm-opts ["-fsanitize=leak" "-fsanitize=undefined"])

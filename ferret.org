@@ -373,9 +373,9 @@ maintain.
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
   (defn compile [form options]
-    (->> (ferret-runtime form options)
+    (->> (data-structure-conversion form)
+         (ferret-runtime options)
          (remove-assertions options)
-         (data-structure-conversion)
          (expand-macros-all)
          (let->fn)
          (do->fn)
@@ -497,7 +497,7 @@ modules and concatenate the required runtime from clojure.core
 
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
-  (defn ferret-runtime [form options]
+  (defn ferret-runtime [options form]
     (->> (import-modules-all form options)
          (shake-concat (read-clojure-file "ferret/runtime.clj"))
          ;; tag form with the build info

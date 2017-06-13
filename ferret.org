@@ -446,7 +446,7 @@ of mod -> aliases pairs.
                                               (replace? %))
                                     #(symbol (str (.replace (str m) "." "_") "_" %)))]
                 (reduce (fn [h v] (conj h v)) h mod)))
-            (list ) package-list))
+            [] package-list))
 #+end_src
 
 Loads all modules listed in the package list. When a module is loaded
@@ -6908,6 +6908,9 @@ Create some dummy programs under /test/,
 #+begin_src clojure :mkdirp yes :tangle src/test/import_module_empty_aux_b.clj
   (require '[modules.module-a :as mod-a])
   (require '[modules.module-b :as mod-b])
+
+  (native-declare "const int XYZ_SIZE = 123;")
+  (native-declare "int xyz_arr[XYZ_SIZE];")
 #+end_src 
 
 Create some dummy libs under /test/modules/,

@@ -2824,8 +2824,7 @@ Each keyword in the program is converted to an /keyword/ object. A
       var map = runtime::first(args);
 
       if (map.is_type(runtime::type::d_list)){
-        object_t* val = (object_t*)this;
-        return map.cast<d_list>()->val_at(var(val));
+        return map.cast<d_list>()->val_at(var((object_t*)this));
       }
 
       return nil();
@@ -6205,7 +6204,6 @@ Build options,
  - -Wextra
  - -Wconversion
  - -Wpointer-arith
- - -Wcast-qual
  - -Wmissing-braces
  - -Woverloaded-virtual
  - -Wuninitialized

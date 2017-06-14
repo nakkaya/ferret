@@ -1223,8 +1223,8 @@ defined within *ferret* namespace. All Ferret macros starts with
 
   (defmethod emit :boolean [_ form state]
     (if (true? form)
-      (str "obj<boolean>(cached::true_t)")
-      (str "obj<boolean>(cached::false_t)")))
+      (str "cached::true_t")
+      (str "cached::false_t")))
 
   (defmethod emit :nil [_ form state] "nil()")
 
@@ -6430,10 +6430,10 @@ Static code analysis (cppcheck) options,
     (is (= 1     (when (< 2 3) 1)))
     (is (= true  (let [a 1] (and (> a 0) (< a 10)))))
     (is (= false (let [a 11] (and (> a 0) (< a 10)))))
-    (is (= true  (and true true)))
-    (is (= false (and true false)))
-    (is (= true  (or true false)))
-    (is (= false (or false false))))
+    (is (= true  (and true  (identity true))))
+    (is (= false (and true  (identity false))))
+    (is (= true  (or  true  (identity false))))
+    (is (= false (or  false (identity false)))))
 #+end_src
 
 *** Logical Operators

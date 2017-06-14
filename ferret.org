@@ -3997,7 +3997,7 @@ Setup IO for Arduino boards,
       void print(const real_t d){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(double(d)); }
       
       template <>
-      void print(const void* p){
+      void print(void* p){
         FERRET_HARDWARE_ARDUINO_UART_PORT.print((size_t)p,HEX);
       }
      }

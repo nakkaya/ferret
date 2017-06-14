@@ -7833,7 +7833,6 @@ Create some dummy libs under /test/modules/,
                         "-Wextra"
                         "-Wconversion"
                         "-Wpointer-arith"
-                        "-Wcast-qual"
                         "-Wmissing-braces"
                         "-Woverloaded-virtual"
                         "-Wuninitialized"

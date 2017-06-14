@@ -2823,8 +2823,10 @@ Each keyword in the program is converted to an /keyword/ object. A
     var invoke(var args) const {
       var map = runtime::first(args);
 
-      if (map.is_type(runtime::type::d_list))
-        return map.cast<d_list>()->val_at(var((object_t*)this));
+      if (map.is_type(runtime::type::d_list)){
+        object_t* val = (object_t*)this;
+        return map.cast<d_list>()->val_at(var(val));
+      }
 
       return nil();
     }

@@ -7826,12 +7826,11 @@ Create some dummy libs under /test/modules/,
                         "-Woverloaded-virtual"
                         "-Wuninitialized"
                         "-Winit-self"
-                        "-fno-rtti"
                         "-pthread"])
 
   (def cxx-llvm-opts ["-fsanitize=leak" "-fsanitize=undefined"])
 
-  (def cxx [["/usr/bin/g++"         cxx-opts-common]
+  (def cxx [["/usr/bin/g++"         (concat cxx-opts-common ["-fno-rtti"])]
             ["/usr/bin/g++"         (concat cxx-opts-common ["-O3"])]
             ["/usr/bin/clang++-3.4" (concat cxx-opts-common cxx-llvm-opts)]
             ["/usr/bin/clang++-3.4" (concat cxx-opts-common cxx-llvm-opts ["-O3"])]])

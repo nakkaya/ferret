@@ -3891,6 +3891,11 @@ indicating platform.
       # undef  FERRET_CONFIG_SAFE_MODE
       # define FERRET_DISABLE_MULTI_THREADING TRUE
       # define FERRET_DISABLE_STD_MAIN TRUE
+
+      #if defined(__AVR__)
+        # undef  FERRET_MEMORY_POOL_PAGE_TYPE
+        # define FERRET_MEMORY_POOL_PAGE_TYPE unsigned char
+      #endif
     #endif
   #endif
 
@@ -7498,6 +7503,9 @@ Create some dummy libs under /test/modules/,
 
 ** Issues
 
+  - *Atmega328* - Memory pool page type other than =unsigned char=
+    causes corruption. Currently when Arduino Uno is detected
+    =unsigned char= page type is forced.
   - *Variadic Templates* - GCC evaluates arguments in reverse order.
     - [[http://stackoverflow.com/questions/14060264/order-of-evaluation-of-elements-in-list-initialization][Order of evaluation of elements in list-initialization]]
     - [[https://blogs.msdn.microsoft.com/vcblog/2016/02/11/compiler-improvements-in-vs-2015-update-2/][Compiler improvements in VS 2015 Update 2]]

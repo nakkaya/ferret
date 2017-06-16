@@ -3681,12 +3681,12 @@ to each other in the array which improves data locality.
         }
 
         void free(void *p){
-          FERRET_WITH_LOCK(lock,{
-              ptrdiff_t begin = (static_cast<page_size*>(p) - pool) - 1;
-              page_size end = (page_size)begin + pool[begin];
+          FERRET_WITH_LOCK(lock, {
+              ptrdiff_t begin = (static_cast<page_size *>(p) - pool) - 1;
+              ptrdiff_t end = begin + (ptrdiff_t)pool[begin];
 
-              for(page_size i = (page_size)begin ; i < end; i++)
-                used.reset(i);
+              for (ptrdiff_t i = begin; i < end; i++)
+                used.reset((size_t)i);
             });
         }
       };

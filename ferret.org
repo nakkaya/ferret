@@ -3891,11 +3891,6 @@ indicating platform.
       # undef  FERRET_CONFIG_SAFE_MODE
       # define FERRET_DISABLE_MULTI_THREADING TRUE
       # define FERRET_DISABLE_STD_MAIN TRUE
-
-      #if defined(__AVR__)
-        # undef  FERRET_MEMORY_POOL_PAGE_TYPE
-        # define FERRET_MEMORY_POOL_PAGE_TYPE unsigned char
-      #endif
     #endif
   #endif
 

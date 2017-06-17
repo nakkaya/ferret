@@ -2656,8 +2656,8 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
   (defn dissoc [m k]
     "__result = m.cast<d_list>()->dissoc(k);")
 
-  (defn get [m k]
-    "__result = m.cast<d_list>()->val_at(k);")
+  (defn get [m & args]
+    "__result = m.cast<d_list>()->val_at(args);")
 
   (defn vals [m]
     "__result = m.cast<d_list>()->vals();")
@@ -2731,12 +2731,20 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       return obj<d_list>(runtime::cons(new_keys,new_values));
     }
     
-    var val_at(var k) const {
-      var values = runtime::rest(data);
-      number_t idx = val_index(k);
+    var val_at(var args) const {
+      var key = runtime::first(args);
+      var not_found = runtime::first(runtime::rest(args));
 
-      if ( idx == -1 )
-        return nil();
+      var values = runtime::rest(data);
+      number_t idx = val_index(key);
+
+      if ( idx == -1 ){
+       if ( !not_found.is_nil() ){
+        return not_found;
+       }else{
+        return nil();  
+       }
+      }
 
       for(number_t i = 0; i < idx; i++)
         values = runtime::rest(values);
@@ -2745,8 +2753,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     }
 
     var invoke(var args) const {
-      var key = runtime::first(args);
-      return val_at(key);
+      return val_at(args);
     }
 
     var vals () const { return runtime::rest(data);}
@@ -2822,9 +2829,10 @@ Each keyword in the program is converted to an /keyword/ object. A
 
     var invoke(var args) const {
       var map = runtime::first(args);
+      args = runtime::cons(var((object_t*)this), runtime::rest(args));
 
       if (map.is_type(runtime::type::d_list)){
-        return map.cast<d_list>()->val_at(var((object_t*)this));
+        return map.cast<d_list>()->val_at(args);
       }
 
       return nil();
@@ -7251,6 +7259,14 @@ Create some dummy libs under /test/modules/,
       (is (= (list :b :a)                  (keys mr)))
       (is (= (list 2  1)                   (vals mr)))
       (is (= 1                             (:a mr)))
+      (is (= 1                             (get mr :a 10)))
+      (is (= 10                            (get mr :c 10)))
+      (is (= 1                             (mr :a)))
+      (is (= 1                             (mr :a 10)))
+      (is (= 10                            (mr :c 10)))
+      (is (= 1                             (:a mr)))
+      (is (= 1                             (:a mr 10)))
+      (is (= 10                            (:c mr 10)))
       (is (= 6                             (->> mn
                                                 (map second)
                                                 (apply +))))))
@@ -7436,7 +7452,6 @@ Create some dummy libs under /test/modules/,
 
 ** Data Structures
 
-  - *Maps* - Implement default =get= values.
   - *Maps* - Implement destructuring.
   - Warn wrong number of arguments passed to function.
   - *Convert Data Structures* - Automatically convert unsupported data
@@ -7523,6 +7538,7 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Maps* - Implement default =get= values.
   - *Fixed-point Arithmetic*
     Implement fixed point real number type for embedded systems
     without a FPU.

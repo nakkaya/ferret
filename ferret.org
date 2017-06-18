@@ -3157,6 +3157,7 @@ C++ API for the interface,
     var cons(var const & x, var const & seq);
     var nth(var const & seq, var const & index);
     var nth(var const & seq, number_t index);
+    var nthrest(var const & seq, number_t index);
     size_t count(var const & seq);
     bool is_seqable(var const & seq);
   }
@@ -3296,6 +3297,17 @@ Implementations for the C++ Seekable API,
     
     var nth(var const & seq, var const & idx){
       return nth(seq,number::to<number_t>(idx));
+    }
+
+    var nthrest(var const & seq, number_t index){
+      var ret = seq;
+      for(number_t i = 0; i < index; i++)
+        ret = runtime::rest(ret);
+
+      if (ret.is_nil())
+        return runtime::list(); 
+
+      return ret;
     }
     
     size_t count(var const & seq){
@@ -4802,12 +4814,7 @@ Returns the nth rest of coll, coll when n is 0.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn nthrest [coll n]
-    "__result = coll;
-     for(number_t i = 0; i < number::to<number_t>(n); i++)
-       __result = runtime::rest(__result);
-
-     if (__result.is_nil())
-       __result = runtime::list();")
+    "__result = runtime::nthrest(coll,number::to<number_t>(n));")
 #+end_src
 
 *** cons

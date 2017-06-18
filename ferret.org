@@ -2099,10 +2099,10 @@ A /pointer/ object keeps a reference to a C++ pointer.
     void* payload() const {
       return _payload;
     }
-    template<typename T> static T* to_pointer(var v){
+    template<typename T> static T* to_pointer(var const & v){
       return ((T *) v.cast<pointer>()->payload());
     }
-    template<typename T> static T& to_reference(var v){
+    template<typename T> static T& to_reference(var const & v){
       return (*(pointer::to_pointer<T>(v)));
     }
   };
@@ -2161,7 +2161,7 @@ modern C++ libraries that use smart pointers for memory management.
     T payload() const {
       return _payload;
     }
-    static T to_value(var v){
+    static T to_value(var const & v){
       return v.cast<value<T>>()->payload();
     }
   };
@@ -2274,32 +2274,32 @@ number Object,
       T::unimplemented_function;
     }
     
-    var add(var v) const {
+    var add(var const & v) const {
       return obj<number>(_word + v.cast<number>()->word());
     }
-    var sub(var v) const {
+    var sub(var const & v) const {
       return obj<number>(_word - v.cast<number>()->word());
     }
-    var mul(var v) const {
+    var mul(var const & v) const {
       return obj<number>(_word * v.cast<number>()->word());
     }
-    var div(var v) const {
+    var div(var const & v) const {
       return obj<number>(_word / v.cast<number>()->word());
     }
-    var is_smaller(var v) const {
+    var is_smaller(var const & v) const {
       return obj<boolean>(_word < v.cast<number>()->word());
     }
-    var is_smaller_equal(var v) const {
+    var is_smaller_equal(var const & v) const {
       return obj<boolean>(_word <= v.cast<number>()->word());
     }
-    var is_bigger(var v) const {
+    var is_bigger(var const & v) const {
       return obj<boolean>(_word > v.cast<number>()->word());
     }
-    var is_bigger_equal(var v) const {
+    var is_bigger_equal(var const & v) const {
       return obj<boolean>(_word >= v.cast<number>()->word());
     }
     
-    template<typename T> static T to(var v){
+    template<typename T> static T to(var const & v){
       return (T)v.cast<number>()->word();
     }
   };
@@ -2483,7 +2483,7 @@ Linked list container implementing the seekable interface.
     }
   #endif
 
-    explicit sequence(var d = var(), var n = var()) : data(d), next(n) {} 
+    explicit sequence(var const & d = var(), var const & n = var()) : data(d), next(n) {} 
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
@@ -2497,7 +2497,7 @@ Linked list container implementing the seekable interface.
       return next;
     }
     template <typename T>
-    static T to(var){
+    static T to(var const & ){
       T::unimplemented_function;
     }
     template <typename T>
@@ -2523,7 +2523,7 @@ Linked list container implementing the seekable interface.
   #ifdef FERRET_STD_LIB
   typedef ::std::vector<var>  std_vector;
 
-  template <> std_vector sequence::to(var v) { 
+  template <> std_vector sequence::to(var const & v) { 
     std_vector ret;
     for(auto const& it : runtime::range(v))
       ret.push_back(it);
@@ -2587,8 +2587,8 @@ A lazy list container implementing the seekable interface.
     }
   #endif
 
-    explicit lazy_sequence(var t) : thunk(t) {} 
-    explicit lazy_sequence(var h, var t) : head(h), thunk(t) {} 
+    explicit lazy_sequence(var const & t) : thunk(t) {} 
+    explicit lazy_sequence(var const & h, var const & t) : head(h), thunk(t) {} 
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
@@ -2664,7 +2664,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 
     var data;
 
-    number_t val_index(var k) const {
+    number_t val_index(var const & k) const {
       var keys = runtime::first(data);
 
       for(auto i : runtime::range_indexed(keys))
@@ -2690,9 +2690,9 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
   #endif
 
     explicit d_list() : data(runtime::list(runtime::list())) { }
-    explicit d_list(var l) : data(l) { }
+    explicit d_list(var const & l) : data(l) { }
 
-    var assoc(var k, var v) const {
+    var assoc(var const & k, var const & v) const {
       var keys = runtime::first(data);
       var values = runtime::rest(data);
 
@@ -2702,7 +2702,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       return obj<d_list>(runtime::cons(keys,values));
     }
 
-    var dissoc(var k) const {
+    var dissoc(var const & k) const {
       number_t idx = val_index(k);
       
       if ( idx == -1 )
@@ -2724,7 +2724,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       return obj<d_list>(runtime::cons(new_keys,new_values));
     }
     
-    var val_at(var args) const {
+    var val_at(var const & args) const {
       var key = runtime::first(args);
       var not_found = runtime::first(runtime::rest(args));
 
@@ -2863,7 +2863,7 @@ strings are represented as a linked list of characters.
 
     explicit string() : data(nullptr) {} 
 
-    explicit string(var s) : data(s) {}
+    explicit string(var const & s) : data(s) {}
 
     explicit string(const char * str) {
       int length = 0;
@@ -2896,7 +2896,7 @@ strings are represented as a linked list of characters.
     }
 
     template <typename T>
-    static T to(var){
+    static T to(var const & ){
       T::unimplemented_function;
     }
 
@@ -2908,7 +2908,7 @@ strings are represented as a linked list of characters.
     return var(new string(s.c_str(), (number_t)s.size()));
   }
 
-  template <> ::std::string string::to(var v) { 
+  template <> ::std::string string::to(var const & v) { 
     ::std::stringstream ss;
     for(auto const& it : runtime::range(v.cast<string>()->container()))
       ss << number::to<char>(it);
@@ -2949,12 +2949,11 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
     }
   #endif
 
-    explicit atomic(var d) : data(d) {} 
+    explicit atomic(var const & d) : data(d) {} 
 
-    var swap(var f,var args){
+    var swap(var const & f,var const & args){
       FERRET_WITH_LOCK(lock,{
-          args = runtime::cons(data, args);
-          data = f.cast<lambda_i>()->invoke(args);
+          data = f.cast<lambda_i>()->invoke(runtime::cons(data, args));
         });
       return data;
     }
@@ -3027,7 +3026,7 @@ not yet finished, calls to deref/@ will block.
     }
   #endif
 
-    explicit async(var f) : fn(f) {
+    explicit async(var const & f) : fn(f) {
       cached = false;
       task = std::async(std::launch::async, [this](){ return run(fn); });
       value = nil();
@@ -3103,7 +3102,7 @@ calls.
     }
   #endif
 
-    explicit delayed(var f) : fn(f) {} 
+    explicit delayed(var const & f) : fn(f) {} 
     
     var deref() {
       FERRET_WITH_LOCK(lock,{
@@ -3171,7 +3170,7 @@ for example usage.
     struct range{
       var p;
 
-      explicit range(var v) : p(v) { }
+      explicit range(var const & v) : p(v) { }
       inline range begin() const { return range(p); }
       inline range end()   const { return range(cached::empty_sequence); }
 
@@ -3197,14 +3196,14 @@ for example usage.
       number_t index;
       var value;
 
-      explicit range_indexed_pair(number_t i = 0, var v = nil()) : index(i) , value(v) { }
+      explicit range_indexed_pair(number_t i = 0, var const & v = nil()) : index(i) , value(v) { }
     };
     
     struct range_indexed{
       var p;
       number_t index;
 
-      explicit range_indexed(var v) : p(v) , index(0) { }
+      explicit range_indexed(var const & v) : p(v) , index(0) { }
       inline range_indexed begin() const { return range_indexed(p); }
       inline range_indexed end()   const { return range_indexed(cached::empty_sequence); }
 
@@ -3231,14 +3230,14 @@ for example usage.
       var first;
       var second;
 
-      explicit range_pair_pair(var a = nil(), var b = nil()) : first(a) , second(b) { }
+      explicit range_pair_pair(var const & a = nil(), var const & b = nil()) : first(a) , second(b) { }
     };
       
     struct range_pair{
       var first;
       var second;
 
-      explicit range_pair(var a = nil(), var b = nil()) : first(a) , second(b) { }
+      explicit range_pair(var const & a = nil(), var const & b = nil()) : first(a) , second(b) { }
       
       inline range_pair begin() const { return range_pair(first, second); }
       inline range_pair end()   const { return range_pair(cached::empty_sequence,cached::empty_sequence); }
@@ -5668,9 +5667,9 @@ Ported from,
     T input;
   public:
 
-    pid_controller(var kp, var ki, var kd,
-                   var inMin, var inMax, var outMin, var outMax,
-                   var cont){
+    pid_controller(var const & kp, var const & ki, var const & kd,
+                   var const & inMin, var const & inMax, var const & outMin, var const & outMax,
+                   var const & cont){
       p = number::to<T>(kp);
       i = number::to<T>(ki);
       d = number::to<T>(kd);
@@ -5700,7 +5699,7 @@ Ported from,
   #endif
 
 
-    var update(var in){
+    var update(var const & in){
       input = number::to<T>(in);
 
       // Calculate the error signal
@@ -5741,7 +5740,7 @@ Ported from,
 
       return obj<number>(result);
     }
-    void set_setpoint(var p){
+    void set_setpoint(var const & p){
       T sp = number::to<T>(p);
       if (maximum_input > minimum_input) {
         if (sp > maximum_input) {

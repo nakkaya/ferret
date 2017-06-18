@@ -1440,9 +1440,9 @@ Initialize function arguments. Clojure style list structuring is supported.
                  $lambda.env:{$it$($it$)} ;separator=\",\"$ { }
              $endif$
              $if(lambda.args)$
-                 var invoke (var _args_) const $if(!lambda.stack)$ final $endif$ ;
+                 var invoke (var const & _args_) const $if(!lambda.stack)$ final $endif$ ;
              $else$
-                 var invoke (var) const $if(!lambda.stack)$ final $endif$ ;
+                 var invoke (var const & ) const $if(!lambda.stack)$ final $endif$ ;
              $endif$
            };};separator=\"\n\n\"$")
         (fill-view! "lambdas" lambdas)
@@ -1452,9 +1452,9 @@ Initialize function arguments. Clojure style list structuring is supported.
     (-> (create-view
          "$lambdas: {lambda|
            $if(lambda.args)$
-               inline var $lambda.name$::invoke (var _args_) const
+               inline var $lambda.name$::invoke (var const & _args_) const
            $else$
-               inline var $lambda.name$::invoke (var) const
+               inline var $lambda.name$::invoke (var const & ) const
            $endif$
                {
                  $lambda.args:{args | $args$; } ;separator=\"\n\"$
@@ -2517,12 +2517,12 @@ Linked list container implementing the seekable interface.
     inline var list() { 
       return cached::empty_sequence;
     }
-    inline var list(var v) { 
+    inline var list(var const & v) { 
       return obj<sequence>(v,nil());
     }
                       
     template <typename... Args>
-    inline var list(var first, Args... args) { 
+    inline var list(var const & first, Args const & ... args) { 
       return obj<sequence>(first, list(args...));
     }
   }
@@ -2752,7 +2752,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       return runtime::first(values);
     }
 
-    var invoke(var args) const {
+    var invoke(var const & args) const {
       return val_at(args);
     }
 
@@ -2827,12 +2827,12 @@ Each keyword in the program is converted to an /keyword/ object. A
       return _word;
     }
 
-    var invoke(var args) const {
+    var invoke(var const & args) const {
       var map = runtime::first(args);
-      args = runtime::cons(var((object_t*)this), runtime::rest(args));
+      var map_args = runtime::cons(var((object_t*)this), runtime::rest(args));
 
       if (map.is_type(runtime::type::d_list)){
-        return map.cast<d_list>()->val_at(args);
+        return map.cast<d_list>()->val_at(map_args);
       }
 
       return nil();
@@ -3155,18 +3155,18 @@ C++ API for the interface,
 #+name: runtime-native-prototypes
 #+begin_src c++ :tangle no
   namespace runtime {
-    var list(var v);
-    var list(var v);
+    var list(var const & v);
+    var list(var const & v);
     template <typename... Args>
-    var list(var first, Args... args);
+    var list(var const & first, Args const & ... args);
 
-    var first(var coll);
-    var rest(var coll);
-    var cons(var x, var seq);
-    var nth(var seq, var index);
-    var nth(var seq, number_t index);
-    size_t count(var seq);
-    bool is_seqable(var seq);
+    var first(var const & coll);
+    var rest(var const & coll);
+    var cons(var const & x, var const & seq);
+    var nth(var const & seq, var const & index);
+    var nth(var const & seq, number_t index);
+    size_t count(var const & seq);
+    bool is_seqable(var const & seq);
   }
 #+end_src
 
@@ -3272,14 +3272,14 @@ Implementations for the C++ Seekable API,
 #+name: runtime-native-implementations
 #+begin_src c++ :tangle no
   namespace runtime{
-    var first(var coll){
+    var first(var const & coll){
       if (coll.is_nil() || coll.is_type(runtime::type::empty_sequence))
         return nil();
       else
         return coll.cast<seekable_i>()->first();
     }
 
-    var rest(var coll){
+    var rest(var const & coll){
       if (coll.is_nil())
         return runtime::list();
       if (coll.is_type(runtime::type::empty_sequence))
@@ -3287,14 +3287,14 @@ Implementations for the C++ Seekable API,
       return coll.cast<seekable_i>()->rest();
     }
 
-    var cons(var x, var coll){
+    var cons(var const & x, var const & coll){
       if (coll.is_nil() || coll == runtime::list())
         return runtime::list(x);
 
       return coll.cast<seekable_i>()->cons(x);
     }
 
-    var nth(var seq, number_t index){
+    var nth(var const & seq, number_t index){
       for(auto const& i : range_indexed(seq))
         if (index == i.index)
           return i.value;
@@ -3302,11 +3302,11 @@ Implementations for the C++ Seekable API,
       return nil();
     }
     
-    var nth(var seq, var idx){
+    var nth(var const & seq, var const & idx){
       return nth(seq,number::to<number_t>(idx));
     }
     
-    size_t count(var seq){
+    size_t count(var const & seq){
       size_t acc = 0;
       for(auto const& v : runtime::range(seq)){
         (void)v;
@@ -3315,7 +3315,7 @@ Implementations for the C++ Seekable API,
       return acc;
     }
 
-    bool is_seqable(var seq){
+    bool is_seqable(var const & seq){
       if(seq.cast<seekable_i>())
         return true;
       else
@@ -3339,7 +3339,7 @@ uniform fashion.
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lambda_i.h
   class lambda_i : public object_t {
    public:
-    virtual var invoke(var args) const = 0;
+    virtual var invoke(var const & args) const = 0;
 
     size_t type() const { return runtime::type::lambda_i; }
 
@@ -3360,34 +3360,34 @@ Function invocation,
 #+name: runtime-native-prototypes
 #+begin_src c++ :tangle no
   template<typename T, typename... Args>
-  inline var run(T fn, Args... args);
+  inline var run(T const & fn, Args const & ... args);
         
   template<typename T>
-  inline var run(T fn);
+  inline var run(T const & fn);
 
   template<>
-  inline var run(var);
+  inline var run(var const &);
 #+end_src
 
 #+name: runtime-native-implementations
 #+begin_src c++ :tangle no
   template<typename T, typename... Args>
-  inline var run(T fn, Args... args) {
+  inline var run(T const & fn, Args const & ... args) {
     return fn.invoke(runtime::list(args...));
   }
 
   template<typename T>
-  inline var run(T fn) {
+  inline var run(T const & fn) {
     return fn.invoke(nil());
   }
 
   template<>
-  inline var run(var fn) {
+  inline var run(var const & fn) {
     return fn.cast<lambda_i>()->invoke(nil());
   }
 
   template<typename... Args>
-  inline var run(var fn, Args... args) {
+  inline var run(var const & fn, Args const & ... args) {
     return fn.cast<lambda_i>()->invoke(runtime::list(args...));
   }
 #+end_src

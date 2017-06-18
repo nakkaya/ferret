@@ -1869,7 +1869,7 @@ All our types are derived from the base Object type. Which is a
       virtual var stream_console() const = 0;
   #endif
     
-      virtual bool equals(var o) const = 0;
+      virtual bool equals(var const & o) const = 0;
 
       virtual seekable_i* cast_seekable_i() { return nullptr; }
     };
@@ -1913,7 +1913,7 @@ count, when it reaches zero it will automatically free the object_t.
       return *this;
     }
 
-    bool equals (var rhs) const;
+    bool equals (var const & rhs) const;
 
     bool operator==(const var& other) const { return equals(other); }
 
@@ -2008,7 +2008,7 @@ A boolean object,
 
     size_t type() const { return runtime::type::boolean; }
 
-    bool equals(var o) const {
+    bool equals(var const & o) const {
       return (value == o.cast<boolean>()->container());
     }
 
@@ -2043,7 +2043,7 @@ A boolean object,
       return true;
   }
 
-  bool var::equals (var rhs) const {
+  bool var::equals (var const & rhs) const {
     if ( ( is_nil() && !rhs.is_nil()) ||
          (!is_nil() &&  rhs.is_nil()))
       return false;
@@ -2082,7 +2082,7 @@ A /pointer/ object keeps a reference to a C++ pointer.
 
     size_t type() const { return runtime::type::pointer; }
 
-    bool equals(var o) const {
+    bool equals(var const & o) const {
       return (_payload == o.cast<pointer>()->payload());
     }
 
@@ -2141,7 +2141,7 @@ modern C++ libraries that use smart pointers for memory management.
 
     size_t type() const { return runtime::type::value; }
 
-    bool equals(var o) const {
+    bool equals(var const & o) const {
       return (this == o.get());
     }
 
@@ -2251,7 +2251,7 @@ number Object,
 
     size_t type() const { return runtime::type::number; }
 
-    bool equals(var o) const {
+    bool equals(var const & o) const {
       if (runtime::abs(_word - o.cast<number>()->word()) < real_epsilon)
         return true;
       else
@@ -2434,7 +2434,7 @@ Linked list container implementing the seekable interface.
 
     size_t type() const { return runtime::type::empty_sequence; }
 
-    bool equals(var) const {
+    bool equals(var const & ) const {
       return true;
     }
 
@@ -2459,7 +2459,7 @@ Linked list container implementing the seekable interface.
 
     size_t type() const { return runtime::type::sequence; }
 
-    bool equals(var o) const {
+    bool equals(var const & o) const {
       if(first() != runtime::first(o))
         return false;
       
@@ -2563,7 +2563,7 @@ A lazy list container implementing the seekable interface.
       return head;
     }
 
-    bool equals(var o) const {
+    bool equals(var const & o) const {
       if(sval() != runtime::first(o))
         return false;
       
@@ -2678,7 +2678,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 
     size_t type() const { return runtime::type::d_list; }
 
-    bool equals(var o) const {
+    bool equals(var const & o) const {
       return (this == o.get());
     }
 
@@ -2803,7 +2803,7 @@ Each keyword in the program is converted to an /keyword/ object. A
 
     size_t type() const { return runtime::type::keyword; }
 
-    bool equals(var o) const {
+    bool equals(var const & o) const {
       return (_word == o.cast<keyword>()->word());
     }
 
@@ -2849,7 +2849,7 @@ strings are represented as a linked list of characters.
 
     size_t type() const { return runtime::type::string; }
 
-    bool equals(var other) const {
+    bool equals(var const & other) const {
       return (container() == other.cast<string>()->container());
     }
 
@@ -2936,7 +2936,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
 
     size_t type() const { return runtime::type::atomic; }
 
-    bool equals(var o) const {
+    bool equals(var const & o) const {
       return (this == o.cast<atomic>());
     }
 
@@ -3014,7 +3014,7 @@ not yet finished, calls to deref/@ will block.
 
     size_t type() const { return runtime::type::async; }
 
-    bool equals(var o) const {
+    bool equals(var const & o) const {
       return (this == o.cast<async>());
     }
 
@@ -3092,7 +3092,7 @@ calls.
 
     size_t type() const { return runtime::type::delayed; }
 
-    bool equals(var o) const {
+    bool equals(var const & o) const {
       return (this == o.cast<delayed>());
     }
 
@@ -3336,7 +3336,7 @@ uniform fashion.
 
     size_t type() const { return runtime::type::lambda_i; }
 
-    bool equals(var o) const {
+    bool equals(var const & o) const {
       return (this == o.get());
     }
 
@@ -5339,7 +5339,7 @@ Port of Teensy elapsedMicros API,
     
     size_t type() const { return runtime::type::elapsed_micros; }
 
-    bool equals(var o) const {
+    bool equals(var const & o) const {
       return (this == o.cast<elapsed_micros>());
     }
 
@@ -5689,7 +5689,7 @@ Ported from,
 
     size_t type() const { return runtime::type::pid_controller; }
 
-    bool equals(var o) const {
+    bool equals(var const & o) const {
       return (this == o.cast<pid_controller>());
     }
 

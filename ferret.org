@@ -2487,7 +2487,7 @@ Linked list container implementing the seekable interface.
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
-    var cons(var x){
+    var cons(var const & x){
       return obj<sequence>(x, var(this));
     }
     var first() const {
@@ -2592,7 +2592,7 @@ A lazy list container implementing the seekable interface.
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
-    var cons(var x){
+    var cons(var const & x){
       return obj<lazy_sequence>(x,thunk);
     }
     var first() const {
@@ -2754,7 +2754,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 
     virtual seekable_i* cast_seekable_i() { return this; }
     
-    var cons(var v){
+    var cons(var const & v){
       return runtime::list(v,data);
     }
     
@@ -2883,7 +2883,7 @@ strings are represented as a linked list of characters.
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
-    var cons(var x){
+    var cons(var const & x){
       return runtime::cons(x,data);
     }
 
@@ -3137,7 +3137,7 @@ to iterate seekable containers.
   class seekable_i {
   public:
 
-    virtual var cons(var x) = 0;
+    virtual var cons(var const & x) = 0;
     virtual var first() const = 0;
     virtual var rest() const = 0;
   };

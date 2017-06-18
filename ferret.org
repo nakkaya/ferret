@@ -3155,7 +3155,6 @@ C++ API for the interface,
     var first(var const & coll);
     var rest(var const & coll);
     var cons(var const & x, var const & seq);
-    var nth(var const & seq, var const & index);
     var nth(var const & seq, number_t index);
     var nthrest(var const & seq, number_t index);
     size_t count(var const & seq);
@@ -3293,10 +3292,6 @@ Implementations for the C++ Seekable API,
           return i.value;
 
       return nil();
-    }
-    
-    var nth(var const & seq, var const & idx){
-      return nth(seq,number::to<number_t>(idx));
     }
 
     var nthrest(var const & seq, number_t index){
@@ -4804,7 +4799,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn nth [coll index] "__result = runtime::nth(coll,index);")
+  (defn nth [coll index] "__result = runtime::nth(coll,number::to<number_t>(index));")
 #+end_src
 
 *** nthrest

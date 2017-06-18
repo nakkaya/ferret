@@ -373,8 +373,7 @@ maintain.
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
   (defn compile [form options]
-    (->> (data-structure-conversion form)
-         (ferret-runtime options)
+    (->> (ferret-runtime options form)
          (remove-assertions options)
          (expand-macros-all)
          (let->fn)
@@ -498,7 +497,9 @@ modules and concatenate the required runtime from clojure.core
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn ferret-runtime [options form]
-    (->> (import-modules-all form options)
+    (->> (-> form
+             (import-modules-all options)
+             (expand-reader-macros))
          (shake-concat (read-clojure-file "ferret/runtime.clj"))
          ;; tag form with the build info
          (cons `(~'native-define ~(try
@@ -510,14 +511,17 @@ modules and concatenate the required runtime from clojure.core
 
 *** Expand Macros
 
-Process some supported reader macros, /@/ and /#(some-fn)/ forms.
+Process some supported reader macros, /@/ and /#(some-fn)/ and convert
+=map= reader forms to Ferret =d-list=.  Maps are zero or more
+key/value pairs enclosed in braces: {:a 1 :b 2}.
 
 #+name: core-compiler-macro-expansion
 #+begin_src clojure :tangle no
   (defn expand-reader-macros [form]
-    (morph-form form
-                (is-form? 'clojure.core/deref)
-                (fn [f] `(~'deref ~@(rest f)))))
+    (-> form
+        (morph-form (is-form? 'clojure.core/deref)
+                    (fn [f] `(~'deref ~@(rest f))))
+        (morph-form map? (fn [x] (cons 'new-d-list (-> x seq flatten))))))
 #+end_src
 
 Prepare form /f/ for macro expansion,
@@ -761,17 +765,6 @@ the free variable problem.
                      (if-let [n (lambda-defined? fns env args body)]
                        n
                        (define-lambda fns env fn-args body)))))))
-#+end_src
-
-*** Data Structure Conversion
-
-Convert =map= reader forms to Ferret =d-list=.  Maps are zero or more
-key/value pairs enclosed in braces: {:a 1 :b 2}
-
-#+name: core-compiler-transformations
-#+begin_src clojure :tangle no
-  (defn data-structure-conversion [form]
-    (morph-form form map? (fn [x] (cons 'new-d-list (-> x seq flatten)))))
 #+end_src
 
 *** Symbol Conversion
@@ -6905,7 +6898,8 @@ Run import tests.
     (is (= 10  ((mod-a/ten-fn))))
     (is (= 11  ((mod-b/eleven-fn))))
     (is (= 1   (mod-a/helper-c)))
-    (is (= 42  (mod-b/macro-call))))
+    (is (= 42  (mod-b/macro-call)))
+    (is (= :b  (:a (mod-a/some-d-list)))))
 
   (require 'modules.module-a
            'modules.module-b)
@@ -6963,6 +6957,8 @@ Create some dummy libs under /test/modules/,
 
   (def update-data
     (fn-throttler update-aux 1000 :second :blocking))
+
+  (defn some-d-list [] {:a :b :c :d})
 #+end_src 
 
 #+begin_src clojure :mkdirp yes :tangle src/test/modules/module-b.clj

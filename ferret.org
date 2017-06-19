@@ -1854,7 +1854,9 @@ All our types are derived from the base Object type. Which is a
 
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
+  class var;
   class seekable_i;
+
   namespace object{
     template <typename rc, typename mem>
     class base : public rc, public mem{
@@ -1866,7 +1868,7 @@ All our types are derived from the base Object type. Which is a
       virtual size_t type() const = 0;
     
   #if !defined(FERRET_DISABLE_STD_OUT)
-      virtual var stream_console() const = 0;
+      virtual void stream_console() const = 0;
   #endif
     
       virtual bool equals(var const & o) const = 0;
@@ -1922,12 +1924,11 @@ count, when it reaches zero it will automatically free the object_t.
     operator bool() const;
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
+    void stream_console() const {
       if (m_ptr != nullptr )
         m_ptr->stream_console();
       else
         runtime::print("nil");
-      return var();
     }
   #endif
         
@@ -2013,12 +2014,11 @@ A boolean object,
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
+    void stream_console() const {
       if (value)
         runtime::print("true");
       else
         runtime::print("false");
-      return nil();
     }
   #endif
 
@@ -2087,10 +2087,10 @@ A /pointer/ object keeps a reference to a C++ pointer.
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
+    void stream_console() const {
       runtime::print("pointer<");
       runtime::print(_payload);
-      runtime::print(">");return nil();
+      runtime::print(">");
     }
   #endif
 
@@ -2146,12 +2146,11 @@ modern C++ libraries that use smart pointers for memory management.
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
+    void stream_console() const {
       runtime::print("value<");
       const void* addr = &_payload;
       runtime::print(addr);
       runtime::print(">");
-      return nil();
     }
   #endif
 
@@ -2259,8 +2258,8 @@ number Object,
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
-      runtime::print(_word); return nil();
+    void stream_console() const {
+      runtime::print(_word);
     }
   #endif
 
@@ -2439,9 +2438,8 @@ Linked list container implementing the seekable interface.
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
+    void stream_console() const {
       runtime::print("()");
-      return nil();
     }
   #endif
   };
@@ -2471,7 +2469,7 @@ Linked list container implementing the seekable interface.
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
+    void stream_console() const {
       runtime::print("(");
       data.stream_console();
       for(auto const& i : runtime::range(next)){
@@ -2479,7 +2477,6 @@ Linked list container implementing the seekable interface.
         i.stream_console();
       }
       runtime::print(")");
-      return nil();
     }
   #endif
 
@@ -2575,7 +2572,7 @@ A lazy list container implementing the seekable interface.
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
+    void stream_console() const {
       runtime::print("(");
       sval().stream_console();
       for(auto const& i : runtime::range(rest())){
@@ -2583,7 +2580,6 @@ A lazy list container implementing the seekable interface.
         i.stream_console();
       }
       runtime::print(")");
-      return nil();
     }
   #endif
 
@@ -2683,9 +2679,8 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
+    void stream_console() const {
       data.stream_console();
-      return nil();
     }
   #endif
 
@@ -2808,8 +2803,8 @@ Each keyword in the program is converted to an /keyword/ object. A
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
-      runtime::print(_word); return nil();
+    void stream_console() const {
+      runtime::print(_word);
     }
   #endif
 
@@ -2854,10 +2849,9 @@ strings are represented as a linked list of characters.
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
+    void stream_console() const {
       for(auto const& it : runtime::range(data))
         runtime::print(number::to<char>(it));
-      return nil();
     }
   #endif
 
@@ -2941,11 +2935,10 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
+    void stream_console() const {
       runtime::print("atom <");
       data.stream_console();
       runtime::print(">");
-      return nil();
     }
   #endif
 
@@ -3018,11 +3011,10 @@ not yet finished, calls to deref/@ will block.
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
+    void stream_console() const {
       runtime::print("future <");
       fn.stream_console();
       runtime::print(">");
-      return nil();
     }
   #endif
 
@@ -3096,9 +3088,8 @@ calls.
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
+    void stream_console() const {
       runtime::print("delay");
-      return nil();
     }
   #endif
 
@@ -3347,8 +3338,8 @@ uniform fashion.
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
-      runtime::print("lambda"); return nil();
+    void stream_console() const {
+      runtime::print("lambda");
     }
   #endif
   };
@@ -5345,11 +5336,10 @@ Port of Teensy elapsedMicros API,
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
+    void stream_console() const {
       runtime::print("elapsed_micros<");
       runtime::print(_elapsed());
       runtime::print(">");
-      return nil();
     }
   #endif
 
@@ -5695,8 +5685,8 @@ Ported from,
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    var stream_console() const {
-      runtime::print("pid_controller"); return nil();
+    void stream_console() const {
+      runtime::print("pid_controller");
     }
   #endif
 
@@ -7807,7 +7797,6 @@ Create some dummy libs under /test/modules/,
 
   // Object System Base
   namespace ferret{
-    class var;
     <<runtime-native-allocator-pool-implementation>>
     <<runtime-native-allocator-pool>>
     <<runtime-native-allocators>>

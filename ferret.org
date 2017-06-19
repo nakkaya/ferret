@@ -1429,7 +1429,7 @@ Initialize function arguments. Clojure style list structuring is supported.
              $lambda.env:{const var $it$;} ;separator=\"\n\"$
            public:
              $if(lambda.env)$
-               explicit $lambda.name$ ($lambda.env:{var $it$} ;separator=\",\"$) :
+               explicit $lambda.name$ ($lambda.env:{var const & $it$} ;separator=\",\"$) :
                  $lambda.env:{$it$($it$)} ;separator=\",\"$ { }
              $endif$
              $if(lambda.args)$

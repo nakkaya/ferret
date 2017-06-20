@@ -2840,6 +2840,12 @@ strings are represented as a linked list of characters.
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/string_o.h
   class string : public object_t, public seekable_i {
     var data;
+
+    void from_char_pointer(const char * str, int length){
+      for (int i = --length; i >= 0; i--)
+        data = runtime::cons(obj<number>((number_t)str[i]),data);
+    }
+    
   public:
 
     size_t type() const { return runtime::type::string; }
@@ -2862,14 +2868,10 @@ strings are represented as a linked list of characters.
     explicit string(const char * str) {
       int length = 0;
       for (length = 0; str[length] != '\0'; ++length);
-      for (int i = --length; i >= 0; i--)
-        data = runtime::cons(obj<number>((number_t)str[i]),data);
+      from_char_pointer(str,length);
     }
 
-    explicit string(const char * str,number_t length) {
-      for (int i = --length; i >= 0; i--)
-        data = runtime::cons(obj<number>((number_t)str[i]),data);
-    }
+    explicit string(const char * str,number_t length) { from_char_pointer(str,length); }
 
     var container() const {
       return data;
@@ -2878,7 +2880,7 @@ strings are represented as a linked list of characters.
     virtual seekable_i* cast_seekable_i() { return this; }
 
     var cons(var const & x){
-      return runtime::cons(x,data);
+      return obj<string>(runtime::cons(x,data));
     }
 
     var first() const {
@@ -2886,7 +2888,7 @@ strings are represented as a linked list of characters.
     }
 
     var rest() const {
-      return runtime::rest(data);
+      return obj<string>(runtime::rest(data));
     }
 
     template <typename T>
@@ -7338,6 +7340,7 @@ Create some dummy libs under /test/modules/,
 #+begin_src clojure
   (deftest string-test
     (let [s1 "Some String"
+          s1-added "ASome String"
           s2 "Other String"
           s1-ret (fn [] "__result = obj<string>(\"Some String\");")
           s1-eq (fn [s] "__result = obj<boolean>((string::to<std::string>(s) == \"Some String\"))")]
@@ -7347,7 +7350,9 @@ Create some dummy libs under /test/modules/,
       (is (= true  (= s1 (s1-ret))))
       (is (= true  (s1-eq s1)))
       (is (= 99 \c))
-      (is (= \S (first s1)))))
+      (is (= \S (first s1)))
+      (is (= s1-added (cons 65 s1)))
+      (is (= s1 (rest (cons 65 s1))))))
 #+end_src
 
 *** Memory Pool

@@ -178,6 +178,7 @@ calling malloc/free at runtime.
 
 *** Wrappers
 
+ - [[https://git.nakkaya.com/nakkaya/ferret-mosquitto][ferret-mosquitto]] - Ferret bindings for Mosquitto MQTT Client
  - [[https://git.nakkaya.com/nakkaya/ferret-opencv][ferret-opencv]] - Ferret bindings for OpenCV
  - [[https://git.nakkaya.com/nakkaya/ferret-genann][ferret-genann]] - Ferret bindings for [[https://codeplea.com/genann][genann]] - simple neural
    network library in ANSI C.

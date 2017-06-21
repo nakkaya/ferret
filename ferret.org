@@ -2889,7 +2889,10 @@ strings are represented as a linked list of characters.
     }
 
     var rest() const {
-      return obj<string>(runtime::rest(data));
+      if (!runtime::rest(data).is_nil())
+        return obj<string>(runtime::rest(data));
+
+      return cached::empty_sequence;
     }
 
     template <typename T>

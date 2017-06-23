@@ -1104,9 +1104,12 @@ suggests and removes the node when predicate returns true.
 ** Code Generation
 
 The compiler's code generation phase takes a single pass over the
-transformed Clojure code and outputs C++ code. (a single .cpp file)
-This is done by running /emit/ on the final intermediate
-representation.
+transformed Clojure code and outputs C++ code. All Ferret modules and
+the program code is amalgamated in to a single source file which
+allows the generated code to be compiled as a single translation
+unit.This allows many compilers to do optimization's that would not be
+possible if the files were compiled separately. Code generation is
+done by running /emit/ on the final intermediate representation.
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no  

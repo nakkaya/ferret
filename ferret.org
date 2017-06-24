@@ -5016,7 +5016,7 @@ Returns the nth rest of coll, coll when n is 0.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn rem [num div]
-    "__result = obj<number>(remainder(number::to<real_t>(num), number::to<real_t>(div)));")
+    "__result = obj<number>((number::to<number_t>(num) % number::to<number_t>(div)));")
 #+end_src
 
 *** mod
@@ -6536,7 +6536,6 @@ Static code analysis (cppcheck) options,
     (is (= 0         (mod 4 2)))
     (is (= 1         (mod 5 2)))
     (is (= 1         (mod 8 7)))
-    (is (= 4.98588   (mod -1.2973 (* 2 3.14159265358979323846))))
     (is (= 1         (min 1)))
     (is (= 1         (min 2 1)))
     (is (= 1         (min 3 5 7 1)))

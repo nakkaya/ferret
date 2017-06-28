@@ -713,21 +713,21 @@ function will pass its arguments to inner functions (if any) it
 contains.
 
 #+begin_src clojure :tangle no
-  (closure-conversion '(fn [x]
-                          (fn [n] (+ x n))))
+  (closure-conversion '(fn* [x]
+                            (fn* [n] (+ x n))))
 #+end_src
 
 Above form will be converted to,
 
 #+begin_src clojure :tangle no
-  (define_lambda G__3154 (x) (n) (_plus_ x n))
-  (define_lambda G__3155 () (x) (lambda_object G__3154 x))
-  (lambda_object G__3155)
+  (fir-lambda G__1333  (x) (n)  (+ x n))
+  (fir-lambda G__1334  ()  (x)  (fir-new-lambda G__1333 x))
+  (fir-new-lambda G__1334)
 #+end_src
 
 What this means is, define a functor named =G__3154= that holds a
-reference to /x/, and another functor =G__3155= that has no
-state. When we create an instance of =G__3154= we pass /x/ to its
+reference to /x/, and another functor =G__1334= that has no
+state. When we create an instance of =G__1333= we pass /x/ to its
 constructor. Since every thing is already converted to fns this
 mechanism allows variables to be referenced down the line and solves
 the free variable problem.

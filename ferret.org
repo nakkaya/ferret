@@ -7435,6 +7435,8 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Compiler
 
+  - *fn* - Named anonymous functions.
+  - *Maps* - Implement destructuring.
   - *Shared Library* - Ability to be run as a shared lib.
     - Export functions to JNA (C API)
   - *Escape Analysis* - Escape known language structures. Certain
@@ -7454,7 +7456,6 @@ Create some dummy libs under /test/modules/,
 
 ** Data Structures
 
-  - *Maps* - Implement destructuring.
   - Warn wrong number of arguments passed to function.
   - *Convert Data Structures* - Automatically convert unsupported data
     structures and warn user. i.e. Vector to List.

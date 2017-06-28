@@ -1563,7 +1563,9 @@ Initialize function arguments. Clojure style list structuring is supported.
       (str (:output-path options) (:base-name options) "." (:source-extension options)))
   #+end_src
 
-   Read the /cpp/ file parse build options embedded in it.
+   Read the /cpp/ file parse build options embedded in
+   it. =configure-ferret!= macro can embed build options into C++
+   files. These can be used later when build the binary.
 
   #+name: core-compiler-main
   #+begin_src clojure
@@ -1650,28 +1652,42 @@ Initialize function arguments. Clojure style list structuring is supported.
 
 *** Compile to Binary
 
-   Compile C++ code to binary,
+    Pick compiler to use. If set, use the value of =CXX= environment
+    variable, if not set use the default compiler =gcc=,
+
+  #+name: core-compiler-main
+  #+begin_src clojure
+    (defn cxx-compiler [options]
+      (let [compiler    (if (System/getenv "CXX")
+                          (System/getenv "CXX")
+                          (:compiler options))
+            env-options (if (System/getenv "CXXFLAGS")
+                          (seq (.split (System/getenv "CXXFLAGS") " ")))
+            options     (->> (:compiler-options options) (map str))]
+        [compiler (concat options env-options)]))
+  #+end_src
+
+    Compiler build command,
 
   #+name: core-compiler-main
   #+begin_src clojure
     (defn cxx-command [options]
       (if (:command options)
         (flatten ["/usr/bin/env" "sh" "-c" (:command options)])
-        (let [cxx (if (System/getenv "CXX")
-                    (System/getenv "CXX")
-                    (:compiler options))
-              cxx-options (concat (map #(str %) (:compiler-options options))
-                                  (if (System/getenv "CXXFLAGS")
-                                    (seq (.split (System/getenv "CXXFLAGS") " "))))
-              source-files (map #(let [extension (file-extension %)]
-                                   [(cond (= extension "c") ["-x" "c"]
-                                          (= extension "c++") ["-x" "c++"]
-                                          :default "")
-                                    %])
-                                (:extra-source-files options))]
-          (flatten [cxx cxx-options source-files
-                    ["-x" "c++"] (str (:base-name options) "." (:source-extension options))]))))
+        (let [[cxx cxx-options] (cxx-compiler options)
+              source-files  (map #(let [extension (file-extension %)]
+                                    [(cond (= extension "c") ["-x" "c"]
+                                           (= extension "c++") ["-x" "c++"]
+                                           :default "")
+                                     %])
+                                 (:extra-source-files options))]
+          (flatten [cxx cxx-options source-files ["-x" "c++"] (cpp-file-name options)]))))
+  #+end_src
 
+   Run the compiler on the generated source and create the binary,
+
+  #+name: core-compiler-main
+  #+begin_src clojure
     (defn compile->binary [options]
       (let [command (cxx-command options)]
         (info "building" "=>" (apply str (interpose " " command)))
@@ -1702,8 +1718,8 @@ Initialize function arguments. Clojure style list structuring is supported.
                            (sh "clang-format" "-style" "{Standard: Cpp11}" file))
                          (catch Exception e nil))]
          (if source
-           (do (info "formatting code") 
-               (spit file (:out source)))
+           (do (info "formatting code")
+               (write-to-file file (:out source)))
            (trace "install clang-format for formatted output (optional)"))))
 
      (defn build-solution [spec-fn]

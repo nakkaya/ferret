@@ -741,12 +741,12 @@ the free variable problem.
                            (if (= r f)
                              n h))) nil @fns)]
       (when name
-        (apply list 'fir-lambda-object name env))))
+        (apply list 'fir-new-lambda name env))))
 
   (defn define-lambda [fns env args body]
     (let [n (gensym)]
-      (swap! fns conj (concat ['fir-define-lambda n env args] body))
-      (apply list 'fir-lambda-object n env)))
+      (swap! fns conj (concat ['fir-lambda n env args] body))
+      (apply list 'fir-new-lambda n env)))
 
   (defn closure-conversion
     ([form]
@@ -838,7 +838,7 @@ with the global name for readability.
     (->> (select-form form (is-form? 'def))
          (filter (fn [[_ name val]]
                    (and (seq? val)
-                        (= 'fir-lambda-object (first val)))))))
+                        (= 'fir-new-lambda (first val)))))))
 
   (defn replace-fn-call-sites-pure [form fn-defs fn-table]
     (let [no-global-fn (reduce (fn[h v]
@@ -850,7 +850,7 @@ with the global name for readability.
           embeded-fn-calls (reduce (fn[h [name gensym]]
                                      (morph-form h  #(and (symbol? %)
                                                           (= % name))
-                                                 (fn [_] (list 'fir-lambda-object gensym))))
+                                                 (fn [_] (list 'fir-new-lambda gensym))))
                                    no-global-fn fn-table)
           embed-fn-names (reduce (fn[h [name gensym]]
                                    (morph-form h #(and (symbol? %)
@@ -942,10 +942,10 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
     (morph-form form
                 (fn [f]
                   (and (seq? f)
-                       (is-special-form? 'fir-lambda-object (first f))))
+                       (is-special-form? 'fir-new-lambda (first f))))
                 (fn [f]
                   (let [[[_ & fn] & args] f]
-                    `((~'fir-invoke-lambda-stack ~@fn) ~@args)))))
+                    `((~'fir-new-lambda-stack ~@fn) ~@args)))))
 #+end_src
 
 ***** Escape Dispatch Functions
@@ -955,13 +955,13 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
   (defn escape-fn-dispatch [form]
     (morph-form form
                 (fn [f]
-                  (is-special-form? 'fir-dispatch-lambda f))
+                  (is-special-form? 'fir-lambda-dispatch f))
                 (fn [f]
                   (morph-form f
                               (fn [f]
-                                (is-special-form? 'fir-lambda-object f))
+                                (is-special-form? 'fir-new-lambda f))
                               (fn [[_ & f]]
-                                `(~'fir-invoke-lambda-stack ~@f))))))
+                                `(~'fir-new-lambda-stack ~@f))))))
 #+end_src
 
 ***** Escape Lambda Classes
@@ -971,25 +971,25 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
   (defn escape-lambdas [form]
     (let [stack-lambda-pred (fn [f]
                               (and (seq? f)
-                                   (is-special-form? 'fir-lambda-object (first f))))
+                                   (is-special-form? 'fir-new-lambda (first f))))
           heap-lambdas (->> (select-form form (fn [f]
                                                 (and (seq? f)
-                                                     (is-special-form? 'fir-lambda-object f))))
+                                                     (is-special-form? 'fir-new-lambda f))))
                             (map second)
                             (into #{}))
           stack-lambdas (->> (select-form form (fn [f]
                                                  (and (seq? f)
-                                                      (is-special-form? 'fir-invoke-lambda-stack f))))
+                                                      (is-special-form? 'fir-new-lambda-stack f))))
                              (map second)
                              (into #{}))
           escapeable-lambdas (clojure.set/difference stack-lambdas heap-lambdas)]
       (morph-form form
                   (fn [f]
                     (and (seq? f)
-                         (= (first f) 'fir-define-lambda)
+                         (= (first f) 'fir-lambda)
                          (escapeable-lambdas (second f))))
                   (fn [[_ & f]]
-                    `(~'fir-define-lambda-stack ~@f)))))
+                    `(~'fir-lambda-stack ~@f)))))
 #+end_src
 
 *** Helpers
@@ -1118,12 +1118,11 @@ done by running /emit/ on the final intermediate representation.
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no  
   (defmulti emit (fn [_ form _]
-                   (cond (is-special-form? 'fir_define_lambda form) 'fir_define_lambda
-                         (is-special-form? 'fir_define_lambda_stack form) 'fir_define_lambda_stack
-                         (is-special-form? 'fir_dispatch_lambda form) 'fir_dispatch_lambda
-                         (is-special-form? 'fir_lambda_object form) 'fir_lambda_object
-                         (is-special-form? 'fir_invoke_lambda_stack form) 'fir_invoke_lambda_stack
-                         (is-special-form? 'fir_define_var form) 'fir_define_var
+                   (cond (is-special-form? 'fir_lambda form) 'fir_lambda
+                         (is-special-form? 'fir_lambda_stack form) 'fir_lambda_stack
+                         (is-special-form? 'fir_lambda_dispatch form) 'fir_lambda_dispatch
+                         (is-special-form? 'fir_new_lambda form) 'fir_new_lambda
+                         (is-special-form? 'fir_new_lambda_stack form) 'fir_new_lambda_stack
                          (is-special-form? 'defobject form) 'defobject
                          (is-special-form? 'native_header form) 'native_header
                          (is-special-form? 'native_declare form) 'native_declare
@@ -1255,10 +1254,7 @@ defined within *ferret* namespace. All Ferret macros starts with
     (invoke-lambda (emit options fn state) (emit-ast options args state)))
 
   (defmethod emit 'defobject [options [_ name & spec] state]
-    (append-to! state [:objects] (define-object name spec options)) "")
-
-  (defmethod emit 'fir_define_var [options [_ name form] state]
-    (str "var " name " = " (emit options form state)))
+    (append-to! state [:objects] (defobject name spec options)) "")
 
   (defmethod emit 'native_header [_ [_ & declarations] state]
     (append-to! state [:native-headers] declarations) "")
@@ -1274,20 +1270,20 @@ defined within *ferret* namespace. All Ferret macros starts with
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
-  (defmethod emit 'fir_lambda_object [_ f state]
-    (lambda-object-heap f))
+  (defmethod emit 'fir_new_lambda [_ f state]
+    (new-lambda-heap f))
 
-  (defmethod emit 'fir_invoke_lambda_stack [_ f state]
-    (lambda-object-stack f))
+  (defmethod emit 'fir_new_lambda_stack [_ f state]
+    (new-lambda-stack f))
 
-  (defn emit-define-lambda-aux [options name env args body state]
+  (defn emit-lambda [options name env args body state]
     (let [native-declarations (filter #((is-form? 'native_declare) %) body)
           body (filter #(not ((is-form? 'native_declare) %)) body)
           body (cond  (empty? body)
                       ["nil();"]
                       (and (= 1 (count body))
                            (seq? (first body))
-                           (= 'fir_dispatch_lambda (first (first body))))
+                           (= 'fir_lambda_dispatch (first (first body))))
                       [(emit options (first body) state) "nil();"]
                       (and (= 1 (count body))
                            (string? (first body)))
@@ -1309,27 +1305,25 @@ defined within *ferret* namespace. All Ferret macros starts with
         (emit options dec state))
       [name env (lambda-arguments args) body]))
 
-  (defmethod emit 'fir_define_lambda [options [_ name env args & body] state]
-    (let [[name env args body] (emit-define-lambda-aux options name env args body state)]
-      (append-to! state [:lambdas]
-                  {:name name :env env :args args :body body}) ""))
+  (defmethod emit 'fir_lambda [options [_ name env args & body] state]
+    (let [[name env args body] (emit-lambda options name env args body state)]
+      (append-to! state [:lambdas] {:name name :env env :args args :body body}) ""))
 
-  (defmethod emit 'fir_define_lambda_stack [options [_ name env args & body] state]
-    (let [[name env args body] (emit-define-lambda-aux options name env args body state)]
-      (append-to! state [:lambdas]
-                  {:name name :env env :args args :body body :stack true}) ""))
+  (defmethod emit 'fir_lambda_stack [options [_ name env args & body] state]
+    (let [[name env args body] (emit-lambda options name env args body state)]
+      (append-to! state [:lambdas] {:name name :env env :args args :body body :stack true}) ""))
 #+end_src
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
-  (defmethod emit 'fir_dispatch_lambda [_ [_ args-symbol & fns] state]
+  (defmethod emit 'fir_lambda_dispatch [_ [_ args-symbol & fns] state]
     (let [fns (->> fns
                    (partition 2))
           nil-dispatch (filter #(= (first %) 0) fns)]
       (str
        (if (not (empty? nil-dispatch))
          (str "if (" args-symbol ".is_nil())
-                return " (lambda-object-stack
+                return " (new-lambda-stack
                           (->> nil-dispatch first second)) ".invoke(nil());")
          "")
        "switch(runtime::count(" args-symbol ")) {"
@@ -1337,9 +1331,9 @@ defined within *ferret* namespace. All Ferret macros starts with
             (map (fn [[count fn]]
                    (if (= count 'true)
                      (str "default: "
-                          " return " (lambda-object-stack fn) ".invoke(" args-symbol ");")
+                          " return " (new-lambda-stack fn) ".invoke(" args-symbol ");")
                      (str "case " count " : "
-                          " return " (lambda-object-stack fn) ".invoke(" args-symbol ");"))))
+                          " return " (new-lambda-stack fn) ".invoke(" args-symbol ");"))))
             (apply str)) "}")))
 #+end_src
 
@@ -1348,7 +1342,7 @@ defined within *ferret* namespace. All Ferret macros starts with
 
 #+name: code-templates
 #+begin_src clojure :tangle no
-  (defn define-object [name f options]
+  (defn defobject [name f options]
     (let [def (read-file (first f) options)]
       (-> (create-view "$if(embed_type)$
                           namespace runtime {
@@ -1372,14 +1366,14 @@ defined within *ferret* namespace. All Ferret macros starts with
                    (flatten)
                    (filter #(and (not (= '& %))
                                  (not (= '_ %))))))]
-    (defn lambda-object-heap [l]
+    (defn new-lambda-heap [l]
       (let [n (second l)
             e (env l)]
         (if (empty? e)
           (str "obj<" n ">()")
           (str "obj<" n ">(" (apply str (interpose \, e)) ")"))))
 
-    (defn lambda-object-stack [l]
+    (defn new-lambda-stack [l]
       (let [n (second l)
             e (env l)]
         (if (empty? e)
@@ -4336,7 +4330,7 @@ implementation.
                      (concat arg-dispatch [true (second last)]))
                    (interleave conds fns))]
         `(~'fn* (& (~'ferret-compiler-no-closure fn-arg-symbol#))
-                (~'fir-dispatch-lambda fn-arg-symbol# ~@form)))))
+                (~'fir-lambda-dispatch fn-arg-symbol# ~@form)))))
 #+end_src
 
 A simple macro for calling inline C++,

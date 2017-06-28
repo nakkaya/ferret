@@ -735,37 +735,29 @@ the free variable problem.
 #+name: core-compiler-transformations 
 #+begin_src clojure :tangle no
   (defn lambda-defined? [fns env args body]
-    (let [f (concat [env args] body)
-          name (reduce (fn[h v]
-                         (let [[_ n & r] v]
-                           (if (= r f)
-                             n h))) nil @fns)]
-      (when name
-        (apply list 'fir-new-lambda name env))))
+    (if-let [fn-name (@fns (concat [env args] body))]
+      (apply list 'fir-new-lambda fn-name env)))
 
   (defn define-lambda [fns env args body]
     (let [n (gensym)]
-      (swap! fns conj (concat ['fir-lambda n env args] body))
+      (swap! fns assoc (concat [env args] body) n)
       (apply list 'fir-new-lambda n env)))
 
   (defn closure-conversion
     ([form]
-     (let [fns (atom [])
-           form (closure-conversion form fns)]
-       (concat form @fns)))
+     (let [fns  (atom {})
+           form (closure-conversion form fns)
+           fns  (map (fn [[body name]] (concat ['fir-lambda name] body)) @fns)]
+       (concat form fns)))
     ([form fns & env]
      (morph-form form
                  (is-form? 'fn*)
                  (fn [[_ args & body]]
-                   (let [env (if (nil? env) '() (first env))
-                         fn-env (->> args
-                                     (remove #(and (seq? %)
-                                                   (= 'ferret-compiler-no-closure (first %)))))
-                         fn-args (->> args
-                                      (map #(if (and (seq? %)
-                                                     (= 'ferret-compiler-no-closure (first %)))
-                                              (second %)
-                                              %)))
+                   (let [env     (if (nil? env) '() (first env))
+                         fn-env  (remove (is-form? 'fir-no-closure) args)
+                         fn-args (map #(if ((is-form? 'fir-no-closure) %)
+                                         (second %) %)
+                                      args)
                          body (closure-conversion body fns (concat fn-env env))]
                      (if-let [n (lambda-defined? fns env args body)]
                        n
@@ -4324,7 +4316,7 @@ implementation.
                          last (take-last 2 conds)]
                      (concat arg-dispatch [true (second last)]))
                    (interleave conds fns))]
-        `(~'fn* (& (~'ferret-compiler-no-closure fn-arg-symbol#))
+        `(~'fn* (& (~'fir-no-closure fn-arg-symbol#))
                 (~'fir-lambda-dispatch fn-arg-symbol# ~@form)))))
 #+end_src
 

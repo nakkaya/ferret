@@ -435,20 +435,20 @@ of mod -> aliases pairs.
 #+begin_src clojure :tangle no
   (defn import-modules-load-modules [package-list options]
     (reduce (fn[h [m aliases]]
-              (let [mod (-> (str (:path options) (.replace (str m) "." "/") ".clj")
-                            (read-clojure-file)
-                            (remove-form (is-form? 'configure-runtime!))
-                            (remove-form (is-form? 'configure-ferret!)))
+              (let [mod           (-> (str (:path options) (.replace (str m) "." "/") ".clj")
+                                      (read-clojure-file)
+                                      (remove-form (is-form? 'configure-runtime!))
+                                      (remove-form (is-form? 'configure-ferret!)))
                     macro-symbols (->> (select-form mod (is-form? 'defmacro))
                                        (map second)
                                        (into #{}))
-                    def-symbols (->> (select-form (expand-macros-all mod) (is-form? 'def))
-                                     (map second)
-                                     (into #{}))
-                    replace? (set/union macro-symbols def-symbols)
-                    mod (morph-form mod #(and (symbol? %)
-                                              (replace? %))
-                                    #(symbol (str (.replace (str m) "." "_") "_" %)))]
+                    def-symbols    (->> (select-form (expand-macros-all mod) (is-form? 'def))
+                                        (map second)
+                                        (into #{}))
+                    replace?        (set/union macro-symbols def-symbols)
+                    mod             (morph-form
+                                     mod #(and (symbol? %) (replace? %))
+                                     #(symbol (str (.replace (str m) "." "_") "_" %)))]
                 (reduce (fn [h v] (conj h v)) h mod)))
             [] package-list))
 #+end_src
@@ -463,15 +463,14 @@ concatenation of all modules listed in form.
   (defn import-modules-convert-alias-to-module [package-list form]
     (let [alias-to-mod (reduce (fn[h [mod aliases]]
                                  (reduce (fn[h v] (assoc h v mod)) h aliases))
-                               {} package-list)
-          form (morph-form form symbol?
-                           (fn [f]
-                             (if-let [[_ alias fn] (re-find #"(.*?)/(.*)" (str f))]
-                               (if-let [mod-sym (alias-to-mod (symbol alias))]
-                                 (symbol (str (.replace (str mod-sym) "." "_") "_" fn))
-                                 f)
-                               f)))]
-      form))
+                               {} package-list)]
+      (morph-form form symbol?
+                  (fn [f]
+                    (if-let [[_ alias fn] (re-find #"(.*?)/(.*)" (str f))]
+                      (if-let [mod-sym (alias-to-mod (symbol alias))]
+                        (symbol (str (.replace (str mod-sym) "." "_") "_" fn))
+                        f)
+                      f)))))
 #+end_src
 
 Convert all aliased symbols in the form to their fully qualified
@@ -482,9 +481,9 @@ modules names. So =helper-a= defined in module =util.db= becomes
 #+begin_src clojure :tangle no
   (defn import-modules [form options]
     (let [package-list (import-modules-select-require form)
-          form (remove-form form (is-form? 'require))
-          modules (import-modules-load-modules package-list options)
-          form (import-modules-convert-alias-to-module package-list form)]
+          form         (remove-form form (is-form? 'require))
+          modules      (import-modules-load-modules package-list options)
+          form         (import-modules-convert-alias-to-module package-list form)]
       (shake-concat modules form)))
 
   (defn import-modules-all [form options]
@@ -645,10 +644,7 @@ So following form,
 after transformation becomes,
 
 #+begin_src clojure :tangle no
-  (define_lambda G__2708 (b a) () (_plus_ a b))
-  (define_lambda G__2709 (a) (b) ((lambda_object G__2708 b a)))
-  (define_lambda G__2710 () (a) ((lambda_object G__2709 a) 2))
-  ((lambda_object G__2710) 1)
+  ((fn* [a__1331] ((fn* [b__1332] (+ a__1331 b__1332)) 2)) 1)
 #+end_src
 
 #+name: core-compiler-transformations

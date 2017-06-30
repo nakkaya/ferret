@@ -1862,8 +1862,7 @@ All our types are derived from the base Object type. Which is a
     template <typename rc, typename mem>
     class base : public rc, public mem{
     public:
-      base() : rc(0) { }
-      base(const base& other): rc(other) { }
+      base() { }
       virtual ~base() { };
     
       virtual size_t type() const = 0;
@@ -3762,55 +3761,31 @@ counting policies.
       
       class no_rc{
       public:
-        explicit no_rc(size_t) { }
-        explicit no_rc(const no_rc& ){ }
-      
+
         inline void inc_ref() { }
         inline bool dec_ref() { return false; }
-
-        no_rc &operator=(const no_rc &) { return *this; }
       };
-  #endif
 
-  #if defined(FERRET_DISABLE_MULTI_THREADING) || !defined(FERRET_STD_LIB)
+  #else
 
-  #define FERRET_RC_POLICY mem::gc::rc
-      
+      template<typename T>
       class rc{
       public:
-        explicit rc(size_t start) : ref_count(start) { }
-        explicit rc(const rc& other){ ref_count = other.ref_count; }
-      
+        
         inline void inc_ref() { ref_count++; }
         inline bool dec_ref() { return (--ref_count == 0); }
-
-        rc &operator=(const rc &other) { ref_count = other.ref_count; return *this; }
       
       private:
-        size_t ref_count;
-      };
-  #endif
-      
-  #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)
+        T ref_count{0};
+      };    
 
-  #define FERRET_RC_POLICY mem::gc::atomic_rc
+      #if defined(FERRET_DISABLE_MULTI_THREADING) || !defined(FERRET_STD_LIB)
+        #define FERRET_RC_POLICY mem::gc::rc<int>
+      #endif
       
-      class atomic_rc{
-      public:
-        explicit atomic_rc(size_t start) : ref_count(start) { }
-        explicit atomic_rc(const atomic_rc& other){ ref_count.exchange(other.ref_count); }
-      
-        inline void inc_ref() { ++ref_count; }
-        inline bool dec_ref() { return (--ref_count == 0); }
-
-        atomic_rc &operator=(const atomic_rc &other) {
-          ref_count.exchange(other.ref_count);
-          return *this;
-        }
-        
-      private:
-        ::std::atomic<size_t> ref_count;
-      };
+      #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)
+        #define FERRET_RC_POLICY mem::gc::rc<::std::atomic<int>>
+      #endif
   #endif
     }
   }

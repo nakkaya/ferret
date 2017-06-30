@@ -2451,8 +2451,8 @@ Linked list container implementing the seekable interface.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/sequence_o.h
   class sequence : public object_t, public seekable_i {
-    const var data;
     const var next;
+    const var data;
   public:
 
     size_t type() const { return runtime::type::sequence; }
@@ -2547,8 +2547,8 @@ A lazy list container implementing the seekable interface.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lazy_sequence_o.h
   class lazy_sequence : public object_t, public seekable_i {
-    const var head;
     const var thunk;
+    const var head;
   public:
 
     size_t type() const { return runtime::type::lazy_sequence; }
@@ -2928,8 +2928,8 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/atomic_o.h
   class atomic : public deref_i {
-    var data;
     FERRET_NEW_LOCK(lock)
+    var data;
     public:
 
 
@@ -3000,11 +3000,11 @@ not yet finished, calls to deref/@ will block.
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/async_o.h
   #ifdef FERRET_STD_LIB
   class async : public deref_i {
+    FERRET_NEW_LOCK(lock)
+    var value;
     var fn;
     bool cached;
     std::future<var> task;
-    var value;
-    FERRET_NEW_LOCK(lock)
     
     public:
 
@@ -3080,9 +3080,9 @@ calls.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/delayed_o.h
   class delayed : public deref_i {
-    var fn;
-    var val;
     FERRET_NEW_LOCK(lock)
+    var val;
+    var fn;
     
     public:
 

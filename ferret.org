@@ -2480,7 +2480,7 @@ Linked list container implementing the seekable interface.
     }
   #endif
 
-    explicit sequence(var const & d = var(), var const & n = var()) : data(d), next(n) {} 
+    explicit sequence(var const & d = var(), var const & n = var()) : next(n), data(d) {} 
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
@@ -2584,7 +2584,7 @@ A lazy list container implementing the seekable interface.
   #endif
 
     explicit lazy_sequence(var const & t) : thunk(t) {} 
-    explicit lazy_sequence(var const & h, var const & t) : head(h), thunk(t) {} 
+    explicit lazy_sequence(var const & h, var const & t) : thunk(t), head(h) {} 
 
     virtual seekable_i* cast_seekable_i() { return this; }
 

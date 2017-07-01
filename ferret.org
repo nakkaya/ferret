@@ -1286,7 +1286,7 @@ defined within *ferret* namespace. All Ferret macros starts with
                                  (not (= '_ %)))))]
       (doseq [dec native-declarations] 
         (emit options dec state))
-      [name env (lambda-arguments args) body]))
+      [name env (destructure-arguments args) body]))
 
   (defmethod emit 'fir_lambda [options [_ name env args & body] state]
     (let [[name env args body] (emit-lambda options name env args body state)]
@@ -1369,36 +1369,56 @@ defined within *ferret* namespace. All Ferret macros starts with
       (str "run(" n ","  (apply str (interpose \, args))")")))
 #+end_src    
 
-Initialize function arguments. Clojure style list structuring is supported.
+Initialize function arguments. Clojure style sequential destructuring
+is supported.
 
 #+name: code-templates
 #+begin_src clojure :tangle no
-  (let [set-var (fn [val arg accesor]
-                  (str "const var " val " = "
-                       (reduce (fn[h v] (str v "(" h ")")) arg accesor)))
-        nth (fn [pos]
-              (flatten [(repeat pos "runtime::rest") "runtime::first"]))]
-    
-    (defn lambda-arguments
-      ([args]
-       (flatten (lambda-arguments args "_args_")))
-      ([args name]
-       (let [[args va-args] (if (some #{'&} args)
-                              (split-at (.indexOf args '&) args)
-                              [args []])]
-         [(->> (map-indexed (fn [pos val] (vector pos val)) args)
-               (filter #(not= (second %) '_))
-               (reduce
-                (fn [h [pos val]]
-                  (let [accesor (nth pos)]
-                    (conj h
-                          (if (coll? val)
-                            (lambda-arguments
-                             val (reduce (fn[h v] (str v "(" h ")")) name accesor))
-                            (set-var val name accesor))))) []))
-          (if (empty? va-args)
-            []
-            (set-var (last va-args) name (repeat (count args) "runtime::rest")))]))))
+  (declare destructure-arguments)
+
+  (defn destructure-nth-rest [parent pos]
+    (reduce (fn[h v] (str v "(" h ")")) parent (repeat pos "runtime::rest")))
+
+  (defn destructure-nth [parent pos]
+    (str "runtime::first(" (destructure-nth-rest parent pos) ")"))
+
+  (defn new-lambda-arg [name parent pos]
+    (str "const var " name " = " (destructure-nth parent pos)))
+
+  (defn new-lambda-var-arg [name parent pos]
+    (str "const var " name " = " (destructure-nth-rest parent pos)))
+
+  (defn split-var-args [args]
+    (if (not (neg? (.indexOf args '&)))
+      [(drop-last 2 args) (last args)]
+      [args               nil]))
+
+  (defn destructure-sequential [args parent]
+    (reduce
+     (fn [h [pos name]]
+       (let [name (if (coll? name)
+                    (destructure-arguments name (destructure-nth parent pos))
+                    (new-lambda-arg name parent pos))]
+         (conj h name))) [] args))
+
+  (defn destructure-var-args [name parent pos]
+    (cond (nil?     name)  []
+          (symbol?  name)  (new-lambda-var-arg name parent pos)
+          (coll?    name)  (let [tmp-name (gensym)]
+                             [(new-lambda-var-arg tmp-name parent pos)
+                              (destructure-arguments name tmp-name)])))
+
+  (defn destructure-arguments
+    ([args]
+     (->> (destructure-arguments args "_args_") flatten))
+    ([args parent]
+     (let [[args var-args] (split-var-args args)
+           args-indexed   (->>  args
+                                (map-indexed (fn [p v] [p v]))
+                                (filter #(not= (second %) '_)))
+           var-args       (destructure-var-args var-args parent (count args))
+           args           (destructure-sequential args-indexed parent)]
+       [args var-args])))
 #+end_src
 
 #+name: code-templates
@@ -6346,6 +6366,9 @@ Static code analysis (cppcheck) options,
     (let [[_ _ a] (list 1 2 3)]
       a))
 
+  (defn destructure-test-7 [a b & [c d]]
+    (list c d))
+
   (deftest destructuring-test
     (is (= 3                   (count (destructure-test-1 (list 1 2 3)))))
     (is (= 2                   (destructure-test-2 (list 1 (list 2) 3))))
@@ -6373,7 +6396,7 @@ Static code analysis (cppcheck) options,
     
     (is (= (list 1 2 3) (destructure-test-5)))
     (is (= 3            (destructure-test-6)))
-
+    (is (= (list 3 4)   (destructure-test-7 1 2 3 4)))
 
     (let [[_ _ a] (list 1 2 3)
           [_ b] (list 4 5 6)]

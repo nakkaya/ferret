@@ -1290,50 +1290,6 @@ C++ skeleton.
       (str "run(" n ","  (apply str (interpose \, args))")")))
 #+end_src
 
-#+name: core-compiler-emitter
-#+begin_src clojure :tangle no
-  (defn lambda-definitions [lambdas]
-    (-> (create-view
-         "$lambdas: {lambda|
-           $if(!lambda.stack)$
-            class $lambda.name$ final : public lambda_i{
-           $else$
-            class $lambda.name$  \\{
-           $endif$
-             $lambda.env:{const var $it$;} ;separator=\"\n\"$
-           public:
-             $if(lambda.env)$
-               explicit $lambda.name$ ($lambda.env:{var const & $it$} ;separator=\",\"$) :
-                 $lambda.env:{$it$($it$)} ;separator=\",\"$ { }
-             $endif$
-             $if(lambda.args)$
-                 var invoke (var const & _args_) const $if(!lambda.stack)$ final $endif$ ;
-             $else$
-                 var invoke (var const & ) const $if(!lambda.stack)$ final $endif$ ;
-             $endif$
-           };};separator=\"\n\n\"$")
-        (fill-view! "lambdas" lambdas)
-        (render-view)))
-
-  (defn lambda-implementations [lambdas]
-    (-> (create-view
-         "$lambdas: {lambda|
-           $if(lambda.args)$
-               inline var $lambda.name$::invoke (var const & _args_) const
-           $else$
-               inline var $lambda.name$::invoke (var const & ) const
-           $endif$
-               {
-                 $lambda.args:{args | $args$; } ;separator=\"\n\"$
-     
-                 $trunc(lambda.body):{$it$} ;separator=\"\n\"$
-                 return $last(lambda.body):{$it$} ;separator=\"\n\"$
-               }
-           };separator=\"\n\n\"$")
-        (fill-view! "lambdas" lambdas)
-        (render-view)))
-#+end_src
-
 Initialize function arguments. Clojure style sequential destructuring
 is supported.
 
@@ -1467,6 +1423,50 @@ is supported.
             (apply str)) "}")))
 #+end_src
 
+#+name: core-compiler-emitter
+#+begin_src clojure :tangle no
+  (defn lambda-definitions [lambdas]
+    (-> (create-view
+         "$lambdas: {lambda|
+           $if(!lambda.stack)$
+            class $lambda.name$ final : public lambda_i{
+           $else$
+            class $lambda.name$  \\{
+           $endif$
+             $lambda.env:{const var $it$;} ;separator=\"\n\"$
+           public:
+             $if(lambda.env)$
+               explicit $lambda.name$ ($lambda.env:{var const & $it$} ;separator=\",\"$) :
+                 $lambda.env:{$it$($it$)} ;separator=\",\"$ { }
+             $endif$
+             $if(lambda.args)$
+                 var invoke (var const & _args_) const $if(!lambda.stack)$ final $endif$ ;
+             $else$
+                 var invoke (var const & ) const $if(!lambda.stack)$ final $endif$ ;
+             $endif$
+           };};separator=\"\n\n\"$")
+        (fill-view! "lambdas" lambdas)
+        (render-view)))
+
+  (defn lambda-implementations [lambdas]
+    (-> (create-view
+         "$lambdas: {lambda|
+           $if(lambda.args)$
+               inline var $lambda.name$::invoke (var const & _args_) const
+           $else$
+               inline var $lambda.name$::invoke (var const & ) const
+           $endif$
+               {
+                 $lambda.args:{args | $args$; } ;separator=\"\n\"$
+     
+                 $trunc(lambda.body):{$it$} ;separator=\"\n\"$
+                 return $last(lambda.body):{$it$} ;separator=\"\n\"$
+               }
+           };separator=\"\n\n\"$")
+        (fill-view! "lambdas" lambdas)
+        (render-view)))
+#+end_src
+
 *** Program
 
 #+name: core-compiler-emitter
@@ -1534,7 +1534,7 @@ is supported.
           (fill-view! "lambda_classes"      (lambda-definitions lambdas))
           (fill-view! "lambda_bodies"       (lambda-implementations lambdas))
           (fill-view! "body"                (filter #(not (empty? %)) body))
-          (fill-view! "ferret_main"          (read-file "ferret/main.cpp"))
+          (fill-view! "ferret_main"         (read-file "ferret/main.cpp"))
           (render-view))))
 #+end_src
 

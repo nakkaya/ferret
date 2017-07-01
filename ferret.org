@@ -1034,11 +1034,14 @@ suggests and removes the node when predicate returns true.
 
 #+name: core-file-io
 #+begin_src clojure :tangle no
-  (ns ferret.io
-    (:use [clojure.java.io]
-          [clojure.tools [logging :only [log warn]]])
-    (:import (org.apache.commons.io FileUtils)
-             (java.io BufferedReader InputStreamReader)))
+  (defn os-name []
+    (let [os (-> (System/getProperty "os.name") .toLowerCase)]
+      (cond (.contains os "win")      :windows
+            (.contains os "mac")      :mac
+            (or (.contains os "nix")
+                (.contains os "nux")
+                (.contains os "aix")) :unix
+                (.contains os "sunos")    :solaris)))
 
   (defn read-file-from-url [f]
     (with-open [in (.getResourceAsStream (ClassLoader/getSystemClassLoader) f)
@@ -1097,6 +1100,24 @@ allows the generated code to be compiled as a single translation
 unit.This allows many compilers to do optimization's that would not be
 possible if the files were compiled separately. Code generation is
 done by running /emit/ on the final intermediate representation.
+
+Generated C++ code has the following structure, (All Ferret code is
+defined within *ferret* namespace. All Ferret macros starts with
+*FERRET_*.)
+
+ - Detect Hardware
+ - Include files
+ - Ferret Header (src/ferret/runtime.h)
+ - Ferret Native Runtime Prototypes (runtime::first, runtime::rest
+   etc.)
+ - Native Declarations
+ - Object Definitions
+ - Symbol Definitions
+ - Native Runtime Implementations
+ - Lambda Prototypes
+ - Lambda Implementations
+ - Ferret Main
+ - Hardware Dependent Main Functions
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no  
@@ -1175,27 +1196,7 @@ C++ skeleton.
       (assoc @state :body body)))
 #+end_src
 
-*** Code Emitting
-
-Generated C++ code has the following structure, (All Ferret code is
-defined within *ferret* namespace. All Ferret macros starts with
-*FERRET_*.)
-
- - Detect Hardware
- - Include files
- - Ferret Header (src/ferret/runtime.h)
- - Ferret Native Runtime Prototypes (runtime::first, runtime::rest
-   etc.)
- - Native Declarations
- - Object Definitions
- - Symbol Definitions
- - Native Runtime Implementations
- - Lambda Prototypes
- - Lambda Implementations
- - Ferret Main
- - Hardware Dependent Main Functions
-
-**** Object Types
+*** Object Types
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
@@ -1211,7 +1212,7 @@ defined within *ferret* namespace. All Ferret macros starts with
 
   (defmethod emit :nil [_ form state] "nil()")
 
-  (defmethod emit :keyword [_ form state]
+  (defmethod emit :keyword [_ form _]
     (str "obj<keyword>(" (reduce (fn[h v] (+ h (int v))) 0 (str form)) ")"))
 
   (defmethod emit :char [_ form state] (str "obj<number>((number_t)" (int form) ")"))
@@ -1219,7 +1220,7 @@ defined within *ferret* namespace. All Ferret macros starts with
   (defmethod emit :number [_ form state] (str "obj<number>((real_t)" (double form) ")"))
 #+end_src
 
-**** Special Forms
+*** Special Forms
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
@@ -1233,8 +1234,19 @@ defined within *ferret* namespace. All Ferret macros starts with
           f (if (nil? f) "nil()" (emit options f state))]
       (apply str "(" cond " ? " t " : " f ")")))
 
-  (defmethod emit :invoke-lambda [options [fn & args] state]
-    (invoke-lambda (emit options fn state) (emit-ast options args state)))
+  (defn defobject [name f options]
+    (let [def (read-file (first f) options)]
+      (-> (create-view "$if(embed_type)$
+                          namespace runtime {
+                            namespace type {
+                              const size_t $type$ = $type_val$;}}
+                          $endif$
+                        $body$")
+          (fill-view! "embed_type"  (pos? (.indexOf def (str "runtime::type::" name))))
+          (fill-view! "type"        (str name))
+          (fill-view! "type_val"    (gensym ""))
+          (fill-view! "body"        def)
+          (render-view))))
 
   (defmethod emit 'defobject [options [_ name & spec] state]
     (append-to! state [:objects] (defobject name spec options)) "")
@@ -1249,100 +1261,9 @@ defined within *ferret* namespace. All Ferret macros starts with
     (append-to! state [:native-defines] define) "")
 #+end_src
 
-**** Lambdas
+*** Lambdas
 
 #+name: core-compiler-emitter
-#+begin_src clojure :tangle no
-  (defmethod emit 'fir_new_lambda [_ f state]
-    (new-lambda-heap f))
-
-  (defmethod emit 'fir_new_lambda_stack [_ f state]
-    (new-lambda-stack f))
-
-  (defn emit-lambda [options name env args body state]
-    (let [native-declarations (filter #((is-form? 'native_declare) %) body)
-          body (filter #(not ((is-form? 'native_declare) %)) body)
-          body (cond  (empty? body)
-                      ["nil();"]
-                      (and (= 1 (count body))
-                           (seq? (first body))
-                           (= 'fir_lambda_dispatch (first (first body))))
-                      [(emit options (first body) state) "nil();"]
-                      (and (= 1 (count body))
-                           (string? (first body)))
-                      (let [inline (first body) 
-                            body (if (= (last inline) \;)
-                                   inline
-                                   (str inline \;))]
-                        (if (neg? (.indexOf body "__result"))
-                          [body "nil();"]
-                          ["var __result;" body "__result;"]))
-                      :default (reduce (fn[h v]
-                                         (conj h (str v \;)))
-                                       [] (emit-ast options body state)))
-          env (->> env
-                   (flatten)
-                   (filter #(and (not (= '& %))
-                                 (not (= '_ %)))))]
-      (doseq [dec native-declarations] 
-        (emit options dec state))
-      [name env (lambda-arguments args) body]))
-
-  (defmethod emit 'fir_lambda [options [_ name env args & body] state]
-    (let [[name env args body] (emit-lambda options name env args body state)]
-      (append-to! state [:lambdas] {:name name :env env :args args :body body}) ""))
-
-  (defmethod emit 'fir_lambda_stack [options [_ name env args & body] state]
-    (let [[name env args body] (emit-lambda options name env args body state)]
-      (append-to! state [:lambdas] {:name name :env env :args args :body body :stack true}) ""))
-#+end_src
-
-#+name: core-compiler-emitter
-#+begin_src clojure :tangle no
-  (defmethod emit 'fir_lambda_dispatch [_ [_ args-symbol & fns] state]
-    (let [fns (->> fns
-                   (partition 2))
-          nil-dispatch (filter #(= (first %) 0) fns)]
-      (str
-       (if (not (empty? nil-dispatch))
-         (str "if (" args-symbol ".is_nil())
-                return " (new-lambda-stack
-                          (->> nil-dispatch first second)) ".invoke(nil());")
-         "")
-       "switch(runtime::count(" args-symbol ")) {"
-       (->> fns
-            (map (fn [[count fn]]
-                   (if (= count 'true)
-                     (str "default: "
-                          " return " (new-lambda-stack fn) ".invoke(" args-symbol ");")
-                     (str "case " count " : "
-                          " return " (new-lambda-stack fn) ".invoke(" args-symbol ");"))))
-            (apply str)) "}")))
-#+end_src
-
-*** Code Templates
-**** Objects
-
-#+name: code-templates
-#+begin_src clojure :tangle no
-  (defn defobject [name f options]
-    (let [def (read-file (first f) options)]
-      (-> (create-view "$if(embed_type)$
-                          namespace runtime {
-                            namespace type {
-                              const size_t $type$ = $type_val$;}}
-                          $endif$
-                        $body$")
-          (fill-view! "embed_type"  (pos? (.indexOf def (str "runtime::type::" name))))
-          (fill-view! "type"        (str name))
-          (fill-view! "type_val"    (gensym ""))
-          (fill-view! "body"        def)
-          (render-view))))
-#+end_src    
-
-**** Lambdas
-
-#+name: code-templates
 #+begin_src clojure :tangle no
   (let [env (fn [[_ _ & env]]
               (->> env
@@ -1367,41 +1288,9 @@ defined within *ferret* namespace. All Ferret macros starts with
     (if (empty? args)
       (str "run(" n ")")
       (str "run(" n ","  (apply str (interpose \, args))")")))
-#+end_src    
-
-Initialize function arguments. Clojure style list structuring is supported.
-
-#+name: code-templates
-#+begin_src clojure :tangle no
-  (let [set-var (fn [val arg accesor]
-                  (str "const var " val " = "
-                       (reduce (fn[h v] (str v "(" h ")")) arg accesor)))
-        nth (fn [pos]
-              (flatten [(repeat pos "runtime::rest") "runtime::first"]))]
-    
-    (defn lambda-arguments
-      ([args]
-       (flatten (lambda-arguments args "_args_")))
-      ([args name]
-       (let [[args va-args] (if (some #{'&} args)
-                              (split-at (.indexOf args '&) args)
-                              [args []])]
-         [(->> (map-indexed (fn [pos val] (vector pos val)) args)
-               (filter #(not= (second %) '_))
-               (reduce
-                (fn [h [pos val]]
-                  (let [accesor (nth pos)]
-                    (conj h
-                          (if (coll? val)
-                            (lambda-arguments
-                             val (reduce (fn[h v] (str v "(" h ")")) name accesor))
-                            (set-var val name accesor))))) []))
-          (if (empty? va-args)
-            []
-            (set-var (last va-args) name (repeat (count args) "runtime::rest")))]))))
 #+end_src
 
-#+name: code-templates
+#+name: core-compiler-emitter
 #+begin_src clojure :tangle no
   (defn lambda-definitions [lambdas]
     (-> (create-view
@@ -1443,27 +1332,155 @@ Initialize function arguments. Clojure style list structuring is supported.
            };separator=\"\n\n\"$")
         (fill-view! "lambdas" lambdas)
         (render-view)))
-#+end_src    
+#+end_src
 
-**** Program
+Initialize function arguments. Clojure style sequential destructuring
+is supported.
 
-#+name: code-templates
+#+name: core-compiler-emitter
+#+begin_src clojure :tangle no
+  (declare destructure-arguments)
+
+  (defn destructure-nth-rest [parent pos]
+    (reduce (fn[h v] (str v "(" h ")")) parent (repeat pos "runtime::rest")))
+
+  (defn destructure-nth [parent pos]
+    (str "runtime::first(" (destructure-nth-rest parent pos) ")"))
+
+  (defn destructure-get [name parent key]
+    (str "const var " name " = "
+         parent ".cast<d_list>()->val_at(" (emit nil key nil) ");"))
+
+  (defn new-lambda-arg [name parent pos]
+    (str "const var " name " = " (destructure-nth parent pos)))
+
+  (defn new-lambda-var-arg [name parent pos]
+    (str "const var " name " = " (destructure-nth-rest parent pos)))
+
+  (defn split-var-args [args]
+    (if (not (neg? (.indexOf args '&)))
+      [(drop-last 2 args) (last args)]
+      [args               nil]))
+
+  (defn destructure-associative [name parent pos]
+    (let [tmp-name (gensym)]
+      [(new-lambda-arg tmp-name parent pos)
+       (map (fn [[s k]] (destructure-get s tmp-name k)) name)]))
+
+  (defn destructure-sequential [args parent]
+    (reduce
+     (fn [h [pos name]]
+       (let [name (cond (symbol? name) (new-lambda-arg name parent pos)
+                        (map?    name) (destructure-associative name parent pos)
+                        (coll?   name) (destructure-arguments name (destructure-nth parent pos)))]
+         (conj h name))) [] args))
+
+  (defn destructure-var-args [name parent pos]
+    (cond (nil?     name)  []
+          (symbol?  name)  (new-lambda-var-arg name parent pos)
+          (coll?    name)  (let [tmp-name (gensym)]
+                             [(new-lambda-var-arg tmp-name parent pos)
+                              (destructure-arguments name tmp-name)])))
+
+  (defn destructure-arguments
+    ([args]
+     (->> (destructure-arguments args "_args_") flatten))
+    ([args parent]
+     (let [[args var-args] (split-var-args args)
+           args-indexed   (->>  args
+                                (map-indexed (fn [p v] [p v]))
+                                (filter #(not= (second %) '_)))
+           var-args       (destructure-var-args var-args parent (count args))
+           args           (destructure-sequential args-indexed parent)]
+       [args var-args])))
+#+end_src
+
+#+name: core-compiler-emitter
+#+begin_src clojure :tangle no
+  (defmethod emit :invoke-lambda [options [fn & args] state]
+    (invoke-lambda (emit options fn state) (emit-ast options args state)))
+
+  (defmethod emit 'fir_new_lambda [_ f state]
+    (new-lambda-heap f))
+
+  (defmethod emit 'fir_new_lambda_stack [_ f state]
+    (new-lambda-stack f))
+
+  (defn emit-lambda [options name env args body state]
+    (let [native-declarations (filter #((is-form? 'native_declare) %) body)
+          body (filter #(not ((is-form? 'native_declare) %)) body)
+          body (cond  (empty? body)
+                      ["nil();"]
+                      (and (= 1 (count body))
+                           (seq? (first body))
+                           (= 'fir_lambda_dispatch (first (first body))))
+                      [(emit options (first body) state) "nil();"]
+                      (and (= 1 (count body))
+                           (string? (first body)))
+                      (let [inline (first body) 
+                            body (if (= (last inline) \;)
+                                   inline
+                                   (str inline \;))]
+                        (if (neg? (.indexOf body "__result"))
+                          [body "nil();"]
+                          ["var __result;" body "__result;"]))
+                      :default (reduce (fn[h v]
+                                         (conj h (str v \;)))
+                                       [] (emit-ast options body state)))
+          env (->> env
+                   (flatten)
+                   (filter #(and (not (= '& %))
+                                 (not (= '_ %)))))]
+      (doseq [dec native-declarations] 
+        (emit options dec state))
+      [name env (destructure-arguments args) body]))
+
+  (defmethod emit 'fir_lambda [options [_ name env args & body] state]
+    (let [[name env args body] (emit-lambda options name env args body state)]
+      (append-to! state [:lambdas] {:name name :env env :args args :body body}) ""))
+
+  (defmethod emit 'fir_lambda_stack [options [_ name env args & body] state]
+    (let [[name env args body] (emit-lambda options name env args body state)]
+      (append-to! state [:lambdas] {:name name :env env :args args :body body :stack true}) ""))
+#+end_src
+
+#+name: core-compiler-emitter
+#+begin_src clojure :tangle no
+  (defmethod emit 'fir_lambda_dispatch [_ [_ args-symbol & fns] state]
+    (let [fns (->> fns
+                   (partition 2))
+          nil-dispatch (filter #(= (first %) 0) fns)]
+      (str
+       (if (not (empty? nil-dispatch))
+         (str "if (" args-symbol ".is_nil())
+                return " (new-lambda-stack
+                          (->> nil-dispatch first second)) ".invoke(nil());")
+         "")
+       "switch(runtime::count(" args-symbol ")) {"
+       (->> fns
+            (map (fn [[count fn]]
+                   (if (= count 'true)
+                     (str "default: "
+                          " return " (new-lambda-stack fn) ".invoke(" args-symbol ");")
+                     (str "case " count " : "
+                          " return " (new-lambda-stack fn) ".invoke(" args-symbol ");"))))
+            (apply str)) "}")))
+#+end_src
+
+*** Program
+
+#+name: core-compiler-emitter
 #+begin_src clojure :tangle no :noweb yes
-  (defn solution-template [source]
+  (defn program-template [source]
     (let [{:keys [body lambdas symbol-table native-headers objects
                   native-declarations native-defines]} source
-          native-headers (->> native-headers flatten (into #{}))]
+                  native-headers (->> native-headers flatten (into #{}))]
       (-> (create-view "
           $native_defines:{$it$} ;separator=\"\n\"$
 
-          $ferret_header$
+          $ferret_h$
 
           $native_headers:{#include \"$it$\"} ;separator=\"\n\"$
-
-          // Runtime Prototypes
-          namespace ferret{
-           <<runtime-native-prototypes>>
-          }
 
           // Objects
           namespace ferret{
@@ -1478,9 +1495,7 @@ Initialize function arguments. Clojure style list structuring is supported.
           $native_declarations:{$it$} ;separator=\"\n\"$
 
           // Runtime Implementations
-          namespace ferret{
-           <<runtime-native-implementations>>
-          }
+          $ferret_cpp$
 
           // Lambda Prototypes
           namespace ferret{
@@ -1508,17 +1523,18 @@ Initialize function arguments. Clojure style list structuring is supported.
            }
           }
 
-         <<runtime-native-program-run-std-main>>
-         <<runtime-native-program-arduino>>\n")
-          (fill-view! "ferret_header"       (read-file "ferret/runtime.h"))
+          $ferret_main$")
+          (fill-view! "native_defines"      native-defines)
+          (fill-view! "ferret_h"            (read-file "ferret/runtime.h"))
           (fill-view! "native_headers"      native-headers)
-          (fill-view! "body"                (filter #(not (empty? %)) body))
-          (fill-view! "lambda_classes"      (lambda-definitions lambdas))
-          (fill-view! "lambda_bodies"       (lambda-implementations lambdas))
+          (fill-view! "objects"             objects)
           (fill-view! "symbols"             symbol-table)
           (fill-view! "native_declarations" native-declarations)
-          (fill-view! "objects"             objects)
-          (fill-view! "native_defines"      native-defines)
+          (fill-view! "ferret_cpp"          (read-file "ferret/runtime.cpp"))
+          (fill-view! "lambda_classes"      (lambda-definitions lambdas))
+          (fill-view! "lambda_bodies"       (lambda-implementations lambdas))
+          (fill-view! "body"                (filter #(not (empty? %)) body))
+          (fill-view! "ferret_main"          (read-file "ferret/main.cpp"))
           (render-view))))
 #+end_src
 
@@ -1620,9 +1636,9 @@ Initialize function arguments. Clojure style list structuring is supported.
   #+begin_src clojure
     (defn compile->cpp [form options]
       (let [file-name (cpp-file-name options)
-            source (emit-source form options)
-            solution (solution-template source)]
-        (write-to-file file-name solution)
+            source    (emit-source form options)
+            program   (program-template source)]
+        (write-to-file file-name program)
         (info "compiled" "=>" file-name)
         true))
   #+end_src
@@ -6346,6 +6362,9 @@ Static code analysis (cppcheck) options,
     (let [[_ _ a] (list 1 2 3)]
       a))
 
+  (defn destructure-test-7 [a b & [c d]]
+    (list c d))
+
   (deftest destructuring-test
     (is (= 3                   (count (destructure-test-1 (list 1 2 3)))))
     (is (= 2                   (destructure-test-2 (list 1 (list 2) 3))))
@@ -6373,7 +6392,7 @@ Static code analysis (cppcheck) options,
     
     (is (= (list 1 2 3) (destructure-test-5)))
     (is (= 3            (destructure-test-6)))
-
+    (is (= (list 3 4)   (destructure-test-7 1 2 3 4)))
 
     (let [[_ _ a] (list 1 2 3)
           [_ b] (list 4 5 6)]
@@ -7627,20 +7646,14 @@ Create some dummy libs under /test/modules/,
               [clojure.tools.cli :refer [parse-opts]]
               [watchtower.core :as watcher]
               [clojure.term.colors :as color])
-    (:use [ferret.io]
-          [ferret.template]
+    (:use [ferret.template]
           [clojure.java.shell]
-          [clojure.tools [logging :only [log warn info trace]]]))
+          [clojure.java.io]
+          [clojure.tools [logging :only [log warn info trace]]])
+    (:import (org.apache.commons.io FileUtils)
+             (java.io BufferedReader InputStreamReader)))
 
-  (defn os-name []
-    (let [os (-> (System/getProperty "os.name") .toLowerCase)]
-      (cond (.contains os "win")      :windows
-            (.contains os "mac")      :mac
-            (or (.contains os "nix")
-                (.contains os "nux")
-                (.contains os "aix")) :unix
-            (.contains os "sunos")    :solaris)))
-
+  <<core-file-io>>
   <<core-compiler-helpers>>
   <<core-compiler-macro-expansion>>
   <<core-compiler-tree-shaking>>
@@ -7654,7 +7667,6 @@ Create some dummy libs under /test/modules/,
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/src/ferret/template.clj
   (ns ferret.template
-    (:use [ferret.io])
     (:import (org.antlr.stringtemplate StringTemplateGroup StringTemplate)))
 
   (defn indexed
@@ -7742,8 +7754,6 @@ Create some dummy libs under /test/modules/,
   (defn render-view "Return rendered view for the template"
     [^StringTemplate template]
     (.toString template))
-
-  <<code-templates>>
 #+end_src 
 
 *** ferret/runtime.clj
@@ -7793,12 +7803,26 @@ Create some dummy libs under /test/modules/,
     <<runtime-native-reference-counting>>
     <<runtime-native-object>>
   }
+
+  // Runtime Prototypes
+  namespace ferret{
+    <<runtime-native-prototypes>>
+  }
 #+end_src 
 
-*** ferret/io.clj
+*** ferret/runtime.cpp
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/src/ferret/io.clj
-  <<core-file-io>>
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/runtime.cpp
+  namespace ferret{
+    <<runtime-native-implementations>>
+  }
+#+end_src 
+
+*** ferret/main.cpp
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/main.cpp
+  <<runtime-native-program-run-std-main>>
+  <<runtime-native-program-arduino>>
 #+end_src 
 
 ** test/
@@ -7807,7 +7831,6 @@ Create some dummy libs under /test/modules/,
 #+begin_src clojure :noweb yes :mkdirp yes :tangle src/test/compiler.clj
   (ns compiler
     (:refer-clojure :exclude [compile])
-    (:use [ferret.io] :reload)
     (:use [ferret.core] :reload)
     (:use [clojure.test]
           [clojure.java.shell]

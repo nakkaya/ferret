@@ -644,7 +644,7 @@ So following form,
 after transformation becomes,
 
 #+begin_src clojure :tangle no
-  ((fn* [a__1331] ((fn* [b__1332] (+ a__1331 b__1332)) 2)) 1)
+  ((fn [a__1331] ((fn [b__1332] (+ a__1331 b__1332)) 2)) 1)
 #+end_src
 
 #+name: core-compiler-transformations
@@ -4479,7 +4479,7 @@ A simple macro for calling inline C++,
        run(fn);")
 
   (defmacro while [test & body]
-    `(~'_while_ (~'fn* [] ~test) (~'fn [] ~@body)))
+    `(~'_while_ (~'fn [] ~test) (~'fn [] ~@body)))
 #+end_src
 
 *** forever
@@ -6066,7 +6066,7 @@ examples.
                                     (apply str (map (fn [line] (str line "\n")) (second %)))
                                     "\n#endif\n"))
                          (map #(list 'native-declare %)))]
-      `(~'def ~name (~'fn* ~args ~@includes ~@pre-ample  ~body))))
+      `(~'def ~name (~'fn ~args ~@includes ~@pre-ample  ~body))))
 #+end_src
 
 *** pr-object-sizes

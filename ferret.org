@@ -434,23 +434,25 @@ of mod -> aliases pairs.
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn import-modules-load-modules [package-list options]
-    (reduce (fn[h [m aliases]]
-              (let [mod           (-> (str (:path options) (.replace (str m) "." "/") ".clj")
-                                      (read-clojure-file)
-                                      (remove-form (is-form? 'configure-runtime!))
-                                      (remove-form (is-form? 'configure-ferret!)))
-                    macro-symbols (->> (select-form mod (is-form? 'defmacro))
-                                       (map second)
-                                       (into #{}))
-                    def-symbols    (->> (select-form (expand-macros-all mod) (is-form? 'def))
-                                        (map second)
-                                        (into #{}))
-                    replace?        (set/union macro-symbols def-symbols)
-                    mod             (morph-form
-                                     mod #(and (symbol? %) (replace? %))
-                                     #(symbol (str (.replace (str m) "." "_") "_" %)))]
-                (reduce (fn [h v] (conj h v)) h mod)))
-            [] package-list))
+    (->> package-list
+         (reduce (fn[h [m aliases]]
+                   (let [mod           (-> (str (:path options) (.replace (str m) "." "/") ".clj")
+                                           (read-clojure-file)
+                                           (remove-form (is-form? 'configure-runtime!))
+                                           (remove-form (is-form? 'configure-ferret!)))
+                         macro-symbols (->> (select-form mod (is-form? 'defmacro))
+                                            (map second)
+                                            (into #{}))
+                         def-symbols    (->> (select-form (expand-macros-all mod) (is-form? 'def))
+                                             (map second)
+                                             (into #{}))
+                         replace?        (set/union macro-symbols def-symbols)
+                         mod             (morph-form
+                                          mod #(and (symbol? %) (replace? %))
+                                          #(symbol (str (.replace (str m) "." "_") "_" %)))]
+                     (reduce (fn [h v] (conj h v)) h mod)))
+                 [])
+         lazy-seq))
 #+end_src
 
 Loads all modules listed in the package list. When a module is loaded
@@ -6982,6 +6984,10 @@ Create some dummy libs under /test/modules/,
   (native-declare "int dummy_native_fn(){ return 25; }")
 #+end_src 
 
+#+begin_src clojure :mkdirp yes :tangle src/test/modules/module-e.clj
+  (defn foo [] 1)
+#+end_src 
+
 *** Testing
 
 #+name: clojure-unit-tests
@@ -7907,6 +7913,7 @@ Create some dummy libs under /test/modules/,
       (is (empty? (test-file-aux f)))))
 
   (deftest test-ferret
+    (test-file "test/simple_module_main.clj")
     (test-file "test/import_module_main.clj")
     (test-file "test/import_module_empty_aux_a.clj")
     (test-file "test/import_module_empty_aux_b.clj")
@@ -7962,6 +7969,17 @@ Create some dummy libs under /test/modules/,
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/import_module_main.clj
   <<import-module-test>>
+#+end_src
+
+*** simple_module_main.clj
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/simple_module_main.clj
+  (require 'modules.module-e)
+
+  (deftest simple-module-test
+    (is (= 1  (modules.module-e/foo))))
+
+  (run-all-tests)
 #+end_src
 
 ** resources/

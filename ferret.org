@@ -567,7 +567,7 @@ form.
       (create-ns temp-ns)
       (binding [*ns* (the-ns temp-ns)]
         (refer 'clojure.core :exclude (concat macro-symbols ['fn 'def]))
-        (use '[ferret.core :only [symbol-conversion unique-fn]])
+        (use '[ferret.core :only [symbol-conversion fn->unique-args]])
         
         (doseq [m (concat core-macros form-macros)]
           (eval m)))
@@ -593,7 +593,9 @@ form.
 #+end_src
 
 Takes a *fn* form and converts all argument symbols with their unique
-replacements,
+replacements. This is needed because most Clojure/Lisp forms are
+represented as =fn='s and some forms such as =let= need to be able to
+shadow already defined variable names.
 
 #+begin_src clojure
   (fn [a b] (list a b))
@@ -603,8 +605,8 @@ replacements,
 
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
-  (defn unique-fn [form]
-    (let [valid-symbol? (fn [s] (and (not= s '&) (not= s '_)))
+  (defn fn->unique-args [form]
+    (let [valid-symbol? (fn [s] (and (symbol? s) (not= s '&) (not= s '_)))
           [args & body] form]
       (if (string? (first body))
         `(~'fn* ~args ~@body)
@@ -667,7 +669,7 @@ after transformation becomes,
 
         (morph-form (is-form? 'fn)
                     (fn [[_ & body]]
-                      (unique-fn body)))))
+                      (fn->unique-args body)))))
 #+end_src
 
 *** do->fn
@@ -4294,8 +4296,9 @@ implementation.
 #+begin_src clojure :tangle no
   (defmacro fn [& body]
     (if (vector? (first body))
-      (unique-fn body)
-      (let [fns (map #(unique-fn %) body)
+      (fn->unique-args body)
+      ;; handle multi arity function
+      (let [fns (map #(fn->unique-args %) body)
             conds (->> (map first body)
                        (map (fn* [args] (filter #(not (= % '&)) args)))
                        (map #(count %)))

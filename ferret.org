@@ -1269,24 +1269,26 @@ C++ skeleton.
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
-  (let [env (fn [[_ _ & env]]
-              (->> env
-                   (flatten)
-                   (filter #(and (not (= '& %))
-                                 (not (= '_ %))))))]
-    (defn new-lambda-heap [l]
-      (let [n (second l)
-            e (env l)]
-        (if (empty? e)
-          (str "obj<" n ">()")
-          (str "obj<" n ">(" (apply str (interpose \, e)) ")"))))
+  (defn norm-lambda-env [env]
+    (->> env
+         (flatten)
+         (filter #(and (not (= '& %))
+                       (not (= '_ %))
+                       (not (= :as %))))))
 
-    (defn new-lambda-stack [l]
-      (let [n (second l)
-            e (env l)]
-        (if (empty? e)
-          (str n "()")
-          (str n "(" (apply str (interpose \, e)) ")")))))
+  (defn new-lambda-heap [l]
+    (let [n (second l)
+          e (norm-lambda-env (drop 2 l))]
+      (if (empty? e)
+        (str "obj<" n ">()")
+        (str "obj<" n ">(" (apply str (interpose \, e)) ")"))))
+
+  (defn new-lambda-stack [l]
+    (let [n (second l)
+          e (norm-lambda-env (drop 2 l))]
+      (if (empty? e)
+        (str n "()")
+        (str n "(" (apply str (interpose \, e)) ")"))))
 
   (defn invoke-lambda [n args]
     (if (empty? args)
@@ -1317,11 +1319,6 @@ is supported.
   (defn new-lambda-var-arg [name parent pos]
     (str "const var " name " = " (destructure-nth-rest parent pos)))
 
-  (defn split-var-args [args]
-    (if (not (neg? (.indexOf args '&)))
-      [(drop-last 2 args) (last args)]
-      [args               nil]))
-
   (defn destructure-associative [name parent pos]
     (let [tmp-name (gensym)]
       [(new-lambda-arg tmp-name parent pos)
@@ -1342,17 +1339,26 @@ is supported.
                              [(new-lambda-var-arg tmp-name parent pos)
                               (destructure-arguments name tmp-name)])))
 
+  (defn destructure-as-arg [name parent]
+    (if (symbol?     name)
+      (new-lambda-var-arg name parent 0)
+      []))
+
   (defn destructure-arguments
     ([args]
      (->> (destructure-arguments args "_args_") flatten))
     ([args parent]
-     (let [[args var-args] (split-var-args args)
+     (let [t-args         args
+           args           (take-while #(and (not= % '&) (not= % :as)) t-args)
+           var-args       (->> t-args (drop-while #(not= % '&)) second)
+           as-arg         (->> t-args (drop-while #(not= % :as)) second)
            args-indexed   (->>  args
                                 (map-indexed (fn [p v] [p v]))
                                 (filter #(not= (second %) '_)))
+           as-arg         (destructure-as-arg as-arg parent)
            var-args       (destructure-var-args var-args parent (count args))
            args           (destructure-sequential args-indexed parent)]
-       [args var-args])))
+       [args var-args as-arg])))
 #+end_src
 
 #+name: core-compiler-emitter
@@ -1387,10 +1393,7 @@ is supported.
                       :default (reduce (fn[h v]
                                          (conj h (str v \;)))
                                        [] (emit-ast options body state)))
-          env (->> env
-                   (flatten)
-                   (filter #(and (not (= '& %))
-                                 (not (= '_ %)))))]
+          env (norm-lambda-env env)]
       (doseq [dec native-declarations] 
         (emit options dec state))
       [name env (destructure-arguments args) body]))
@@ -6399,6 +6402,14 @@ Static code analysis (cppcheck) options,
     (is (= 3            (destructure-test-6)))
     (is (= (list 3 4)   (destructure-test-7 1 2 3 4)))
 
+    (let [[a & b :as all-list]   (list 1 2 3)
+          [c     :as other-list] all-list]
+      (is (= 1            a))
+      (is (= (list 2 3)   b))
+      (is (= (list 1 2 3) all-list))
+      (is (= 1            c))
+      (is (= (list 1 2 3) other-list)))
+    
     (let [[_ _ a] (list 1 2 3)
           [_ b] (list 4 5 6)]
       (is (= 3 a))

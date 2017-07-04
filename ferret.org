@@ -1930,12 +1930,10 @@ count, when it reaches zero it will automatically free the object_t.
       return *this;
     }
     
-    var& operator= (const var& p){ return *this = p.m_ptr; }
-    
-    var& operator= (object_t* ptr){
-      if (m_ptr != ptr){
+    var& operator= (const var& other){
+      if (m_ptr != other.m_ptr){
         dec_ref();
-        m_ptr=ptr;
+        m_ptr = other.m_ptr;
         inc_ref();
       }
       return *this;

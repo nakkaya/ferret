@@ -1914,26 +1914,26 @@ count, when it reaches zero it will automatically free the object_t.
 #+begin_src c++ :tangle no
   class var{
   public:
-    explicit var(object_t* ptr = nullptr) : m_ptr(ptr) { inc_ref(); }
+    explicit var(object_t* o = nullptr) : obj(o) { inc_ref(); }
 
-    var(const var& p) : m_ptr(p.m_ptr) { inc_ref(); }
-    var(var&& p) : m_ptr(p.m_ptr) { p.m_ptr = nullptr; }
+    var(const var& o) : obj(o.obj) { inc_ref(); }
+    var(var&& o) : obj(o.obj) { o.obj = nullptr; }
       
     ~var() { dec_ref(); }
 
     var& operator=(var&& other){
       if (this != &other){
         dec_ref();
-        m_ptr = other.m_ptr;
-        other.m_ptr = nullptr;
+        obj = other.obj;
+        other.obj = nullptr;
       }
       return *this;
     }
     
     var& operator= (const var& other){
-      if (m_ptr != other.m_ptr){
+      if (obj != other.obj){
         dec_ref();
-        m_ptr = other.m_ptr;
+        obj = other.obj;
         inc_ref();
       }
       return *this;
@@ -1949,50 +1949,50 @@ count, when it reaches zero it will automatically free the object_t.
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const {
-      if (m_ptr != nullptr )
-        m_ptr->stream_console();
+      if (obj != nullptr )
+        obj->stream_console();
       else
         runtime::print("nil");
     }
   #endif
         
-    inline object_t* get() const { return m_ptr; }
+    inline object_t* get() const { return obj; }
     
     template<typename T>
-    inline T* cast() const { return static_cast<T*>(m_ptr); }
+    inline T* cast() const { return static_cast<T*>(obj); }
 
     inline bool is_type(size_t type) const { 
-      return (static_cast<object_t*>(m_ptr)->type() == type);
+      return (static_cast<object_t*>(obj)->type() == type);
     }
 
-    inline bool is_nil() const { return (m_ptr == nullptr); }
+    inline bool is_nil() const { return (obj == nullptr); }
 
   private:
     inline void inc_ref(){
   #if !defined(FERRET_DISABLE_RC)
       // Only change if non-null
-      if (m_ptr) m_ptr->inc_ref();
+      if (obj) obj->inc_ref();
   #endif
     }
       
     inline void dec_ref(){
   #if !defined(FERRET_DISABLE_RC)
       // Only change if non-null
-      if (m_ptr){
+      if (obj){
         // Subtract and test if this was the last pointer.
-        if (m_ptr->dec_ref()){
-          delete m_ptr;
-          m_ptr = nullptr;
+        if (obj->dec_ref()){
+          delete obj;
+          obj = nullptr;
         }
       }
   #endif
     }
       
-    object_t* m_ptr;
+    object_t* obj;
   };
 
   template<>
-  inline seekable_i* var::cast<seekable_i>() const { return m_ptr->cast_seekable_i(); }
+  inline seekable_i* var::cast<seekable_i>() const { return obj->cast_seekable_i(); }
 #+end_src
 
 All object allocations are done using *obj* function. It will return a
@@ -2059,28 +2059,28 @@ A boolean object,
   }
 
   var::operator bool() const {
-    if (m_ptr == nullptr)
+    if (obj == nullptr)
       return false;
-    else if (m_ptr->type() == runtime::type::boolean)
-      return static_cast<boolean*>(m_ptr)->container();
+    else if (obj->type() == runtime::type::boolean)
+      return static_cast<boolean*>(obj)->container();
     else
       return true;
   }
 
-  bool var::equals (var const & rhs) const {
-    if ( ( is_nil() && !rhs.is_nil()) ||
-         (!is_nil() &&  rhs.is_nil()))
+  bool var::equals (var const & other) const {
+    if ( ( is_nil() && !other.is_nil()) ||
+         (!is_nil() &&  other.is_nil()))
       return false;
 
-    if (get() == rhs.get())
+    if (get() == other.get())
       return true;
     
-    if (runtime::is_seqable(*this) && runtime::is_seqable(rhs))
-      return get()->equals(rhs);
-    else if (m_ptr->type() != rhs.cast<object_t>()->type())
+    if (runtime::is_seqable(*this) && runtime::is_seqable(other))
+      return get()->equals(other);
+    else if (obj->type() != other.cast<object_t>()->type())
       return false;
     else
-      return get()->equals(rhs);
+      return get()->equals(other);
   }
 #+end_src
 

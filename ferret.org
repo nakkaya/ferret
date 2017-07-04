@@ -2506,7 +2506,7 @@ Linked list container implementing the seekable interface.
     }
   #endif
 
-    explicit sequence(var const & d = var(), var const & n = var()) : next(n), data(d) {} 
+    explicit sequence(var const & d = nil(), var const & n = nil()) : next(n), data(d) {} 
 
     virtual seekable_i* cast_seekable_i() { return this; }
 

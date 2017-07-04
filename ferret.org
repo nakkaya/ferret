@@ -53,7 +53,10 @@ Ferret is available as prebuilt and source code distributions. See
 
 #+BEGIN_HTML
   <img src="https://badge.fury.io/gh/nakkaya%2Fferret.svg" style="float: left; padding-right: 1cm;">
-  <img src="https://travis-ci.org/nakkaya/ferret.svg?branch=master" style="margin-left: 0;">
+
+  <a href="https://travis-ci.org/nakkaya/ferret/builds">
+    <img src="https://travis-ci.org/nakkaya/ferret.svg?branch=master" style="margin-left: 0;">
+  </a>
 #+END_HTML
 
 Platform independent builds (requires JVM),

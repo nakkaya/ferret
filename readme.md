@@ -2,7 +2,7 @@
 
 [![Current Release][badge-ferret-version]][ferret-downloads]
 [![CI Build Status][badge-ferret-build]][ferret-travis]
-[![BSD 2 Clause License][badge-ferret-license]]
+![BSD 2 Clause License][badge-ferret-license]
 
 Ferret is a free software Clojure implementation, it compiles a restricted subset of the 
 Clojure language to self contained ISO C++11 which allows for the use of 

@@ -2855,11 +2855,24 @@ Each keyword in the program is converted to an /keyword/ object. A
 
 **** String
 
-strings are represented as a linked list of characters.
+Strings are represented as a linked list of numbers each representing
+a character.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defobject string "ferret/obj/string_o.h")
+#+end_src
+
+Defines a function that returns a given string. Can be used to return
+strings from functions. Due to the way FFI interface is designed
+strings can not be returned from functions because they are
+interpreted as FFI calls.
+
+#+name: runtime-clojure-objects
+#+begin_src clojure :tangle no
+  (defmacro new-string [& ss]
+    (let [s (apply str ss)]
+      `((~'fn [] ~(str "__result = obj<string>(\"" s "\");")))))
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/string_o.h
@@ -7355,11 +7368,13 @@ Create some dummy libs under /test/modules/,
 #+name: ferret-unit-tests
 #+begin_src clojure
   (deftest string-test
-    (let [s1 "Some String"
+    (let [s1       "Some String"
           s1-added "ASome String"
-          s2 "Other String"
-          s1-ret (fn [] "__result = obj<string>(\"Some String\");")
-          s1-eq (fn [s] "__result = obj<boolean>((string::to<std::string>(s) == \"Some String\"))")]
+          s2       "Other String"
+          s1-ret   (fn [] "__result = obj<string>(\"Some String\");")
+          s1-eq    (fn [s] "__result = obj<boolean>((string::to<std::string>(s) == \"Some String\"))")
+          s2       "Ali Topu At"]
+      (is (= s2 (new-string "Ali Topu At")))
       (is (= false (= s1 s2)))
       (is (= true  (= s1 s1)))
       (is (= false (= s1 3.14)))

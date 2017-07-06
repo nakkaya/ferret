@@ -4317,8 +4317,9 @@ A simple macro for calling inline C++,
 
 #+name: runtime-clojure-fn-macros
 #+begin_src clojure :tangle no
-  (defmacro cxx [str]
-    `((~'fn [] ~str)))
+  (defmacro cxx [& body]
+    (let [body (apply str body)]
+      `((~'fn [] ~body))))
 #+end_src
 
 ** I/O

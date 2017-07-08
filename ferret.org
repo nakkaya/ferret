@@ -2966,8 +2966,8 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/atomic_o.h
   class atomic : public deref_i {
-    FERRET_NEW_LOCK(lock)
     var data;
+    mutex lock;
     public:
 
 
@@ -2988,15 +2988,13 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
     explicit atomic(var const & d) : data(d) {} 
 
     var swap(var const & f,var const & args){
-      FERRET_WITH_LOCK(lock,{
-          data = f.cast<lambda_i>()->invoke(runtime::cons(data, args));
-        });
+      lock_guard guard(lock);
+      data = f.cast<lambda_i>()->invoke(runtime::cons(data, args));
       return data;
     }
     var deref() {
-      FERRET_WITH_LOCK(lock,{
-          return data;
-        });
+      lock_guard guard(lock);
+      return data;
     }
   };
 #+end_src
@@ -3038,8 +3036,8 @@ not yet finished, calls to deref/@ will block.
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/async_o.h
   #ifdef FERRET_STD_LIB
   class async : public deref_i {
-    FERRET_NEW_LOCK(lock)
     var value;
+    mutex lock;
     var fn;
     bool cached;
     std::future<var> task;
@@ -3068,11 +3066,10 @@ not yet finished, calls to deref/@ will block.
     }
 
     bool is_ready(){
-      FERRET_WITH_LOCK(lock,{
-          if (cached)
-            return true;
-          return task.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
-        });
+      lock_guard guard(lock);
+      if (cached)
+        return true;
+      return task.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
     }
 
     void get(){
@@ -3083,7 +3080,8 @@ not yet finished, calls to deref/@ will block.
     }
 
     var deref() {
-      FERRET_WITH_LOCK(lock,{ get(); });
+      lock_guard guard(lock);
+      get();
       return value;
     }
   };
@@ -3118,8 +3116,8 @@ calls.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/delayed_o.h
   class delayed : public deref_i {
-    FERRET_NEW_LOCK(lock)
     var val;
+    mutex lock;
     var fn;
     
     public:
@@ -3139,13 +3137,12 @@ calls.
     explicit delayed(var const & f) : fn(f) {} 
     
     var deref() {
-      FERRET_WITH_LOCK(lock,{
-          if (!fn.is_nil()){
-            val = fn.cast<lambda_i>()->invoke(nil());
-            fn = nil();
-          }
-          return val;
-        });
+      lock_guard guard(lock);
+      if (!fn.is_nil()){
+        val = fn.cast<lambda_i>()->invoke(nil());
+        fn = nil();
+      }
+      return val;
     }
   };
 #+end_src
@@ -3655,10 +3652,10 @@ to each other in the array which improves data locality.
       template<typename page_size, size_t pool_size>
       class memory_pool{
       public:
+        mutex lock;
         bit_array<pool_size> used;
         page_size pool[pool_size];
         size_t offset;
-        FERRET_NEW_LOCK(lock)
 
         memory_pool() : pool{0}, offset(0) { }
 
@@ -3702,33 +3699,31 @@ to each other in the array which improves data locality.
         }
 
         void *allocate(size_t req_size){
-          FERRET_WITH_LOCK(lock,{
-              size_t length = chunk_length(++req_size);
-              int page      = scan_pool(length, offset);
+          lock_guard guard(lock);
+          size_t length = chunk_length(++req_size);
+          int page      = scan_pool(length, offset);
 
-              if (page == -1){
-                page = scan_pool(length);
-                if (page == -1)
-                  return nullptr;
-              }
+          if (page == -1){
+            page = scan_pool(length);
+            if (page == -1)
+              return nullptr;
+          }
           
-              pool[page] = length;
-              offset = (size_t)page + length;
-              for(size_t i = (size_t)page; i < offset; i++)
-                used.set(i);
+          pool[page] = length;
+          offset = (size_t)page + length;
+          for(size_t i = (size_t)page; i < offset; i++)
+            used.set(i);
 
-              return &pool[++page];
-            });
+          return &pool[++page];
         }
 
         void free(void *p){
-          FERRET_WITH_LOCK(lock, {
-              ptrdiff_t begin = (static_cast<page_size *>(p) - pool) - 1;
-              ptrdiff_t end = begin + (ptrdiff_t)pool[begin];
+          lock_guard guard(lock);
+          ptrdiff_t begin = (static_cast<page_size *>(p) - pool) - 1;
+          ptrdiff_t end = begin + (ptrdiff_t)pool[begin];
 
-              for (ptrdiff_t i = begin; i < end; i++)
-                used.reset((size_t)i);
-            });
+          for (ptrdiff_t i = begin; i < end; i++)
+            used.reset((size_t)i);
         }
       };
     }
@@ -3829,6 +3824,46 @@ counting policies.
   }
   #endif
 #+end_src 
+
+** Concurrency
+
+Low level concurrency abstractions.
+
+*** Mutex
+
+Locking abstractions for various platforms. They are disabled when
+running single threaded or on an embedded platform. (=FERRET_STD_LIB=
+not defined.)
+
+#+name: runtime-native-hardware-setup
+#+begin_src c++ :tangle no
+  namespace ferret {
+  #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)
+    class mutex {
+      ::std::mutex m;
+    public:
+      void lock()   { m.lock(); } 
+      void unlock() { m.unlock(); }
+    };
+  #else
+    class mutex {
+    public:
+      void lock()   {} 
+      void unlock() {} 
+    };
+  #endif
+  }
+
+  namespace ferret {
+    class lock_guard{
+      mutex & _ref;
+    public:
+      explicit lock_guard(const lock_guard &) = delete;
+      explicit lock_guard(mutex & mutex) : _ref(mutex) { _ref.lock(); };
+      ~lock_guard() { _ref.unlock(); }
+    };
+  }
+#+end_src
 
 ** Configuration
 
@@ -3931,12 +3966,12 @@ indicating platform.
    #include <cstdio>
    #include <cstdlib>
    #include <cstddef>
-   #include <atomic>
-   #include <mutex>
    #include <cmath>
    #include <vector>
    #include <algorithm>
    #include <chrono>
+   #include <atomic>
+   #include <mutex>
    #include <thread>
    #include <future>
   #endif
@@ -4093,26 +4128,6 @@ procedure.
         run(FERRET_PROGRAM_MAIN);
       #endif
     }
-  #endif
-#+end_src
-
-*** Configure Locking
-
-Locking macros. They are disabled when running single threaded or on
-an embedded platform. (=FERRET_STD_LIB= not defined.)
-
-#+name: runtime-native-hardware-setup
-#+begin_src c++ :tangle no
-  #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)
-   #define FERRET_NEW_LOCK(symbol) ::std::mutex symbol;
-   #define FERRET_WITH_LOCK(lock,code)                           \
-     {                                                           \
-     ::std::lock_guard< ::std::mutex > ferret_scope_guard(lock); \
-     code;                                                       \
-     }
-  #else
-   #define FERRET_NEW_LOCK(symbol)
-   #define FERRET_WITH_LOCK(lock,code) code;
   #endif
 #+end_src
 

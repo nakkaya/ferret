@@ -5261,18 +5261,6 @@ angle measured in radians.
     "__result = obj<number>((real_t) (number::to<real_t>(x) * 1_pi / 180.0) );")
 #+end_src
 
-** Concurrency
-*** thread
-
-Runs the given lambda in a thread,
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defnative thread [f]
-    (on "defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)"
-        "::std::thread ([f](){return run(f);}).detach();"))
-#+end_src
-
 ** Timing
 *** millis
 

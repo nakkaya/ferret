@@ -5264,22 +5264,6 @@ Runs the given lambda in a thread,
         "::std::thread ([f](){return run(f);}).detach();"))
 #+end_src
 
-*** synchronized
-
-Executes exprs in an implicit do, while holding a std::mutex. Will
-release the mutex in all circumstances.
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defmacro synchronized [& body]
-    `(~'_synchronized_ (~'fn [] ~@body)))
-
-  (defn _synchronized_ [f]
-    "static std::mutex mtx;
-     std::unique_lock<std::mutex> lock(mtx);
-     __result = run(f);")
-#+end_src
-
 ** Timing
 *** millis
 
@@ -6822,13 +6806,6 @@ Static code analysis (cppcheck) options,
       (throttled-ping)
       (is (nil? (throttled-ping)))
       (is (< (- (millis) begin) 1000))))
-
-  (deftest synchronized-test
-    (let [s (atom 0)]
-      (dotimes [_ 10]
-        (thread #(synchronized (swap! s inc))))
-      (sleep 1000)
-      (is (= @s 10))))
 #+end_src
 
 *** XOR Stream

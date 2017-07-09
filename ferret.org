@@ -3033,6 +3033,15 @@ not yet finished, calls to deref/@ will block.
   (defn future-done? [f] "__result = obj<boolean>(f.cast<async>()->is_ready());")
 #+end_src
 
+Divert *depricated* thread macro which runs the given lambda in a
+thread to =future=,
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn thread [f]
+    "__result = obj<async>(f);")
+#+end_src
+
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/async_o.h
   #ifdef FERRET_STD_LIB
   class async : public deref_i {
@@ -6753,25 +6762,14 @@ Static code analysis (cppcheck) options,
 
 #+name: ferret-unit-tests
 #+begin_src clojure :tangle no
-  (deftest threading-test
-    (let [state (atom nil)
-          add-wait (fn [time item]
-                     (fn []
-                       (sleep time)
-                       (swap! state conj item)))]
-      (thread (add-wait 10 1))
-      (thread (add-wait 20 2))
-      (sleep 30)
-      (is (= (list 2 1) (deref state)))))
-
-
   (deftest future-test
     (is (= 42    @(future (+ 41 1))))
     (is (= 42    @(future (sleep 100) (+ 40 2))))
     (is (= false  (future-done? (future (sleep 100) :false))))
     (is (= true   (let [f (future :true)]
                     (deref f)
-                    (future-done? f)))))
+                    (future-done? f))))
+    (is (= 42    @(thread #(+ 41 1)))))
 
   (deftest delay-test
     (let [d (delay   (+ 1 1))]

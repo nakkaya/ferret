@@ -3844,7 +3844,7 @@ Locking abstractions for various platforms. They are disabled when
 running single threaded or on an embedded platform. (=FERRET_STD_LIB=
 not defined.)
 
-#+name: runtime-native-hardware-setup
+#+name: runtime-native-hardware-concurrency
 #+begin_src c++ :tangle no
   namespace ferret {
   #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)
@@ -7793,6 +7793,8 @@ Create some dummy libs under /test/modules/,
 
   // Detect Hardware
   <<runtime-native-hardware-setup>>
+
+  <<runtime-native-hardware-concurrency>>
 
   // Fixed Point Real
   namespace ferret{

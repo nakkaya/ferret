@@ -7445,6 +7445,11 @@ Create some dummy libs under /test/modules/,
     - https://clojuredocs.org/clojure.core/add-watch
     - https://stackoverflow.com/questions/13371123/how-do-refs-notify-its-watches-in-clojure
     - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/Atom.java
+  - *atomic* - Current implementation uses =std::mutex= for
+    synchronization. Clojure uses =AtomicReference=, =std::atomic=
+    provides same behaviour.
+    - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/Atom.java
+    - http://www.cplusplus.com/reference/atomic/
   - Warn wrong number of arguments passed to function.
   - *Convert Data Structures* - Automatically convert unsupported data
     structures and warn user. i.e. Vector to List.

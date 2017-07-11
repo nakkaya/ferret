@@ -757,15 +757,11 @@ the free variable problem.
      (morph-form form
                  (is-form? 'fn*)
                  (fn [[_ args & body]]
-                   (let [env     (if (nil? env) '() (first env))
-                         fn-env  (remove (is-form? 'fir-no-closure) args)
-                         fn-args (map #(if ((is-form? 'fir-no-closure) %)
-                                         (second %) %)
-                                      args)
-                         body (closure-conversion body fns (concat fn-env env))]
+                   (let [env  (if (nil? env) '() (first env))
+                         body (closure-conversion body fns (concat args env))]
                      (if-let [n (lambda-defined? fns env args body)]
                        n
-                       (define-lambda fns env fn-args body)))))))
+                       (define-lambda fns env args body)))))))
 #+end_src
 
 *** Symbol Conversion

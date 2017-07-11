@@ -2028,18 +2028,18 @@ A boolean object,
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/boolean_o.h
-  class boolean : public object_t {
+  class boolean final : public object_t {
     const bool value;
   public:
 
-    size_t type() const { return runtime::type::boolean; }
+    size_t type() const final { return runtime::type::boolean; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       return (value == o.cast<boolean>()->container());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       if (value)
         runtime::print("true");
       else
@@ -2100,19 +2100,19 @@ A /pointer/ object keeps a reference to a C++ pointer.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/pointer_o.h
-  class pointer : public object_t {
+  class pointer final : public object_t {
     void* _payload;
   public:
 
 
-    size_t type() const { return runtime::type::pointer; }
+    size_t type() const final { return runtime::type::pointer; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       return (_payload == o.cast<pointer>()->payload());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print("pointer<");
       runtime::print(_payload);
       runtime::print(">");
@@ -2160,18 +2160,18 @@ modern C++ libraries that use smart pointers for memory management.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/value_o.h
   template <typename T>
-  class value : public object_t {
+  class value final : public object_t {
     const T _payload;
   public:
 
-    size_t type() const { return runtime::type::value; }
+    size_t type() const final { return runtime::type::value; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       return (this == o.get());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print("value<");
       const void* addr = &_payload;
       runtime::print(addr);
@@ -2268,14 +2268,14 @@ number Object,
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/number_o.h
-  class number : public object_t {
+  class number final : public object_t {
     const real_t _word;
   public:
 
 
-    size_t type() const { return runtime::type::number; }
+    size_t type() const final { return runtime::type::number; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       if (runtime::abs(_word - o.cast<number>()->word()) < real_epsilon)
         return true;
       else
@@ -2283,7 +2283,7 @@ number Object,
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print(_word);
     }
   #endif
@@ -2453,17 +2453,17 @@ Linked list container implementing the seekable interface.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
-  class empty_sequence : public object_t {
+  class empty_sequence final : public object_t {
   public:
 
-    size_t type() const { return runtime::type::empty_sequence; }
+    size_t type() const final { return runtime::type::empty_sequence; }
 
-    bool equals(var const & ) const {
+    bool equals(var const & ) const final {
       return true;
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print("()");
     }
   #endif
@@ -2475,14 +2475,14 @@ Linked list container implementing the seekable interface.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/sequence_o.h
-  class sequence : public object_t, public seekable_i {
+  class sequence final : public object_t, public seekable_i {
     const var next;
     const var data;
   public:
 
-    size_t type() const { return runtime::type::sequence; }
+    size_t type() const final { return runtime::type::sequence; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       if(first() != runtime::first(o))
         return false;
       
@@ -2494,7 +2494,7 @@ Linked list container implementing the seekable interface.
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print("(");
       data.stream_console();
       for(auto const& i : runtime::range(next)){
@@ -2509,13 +2509,13 @@ Linked list container implementing the seekable interface.
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
-    var cons(var const & x){
+    var cons(var const & x) final {
       return obj<sequence>(x, var(this));
     }
-    var first() const {
+    var first() const final {
       return data;
     }
-    var rest() const {
+    var rest() const final {
       return next;
     }
     template <typename T>
@@ -2571,12 +2571,12 @@ A lazy list container implementing the seekable interface.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lazy_sequence_o.h
-  class lazy_sequence : public object_t, public seekable_i {
+  class lazy_sequence final : public object_t, public seekable_i {
     const var thunk;
     const var head;
   public:
 
-    size_t type() const { return runtime::type::lazy_sequence; }
+    size_t type() const final { return runtime::type::lazy_sequence; }
 
     var sval() const {
       if (head.is_nil())
@@ -2585,7 +2585,7 @@ A lazy list container implementing the seekable interface.
       return head;
     }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       if(sval() != runtime::first(o))
         return false;
       
@@ -2597,7 +2597,7 @@ A lazy list container implementing the seekable interface.
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print("(");
       sval().stream_console();
       for(auto const& i : runtime::range(rest())){
@@ -2613,13 +2613,13 @@ A lazy list container implementing the seekable interface.
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
-    var cons(var const & x){
+    var cons(var const & x) final {
       return obj<lazy_sequence>(x,thunk);
     }
-    var first() const {
+    var first() const final {
       return sval();
     }
-    var rest() const {
+    var rest() const final {
       if (head.is_nil())
         return runtime::rest(run(thunk));
       
@@ -2681,7 +2681,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/d_list_o.h
-  class d_list : public lambda_i, public seekable_i {
+  class d_list final : public lambda_i, public seekable_i {
 
     var data;
 
@@ -2697,14 +2697,14 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     
   public:
 
-    size_t type() const { return runtime::type::d_list; }
+    size_t type() const final { return runtime::type::d_list; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       return (this == o.get());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       data.stream_console();
     }
   #endif
@@ -2765,7 +2765,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       return runtime::first(values);
     }
 
-    var invoke(var const & args) const {
+    var invoke(var const & args) const final {
       return val_at(args);
     }
 
@@ -2774,17 +2774,17 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 
     virtual seekable_i* cast_seekable_i() { return this; }
     
-    var cons(var const & v){
+    var cons(var const & v) final {
       return runtime::list(v,data);
     }
     
-    var first() const {
+    var first() const final {
       var keys = runtime::first(data);
       var values = runtime::rest(data);
       return runtime::list(runtime::first(keys),runtime::first(values));
     }
     
-    var rest() const {
+    var rest() const final {
       var keys = runtime::first(data);
       var values = runtime::rest(data);
 
@@ -2807,7 +2807,7 @@ Each keyword in the program is converted to an /keyword/ object. A
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/keyword_o.h
-  class keyword : public lambda_i {
+  class keyword final : public lambda_i {
     const number_t _word;
 
     number_t from_str(const char * str){
@@ -2821,14 +2821,14 @@ Each keyword in the program is converted to an /keyword/ object. A
     
   public:
 
-    size_t type() const { return runtime::type::keyword; }
+    size_t type() const final { return runtime::type::keyword; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       return (_word == o.cast<keyword>()->word());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print(_word);
     }
   #endif
@@ -2876,7 +2876,7 @@ interpreted as FFI calls.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/string_o.h
-  class string : public object_t, public seekable_i {
+  class string final : public object_t, public seekable_i {
     var data;
 
     void from_char_pointer(const char * str, int length){
@@ -2886,14 +2886,14 @@ interpreted as FFI calls.
     
   public:
 
-    size_t type() const { return runtime::type::string; }
+    size_t type() const final { return runtime::type::string; }
 
-    bool equals(var const & other) const {
+    bool equals(var const & other) const final {
       return (container() == other.cast<string>()->container());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       for(auto const& it : runtime::range(data))
         runtime::print(number::to<char>(it));
     }
@@ -2917,15 +2917,15 @@ interpreted as FFI calls.
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
-    var cons(var const & x){
+    var cons(var const & x) final {
       return obj<string>(runtime::cons(x,data));
     }
 
-    var first() const {
+    var first() const final {
       return runtime::first(data);
     }
 
-    var rest() const {
+    var rest() const final {
       if (!runtime::rest(data).is_nil())
         return obj<string>(runtime::rest(data));
 
@@ -2965,20 +2965,20 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/atomic_o.h
-  class atomic : public deref_i {
+  class atomic final : public deref_i {
     var data;
     mutex lock;
     public:
 
 
-    size_t type() const { return runtime::type::atomic; }
+    size_t type() const final { return runtime::type::atomic; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       return (this == o.cast<atomic>());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print("atom <");
       data.stream_console();
       runtime::print(">");
@@ -3044,7 +3044,7 @@ thread to =future=,
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/async_o.h
   #ifdef FERRET_STD_LIB
-  class async : public deref_i {
+  class async final : public deref_i {
     var value;
     mutex lock;
     var fn;
@@ -3054,14 +3054,14 @@ thread to =future=,
     public:
 
 
-    size_t type() const { return runtime::type::async; }
+    size_t type() const final { return runtime::type::async; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       return (this == o.cast<async>());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print("future <");
       fn.stream_console();
       runtime::print(">");
@@ -3124,21 +3124,21 @@ calls.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/delayed_o.h
-  class delayed : public deref_i {
+  class delayed final : public deref_i {
     var val;
     mutex lock;
     var fn;
     
     public:
 
-    size_t type() const { return runtime::type::delayed; }
+    size_t type() const final { return runtime::type::delayed; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       return (this == o.cast<delayed>());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print("delay");
     }
   #endif

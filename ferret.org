@@ -1413,24 +1413,22 @@ is supported.
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
-  (defmethod emit 'fir_lambda_dispatch [_ [_ args-symbol & fns] state]
-    (let [fns (->> fns
-                   (partition 2))
-          nil-dispatch (filter #(= (first %) 0) fns)]
+  (defmethod emit 'fir_lambda_dispatch [_ [_ & fns] state]
+    (let [fns (partition 2 fns)
+          nil-dispatch (->> (filter #(= (first %) 0) fns) first second)]
       (str
-       (if (not (empty? nil-dispatch))
-         (str "if (" args-symbol ".is_nil())
-                return " (new-lambda-stack
-                          (->> nil-dispatch first second)) ".invoke(nil());")
+       (if nil-dispatch
+         (str "if (_args_.is_nil())
+                return " (new-lambda-stack nil-dispatch) ".invoke(nil());")
          "")
-       "switch(runtime::count(" args-symbol ")) {"
+       "switch(runtime::count(_args_)) {"
        (->> fns
             (map (fn [[count fn]]
                    (if (= count 'true)
                      (str "default: "
-                          " return " (new-lambda-stack fn) ".invoke(" args-symbol ");")
+                          " return " (new-lambda-stack fn) ".invoke(_args_);")
                      (str "case " count " : "
-                          " return " (new-lambda-stack fn) ".invoke(" args-symbol ");"))))
+                          " return " (new-lambda-stack fn) ".invoke(_args_);"))))
             (apply str)) "}")))
 #+end_src
 
@@ -1450,11 +1448,8 @@ is supported.
                explicit $lambda.name$ ($lambda.env:{var const & $it$} ;separator=\",\"$) :
                  $lambda.env:{$it$($it$)} ;separator=\",\"$ { }
              $endif$
-             $if(lambda.args)$
-                 var invoke (var const & _args_) const $if(!lambda.stack)$ final $endif$ ;
-             $else$
-                 var invoke (var const & ) const $if(!lambda.stack)$ final $endif$ ;
-             $endif$
+
+             var invoke (var const & _args_) const $if(!lambda.stack)$ final $endif$ ;
            };};separator=\"\n\n\"$")
         (fill-view! "lambdas" lambdas)
         (render-view)))
@@ -1462,17 +1457,13 @@ is supported.
   (defn lambda-implementations [lambdas]
     (-> (create-view
          "$lambdas: {lambda|
-           $if(lambda.args)$
-               inline var $lambda.name$::invoke (var const & _args_) const
-           $else$
-               inline var $lambda.name$::invoke (var const & ) const
-           $endif$
-               {
-                 $lambda.args:{args | $args$; } ;separator=\"\n\"$
+            inline var $lambda.name$::invoke (var const & _args_) const {
+              (void)(_args_);
+              $lambda.args:{args | $args$; } ;separator=\"\n\"$
      
-                 $trunc(lambda.body):{$it$} ;separator=\"\n\"$
-                 return $last(lambda.body):{$it$} ;separator=\"\n\"$
-               }
+              $trunc(lambda.body):{$it$} ;separator=\"\n\"$
+              return $last(lambda.body):{$it$} ;separator=\"\n\"$
+            }
            };separator=\"\n\n\"$")
         (fill-view! "lambdas" lambdas)
         (render-view)))
@@ -4346,8 +4337,7 @@ implementation.
                          last (take-last 2 conds)]
                      (concat arg-dispatch [true (second last)]))
                    (interleave conds fns))]
-        `(~'fn* (& (~'fir-no-closure fn-arg-symbol#))
-                (~'fir-lambda-dispatch fn-arg-symbol# ~@form)))))
+        `(~'fn* () (~'fir-lambda-dispatch ~@form)))))
 #+end_src
 
 A simple macro for calling inline C++,

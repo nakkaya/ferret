@@ -7469,7 +7469,8 @@ Create some dummy libs under /test/modules/,
   - *Convert Data Structures* - Automatically convert unsupported data
     structures and warn user. i.e. Vector to List.
   - C++ implementations of Clojure's persistent data structures. - https://github.com/mninja/persistent-data-structures
-  - *Implement Que*
+  - *Implement Channel*
+    - https://www.reddit.com/r/cpp/comments/6p3zch/diy_channels/
   - *Unbounded Precision Integers*
     - [[http://www.more-magic.net/posts/numeric-tower-part-2.html][CHICKEN's numeric tower: part 2]]
     - [[https://web.archive.org/web/20101208222557/http://www.mactech.com/articles/mactech/Vol.08/08.03/BigNums/index.html][Arbitrarily Large Bignums]]

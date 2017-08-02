@@ -757,15 +757,11 @@ the free variable problem.
      (morph-form form
                  (is-form? 'fn*)
                  (fn [[_ args & body]]
-                   (let [env     (if (nil? env) '() (first env))
-                         fn-env  (remove (is-form? 'fir-no-closure) args)
-                         fn-args (map #(if ((is-form? 'fir-no-closure) %)
-                                         (second %) %)
-                                      args)
-                         body (closure-conversion body fns (concat fn-env env))]
+                   (let [env  (if (nil? env) '() (first env))
+                         body (closure-conversion body fns (concat args env))]
                      (if-let [n (lambda-defined? fns env args body)]
                        n
-                       (define-lambda fns env fn-args body)))))))
+                       (define-lambda fns env args body)))))))
 #+end_src
 
 *** Symbol Conversion
@@ -1413,24 +1409,22 @@ is supported.
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
-  (defmethod emit 'fir_lambda_dispatch [_ [_ args-symbol & fns] state]
-    (let [fns (->> fns
-                   (partition 2))
-          nil-dispatch (filter #(= (first %) 0) fns)]
+  (defmethod emit 'fir_lambda_dispatch [_ [_ & fns] state]
+    (let [fns (partition 2 fns)
+          nil-dispatch (->> (filter #(= (first %) 0) fns) first second)]
       (str
-       (if (not (empty? nil-dispatch))
-         (str "if (" args-symbol ".is_nil())
-                return " (new-lambda-stack
-                          (->> nil-dispatch first second)) ".invoke(nil());")
+       (if nil-dispatch
+         (str "if (_args_.is_nil())
+                return " (new-lambda-stack nil-dispatch) ".invoke(nil());")
          "")
-       "switch(runtime::count(" args-symbol ")) {"
+       "switch(runtime::count(_args_)) {"
        (->> fns
             (map (fn [[count fn]]
                    (if (= count 'true)
                      (str "default: "
-                          " return " (new-lambda-stack fn) ".invoke(" args-symbol ");")
+                          " return " (new-lambda-stack fn) ".invoke(_args_);")
                      (str "case " count " : "
-                          " return " (new-lambda-stack fn) ".invoke(" args-symbol ");"))))
+                          " return " (new-lambda-stack fn) ".invoke(_args_);"))))
             (apply str)) "}")))
 #+end_src
 
@@ -1450,11 +1444,8 @@ is supported.
                explicit $lambda.name$ ($lambda.env:{var const & $it$} ;separator=\",\"$) :
                  $lambda.env:{$it$($it$)} ;separator=\",\"$ { }
              $endif$
-             $if(lambda.args)$
-                 var invoke (var const & _args_) const $if(!lambda.stack)$ final $endif$ ;
-             $else$
-                 var invoke (var const & ) const $if(!lambda.stack)$ final $endif$ ;
-             $endif$
+
+             var invoke (var const & _args_) const $if(!lambda.stack)$ final $endif$ ;
            };};separator=\"\n\n\"$")
         (fill-view! "lambdas" lambdas)
         (render-view)))
@@ -1462,17 +1453,13 @@ is supported.
   (defn lambda-implementations [lambdas]
     (-> (create-view
          "$lambdas: {lambda|
-           $if(lambda.args)$
-               inline var $lambda.name$::invoke (var const & _args_) const
-           $else$
-               inline var $lambda.name$::invoke (var const & ) const
-           $endif$
-               {
-                 $lambda.args:{args | $args$; } ;separator=\"\n\"$
+            inline var $lambda.name$::invoke (var const & _args_) const {
+              (void)(_args_);
+              $lambda.args:{args | $args$; } ;separator=\"\n\"$
      
-                 $trunc(lambda.body):{$it$} ;separator=\"\n\"$
-                 return $last(lambda.body):{$it$} ;separator=\"\n\"$
-               }
+              $trunc(lambda.body):{$it$} ;separator=\"\n\"$
+              return $last(lambda.body):{$it$} ;separator=\"\n\"$
+            }
            };separator=\"\n\n\"$")
         (fill-view! "lambdas" lambdas)
         (render-view)))
@@ -2028,18 +2015,18 @@ A boolean object,
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/boolean_o.h
-  class boolean : public object_t {
+  class boolean final : public object_t {
     const bool value;
   public:
 
-    size_t type() const { return runtime::type::boolean; }
+    size_t type() const final { return runtime::type::boolean; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       return (value == o.cast<boolean>()->container());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       if (value)
         runtime::print("true");
       else
@@ -2100,19 +2087,19 @@ A /pointer/ object keeps a reference to a C++ pointer.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/pointer_o.h
-  class pointer : public object_t {
+  class pointer final : public object_t {
     void* _payload;
   public:
 
 
-    size_t type() const { return runtime::type::pointer; }
+    size_t type() const final { return runtime::type::pointer; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       return (_payload == o.cast<pointer>()->payload());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print("pointer<");
       runtime::print(_payload);
       runtime::print(">");
@@ -2160,18 +2147,18 @@ modern C++ libraries that use smart pointers for memory management.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/value_o.h
   template <typename T>
-  class value : public object_t {
+  class value final : public object_t {
     const T _payload;
   public:
 
-    size_t type() const { return runtime::type::value; }
+    size_t type() const final { return runtime::type::value; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       return (this == o.get());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print("value<");
       const void* addr = &_payload;
       runtime::print(addr);
@@ -2268,14 +2255,14 @@ number Object,
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/number_o.h
-  class number : public object_t {
+  class number final : public object_t {
     const real_t _word;
   public:
 
 
-    size_t type() const { return runtime::type::number; }
+    size_t type() const final { return runtime::type::number; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       if (runtime::abs(_word - o.cast<number>()->word()) < real_epsilon)
         return true;
       else
@@ -2283,7 +2270,7 @@ number Object,
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print(_word);
     }
   #endif
@@ -2453,17 +2440,17 @@ Linked list container implementing the seekable interface.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
-  class empty_sequence : public object_t {
+  class empty_sequence final : public object_t {
   public:
 
-    size_t type() const { return runtime::type::empty_sequence; }
+    size_t type() const final { return runtime::type::empty_sequence; }
 
-    bool equals(var const & ) const {
+    bool equals(var const & ) const final {
       return true;
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print("()");
     }
   #endif
@@ -2475,14 +2462,14 @@ Linked list container implementing the seekable interface.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/sequence_o.h
-  class sequence : public object_t, public seekable_i {
+  class sequence final : public object_t, public seekable_i {
     const var next;
     const var data;
   public:
 
-    size_t type() const { return runtime::type::sequence; }
+    size_t type() const final { return runtime::type::sequence; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       if(first() != runtime::first(o))
         return false;
       
@@ -2494,7 +2481,7 @@ Linked list container implementing the seekable interface.
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print("(");
       data.stream_console();
       for(auto const& i : runtime::range(next)){
@@ -2509,13 +2496,13 @@ Linked list container implementing the seekable interface.
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
-    var cons(var const & x){
+    var cons(var const & x) final {
       return obj<sequence>(x, var(this));
     }
-    var first() const {
+    var first() const final {
       return data;
     }
-    var rest() const {
+    var rest() const final {
       return next;
     }
     template <typename T>
@@ -2571,12 +2558,12 @@ A lazy list container implementing the seekable interface.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lazy_sequence_o.h
-  class lazy_sequence : public object_t, public seekable_i {
+  class lazy_sequence final : public object_t, public seekable_i {
     const var thunk;
     const var head;
   public:
 
-    size_t type() const { return runtime::type::lazy_sequence; }
+    size_t type() const final { return runtime::type::lazy_sequence; }
 
     var sval() const {
       if (head.is_nil())
@@ -2585,7 +2572,7 @@ A lazy list container implementing the seekable interface.
       return head;
     }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       if(sval() != runtime::first(o))
         return false;
       
@@ -2597,7 +2584,7 @@ A lazy list container implementing the seekable interface.
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print("(");
       sval().stream_console();
       for(auto const& i : runtime::range(rest())){
@@ -2613,13 +2600,13 @@ A lazy list container implementing the seekable interface.
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
-    var cons(var const & x){
+    var cons(var const & x) final {
       return obj<lazy_sequence>(x,thunk);
     }
-    var first() const {
+    var first() const final {
       return sval();
     }
-    var rest() const {
+    var rest() const final {
       if (head.is_nil())
         return runtime::rest(run(thunk));
       
@@ -2681,7 +2668,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/d_list_o.h
-  class d_list : public lambda_i, public seekable_i {
+  class d_list final : public lambda_i, public seekable_i {
 
     var data;
 
@@ -2697,14 +2684,14 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     
   public:
 
-    size_t type() const { return runtime::type::d_list; }
+    size_t type() const final { return runtime::type::d_list; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       return (this == o.get());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       data.stream_console();
     }
   #endif
@@ -2765,7 +2752,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       return runtime::first(values);
     }
 
-    var invoke(var const & args) const {
+    var invoke(var const & args) const final {
       return val_at(args);
     }
 
@@ -2774,17 +2761,17 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 
     virtual seekable_i* cast_seekable_i() { return this; }
     
-    var cons(var const & v){
+    var cons(var const & v) final {
       return runtime::list(v,data);
     }
     
-    var first() const {
+    var first() const final {
       var keys = runtime::first(data);
       var values = runtime::rest(data);
       return runtime::list(runtime::first(keys),runtime::first(values));
     }
     
-    var rest() const {
+    var rest() const final {
       var keys = runtime::first(data);
       var values = runtime::rest(data);
 
@@ -2807,7 +2794,7 @@ Each keyword in the program is converted to an /keyword/ object. A
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/keyword_o.h
-  class keyword : public lambda_i {
+  class keyword final : public lambda_i {
     const number_t _word;
 
     number_t from_str(const char * str){
@@ -2821,14 +2808,14 @@ Each keyword in the program is converted to an /keyword/ object. A
     
   public:
 
-    size_t type() const { return runtime::type::keyword; }
+    size_t type() const final { return runtime::type::keyword; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       return (_word == o.cast<keyword>()->word());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print(_word);
     }
   #endif
@@ -2855,15 +2842,28 @@ Each keyword in the program is converted to an /keyword/ object. A
 
 **** String
 
-strings are represented as a linked list of characters.
+Strings are represented as a linked list of numbers each representing
+a character.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defobject string "ferret/obj/string_o.h")
 #+end_src
 
+Defines a function that returns a given string. Can be used to return
+strings from functions. Due to the way FFI interface is designed
+strings can not be returned from functions because they are
+interpreted as FFI calls.
+
+#+name: runtime-clojure-objects
+#+begin_src clojure :tangle no
+  (defmacro new-string [& ss]
+    (let [s (apply str ss)]
+      `((~'fn [] ~(str "__result = obj<string>(\"" s "\");")))))
+#+end_src
+
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/string_o.h
-  class string : public object_t, public seekable_i {
+  class string final : public object_t, public seekable_i {
     var data;
 
     void from_char_pointer(const char * str, int length){
@@ -2873,14 +2873,14 @@ strings are represented as a linked list of characters.
     
   public:
 
-    size_t type() const { return runtime::type::string; }
+    size_t type() const final { return runtime::type::string; }
 
-    bool equals(var const & other) const {
+    bool equals(var const & other) const final {
       return (container() == other.cast<string>()->container());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       for(auto const& it : runtime::range(data))
         runtime::print(number::to<char>(it));
     }
@@ -2904,15 +2904,15 @@ strings are represented as a linked list of characters.
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
-    var cons(var const & x){
+    var cons(var const & x) final {
       return obj<string>(runtime::cons(x,data));
     }
 
-    var first() const {
+    var first() const final {
       return runtime::first(data);
     }
 
-    var rest() const {
+    var rest() const final {
       if (!runtime::rest(data).is_nil())
         return obj<string>(runtime::rest(data));
 
@@ -2952,20 +2952,20 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/atomic_o.h
-  class atomic : public deref_i {
-    FERRET_NEW_LOCK(lock)
+  class atomic final : public deref_i {
     var data;
+    mutex lock;
     public:
 
 
-    size_t type() const { return runtime::type::atomic; }
+    size_t type() const final { return runtime::type::atomic; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       return (this == o.cast<atomic>());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print("atom <");
       data.stream_console();
       runtime::print(">");
@@ -2975,15 +2975,13 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
     explicit atomic(var const & d) : data(d) {} 
 
     var swap(var const & f,var const & args){
-      FERRET_WITH_LOCK(lock,{
-          data = f.cast<lambda_i>()->invoke(runtime::cons(data, args));
-        });
+      lock_guard guard(lock);
+      data = f.cast<lambda_i>()->invoke(runtime::cons(data, args));
       return data;
     }
     var deref() {
-      FERRET_WITH_LOCK(lock,{
-          return data;
-        });
+      lock_guard guard(lock);
+      return data;
     }
   };
 #+end_src
@@ -3022,11 +3020,20 @@ not yet finished, calls to deref/@ will block.
   (defn future-done? [f] "__result = obj<boolean>(f.cast<async>()->is_ready());")
 #+end_src
 
+Divert *depricated* thread macro which runs the given lambda in a
+thread to =future=,
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn thread [f]
+    "__result = obj<async>(f);")
+#+end_src
+
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/async_o.h
   #ifdef FERRET_STD_LIB
-  class async : public deref_i {
-    FERRET_NEW_LOCK(lock)
+  class async final : public deref_i {
     var value;
+    mutex lock;
     var fn;
     bool cached;
     std::future<var> task;
@@ -3034,14 +3041,14 @@ not yet finished, calls to deref/@ will block.
     public:
 
 
-    size_t type() const { return runtime::type::async; }
+    size_t type() const final { return runtime::type::async; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       return (this == o.cast<async>());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print("future <");
       fn.stream_console();
       runtime::print(">");
@@ -3055,11 +3062,10 @@ not yet finished, calls to deref/@ will block.
     }
 
     bool is_ready(){
-      FERRET_WITH_LOCK(lock,{
-          if (cached)
-            return true;
-          return task.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
-        });
+      lock_guard guard(lock);
+      if (cached)
+        return true;
+      return task.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
     }
 
     void get(){
@@ -3070,7 +3076,8 @@ not yet finished, calls to deref/@ will block.
     }
 
     var deref() {
-      FERRET_WITH_LOCK(lock,{ get(); });
+      lock_guard guard(lock);
+      get();
       return value;
     }
   };
@@ -3104,21 +3111,21 @@ calls.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/delayed_o.h
-  class delayed : public deref_i {
-    FERRET_NEW_LOCK(lock)
+  class delayed final : public deref_i {
     var val;
+    mutex lock;
     var fn;
     
     public:
 
-    size_t type() const { return runtime::type::delayed; }
+    size_t type() const final { return runtime::type::delayed; }
 
-    bool equals(var const & o) const {
+    bool equals(var const & o) const final {
       return (this == o.cast<delayed>());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
+    void stream_console() const final {
       runtime::print("delay");
     }
   #endif
@@ -3126,13 +3133,12 @@ calls.
     explicit delayed(var const & f) : fn(f) {} 
     
     var deref() {
-      FERRET_WITH_LOCK(lock,{
-          if (!fn.is_nil()){
-            val = fn.cast<lambda_i>()->invoke(nil());
-            fn = nil();
-          }
-          return val;
-        });
+      lock_guard guard(lock);
+      if (!fn.is_nil()){
+        val = fn.cast<lambda_i>()->invoke(nil());
+        fn = nil();
+      }
+      return val;
     }
   };
 #+end_src
@@ -3642,10 +3648,10 @@ to each other in the array which improves data locality.
       template<typename page_size, size_t pool_size>
       class memory_pool{
       public:
+        mutex lock;
         bit_array<pool_size> used;
         page_size pool[pool_size];
         size_t offset;
-        FERRET_NEW_LOCK(lock)
 
         memory_pool() : pool{0}, offset(0) { }
 
@@ -3689,33 +3695,31 @@ to each other in the array which improves data locality.
         }
 
         void *allocate(size_t req_size){
-          FERRET_WITH_LOCK(lock,{
-              size_t length = chunk_length(++req_size);
-              int page      = scan_pool(length, offset);
+          lock_guard guard(lock);
+          size_t length = chunk_length(++req_size);
+          int page      = scan_pool(length, offset);
 
-              if (page == -1){
-                page = scan_pool(length);
-                if (page == -1)
-                  return nullptr;
-              }
+          if (page == -1){
+            page = scan_pool(length);
+            if (page == -1)
+              return nullptr;
+          }
           
-              pool[page] = length;
-              offset = (size_t)page + length;
-              for(size_t i = (size_t)page; i < offset; i++)
-                used.set(i);
+          pool[page] = length;
+          offset = (size_t)page + length;
+          for(size_t i = (size_t)page; i < offset; i++)
+            used.set(i);
 
-              return &pool[++page];
-            });
+          return &pool[++page];
         }
 
         void free(void *p){
-          FERRET_WITH_LOCK(lock, {
-              ptrdiff_t begin = (static_cast<page_size *>(p) - pool) - 1;
-              ptrdiff_t end = begin + (ptrdiff_t)pool[begin];
+          lock_guard guard(lock);
+          ptrdiff_t begin = (static_cast<page_size *>(p) - pool) - 1;
+          ptrdiff_t end = begin + (ptrdiff_t)pool[begin];
 
-              for (ptrdiff_t i = begin; i < end; i++)
-                used.reset((size_t)i);
-            });
+          for (ptrdiff_t i = begin; i < end; i++)
+            used.reset((size_t)i);
         }
       };
     }
@@ -3816,6 +3820,46 @@ counting policies.
   }
   #endif
 #+end_src 
+
+** Concurrency
+
+Low level concurrency abstractions.
+
+*** Mutex
+
+Locking abstractions for various platforms. They are disabled when
+running single threaded or on an embedded platform. (=FERRET_STD_LIB=
+not defined.)
+
+#+name: runtime-native-hardware-concurrency
+#+begin_src c++ :tangle no
+  namespace ferret {
+  #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)
+    class mutex {
+      ::std::mutex m;
+    public:
+      void lock()   { m.lock(); } 
+      void unlock() { m.unlock(); }
+    };
+  #else
+    class mutex {
+    public:
+      void lock()   {} 
+      void unlock() {} 
+    };
+  #endif
+  }
+
+  namespace ferret {
+    class lock_guard{
+      mutex & _ref;
+    public:
+      explicit lock_guard(const lock_guard &) = delete;
+      explicit lock_guard(mutex & mutex) : _ref(mutex) { _ref.lock(); };
+      ~lock_guard() { _ref.unlock(); }
+    };
+  }
+#+end_src
 
 ** Configuration
 
@@ -3918,12 +3962,12 @@ indicating platform.
    #include <cstdio>
    #include <cstdlib>
    #include <cstddef>
-   #include <atomic>
-   #include <mutex>
    #include <cmath>
    #include <vector>
    #include <algorithm>
    #include <chrono>
+   #include <atomic>
+   #include <mutex>
    #include <thread>
    #include <future>
   #endif
@@ -4080,26 +4124,6 @@ procedure.
         run(FERRET_PROGRAM_MAIN);
       #endif
     }
-  #endif
-#+end_src
-
-*** Configure Locking
-
-Locking macros. They are disabled when running single threaded or on
-an embedded platform. (=FERRET_STD_LIB= not defined.)
-
-#+name: runtime-native-hardware-setup
-#+begin_src c++ :tangle no
-  #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)
-   #define FERRET_NEW_LOCK(symbol) ::std::mutex symbol;
-   #define FERRET_WITH_LOCK(lock,code)                           \
-     {                                                           \
-     ::std::lock_guard< ::std::mutex > ferret_scope_guard(lock); \
-     code;                                                       \
-     }
-  #else
-   #define FERRET_NEW_LOCK(symbol)
-   #define FERRET_WITH_LOCK(lock,code) code;
   #endif
 #+end_src
 
@@ -4309,16 +4333,16 @@ implementation.
                          last (take-last 2 conds)]
                      (concat arg-dispatch [true (second last)]))
                    (interleave conds fns))]
-        `(~'fn* (& (~'fir-no-closure fn-arg-symbol#))
-                (~'fir-lambda-dispatch fn-arg-symbol# ~@form)))))
+        `(~'fn* () (~'fir-lambda-dispatch ~@form)))))
 #+end_src
 
 A simple macro for calling inline C++,
 
 #+name: runtime-clojure-fn-macros
 #+begin_src clojure :tangle no
-  (defmacro cxx [str]
-    `((~'fn [] ~str)))
+  (defmacro cxx [& body]
+    (let [body (apply str body)]
+      `((~'fn [] ~body))))
 #+end_src
 
 ** I/O
@@ -5221,34 +5245,6 @@ angle measured in radians.
 #+begin_src clojure :tangle no :noweb yes
   (defn to-radians [x]
     "__result = obj<number>((real_t) (number::to<real_t>(x) * 1_pi / 180.0) );")
-#+end_src
-
-** Concurrency
-*** thread
-
-Runs the given lambda in a thread,
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defnative thread [f]
-    (on "defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)"
-        "::std::thread ([f](){return run(f);}).detach();"))
-#+end_src
-
-*** synchronized
-
-Executes exprs in an implicit do, while holding a std::mutex. Will
-release the mutex in all circumstances.
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defmacro synchronized [& body]
-    `(~'_synchronized_ (~'fn [] ~@body)))
-
-  (defn _synchronized_ [f]
-    "static std::mutex mtx;
-     std::unique_lock<std::mutex> lock(mtx);
-     __result = run(f);")
 #+end_src
 
 ** Timing
@@ -6740,25 +6736,14 @@ Static code analysis (cppcheck) options,
 
 #+name: ferret-unit-tests
 #+begin_src clojure :tangle no
-  (deftest threading-test
-    (let [state (atom nil)
-          add-wait (fn [time item]
-                     (fn []
-                       (sleep time)
-                       (swap! state conj item)))]
-      (thread (add-wait 10 1))
-      (thread (add-wait 20 2))
-      (sleep 30)
-      (is (= (list 2 1) (deref state)))))
-
-
   (deftest future-test
     (is (= 42    @(future (+ 41 1))))
     (is (= 42    @(future (sleep 100) (+ 40 2))))
     (is (= false  (future-done? (future (sleep 100) :false))))
     (is (= true   (let [f (future :true)]
                     (deref f)
-                    (future-done? f)))))
+                    (future-done? f))))
+    (is (= 42    @(thread #(+ 41 1)))))
 
   (deftest delay-test
     (let [d (delay   (+ 1 1))]
@@ -6793,13 +6778,6 @@ Static code analysis (cppcheck) options,
       (throttled-ping)
       (is (nil? (throttled-ping)))
       (is (< (- (millis) begin) 1000))))
-
-  (deftest synchronized-test
-    (let [s (atom 0)]
-      (dotimes [_ 10]
-        (thread #(synchronized (swap! s inc))))
-      (sleep 1000)
-      (is (= @s 10))))
 #+end_src
 
 *** XOR Stream
@@ -7354,11 +7332,13 @@ Create some dummy libs under /test/modules/,
 #+name: ferret-unit-tests
 #+begin_src clojure
   (deftest string-test
-    (let [s1 "Some String"
+    (let [s1       "Some String"
           s1-added "ASome String"
-          s2 "Other String"
-          s1-ret (fn [] "__result = obj<string>(\"Some String\");")
-          s1-eq (fn [s] "__result = obj<boolean>((string::to<std::string>(s) == \"Some String\"))")]
+          s2       "Other String"
+          s1-ret   (fn [] "__result = obj<string>(\"Some String\");")
+          s1-eq    (fn [s] "__result = obj<boolean>((string::to<std::string>(s) == \"Some String\"))")
+          s2       "Ali Topu At"]
+      (is (= s2 (new-string "Ali Topu At")))
       (is (= false (= s1 s2)))
       (is (= true  (= s1 s1)))
       (is (= false (= s1 3.14)))
@@ -7465,6 +7445,11 @@ Create some dummy libs under /test/modules/,
     - https://clojuredocs.org/clojure.core/add-watch
     - https://stackoverflow.com/questions/13371123/how-do-refs-notify-its-watches-in-clojure
     - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/Atom.java
+  - *atomic* - Current implementation uses =std::mutex= for
+    synchronization. Clojure uses =AtomicReference=, =std::atomic=
+    provides same behaviour.
+    - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/Atom.java
+    - http://www.cplusplus.com/reference/atomic/
   - Warn wrong number of arguments passed to function.
   - *Convert Data Structures* - Automatically convert unsupported data
     structures and warn user. i.e. Vector to List.
@@ -7800,6 +7785,8 @@ Create some dummy libs under /test/modules/,
 
   // Detect Hardware
   <<runtime-native-hardware-setup>>
+
+  <<runtime-native-hardware-concurrency>>
 
   // Fixed Point Real
   namespace ferret{

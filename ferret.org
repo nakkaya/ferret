@@ -1873,8 +1873,8 @@ All our types are derived from the base Object type. Which is a
   class seekable_i;
 
   namespace object{
-    template <typename rc, typename mem>
-    class base : public rc, public mem{
+    template <typename rc>
+    class base : public rc{
     public:
       base() { }
       virtual ~base() { };
@@ -1888,10 +1888,12 @@ All our types are derived from the base Object type. Which is a
       virtual bool equals(var const & o) const = 0;
 
       virtual seekable_i* cast_seekable_i() { return nullptr; }
+
+      void  operator delete(void * ptr){ FERRET_ALLOC_POLICY::free(ptr); }
     };
   }
 
-  typedef object::base<FERRET_RC_POLICY,FERRET_ALLOC_POLICY> object_t;
+  typedef object::base<FERRET_RC_POLICY> object_t;
 #+end_src
 
 A /var/ holds a pointer to an object_t, everything is passed around as
@@ -1996,7 +1998,8 @@ new *var* containing a pointer to an [[Object System][Object]]. *nil* is represe
 #+begin_src c++ :tangle no
   template<typename FT, typename... Args>
   inline var obj(Args... args) {
-    return var(new FT(args...));
+    void * storage = FERRET_ALLOC_POLICY::allocate<FT>();
+    return var(new(storage) FT(args...));
   }
 
   inline var nil(){
@@ -2944,7 +2947,8 @@ interpreted as FFI calls.
   #ifdef FERRET_STD_LIB
   template<>
   inline var obj<string>(std::string s) {
-    return var(new string(s.c_str(), (number_t)s.size()));
+    void * storage = FERRET_ALLOC_POLICY::allocate<std::string>();
+    return var(new(storage) string(s.c_str(), (number_t)s.size()));
   }
 
   template <> ::std::string string::to(var const & v) { 
@@ -3543,34 +3547,6 @@ Ferret supports various memory allocation schemes,
  - *Third party garbage collectors* (i.e The Boehm-Demers-Weiser
    conservative garbage collector.)
 
-**** System Allocator
-
-[[Object]]s are allocated from system implementation. (Default memory
-allocator used.)
-
-#+name: runtime-native-allocators
-#+begin_src c++ :tangle no
-  #if !defined(FERRET_ALLOC_POLICY)
-
-  #define FERRET_ALLOC_POLICY mem::allocator::system
-
-  namespace mem{
-    namespace allocator{
-      
-      class system{
-      public:
-
-        static inline void* allocate(size_t size){ return ::malloc(size); }
-        static inline void  free(void * ptr){ ::free(ptr); } 
-        
-        inline void* operator new(size_t size){ return allocate(size); }
-        inline void  operator delete(void * ptr){ free(ptr); }
-      };
-    }
-  }
-  #endif
-#+end_src 
-
 **** Pool Allocator
 
 When =FERRET_MEMORY_POOL_SIZE= is defined Ferret programs will use a
@@ -3615,11 +3591,12 @@ parameterized. Thus, close to optimal performance will result.
       class pool{
       public:
 
-        static inline void*  allocate(size_t size){ return program_memory.allocate(size); }
+        static void init(){ }
+        
+        template<typename FT>
+        static inline void*  allocate(){ return program_memory.allocate(sizeof(FT)); }
+        
         static inline void   free(void * ptr){ program_memory.free(ptr); }
-
-        inline void* operator new(size_t size){ return allocate(size); }
-        inline void  operator delete(void * ptr){ free(ptr); }
       };
     }
   }
@@ -3744,7 +3721,7 @@ to each other in the array which improves data locality.
 
 **** LibGC
 
-When =FERRET_MEMORY_GC= is defined Ferret programs will use
+When =FERRET_MEMORY_BOEHM_GC= is defined Ferret programs will use
 Boehm-Demers-Weiser's GC is a garbage collecting storage
 allocator. The collector automatically recycles memory when it
 determines that it can no longer be used. 
@@ -3760,24 +3737,55 @@ libgc.{a,so}.
   #define FERRET_ALLOC_POLICY mem::allocator::gc
   #define FERRET_DISABLE_RC true
 
+  #include <gc.h>
+
   namespace mem{
     namespace allocator{
       
       class gc{
       public:
 
-        static inline void* allocate(size_t size){
+        static void init(){ GC_INIT(); }
+        
+        template<typename FT>
+        static inline void* allocate(){
   #ifdef FERRET_DISABLE_MULTI_THREADING
-          return GC_MALLOC(size);
+          return GC_MALLOC(sizeof(FT));
   #else
-          return GC_MALLOC_ATOMIC(size);
+          return GC_MALLOC_ATOMIC(sizeof(FT));
   #endif
         }
       
         static inline void  free(void * ptr){ }
-        
-        inline void* operator new(size_t size){ return allocate(size); }
-        inline void  operator delete(void * ptr){ free(ptr); }
+      };
+    }
+  }
+  #endif
+#+end_src 
+
+**** System Allocator
+
+[[Object]]s are allocated from system implementation. (Default memory
+allocator used.)
+
+#+name: runtime-native-allocators
+#+begin_src c++ :tangle no
+  #if !defined(FERRET_ALLOC_POLICY)
+
+  #define FERRET_ALLOC_POLICY mem::allocator::system
+
+  namespace mem{
+    namespace allocator{
+
+      class system{
+      public:
+
+        static void init(){ }
+
+        template<typename FT>
+        static inline void* allocate(){ return ::malloc(sizeof(FT)); }
+
+        static inline void  free(void * ptr){ ::free(ptr); } 
       };
     }
   }
@@ -3987,10 +3995,6 @@ indicating platform.
    #include <future>
   #endif
 
-  #ifdef FERRET_MEMORY_BOEHM_GC
-   #include <gc.h>
-  #endif
-
   #ifdef FERRET_HARDWARE_ARDUINO
    #include <Arduino.h>
    #include <stdio.h>
@@ -4089,13 +4093,10 @@ will be called right after =program::run()=.
    #else
     int main(int argc, char* argv[])
    #endif
-    {
-      
-  #ifdef FERRET_MEMORY_BOEHM_GC
-      GC_INIT();
-  #endif
-          
+    {     
       using namespace ferret;
+
+      FERRET_ALLOC_POLICY::init();
 
      #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_CLI_ARGS)
       for (int i = argc - 1; i > -1 ; i--)

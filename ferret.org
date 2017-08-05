@@ -2126,11 +2126,13 @@ modern C++ libraries that use smart pointers for memory management.
 #+name: value-test-helpers
 #+begin_src clojure :tangle no
   (native-declare "class data{ 
+                     int x;
                    public: 
-                    int x; 
-                    
-                    explicit data(int _x) : x(_x) {} 
-                    int content() { return x; }
+                      
+                     explicit data(int _x) : x(_x) {} 
+
+                     int  content() { return x; }
+                     void inc() { x++; }
                    };")
 
   (defn make-data [x]
@@ -2138,6 +2140,10 @@ modern C++ libraries that use smart pointers for memory management.
 
   (defn get-data [x]
     "__result = obj<number>((number_t) value<data>::to_value(x).content());")
+
+  (defn inc-data [x]
+    "data & d = value<data>::to_reference(x);
+     d.inc();")
 #+end_src
 
 #+name: runtime-clojure-objects
@@ -2148,8 +2154,8 @@ modern C++ libraries that use smart pointers for memory management.
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/value_o.h
   template <typename T>
   class value final : public object_t {
-    const T _payload;
-  public:
+    T _value;
+   public:
 
     size_t type() const final { return runtime::type::value; }
 
@@ -2160,21 +2166,30 @@ modern C++ libraries that use smart pointers for memory management.
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
       runtime::print("value<");
-      const void* addr = &_payload;
+      const void* addr = &_value;
       runtime::print(addr);
       runtime::print(">");
     }
   #endif
 
     template <typename... Args>
-    explicit value(Args&&... args) : _payload(static_cast<Args&&>(args)...) { } 
+    explicit value(Args&&... args) : _value(static_cast<Args&&>(args)...) { } 
 
-    T payload() const {
-      return _payload;
+    T to_value() const {
+      return _value;
     }
+    
     static T to_value(var const & v){
-      return v.cast<value<T>>()->payload();
+      return v.cast<value<T>>()->to_value();
     }
+
+    T & to_reference() {
+      return _value;
+    }
+    
+    static T & to_reference(var const & v) {
+      return v.cast<value<T>>()->to_reference();
+    }  
   };
 #+end_src
 
@@ -7297,7 +7312,9 @@ Create some dummy libs under /test/modules/,
       (is (=    obj-42 obj-42))
       (is (not= obj-42 obj-24))
       (is (=    val-42 42))
-      (is (=    val-24 24))))
+      (is (=    val-24 24))
+      (is (=    25     (do (inc-data obj-24) 
+                           (get-data obj-24))))))
 #+end_src
 
 *** Atom

@@ -7526,6 +7526,7 @@ Create some dummy libs under /test/modules/,
       allocated from that heap. When the stack unwinds past that
       point, the entire local heap can be released in one fell swoop.
   - *Co-Operative Multitasking* - For Embedded Systems.
+    - http://soda.swedish-ict.se/2372/1/SICS-T--2005-05--SE.pdf
     - https://forum.pjrc.com/threads/25628-Lightweight-Teensy3-x-Fibers-Library-%28C-%29-Available
     - https://github.com/ve3wwg/teensy3_fibers/blob/1ba0c1e79a423f097e12e6c4176b40cf9d4f44e4/fibers.cpp
   - *Multimethods*

@@ -612,7 +612,9 @@ shadow already defined variable names.
   (defn fn->unique-args [form]
     (let [valid-symbol? (fn [s] (and (symbol? s) (not= s '&) (not= s '_)))
           [args & body] form]
-      (if (string? (first body))
+      (if (string?  (->> body
+                         (filter #(not ((is-form? 'native-declare) %)))
+                         first))
         `(~'fn* ~args ~@body)
         (let [unique-args (->> args
                                flatten
@@ -6897,7 +6899,8 @@ Run import tests.
     (is (= 11  ((mod-b/eleven-fn))))
     (is (= 1   (mod-a/helper-c)))
     (is (= 42  (mod-b/macro-call)))
-    (is (= :b  (:a (mod-a/some-d-list)))))
+    (is (= :b  (:a (mod-a/some-d-list))))
+    (is (= 42  (mod-b/native-single-argument 42))))
 
   (require 'modules.module-a
            'modules.module-b)
@@ -6967,6 +6970,11 @@ Create some dummy libs under /test/modules/,
 
   (defn eleven-fn []
     (mod-c/eleven-fn))
+
+  (defnative native-single-argument [x]
+    (on "defined FERRET_STD_LIB"
+        ("utility") ;; dummy include
+        "__result = obj<number>(number::to<int>(x));"))
 
   (defnative macro-aux []
     (on "defined FERRET_STD_LIB"

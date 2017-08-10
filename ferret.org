@@ -3061,7 +3061,6 @@ thread to =future=,
     
     public:
 
-
     size_t type() const final { return runtime::type::async; }
 
     bool equals(var const & o) const final {
@@ -3076,10 +3075,9 @@ thread to =future=,
     }
   #endif
 
-    explicit async(var const & f) : fn(f) {
-      cached = false;
-      task = std::async(std::launch::async, [this](){ return run(fn); });
-      value = nil();
+    explicit async(var const & f) : value(nil()), fn(f), cached(false){
+      var self(this); // avoid gc until lambda returns which blocks the caller. 
+      task = std::async(std::launch::async, [self,this](){ return run(fn); });
     }
 
     bool is_ready(){

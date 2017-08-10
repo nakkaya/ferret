@@ -4386,7 +4386,7 @@ A simple macro for calling inline C++,
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defnative newline [& more]
+  (defnative newline []
     (on "!defined(FERRET_DISABLE_STD_OUT)"
         "runtime::print(\"\\n\");"))
 #+end_src

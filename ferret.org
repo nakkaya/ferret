@@ -1477,10 +1477,9 @@ is supported.
                   native-headers (->> native-headers flatten (into #{}))]
       (-> (create-view "
           $native_defines:{$it$} ;separator=\"\n\"$
+          $native_headers:{#include \"$it$\"} ;separator=\"\n\"$
 
           $ferret_h$
-
-          $native_headers:{#include \"$it$\"} ;separator=\"\n\"$
 
           // Objects
           namespace ferret{
@@ -4009,6 +4008,7 @@ indicating platform.
    #include <stdio.h>
    #include <stdlib.h>
    #include <stdint.h>
+   #include <math.h>
   #endif
 #+end_src
 

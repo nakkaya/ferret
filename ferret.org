@@ -1891,6 +1891,7 @@ All our types are derived from the base Object type. Which is a
 
       virtual seekable_i* cast_seekable_i() { return nullptr; }
 
+      void* operator new(size_t, void* ptr){ return ptr; }
       void  operator delete(void * ptr){ FERRET_ALLOC_POLICY::free(ptr); }
     };
   }

@@ -3059,13 +3059,11 @@ thread to =future=,
     bool cached;
     std::future<var> task;
 
-    class runner{
-      async & _ref;
-    public:
-      explicit runner(async & o) : _ref(o) { _ref.inc_ref();     };
-      ~runner() { _ref.dec_ref();     };
-      
-      var operator() () const { return _ref.exec(); };
+    struct runner{
+      var self;
+
+      explicit runner(var const & o) : self(o) { };
+      var operator() () const { return self.cast<async>()->exec(); };
     };
     
     var exec() { return run(fn); }
@@ -3073,7 +3071,7 @@ thread to =future=,
     public:
 
     explicit async(var const & f) :
-      value(nil()), fn(f), cached(false), task(std::async(std::launch::async, runner(*this))) { }
+      value(nil()), fn(f), cached(false), task(std::async(std::launch::async, runner(var(this)))) { }
 
     size_t type() const final { return runtime::type::async; }
 

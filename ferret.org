@@ -6758,26 +6758,10 @@ Static code analysis (cppcheck) options,
       (is (= 2 (deref value)))))
 #+end_src
 
-*** Threading
+*** Timing
 
 #+name: ferret-unit-tests
 #+begin_src clojure :tangle no
-  (deftest future-test
-    (is (= 42    @(future (+ 41 1))))
-    (is (= 42    @(future (sleep 100) (+ 40 2))))
-    (is (= false  (future-done? (future (sleep 100) :false))))
-    (is (= true   (let [f (future :true)]
-                    (deref f)
-                    (future-done? f))))
-    (is (= 42    @(thread #(+ 41 1)))))
-
-  (deftest delay-test
-    (let [d (delay   (+ 1 1))]
-      (is (= true    (delay? d)))
-      (is (= 2       @d))
-      (is (= 2       @d))
-      (is (= 42      (force (delay 42))))))
-
   (deftest timing-test
     (let [now (millis)]
       (sleep 150)
@@ -7449,6 +7433,27 @@ Create some dummy libs under /test/modules/,
     (assert (= 0 (next-page 0)))
     (assert (false? (malloc 255)))
     (assert (= 0 (next-page 0))))
+#+end_src
+
+*** Concurrency
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+  (deftest future-test
+    (is (= 42    @(future (+ 41 1))))
+    (is (= 42    @(future (sleep 100) (+ 40 2))))
+    (is (= false  (future-done? (future (sleep 100) :false))))
+    (is (= true   (let [f (future :true)]
+                    (deref f)
+                    (future-done? f))))
+    (is (= 42    @(thread #(+ 41 1)))))
+
+  (deftest delay-test
+    (let [d (delay   (+ 1 1))]
+      (is (= true    (delay? d)))
+      (is (= 2       @d))
+      (is (= 2       @d))
+      (is (= 42      (force (delay 42))))))    
 #+end_src
 
 * Roadmap

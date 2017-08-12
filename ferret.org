@@ -3055,24 +3055,25 @@ thread to =future=,
   class async final : public deref_i {
     var value;
     mutex lock;
+    var fn;
     bool cached;
     std::future<var> task;
 
-    class run{
-      async & ref;
-      var fn;
+    class runner{
+      async & _ref;
     public:
-      explicit run(async & o, var const & f) : ref(o), fn(f) { ref.inc_ref(); };
-      run(const run& o) : ref(o.ref), fn(o.fn) { ref.inc_ref(); }
-      ~run() { ref.dec_ref(); };
+      explicit runner(async & o) : _ref(o) { _ref.inc_ref();     };
+      ~runner() { _ref.dec_ref();     };
       
-      var operator() () const { return ferret::run(fn); };
+      var operator() () const { return _ref.exec(); };
     };
+    
+    var exec() { return run(fn); }
     
     public:
 
     explicit async(var const & f) :
-      value(nil()), cached(false), task(std::async(std::launch::async, run(*this,f))) { }
+      value(nil()), fn(f), cached(false), task(std::async(std::launch::async, runner(*this))) { }
 
     size_t type() const final { return runtime::type::async; }
 
@@ -3081,7 +3082,11 @@ thread to =future=,
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const final { runtime::print("future"); }
+    void stream_console() const final {
+      runtime::print("future <");
+      fn.stream_console();
+      runtime::print(">");
+    }
   #endif
 
     bool is_ready(){

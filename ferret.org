@@ -2009,19 +2009,6 @@ new *var* containing a pointer to an [[Object System][Object]]. *nil* is represe
   }
 #+end_src
 
-Guards a Ferret object from garbage collection.
-
-#+name: runtime-native-object
-#+begin_src c++ :tangle no
-  class rc_guard{
-    object_t *obj;
-  public:
-    explicit rc_guard(const rc_guard &) = delete;
-    explicit rc_guard(object_t *o) : obj(o) { obj->inc_ref(); };
-    ~rc_guard() { obj->dec_ref(); }
-  };
-#+end_src
-
 *** Objects
 **** Boolean
 
@@ -3072,6 +3059,14 @@ thread to =future=,
     bool cached;
     std::future<var> task;
 
+    class rc_guard{
+      object_t *obj;
+    public:
+      explicit rc_guard(const rc_guard &) = delete;
+      explicit rc_guard(object_t *o) : obj(o) { };
+      ~rc_guard() { obj->dec_ref(); }
+    };
+
     var exec() {
       rc_guard g(this);
       return run(fn);
@@ -3081,7 +3076,7 @@ thread to =future=,
 
     explicit async(var const & f) :
       value(nil()), fn(f), cached(false),
-      task(std::async(std::launch::async, [this](){ return exec(); })){ }
+      task(std::async(std::launch::async, [this](){ return exec(); })){ inc_ref(); }
 
     size_t type() const final { return runtime::type::async; }
 

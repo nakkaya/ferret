@@ -948,7 +948,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 #+begin_src clojure
   (defn escape-fn-dispatch [form]
     (morph-form form
-                (is-form-fn? 'fir-lambda-dispatch)
+                (is-form-fn? 'fn-multi-arity)
                 (fn [f]
                   (morph-form f
                               (is-form-fn? 'fir-new-lambda)
@@ -1127,7 +1127,7 @@ defined within *ferret* namespace. All Ferret macros starts with
   (defmulti emit (fn [_ form _]
                    (cond (is-form? 'fir_lambda form) 'fir_lambda
                          (is-form? 'fir_lambda_stack form) 'fir_lambda_stack
-                         (is-form? 'fir_lambda_dispatch form) 'fir_lambda_dispatch
+                         (is-form? 'fn_multi_arity form) 'fn_multi_arity
                          (is-form? 'fir_new_lambda form) 'fir_new_lambda
                          (is-form? 'fir_new_lambda_stack form) 'fir_new_lambda_stack
                          (is-form? 'defobject form) 'defobject
@@ -1180,7 +1180,8 @@ C++ skeleton.
 #+begin_src clojure :tangle no
   (defn append-to! [r ks v]
     (let [cv (reduce (fn[h v] (v h)) @r ks)]
-      (swap! r assoc-in ks (conj cv v))))
+      (swap! r assoc-in ks (conj cv v))
+      ""))
 #+end_src
 
 #+name: core-compiler-emitter
@@ -1252,16 +1253,16 @@ C++ skeleton.
           (render-view))))
 
   (defmethod emit 'defobject [options [_ name & spec] state]
-    (append-to! state [:objects] (defobject name spec options)) "")
+    (append-to! state [:objects] (defobject name spec options)))
 
   (defmethod emit 'native_header [_ [_ & declarations] state]
-    (append-to! state [:native-headers] declarations) "")
+    (append-to! state [:native-headers] declarations))
 
   (defmethod emit 'native_declare [_ [_ declaration] state]
-    (append-to! state [:native-declarations] declaration) "")
+    (append-to! state [:native-declarations] declaration))
 
   (defmethod emit 'native_define [_ [_ define] state]
-    (append-to! state [:native-defines] define) "")
+    (append-to! state [:native-defines] define))
 #+end_src
 
 *** Lambdas
@@ -1378,7 +1379,7 @@ is supported.
                       ["nil();"]
                       (and (= 1 (count body))
                            (seq? (first body))
-                           (= 'fir_lambda_dispatch (first (first body))))
+                           (= 'fn_multi_arity (first (first body))))
                       [(emit options (first body) state) "nil();"]
                       (and (= 1 (count body))
                            (string? (first body)))
@@ -1399,15 +1400,16 @@ is supported.
       {:name name :env env :args args :vars vars :body body}))
 
   (defmethod emit 'fir_lambda [options [_ name env args & body] state]
-    (append-to! state [:lambdas] (emit-lambda options name env args body state)) "")
+    (append-to! state [:lambdas] (emit-lambda options name env args body state)))
 
   (defmethod emit 'fir_lambda_stack [options [_ name env args & body] state]
-    (append-to! state [:lambdas] (assoc (emit-lambda options name env args body state) :stack true)) "")
+    (append-to! state [:lambdas] (-> (emit-lambda options name env args body state)
+                                     (assoc :stack true))))
 #+end_src
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
-  (defmethod emit 'fir_lambda_dispatch [_ [_ & fns] state]
+  (defmethod emit 'fn_multi_arity [_ [_ & fns] state]
     (let [fns (partition 2 fns)
           nil-dispatch (->> (filter #(= (first %) 0) fns) first second)]
       (str
@@ -4358,7 +4360,7 @@ implementation.
                          last (take-last 2 conds)]
                      (concat arg-dispatch [true (second last)]))
                    (interleave conds fns))]
-        `(~'fn* () (~'fir-lambda-dispatch ~@form)))))
+        `(~'fn* () (~'fn-multi-arity ~@form)))))
 #+end_src
 
 A simple macro for calling inline C++,

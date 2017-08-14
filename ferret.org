@@ -418,7 +418,7 @@ front of the current form with symbols renamed to /some-fn/ =>
                          (if (symbol? f)
                            [f :as f]
                            f))]
-      (->> (select-form form (is-form? 'require))
+      (->> (select-form form (is-form-fn? 'require))
            (reduce (fn[h v]
                      (if (= 2 (count v))
                        ;; require single module
@@ -442,12 +442,12 @@ of mod -> aliases pairs.
          (reduce (fn[h [m aliases]]
                    (let [mod           (-> (str (:path options) (.replace (str m) "." "/") ".clj")
                                            (read-clojure-file)
-                                           (remove-form (is-form? 'configure-runtime!))
-                                           (remove-form (is-form? 'configure-ferret!)))
-                         macro-symbols (->> (select-form mod (is-form? 'defmacro))
+                                           (remove-form (is-form-fn? 'configure-runtime!))
+                                           (remove-form (is-form-fn? 'configure-ferret!)))
+                         macro-symbols (->> (select-form mod (is-form-fn? 'defmacro))
                                             (map second)
                                             (into #{}))
-                         def-symbols    (->> (select-form (expand-macros-all mod) (is-form? 'def))
+                         def-symbols    (->> (select-form (expand-macros-all mod) (is-form-fn? 'def))
                                              (map second)
                                              (into #{}))
                          replace?        (set/union macro-symbols def-symbols)
@@ -487,7 +487,7 @@ modules names. So =helper-a= defined in module =util.db= becomes
 #+begin_src clojure :tangle no
   (defn import-modules [form options]
     (let [package-list (import-modules-select-require form)
-          form         (remove-form form (is-form? 'require))
+          form         (remove-form form (is-form-fn? 'require))
           modules      (import-modules-load-modules package-list options)
           form         (import-modules-convert-alias-to-module package-list form)]
       (shake-concat modules form)))
@@ -529,7 +529,7 @@ key/value pairs enclosed in braces: {:a 1 :b 2}.
 #+begin_src clojure :tangle no
   (defn expand-reader-macros [form]
     (-> form
-        (morph-form (is-form? 'clojure.core/deref)
+        (morph-form (is-form-fn? 'clojure.core/deref)
                     (fn [f] `(~'deref ~@(rest f))))
         (morph-form map? (fn [x] (cons 'new-d-list (-> x seq flatten))))))
 #+end_src
@@ -540,7 +540,7 @@ Prepare form /f/ for macro expansion,
 #+begin_src clojure :tangle no
   (defn macro-normalize [f]
     (morph-form f
-                (is-form? 'let)
+                (is-form-fn? 'let)
                 (fn [[_ bindings & body]]
                   `(~'let* ~(apply list bindings) ~@body))))
 #+end_src
@@ -558,13 +558,13 @@ form.
 
   (defn expand-macros [form]
     (let [core-macros (->> (read-clojure-file "ferret/runtime.clj")
-                           (filter (is-form? 'defmacro)))
+                           (filter (is-form-fn? 'defmacro)))
           core-macro-symbols (into #{} (map second core-macros))
-          form-macros (->> (filter (is-form? 'defmacro) form)
+          form-macros (->> (filter (is-form-fn? 'defmacro) form)
                            (filter (fn [[_ name]]
                                      (not (core-macro-symbols name)))))
           form-macro-symbols (map second form-macros)
-          form (remove-form form (is-form? 'defmacro))
+          form (remove-form form (is-form-fn? 'defmacro))
           temp-ns (gensym)
           macro-symbols (concat core-macro-symbols form-macro-symbols)]
       
@@ -579,7 +579,7 @@ form.
       (let [form (-> form
                      (macro-normalize)
                      (expand-reader-macros)
-                     (morph-form (apply is-form? macro-symbols)
+                     (morph-form (apply is-form-fn? macro-symbols)
                                  (fn [f]
                                    (binding [*ns* (the-ns temp-ns)]
                                      (walk/macroexpand-all f)))))]
@@ -613,7 +613,7 @@ shadow already defined variable names.
     (let [valid-symbol? (fn [s] (and (symbol? s) (not= s '&) (not= s '_)))
           [args & body] form]
       (if (string?  (->> body
-                         (filter #(not ((is-form? 'native-declare) %)))
+                         (filter #(not (is-form? 'native-declare %)))
                          first))
         `(~'fn* ~args ~@body)
         (let [unique-args (->> args
@@ -662,7 +662,7 @@ after transformation becomes,
   (defn let->fn [form]
     (-> form
 
-        (morph-form (is-form? 'let*)
+        (morph-form (is-form-fn? 'let*)
                     (fn [[_ bindings & body]]
                       (if (empty? bindings)
                         `((~'fn () ~@body))
@@ -673,7 +673,7 @@ after transformation becomes,
                              `((~'fn [~arg] ~(apply close more)) ~val)))
                          (partition 2 bindings)))))
 
-        (morph-form (is-form? 'fn)
+        (morph-form (is-form-fn? 'fn)
                     (fn [[_ & body]]
                       (fn->unique-args body)))))
 #+end_src
@@ -695,7 +695,7 @@ that takes no parameters and executed in place.
 #+begin_src clojure :tangle no
   (defn do->fn [form]
     (morph-form form
-                (is-form? 'do)
+                (is-form-fn? 'do)
                 (fn [f] `((~'fn* () ~@(rest f))))))
 #+end_src
 
@@ -757,7 +757,7 @@ the free variable problem.
        (concat form fns)))
     ([form fns & env]
      (morph-form form
-                 (is-form? 'fn*)
+                 (is-form-fn? 'fn*)
                  (fn [[_ args & body]]
                    (let [env  (if (nil? env) '() (first env))
                          body (closure-conversion body fns (concat args env))]
@@ -792,7 +792,7 @@ into legal ones.
   (defn remove-assertions [options form]
     (if (:release options)
       (do (info "option => release mode")
-          (remove-form form (is-form? 'assert)))
+          (remove-form form (is-form-fn? 'assert)))
       form))
 #+end_src
 
@@ -829,7 +829,7 @@ with the global name for readability.
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn select-def-fn [form]
-    (->> (select-form form (is-form? 'def))
+    (->> (select-form form (is-form-fn? 'def))
          (filter (fn [[_ name val]]
                    (and (seq? val)
                         (= 'fir-new-lambda (first val)))))))
@@ -887,8 +887,8 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
   (defn shake-concat
     ([header form]
      (let [shakeable? (fn [f]
-                        (or ((is-form? 'defn) f)
-                            ((is-form? 'defnative) f)))
+                        (or (is-form? 'defn f)
+                            (is-form? 'defnative f)))
            header-symbols (->> (select-form header seq?)
                                flatten
                                (filter symbol?)
@@ -936,7 +936,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
     (morph-form form
                 (fn [f]
                   (and (seq? f)
-                       (is-special-form? 'fir-new-lambda (first f))))
+                       (is-form? 'fir-new-lambda (first f))))
                 (fn [f]
                   (let [[[_ & fn] & args] f]
                     `((~'fir-new-lambda-stack ~@fn) ~@args)))))
@@ -948,12 +948,10 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 #+begin_src clojure
   (defn escape-fn-dispatch [form]
     (morph-form form
-                (fn [f]
-                  (is-special-form? 'fir-lambda-dispatch f))
+                (is-form-fn? 'fir-lambda-dispatch)
                 (fn [f]
                   (morph-form f
-                              (fn [f]
-                                (is-special-form? 'fir-new-lambda f))
+                              (is-form-fn? 'fir-new-lambda)
                               (fn [[_ & f]]
                                 `(~'fir-new-lambda-stack ~@f))))))
 #+end_src
@@ -965,15 +963,15 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
   (defn escape-lambdas [form]
     (let [stack-lambda-pred (fn [f]
                               (and (seq? f)
-                                   (is-special-form? 'fir-new-lambda (first f))))
+                                   (is-form? 'fir-new-lambda (first f))))
           heap-lambdas (->> (select-form form (fn [f]
                                                 (and (seq? f)
-                                                     (is-special-form? 'fir-new-lambda f))))
+                                                     (is-form? 'fir-new-lambda f))))
                             (map second)
                             (into #{}))
           stack-lambdas (->> (select-form form (fn [f]
                                                  (and (seq? f)
-                                                      (is-special-form? 'fir-new-lambda-stack f))))
+                                                      (is-form? 'fir-new-lambda-stack f))))
                              (map second)
                              (into #{}))
           escapeable-lambdas (clojure.set/difference stack-lambdas heap-lambdas)]
@@ -1026,14 +1024,13 @@ suggests and removes the node when predicate returns true.
            (conj nodes (zip/node loc))
            nodes)))))
 
-  (defn is-form? [& s]
-    (fn [f]
-      (and (seq? f)
-           (some true? (map #(= % (first f)) s)))))
-
-  (defn is-special-form? [s f]
+  (defn is-form? [s f]
     (and (seq? f)
          (= (first f) s)))
+
+  (defn is-form-fn? [& s]
+    (fn [f]
+      (some true? (map #(is-form? % f) s))))
 #+end_src
 
 *** File I/O
@@ -1128,17 +1125,17 @@ defined within *ferret* namespace. All Ferret macros starts with
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no  
   (defmulti emit (fn [_ form _]
-                   (cond (is-special-form? 'fir_lambda form) 'fir_lambda
-                         (is-special-form? 'fir_lambda_stack form) 'fir_lambda_stack
-                         (is-special-form? 'fir_lambda_dispatch form) 'fir_lambda_dispatch
-                         (is-special-form? 'fir_new_lambda form) 'fir_new_lambda
-                         (is-special-form? 'fir_new_lambda_stack form) 'fir_new_lambda_stack
-                         (is-special-form? 'defobject form) 'defobject
-                         (is-special-form? 'native_header form) 'native_header
-                         (is-special-form? 'native_declare form) 'native_declare
-                         (is-special-form? 'native_define form) 'native_define
-                         (is-special-form? 'if form) 'if
-                         (is-special-form? 'def form) 'def
+                   (cond (is-form? 'fir_lambda form) 'fir_lambda
+                         (is-form? 'fir_lambda_stack form) 'fir_lambda_stack
+                         (is-form? 'fir_lambda_dispatch form) 'fir_lambda_dispatch
+                         (is-form? 'fir_new_lambda form) 'fir_new_lambda
+                         (is-form? 'fir_new_lambda_stack form) 'fir_new_lambda_stack
+                         (is-form? 'defobject form) 'defobject
+                         (is-form? 'native_header form) 'native_header
+                         (is-form? 'native_declare form) 'native_declare
+                         (is-form? 'native_define form) 'native_define
+                         (is-form? 'if form) 'if
+                         (is-form? 'def form) 'def
                          (symbol? form) :symbol
                          (keyword? form) :keyword
                          (number? form) :number
@@ -1375,8 +1372,8 @@ is supported.
     (new-lambda-stack f))
 
   (defn emit-lambda [options name env args body state]
-    (let [native-declarations (filter #((is-form? 'native_declare) %) body)
-          body (filter #(not ((is-form? 'native_declare) %)) body)
+    (let [native-declarations (filter #(is-form? 'native_declare %) body)
+          body (filter #(not (is-form? 'native_declare %)) body)
           body (cond  (empty? body)
                       ["nil();"]
                       (and (= 1 (count body))
@@ -1395,18 +1392,17 @@ is supported.
                       :default (reduce (fn[h v]
                                          (conj h (str v \;)))
                                        [] (emit-ast options body state)))
-          env (norm-lambda-env env)]
+          env  (norm-lambda-env env)
+          vars (destructure-arguments args)]
       (doseq [dec native-declarations] 
         (emit options dec state))
-      [name env (destructure-arguments args) body]))
+      {:name name :env env :args args :vars vars :body body}))
 
   (defmethod emit 'fir_lambda [options [_ name env args & body] state]
-    (let [[name env args body] (emit-lambda options name env args body state)]
-      (append-to! state [:lambdas] {:name name :env env :args args :body body}) ""))
+    (append-to! state [:lambdas] (emit-lambda options name env args body state)) "")
 
   (defmethod emit 'fir_lambda_stack [options [_ name env args & body] state]
-    (let [[name env args body] (emit-lambda options name env args body state)]
-      (append-to! state [:lambdas] {:name name :env env :args args :body body :stack true}) ""))
+    (append-to! state [:lambdas] (assoc (emit-lambda options name env args body state) :stack true)) "")
 #+end_src
 
 #+name: core-compiler-emitter
@@ -1432,38 +1428,38 @@ is supported.
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
-  (defn lambda-definitions [lambdas]
+  (defn lambda-definitions [fns]
     (-> (create-view
-         "$lambdas: {lambda|
-           $if(!lambda.stack)$
-            class $lambda.name$ final : public lambda_i{
+         "$fns: {fn|
+           $if(!fn.stack)$
+            class $fn.name$ final : public lambda_i{
            $else$
-            class $lambda.name$  \\{
+            class $fn.name$  \\{
            $endif$
-             $lambda.env:{const var $it$;} ;separator=\"\n\"$
+             $fn.env:{const var $it$;} ;separator=\"\n\"$
            public:
-             $if(lambda.env)$
-               explicit $lambda.name$ ($lambda.env:{var const & $it$} ;separator=\",\"$) :
-                 $lambda.env:{$it$($it$)} ;separator=\",\"$ { }
+             $if(fn.env)$
+               explicit $fn.name$ ($fn.env:{var const & $it$} ;separator=\",\"$) :
+                 $fn.env:{$it$($it$)} ;separator=\",\"$ { }
              $endif$
 
-             var invoke (var const & _args_) const $if(!lambda.stack)$ final $endif$ ;
+             var invoke (var const & _args_) const $if(!fn.stack)$ final $endif$ ;
            };};separator=\"\n\n\"$")
-        (fill-view! "lambdas" lambdas)
+        (fill-view! "fns" fns)
         (render-view)))
 
-  (defn lambda-implementations [lambdas]
+  (defn lambda-implementations [fns]
     (-> (create-view
-         "$lambdas: {lambda|
-            inline var $lambda.name$::invoke (var const & _args_) const {
+         "$fns: {fn|
+            inline var $fn.name$::invoke (var const & _args_) const {
               (void)(_args_);
-              $lambda.args:{args | $args$; } ;separator=\"\n\"$
+              $fn.vars:{$it$;} ;separator=\"\n\"$
      
-              $trunc(lambda.body):{$it$} ;separator=\"\n\"$
-              return $last(lambda.body):{$it$} ;separator=\"\n\"$
+              $trunc(fn.body):{$it$} ;separator=\"\n\"$
+              return $last(fn.body):{$it$} ;separator=\"\n\"$
             }
            };separator=\"\n\n\"$")
-        (fill-view! "lambdas" lambdas)
+        (fill-view! "fns" fns)
         (render-view)))
 #+end_src
 

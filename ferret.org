@@ -1246,7 +1246,7 @@ C++ skeleton.
                               const size_t $type$ = $type_val$;}}
                           $endif$
                         $body$")
-          (fill-view! "embed_type"  (pos? (.indexOf def (str "runtime::type::" name))))
+          (fill-view! "embed_type"  (.contains def (str "runtime::type::" name)))
           (fill-view! "type"        (str name))
           (fill-view! "type_val"    (gensym ""))
           (fill-view! "body"        def)
@@ -1376,23 +1376,18 @@ is supported.
     (let [native-declarations (filter #(is-form? 'native_declare %) body)
           body (filter #(not (is-form? 'native_declare %)) body)
           body (cond  (empty? body)
-                      ["nil();"]
+                      ["nil()"]
                       (and (= 1 (count body))
                            (seq? (first body))
                            (= 'fn_multi_arity (first (first body))))
-                      [(emit options (first body) state) "nil();"]
+                      [(emit options (first body) state) "nil()"]
                       (and (= 1 (count body))
                            (string? (first body)))
-                      (let [inline (first body) 
-                            body (if (= (last inline) \;)
-                                   inline
-                                   (str inline \;))]
-                        (if (neg? (.indexOf body "__result"))
-                          [body "nil();"]
-                          ["var __result;" body "__result;"]))
-                      :default (reduce (fn[h v]
-                                         (conj h (str v \;)))
-                                       [] (emit-ast options body state)))
+                      (let [body (first body)]
+                        (if (.contains body "__result")
+                          ["var __result" body "__result"]
+                          [body "nil()"]))
+                      :default (emit-ast options body state))
           env  (norm-lambda-env env)
           vars (destructure-arguments args)]
       (doseq [dec native-declarations] 
@@ -1457,8 +1452,8 @@ is supported.
               (void)(_args_);
               $fn.vars:{$it$;} ;separator=\"\n\"$
      
-              $trunc(fn.body):{$it$} ;separator=\"\n\"$
-              return $last(fn.body):{$it$} ;separator=\"\n\"$
+              $trunc(fn.body):{$it$;} ;separator=\"\n\"$
+              return $last(fn.body):{$it$;} ;separator=\"\n\"$
             }
            };separator=\"\n\n\"$")
         (fill-view! "fns" fns)

@@ -2942,7 +2942,7 @@ interpreted as FFI calls.
   #ifdef FERRET_STD_LIB
   template<>
   inline var obj<string>(std::string s) {
-    void * storage = FERRET_ALLOC_POLICY::allocate<std::string>();
+    void * storage = FERRET_ALLOC_POLICY::allocate<string>();
     return var(new(storage) string(s.c_str(), (number_t)s.size()));
   }
 
@@ -7351,10 +7351,13 @@ Create some dummy libs under /test/modules/,
           s2       "Other String"
           s1-ret   (fn [] "__result = obj<string>(\"Some String\");")
           s1-eq    (fn [s] "__result = obj<boolean>((string::to<std::string>(s) == \"Some String\"))")
-          s2       "Ali Topu At"]
+          s2       "Ali Topu At"
+          s3       (fn [] "std::string s = \"Some String\";
+                          __result = obj<string>(s);")]
       (is (= s2 (new-string "Ali Topu At")))
       (is (= false (= s1 s2)))
       (is (= true  (= s1 s1)))
+      (is (= true  (= s1 (s3))))
       (is (= false (= s1 3.14)))
       (is (= true  (= s1 (s1-ret))))
       (is (= true  (s1-eq s1)))

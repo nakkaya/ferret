@@ -3649,8 +3649,9 @@ to each other in the array which improves data locality.
         bit_array<pool_size> used;
         page_size pool[pool_size];
         size_t offset;
+        size_t page_not_found;
 
-        memory_pool() : pool{0}, offset(0) { }
+        memory_pool() : pool{0}, offset(0), page_not_found(pool_size + 1) { }
 
         inline size_t chunk_length(size_t size){
           size_t d = (size / sizeof(page_size));
@@ -3676,16 +3677,16 @@ to each other in the array which improves data locality.
           return pool_size;
         }
 
-        inline int scan_pool(size_t pages_needed, size_t offset = 0){
+        inline size_t scan_pool(size_t pages_needed, size_t offset = 0){
           for(;;){
             size_t begin = next_page(offset);
             size_t end   = begin + pages_needed;
     
             if (end > pool_size)
-              return -1;
+              return page_not_found;
           
             if (chunk_usable(begin, end))
-              return (int)begin;
+              return begin;
     
             offset = end;
           }
@@ -3693,18 +3694,19 @@ to each other in the array which improves data locality.
 
         void *allocate(size_t req_size){
           lock_guard guard(lock);
-          size_t length = chunk_length(++req_size);
-          int page      = scan_pool(length, offset);
 
-          if (page == -1){
+          size_t length = chunk_length(++req_size);
+          size_t page   = scan_pool(length, offset);
+
+          if (page == page_not_found){
             page = scan_pool(length);
-            if (page == -1)
+            if (page == page_not_found)
               return nullptr;
           }
           
           pool[page] = length;
-          offset = (size_t)page + length;
-          for(size_t i = (size_t)page; i < offset; i++)
+          offset = page + length;
+          for(size_t i = page; i < offset; i++)
             used.set(i);
 
           return &pool[++page];
@@ -3712,6 +3714,7 @@ to each other in the array which improves data locality.
 
         void free(void *p){
           lock_guard guard(lock);
+
           ptrdiff_t begin = (static_cast<page_size *>(p) - pool) - 1;
           ptrdiff_t end = begin + (ptrdiff_t)pool[begin];
 

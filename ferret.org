@@ -2086,7 +2086,7 @@ A /pointer/ object keeps a reference to a C++ pointer.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/pointer_o.h
   class pointer final : public object_t {
-    void* _payload;
+    void * _payload;
   public:
 
 
@@ -2164,7 +2164,7 @@ modern C++ libraries that use smart pointers for memory management.
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
       runtime::print("value<");
-      const void* addr = &_value;
+      const void* addr = this;
       runtime::print(addr);
       runtime::print(">");
     }
@@ -4077,8 +4077,12 @@ Setup IO for Arduino boards,
       void print(const real_t d){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(double(d)); }
       
       template <>
-      void print(void* p){
+      void print(void *p){
         FERRET_HARDWARE_ARDUINO_UART_PORT.print((size_t)p,HEX);
+      }
+
+      template <> void print(const void * const p){
+        FERRET_HARDWARE_ARDUINO_UART_PORT.print((size_t)p, HEX);
       }
      }
   #endif

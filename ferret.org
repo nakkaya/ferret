@@ -7494,7 +7494,9 @@ Create some dummy libs under /test/modules/,
   - Warn wrong number of arguments passed to function.
   - *Convert Data Structures* - Automatically convert unsupported data
     structures and warn user. i.e. Vector to List.
-  - C++ implementations of Clojure's persistent data structures. - https://github.com/mninja/persistent-data-structures
+  - C++ implementations of Clojure's persistent data structures. 
+    - https://github.com/mninja/persistent-data-structures
+    - [[https://news.ycombinator.com/item?id=13049843][Immer: immutable and persistent data structures for C++]]
   - *Implement Channel*
     - https://www.reddit.com/r/cpp/comments/6p3zch/diy_channels/
   - *Unbounded Precision Integers*

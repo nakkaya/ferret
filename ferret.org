@@ -6009,6 +6009,61 @@ Turns off the given interrupt.
         ~(str "::detachInterrupt(digitalPinToInterrupt(" pin "));"))))
 #+end_src
 
+*** SPI
+
+Serial Peripheral Interface (SPI) is a synchronous serial data
+protocol used by microcontrollers for communicating with one or more
+peripheral devices over short distances. It can also be used for
+communication between two microcontrollers. This is a wrapper around
+Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation]] for more details.
+
+**** Initialization
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defnative spi-begin []
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        ("SPI.h")
+        "SPI.begin();"))
+
+  (defn spi-end []
+    "SPI.end();")
+#+end_src
+
+**** Settings
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defmacro spi-settings [max-speed data-order data-mode]
+    (let [speed      (* max-speed 1000000)
+          data-order (if (= data-order :msb-first)
+                       "MSBFIRST"
+                       "LSBFIRST")
+          data-mode  (condp = data-mode
+                       :mode-0 "SPI_MODE0"
+                       :mode-1 "SPI_MODE1"
+                       :mode-2 "SPI_MODE2"
+                       :mode-3 "SPI_MODE3")]
+      `(~'cxx
+        ~(str "__result = obj<value<SPISettings>>(" speed "," data-order "," data-mode ");"))))
+#+end_src
+
+**** Transaction
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn with-spi-aux [conf f]
+    "SPI.beginTransaction(value<SPISettings>::to_reference(conf));
+     __result = run(f);
+     SPI.endTransaction();")
+
+  (defmacro with-spi [conf & body]
+    `(~'with-spi-aux ~conf (~'fn [] ~@body)))
+
+  (defn spi-write [val]
+    "__result = obj<number>(SPI.transfer(number::to<int>(val)));")
+#+end_src
+
 ** Testing
 *** assert
 

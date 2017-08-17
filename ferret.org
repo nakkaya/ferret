@@ -5696,7 +5696,7 @@ Ported from,
       maximum_output = number::to<T>(outMax);
       minimum_output = number::to<T>(outMin);
       maximum_input = number::to<T>(inMax);
-      minimum_input = number::to<T>(inMin);;
+      minimum_input = number::to<T>(inMin);
       continuous = cont.cast<boolean>()->container();
       prev_error = 0;
       total_error = 0;

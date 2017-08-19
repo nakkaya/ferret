@@ -1240,17 +1240,17 @@ C++ skeleton.
 
   (defn defobject [name f options]
     (let [def (read-file (first f) options)]
-      (-> (create-view "$if(embed_type)$
-                          namespace runtime {
-                            namespace type {
-                              const size_t $type$ = $type_val$;}}
-                          $endif$
-                        $body$")
-          (fill-view! "embed_type"  (.contains def (str "runtime::type::" name)))
-          (fill-view! "type"        (str name))
-          (fill-view! "type_val"    (gensym ""))
-          (fill-view! "body"        def)
-          (render-view))))
+      (render-template
+       "$if(embed_type)$
+          namespace runtime {
+            namespace type {
+               const size_t $type$ = $type_val$;}}
+          $endif$
+        $body$"
+       :embed_type  (.contains def (str "runtime::type::" name))
+       :type        (str name)
+       :type_val    (gensym "")
+       :body        def)))
 
   (defmethod emit 'defobject [options [_ name & spec] state]
     (append-to! state [:objects] (defobject name spec options)))
@@ -1426,38 +1426,36 @@ is supported.
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
   (defn lambda-definitions [fns]
-    (-> (create-view
-         "$fns: {fn|
-           $if(!fn.stack)$
-            class $fn.name$ final : public lambda_i{
-           $else$
-            class $fn.name$  \\{
-           $endif$
-             $fn.env:{const var $it$;} ;separator=\"\n\"$
-           public:
-             $if(fn.env)$
-               explicit $fn.name$ ($fn.env:{var const & $it$} ;separator=\",\"$) :
-                 $fn.env:{$it$($it$)} ;separator=\",\"$ { }
-             $endif$
+    (render-template
+     "$fns: {fn|
+        $if(!fn.stack)$
+         class $fn.name$ final : public lambda_i{
+        $else$
+         class $fn.name$  \\{
+        $endif$
+          $fn.env:{const var $it$;} ;separator=\"\n\"$
+        public:
+          $if(fn.env)$
+            explicit $fn.name$ ($fn.env:{var const & $it$} ;separator=\",\"$) :
+              $fn.env:{$it$($it$)} ;separator=\",\"$ { }
+          $endif$
 
-             var invoke (var const & _args_) const $if(!fn.stack)$ final $endif$ ;
-           };};separator=\"\n\n\"$")
-        (fill-view! "fns" fns)
-        (render-view)))
+          var invoke (var const & _args_) const $if(!fn.stack)$ final $endif$ ;
+        };};separator=\"\n\n\"$"
+     :fns fns))
 
   (defn lambda-implementations [fns]
-    (-> (create-view
-         "$fns: {fn|
-            inline var $fn.name$::invoke (var const & _args_) const {
-              (void)(_args_);
-              $fn.vars:{$it$;} ;separator=\"\n\"$
+    (render-template
+     "$fns: {fn|
+        inline var $fn.name$::invoke (var const & _args_) const {
+          (void)(_args_);
+          $fn.vars:{$it$;} ;separator=\"\n\"$
      
-              $trunc(fn.body):{$it$;} ;separator=\"\n\"$
-              return $last(fn.body):{$it$;} ;separator=\"\n\"$
-            }
-           };separator=\"\n\n\"$")
-        (fill-view! "fns" fns)
-        (render-view)))
+          $trunc(fn.body):{$it$;} ;separator=\"\n\"$
+          return $last(fn.body):{$it$;} ;separator=\"\n\"$
+        }
+       };separator=\"\n\n\"$"
+     :fns fns))
 #+end_src
 
 *** Program
@@ -1467,8 +1465,9 @@ is supported.
   (defn program-template [source]
     (let [{:keys [body lambdas symbol-table native-headers objects
                   native-declarations native-defines]} source
-                  native-headers (->> native-headers flatten (into #{}))]
-      (-> (create-view "
+          native-headers (->> native-headers flatten (into #{}))]
+      (render-template
+       "
           $native_defines:{$it$} ;separator=\"\n\"$
           $native_headers:{#include \"$it$\"} ;separator=\"\n\"$
 
@@ -1515,19 +1514,18 @@ is supported.
            }
           }
 
-          $ferret_main$")
-          (fill-view! "native_defines"      native-defines)
-          (fill-view! "ferret_h"            (read-file "ferret/runtime.h"))
-          (fill-view! "native_headers"      native-headers)
-          (fill-view! "objects"             objects)
-          (fill-view! "symbols"             symbol-table)
-          (fill-view! "native_declarations" native-declarations)
-          (fill-view! "ferret_cpp"          (read-file "ferret/runtime.cpp"))
-          (fill-view! "lambda_classes"      (lambda-definitions lambdas))
-          (fill-view! "lambda_bodies"       (lambda-implementations lambdas))
-          (fill-view! "body"                (filter #(not (empty? %)) body))
-          (fill-view! "ferret_main"         (read-file "ferret/main.cpp"))
-          (render-view))))
+          $ferret_main$"
+       :native_defines       native-defines
+       :ferret_h             (read-file "ferret/runtime.h")
+       :native_headers       native-headers
+       :objects              objects
+       :symbols              symbol-table
+       :native_declarations  native-declarations
+       :ferret_cpp           (read-file "ferret/runtime.cpp")
+       :lambda_classes       (lambda-definitions lambdas)
+       :lambda_bodies        (lambda-implementations lambdas)
+       :body                 (filter #(not (empty? %)) body)
+       :ferret_main          (read-file "ferret/main.cpp"))))
 #+end_src
 
 ** Main
@@ -7753,7 +7751,7 @@ Create some dummy libs under /test/modules/,
               [clojure.tools.cli :refer [parse-opts]]
               [watchtower.core :as watcher]
               [clojure.term.colors :as color])
-    (:use [ferret.template]
+    (:use [ferret [template :only [render-template]]]
           [clojure.java.shell]
           [clojure.java.io]
           [clojure.tools [logging :only [log warn info trace]]])
@@ -7861,6 +7859,13 @@ Create some dummy libs under /test/modules/,
   (defn render-view "Return rendered view for the template"
     [^StringTemplate template]
     (.toString template))
+
+  (defmacro render-template [template & vars]
+    `(let [vars# (hash-map ~@vars)
+           view# (create-view ~template)]
+       (doseq [[k# v#] vars#]
+         (fill-view! view# (name k#) v#))
+       (render-view view#)))
 #+end_src 
 
 *** ferret/runtime.clj

@@ -1404,23 +1404,25 @@ is supported.
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
-  (defmethod emit 'fn_multi_arity [_ [_ & fns] state]
-    (let [fns (partition 2 fns)
-          nil-dispatch (->> (filter #(= (first %) 0) fns) first second)]
-      (str
-       (if nil-dispatch
-         (str "if (_args_.is_nil())
-                return " (new-lambda-stack nil-dispatch) ".invoke(nil());")
-         "")
-       "switch(runtime::count(_args_)) {"
-       (->> fns
-            (map (fn [[count fn]]
-                   (if (= count 'true)
-                     (str "default: "
-                          " return " (new-lambda-stack fn) ".invoke(_args_);")
-                     (str "case " count " : "
-                          " return " (new-lambda-stack fn) ".invoke(_args_);"))))
-            (apply str)) "}")))
+  (defmethod emit 'fn_multi_arity [_ [_ switch default] state]
+    (let [default (if default
+                    (new-lambda-stack default))
+          switch  (map (fn [[s f]] {:fn (new-lambda-stack f) :case s}) switch)]
+      (render-template
+       "switch(runtime::count(_args_)) {
+
+        $fns: {fn|
+           case $fn.case$ :
+             return $fn.fn$.invoke(_args_);
+        };separator=\"\n\"$
+
+        $if(default)$
+           default:
+             return $default$.invoke(_args_);
+        $endif$
+        }"
+       :fns     switch
+       :default default)))
 #+end_src
 
 #+name: core-compiler-emitter
@@ -4350,17 +4352,20 @@ implementation.
     (if (vector? (first body))
       (fn->unique-args body)
       ;; handle multi arity function
-      (let [fns (map #(fn->unique-args %) body)
-            conds (->> (map first body)
+      (let [fns   (map #(fn->unique-args %) body)
+            arity (->> (map first body)
                        (map (fn* [args] (filter #(not (= % '&)) args)))
                        (map #(count %)))
-            form (if (pos? (.indexOf (last (map first body)) '&))
-                   (let [conds (interleave conds fns)
-                         arg-dispatch (drop-last 2 conds)
-                         last (take-last 2 conds)]
-                     (concat arg-dispatch [true (second last)]))
-                   (interleave conds fns))]
-        `(~'fn* () (~'fn-multi-arity ~@form)))))
+            fns   (->> (interleave arity fns)
+                       (partition 2)
+                       (sort-by first))
+            fns   (if (->> fns last second second      ;; last arity arguments
+                           (take-last 2) first (= '&)) ;; check &
+                    (let [switch        (drop-last 1 fns)
+                          [[_ default]] (take-last 1 fns)]
+                      `(~'fn-multi-arity ~switch ~default))
+                    `(~'fn-multi-arity ~fns))]
+        `(~'fn* () ~fns))))
 #+end_src
 
 A simple macro for calling inline C++,

@@ -62,14 +62,14 @@ Ferret is available as prebuilt and source code distributions. See
 
 Platform independent builds (requires JVM),
 
-   - [[http://ferret-lang.org/builds/ferret][Executable]] (Requires Bash)
-   - [[http://ferret-lang.org/builds/ferret.jar][Standalone Jar]]
+   - [[//ferret-lang.org/builds/ferret][Executable]] (Requires Bash)
+   - [[//ferret-lang.org/builds/ferret.jar][Standalone Jar]]
 
 Platform dependent builds (with bundled 64 bit JVM 1.7),
 
-   - [[http://ferret-lang.org/builds/ferret-linux-amd64.zip][Linux]]
-   - [[http://ferret-lang.org/builds/ferret-macosx-x86_64.zip][Mac OS X]]
-   - [[http://ferret-lang.org/builds/ferret-windows-amd64.zip][Windows]] (Broken due to a packr bug.)
+   - [[//ferret-lang.org/builds/ferret-linux-amd64.zip][Linux]]
+   - [[//ferret-lang.org/builds/ferret-macosx-x86_64.zip][Mac OS X]]
+   - [[//ferret-lang.org/builds/ferret-windows-amd64.zip][Windows]] (Broken due to a packr bug.)
 
 ** A glimpse of Ferret
 
@@ -8325,6 +8325,6 @@ Create some dummy libs under /test/modules/,
   Architecture: all
   Depends: bash, java-runtime-headless (>= 1.7)
   Description: Ferret lisp compiler
-  Homepage: http://ferret-lang.org/
+  Homepage: https://ferret-lang.org/
   Change: ownership: sudo chown -R root:root ./deb
 #+end_src

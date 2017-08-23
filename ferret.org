@@ -8099,7 +8099,7 @@ Create some dummy libs under /test/modules/,
 #+end_src
 
 ** resources/
-*** resources/tangle-docs.el
+*** tangle-docs.el
 
 #+begin_src emacs-lisp :mkdirp yes :tangle src/resources/tangle-docs.el :padline no
   (progn 
@@ -8314,4 +8314,17 @@ Create some dummy libs under /test/modules/,
                   (indent-rigidly (region-beginning) (region-end) col)
                   (buffer-string)))))))
         (goto-char cursor-point))))
+#+end_src
+*** deb-control
+
+#+begin_src fundamental :mkdirp yes :tangle src/resources/deb-control :padline no
+  Package: ferret-lisp
+  Priority: extra
+  Section: devel
+  Maintainer: Nurullah Akkaya <nurullah@nakkaya.com>
+  Architecture: all
+  Depends: bash, java-runtime-headless (>= 1.7)
+  Description: Ferret lisp compiler
+  Homepage: http://ferret-lang.org/
+  Change: ownership: sudo chown -R root:root ./deb
 #+end_src

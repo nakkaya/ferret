@@ -2,6 +2,9 @@ DIR = $(shell pwd)
 DOCKER_RUN = docker run --rm -i -t -v "${DIR}":/ferret/ -w /ferret/ nakkaya/ferret-build
 LEIN = cd src/ && lein
 
+MAJOR_VERSION = $(shell git describe --abbrev=0 --tags)
+MINOR_VERSION = $(shell git rev-list ${MAJOR_VERSION}.. --count)
+
 .PHONY: tangle test build packr docs release docker-release clean
 
 tangle:
@@ -12,6 +15,14 @@ build:  test
 	${LEIN} uberjar && cat resources/bash_executable_stub.sh target/ferret.jar > ../ferret && chmod +x ../ferret
 packr:  
 	cd src/ && bash resources/platform_builds.sh
+deb:  
+	mkdir -p ./deb/usr/bin
+	cp ferret ./deb/usr/bin/
+	mkdir -p ./deb/DEBIAN
+	cp src/resources/deb-control ./deb/DEBIAN/control
+	echo "Version: ${MAJOR_VERSION}.${MINOR_VERSION}" >> ./deb/DEBIAN/control
+	dpkg -b ./deb ./ferret-lisp.deb
+	rm -rf ./deb
 docs:
 	emacs -nw -Q --batch -l src/resources/tangle-docs.el
 release: build packr docs
@@ -28,4 +39,4 @@ release: build packr docs
 docker-release:
 	 ${DOCKER_RUN} /bin/bash -c 'make release'
 clean:
-	rm -rf src/ release/ ferret ferret-manual.html
+	rm -rf src/ release/ ferret ferret-manual.html ferret-lisp.deb

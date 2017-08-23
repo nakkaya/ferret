@@ -1467,7 +1467,7 @@ is supported.
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no :noweb yes
-  (defn program-template [source]
+  (defn program-template [source options]
     (let [{:keys [body lambdas symbol-table native-headers objects
                   native-declarations native-defines]} source
           native-headers (->> native-headers flatten (into #{}))]
@@ -1632,7 +1632,7 @@ is supported.
     (defn compile->cpp [form options]
       (let [file-name (cpp-file-name options)
             source    (emit-source form options)
-            program   (program-template source)]
+            program   (program-template source options)]
         (write-to-file file-name program)
         (info "compiled" "=>" file-name)
         true))

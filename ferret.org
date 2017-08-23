@@ -774,12 +774,15 @@ into legal ones.
 
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
+  (defn escape-cpp-symbol [s]
+    (clojure.string/escape
+     (str s)
+     {\- \_ \* "_star_" \+ "_plus_" \/ "_slash_"
+      \< "_lt_" \> "_gt_" \= "_eq_" \? "_QMARK_"
+      \! "_BANG_" \# "_"}))
+
   (defn symbol-conversion [form]
-    (let [c (comp #(symbol (clojure.string/escape
-                            (str %)
-                            {\- \_ \* "_star_" \+ "_plus_" \/ "_slash_"
-                             \< "_lt_" \> "_gt_" \= "_eq_" \? "_QMARK_"
-                             \! "_BANG_" \# "_"}))
+    (let [c (comp #(symbol (escape-cpp-symbol %))
                   #(cond (= 'not %) '_not_
                          :default %))]
       (morph-form form symbol? c)))

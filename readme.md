@@ -10,11 +10,11 @@ Clojure in real time embedded control systems.
 
 This repository contains the Ferret compiler. For more information about Ferret, 
 including downloads and documentation for the latest release, check 
-out [Ferret's website](http://ferret-lang.org)
+out [Ferret's website](https://ferret-lang.org)
 
 ## General Information
 
-   - Website - http://ferret-lang.org
+   - Website - https://ferret-lang.org
    - Source Code - https://github.com/nakkaya/ferret - https://git.nakkaya.com/nakkaya/ferret
    - Mailing List - https://groups.google.com/forum/#!forum/ferret-lang
    - Issue Tracker - https://github.com/nakkaya/ferret/issues
@@ -24,7 +24,7 @@ out [Ferret's website](http://ferret-lang.org)
 Download latest Ferret release,
 
 ```bash
-wget http://ferret-lang.org/builds/ferret.jar
+wget https://ferret-lang.org/builds/ferret.jar
 ```
 
 A program that sums the first 5 positive numbers. 
@@ -51,7 +51,7 @@ $ ./a.out
 ```
 
 [ferret-travis]: https://travis-ci.org/nakkaya/ferret/builds
-[ferret-downloads]: http://ferret-lang.org
+[ferret-downloads]: https://ferret-lang.org
 [badge-ferret-version]: https://badge.fury.io/gh/nakkaya%2Fferret.svg
 [badge-ferret-build]: https://travis-ci.org/nakkaya/ferret.svg?branch=master
 [badge-ferret-license]: https://img.shields.io/badge/License-BSD%202--Clause-orange.svg

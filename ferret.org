@@ -329,18 +329,18 @@ The latest sources are available at,
 Dependencies,
 
  - Java
- - Emacs >= 24.5
+ - Emacs (24.5)
  - Clojure
  - Leiningen
 
 Assuming all of the above is in your path just run,
 
 #+BEGIN_EXAMPLE
-  ./build
+  make build
 #+END_EXAMPLE
 
 This will extract the source from this file to *src/* directory and
-build the *jar* and *executable* distributions. *build* script assumes
+build the *jar* and *executable* distributions. *Makefile* assumes
 it is running on a **NIX* based system if not, open this file using
 *emacs* and run,
 
@@ -8099,6 +8099,92 @@ Create some dummy libs under /test/modules/,
 #+end_src
 
 ** resources/
+*** resources/tangle-docs.el
+
+#+begin_src emacs-lisp :mkdirp yes :tangle src/resources/tangle-docs.el :padline no
+  (progn 
+   (require 'package)
+   (package-initialize)
+
+   (add-to-list 'load-path "./org-mode-assets//")
+
+   (setq package-list '(htmlize clojure-mode))
+
+   (setq package-archives '(("elpa" . "http://tromey.com/elpa/")
+                            ("gnu" . "http://elpa.gnu.org/packages/")
+                            ("marmalade" . "https://marmalade-repo.org/packages/")))
+   (package-initialize)
+
+   (unless package-archive-contents
+     (package-refresh-contents))
+
+   (dolist (package package-list)
+     (unless (package-installed-p package)
+       (package-install package)))
+
+   (require 'htmlize)
+   (require 'org)
+   (require 'org-macs)
+   (require 'ox-html)
+   (require 'ob)
+   (global-font-lock-mode 1)
+   (require 'clojure-mode)
+   (require 'clojure-mode-extra-font-locking)
+   (setq org-export-with-section-numbers nil)
+   (setq org-babel-use-quick-and-dirty-noweb-expansion t)
+
+   (set-face-foreground 'font-lock-string-face "#990000")
+   (set-face-foreground 'font-lock-keyword-face "#ff5f00")
+   (set-face-foreground 'font-lock-function-name-face "#d7af00")
+   (set-face-foreground 'font-lock-builtin-face "#66cc00")
+   (set-face-foreground 'font-lock-comment-face "#008787")
+
+   (find-file "ferret.org")
+   (org-babel-tangle)
+   (progn 
+     (org-html-export-as-html nil)
+     (with-current-buffer "*Org HTML Export*"
+       (write-region (org-no-properties (buffer-string)) nil "ferret-manual.html"))))
+#+end_src
+
+*** ferret-build/Dockerfile
+
+#+BEGIN_EXAMPLE
+  docker build -t nakkaya/ferret-build:latest .
+  docker push nakkaya/ferret-build:latest
+#+END_EXAMPLE
+
+#+begin_src fundamental :mkdirp yes :tangle src/resources/ferret-build/Dockerfile :padline no
+  FROM    ubuntu:16.04
+  MAINTAINER Nurullah Akkaya <nurullah@nakkaya.com>
+
+  RUN apt-get update && \
+      apt-get upgrade -y
+
+  RUN apt-get install apt-utils software-properties-common -y
+  RUN add-apt-repository ppa:openjdk-r/ppa
+  RUN apt-get update
+
+  # Setup Tangle Requirements
+
+  RUN apt-get install wget make git emacs24-nox openjdk-7-jre-headless -y
+
+  RUN wget https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein
+  RUN chmod +x lein
+  RUN mv lein /usr/bin/
+  RUN lein
+
+  ENV LEIN_ROOT true
+
+  # Setup Test Requirements
+
+  RUN apt-get install gcc-5 g++-5 llvm-3.6 clang-3.6 cppcheck -y
+  RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 50
+
+  # Setup Platform Build Requirements
+  RUN apt-get install zip -y
+#+end_src
+
 *** bash_executable_stub.sh
 
 #+begin_src sh :mkdirp yes :tangle src/resources/bash_executable_stub.sh :padline no
@@ -8132,6 +8218,7 @@ Create some dummy libs under /test/modules/,
 
   mv ferret/jre/bin/msvcr100.dll ferret/
   zip -r ferret-windows-amd64.zip ferret/
+  rm -r ferret/
 
   java -jar packr.jar \
        --platform mac \

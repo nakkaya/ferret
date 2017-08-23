@@ -1,3 +1,6 @@
+sudo: required
+services:
+  - docker
 language: generic
 git:
   depth: 1

@@ -71,6 +71,10 @@ Platform dependent builds (with bundled 64 bit JVM 1.7),
    - [[https://ferret-lang.org/builds/ferret-macosx-x86_64.zip][Mac OS X]]
    - [[https://ferret-lang.org/builds/ferret-windows-amd64.zip][Windows]] (Broken due to a packr bug.)
 
+Available Linux repositories,
+
+   - Debian/Ubuntu - =echo "deb [trusted=yes] https://ferret-lang.org/debian-repo ferret-lisp main" >> /etc/apt/sources.list=
+
 ** A glimpse of Ferret
 
 On any system, we can just compile a program directly into an

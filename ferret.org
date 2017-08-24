@@ -332,9 +332,9 @@ The latest sources are available at,
 
 Dependencies,
 
+ - make
  - Java
  - Emacs (24.5)
- - Clojure
  - Leiningen
 
 Assuming all of the above is in your path just run,
@@ -344,16 +344,20 @@ Assuming all of the above is in your path just run,
 #+END_EXAMPLE
 
 This will extract the source from this file to *src/* directory and
-build the *jar* and *executable* distributions. *Makefile* assumes
-it is running on a **NIX* based system if not, open this file using
-*emacs* and run,
+build the *jar* and *executable* distributions to *bin/*
+directory. *Makefile* assumes it is running on a **NIX* based system
+if not, open this file using *emacs* and run,
 
 #+BEGIN_EXAMPLE
   M-x org-babel-tangle
 #+END_EXAMPLE
 
 that will extract the source code then you can threat it as any other
-Clojure/Lein project.
+Clojure/Lein project. Documentation can be built using,
+
+#+BEGIN_EXAMPLE
+  make docs
+#+END_EXAMPLE
 
 * Compiler
 

@@ -8182,7 +8182,7 @@ Create some dummy libs under /test/modules/,
   RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 50
 
   # Setup Platform Build Requirements
-  RUN apt-get install zip -y
+  RUN apt-get install zip reprepro -y
 #+end_src
 
 *** bash_executable_stub.sh
@@ -8323,8 +8323,16 @@ Create some dummy libs under /test/modules/,
   Section: devel
   Maintainer: Nurullah Akkaya <nurullah@nakkaya.com>
   Architecture: all
-  Depends: bash, java-runtime-headless (>= 1.7)
+  Depends: bash, java-runtime-headless
   Description: Ferret lisp compiler
   Homepage: https://ferret-lang.org/
   Change: ownership: sudo chown -R root:root ./deb
+#+end_src
+
+*** deb-repo-config
+
+#+begin_src fundamental :mkdirp yes :tangle src/resources/deb-repo-config :padline no
+  Codename: ferret-lisp
+  Components: main
+  Architectures: i386 amd64
 #+end_src

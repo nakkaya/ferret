@@ -23,9 +23,13 @@ deb:
 	echo "Version: ${MAJOR_VERSION}.${MINOR_VERSION}" >> ./deb/DEBIAN/control
 	dpkg -b ./deb ./ferret-lisp.deb
 	rm -rf ./deb
+deb-repo: deb
+	mkdir -p debian-repo/conf/
+	cp src/resources/deb-repo-config ./debian-repo/conf/distributions
+	reprepro -b ./debian-repo/ includedeb ferret-lisp ferret-lisp.deb
 docs:
 	emacs -nw -Q --batch -l src/resources/tangle-docs.el
-release: build packr docs
+release: build packr deb-repo docs
 	mkdir release/
 	mkdir release/builds/
 	mv ferret release/builds/
@@ -34,9 +38,10 @@ release: build packr docs
 	mv src/ferret-linux-amd64.zip release/builds/
 	mv src/ferret-macosx-x86_64.zip release/builds/
 	mv src/ferret-windows-amd64.zip release/builds/
+	mv debian-repo release/
 	mv ferret-manual.html release/index.html
 	cp -R org-mode-assets release/ferret-styles
 docker-release:
 	 ${DOCKER_RUN} /bin/bash -c 'make release'
 clean:
-	rm -rf src/ release/ ferret ferret-manual.html ferret-lisp.deb
+	rm -rf src/ release/ ferret ferret-manual.html ferret-lisp.deb debian-repo/

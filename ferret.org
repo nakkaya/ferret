@@ -1715,8 +1715,7 @@ is supported.
                          (catch Exception e nil))]
          (if source
            (do (info "formatting code")
-               (write-to-file file (:out source)))
-           (trace "install clang-format for formatted output (optional)"))))
+               (write-to-file file (:out source))))))
 
      (defn build-solution [spec-fn]
        (let [{:keys [input-file compile-program format-code path]} (spec-fn)]
@@ -1787,6 +1786,8 @@ is supported.
 
   #+name: core-compiler-helpers
   #+begin_src clojure
+    (.reset (java.util.logging.LogManager/getLogManager))
+
     (def log-formatter (proxy [java.util.logging.Formatter] []
                          (format
                            [^java.util.logging.LogRecord record]
@@ -1802,37 +1803,12 @@ is supported.
                                  frmtr (java.text.SimpleDateFormat. "HH:mm:ss")]
                              (str (.format frmtr now) " " level " " (.getMessage record) "\n")))))
 
-    (def log-handler (proxy [java.util.logging.Handler] []
-                       (publish [^java.util.logging.LogRecord record]
-                         (when (and (.isLoggable ^java.util.logging.Handler this record)
-                                    (instance? java.io.PrintWriter *out*))
-                           (.print ^java.io.PrintWriter *out* 
-                                   (.format ^java.util.logging.Formatter log-formatter record))))
-                       (flush [] (.flush ^java.io.PrintWriter *out*))
-                       (close [] 
-                         ;;(.close *out*)
-                         )))
+    (def log-handler (doto (java.util.logging.ConsoleHandler.)
+                       (.setFormatter log-formatter)))
 
-    (.addHandler (java.util.logging.Logger/getLogger "") log-handler)
-
-    (let [^java.util.logging.LogManager$RootLogger logger (java.util.logging.Logger/getLogger "")]
-      (doseq [^java.util.logging.Handler handler (.getHandlers logger)]
-        (. handler setFormatter log-formatter)))
-
-    (defn set-log-level! [& [level]]
-      (let [^java.util.logging.LogManager$RootLogger logger
-            (java.util.logging.Logger/getLogger "")
-            level (cond (nil? level) java.util.logging.Level/ALL
-                        (= level :trace) java.util.logging.Level/FINEST
-                        (= level :debug) java.util.logging.Level/FINE
-                        (= level :info) java.util.logging.Level/INFO
-                        (= level :warn) java.util.logging.Level/WARNING)]
-        
-        (.setLevel logger level)
-        (doseq [^java.util.logging.Handler handler (.getHandlers logger)]
-          (. handler setLevel level))))
-
-    (set-log-level! :info)
+    (def logger (doto (java.util.logging.Logger/getLogger "")
+                  (.addHandler log-handler)
+                  (.setLevel   java.util.logging.Level/INFO)))
   #+end_src
 
 * Native Core
@@ -7770,7 +7746,7 @@ Create some dummy libs under /test/modules/,
     (:use [ferret [template :only [render-template]]]
           [clojure.java.shell]
           [clojure.java.io]
-          [clojure.tools [logging :only [log warn info trace]]])
+          [clojure.tools [logging :only [warn info]]])
     (:import (org.apache.commons.io FileUtils)
              (java.io BufferedReader InputStreamReader)))
 
@@ -7964,9 +7940,7 @@ Create some dummy libs under /test/modules/,
     (:use [ferret.core] :reload)
     (:use [clojure.test]
           [clojure.java.shell]
-          [clojure.tools [logging :only [log warn info]]]))
-
-  (set-log-level! :info)
+          [clojure.tools [logging :only [warn info]]]))
 
   (defn exec-check [& cmd]
     (let [ret (with-sh-dir "./" (apply sh cmd))]

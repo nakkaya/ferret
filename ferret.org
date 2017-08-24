@@ -2,7 +2,7 @@
 #+STARTUP: hidestars
 #+TAGS: noexport(e)
 #+EXPORT_EXCLUDE_TAGS: noexport
-#+SETUPFILE: org-mode-assets/org-mode.setup
+#+SETUPFILE: org-mode.conf
 #+OPTIONS: H:10
 
 * Getting Started
@@ -8144,7 +8144,6 @@ Create some dummy libs under /test/modules/,
    (set-face-foreground 'font-lock-comment-face "#008787")
 
    (find-file "ferret.org")
-   (org-babel-tangle)
    (progn 
      (org-html-export-as-html nil)
      (with-current-buffer "*Org HTML Export*"

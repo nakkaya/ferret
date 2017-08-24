@@ -1,8 +1,4 @@
-src/*
-ferret
-ferret.html
-manual.html
-ferret-manual.html
+src/
+bin/
+docs/
 release/
-ferret-lisp.deb
-debian-repo/

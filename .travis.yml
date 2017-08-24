@@ -2,11 +2,13 @@ sudo: required
 services:
   - docker
 language: generic
-git:
-  depth: 1
 branches:
   only:
     - master
+install:
+  - git clone https://github.com/$TRAVIS_REPO_SLUG.git $TRAVIS_REPO_SLUG
+  - cd $TRAVIS_REPO_SLUG
+  - git checkout -qf $TRAVIS_COMMIT
 script:
   - make docker-release
 deploy:

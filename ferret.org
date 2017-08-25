@@ -3,7 +3,7 @@
 #+TAGS: noexport(e)
 #+EXPORT_EXCLUDE_TAGS: noexport
 #+SETUPFILE: org-mode.conf
-#+OPTIONS: H:10
+#+OPTIONS: H:10 author:nil
 
 * Getting Started
 ** What Is Ferret

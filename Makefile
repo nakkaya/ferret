@@ -52,4 +52,4 @@ release: clean build packr deb-repo docs
 docker-release:
 	 ${DOCKER_RUN} /bin/bash -c 'make release'
 clean:
-	rm -rf src/ bin/ docs/ release/
+	rm -rf src/ bin/ docs/ org-mode-assets* release/

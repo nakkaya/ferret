@@ -1390,7 +1390,7 @@ is supported.
                       ["nil()"]
                       ;; multi arity dispacth
                       (is-form? 'fn_multi_arity (first body))
-                      [(emit options (first body) state) "nil()"]
+                      (emit options (first body) state)
                       ;; ffi call
                       (->> (map string? body)
                            (every? true?))
@@ -1421,23 +1421,16 @@ is supported.
 #+begin_src clojure :tangle no
   (defmethod emit 'fn_multi_arity [_ [_ switch default] state]
     (let [default (if default
-                    (new-lambda-stack default))
-          switch  (map (fn [[s f]] {:fn (new-lambda-stack f) :case s}) switch)]
-      (render-template
-       "switch(runtime::count(_args_)) {
-
-        $fns: {fn|
-           case $fn.case$ :
-             return $fn.fn$.invoke(_args_);
-        };separator=\"\n\"$
-
-        $if(default)$
-           default:
-             return $default$.invoke(_args_);
-        $endif$
-        }"
-       :fns     switch
-       :default default)))
+                    (str (new-lambda-stack default) ".invoke(_args_)")
+                    "nil()")
+          switch  (render-template
+                   "switch(runtime::count(_args_)) {
+                    $fns: {fn|
+                      case $fn.case$ :
+                         return $fn.fn$.invoke(_args_); };separator=\"\n\"$
+                    }"
+                   :fns (map (fn [[s f]] {:fn (new-lambda-stack f) :case s}) switch))]
+      [switch default]))
 #+end_src
 
 #+name: core-compiler-emitter

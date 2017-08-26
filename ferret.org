@@ -1388,16 +1388,20 @@ is supported.
           body (filter #(not (is-form? 'native_declare %)) body)
           body (cond  (empty? body)
                       ["nil()"]
-                      (and (= 1 (count body))
-                           (seq? (first body))
-                           (= 'fn_multi_arity (first (first body))))
+                      ;; multi arity dispacth
+                      (is-form? 'fn_multi_arity (first body))
                       [(emit options (first body) state) "nil()"]
-                      (and (= 1 (count body))
-                           (string? (first body)))
-                      (let [body (first body)]
-                        (if (.contains body "__result")
-                          ["var __result" body "__result"]
-                          [body "nil()"]))
+                      ;; ffi call
+                      (->> (map string? body)
+                           (every? true?))
+                      (let [buffer (StringBuilder.)]
+                        (doseq [b body]
+                          (.append buffer b))
+                        (let [body (.toString buffer)]
+                          (if (.contains body "__result")
+                            ["var __result" body "__result"]
+                            [body "nil()"])))
+                      ;; s-expression
                       :default (emit-ast options body state))
           env  (norm-lambda-env env)
           vars (destructure-arguments args)]

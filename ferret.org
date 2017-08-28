@@ -7978,7 +7978,6 @@ Create some dummy libs under /test/modules/,
     (exec-check
      "cppcheck" "-q" "--std=c++11" "--template=gcc" "--enable=all" "--error-exitcode=1" f))
 
-
   (def cxx-opts-common ["-std=c++11"
                         "-pedantic"
                         "-Werror"
@@ -7999,7 +7998,23 @@ Create some dummy libs under /test/modules/,
             ["/usr/bin/clang++-3.6" (concat cxx-opts-common cxx-llvm-opts)]
             ["/usr/bin/clang++-3.6" (concat cxx-opts-common cxx-llvm-opts ["-O3"])]])
 
-  (defn test-file-aux [f]
+  (defn x86-checker [file output specs]
+    (->> (reduce (fn [h [cxx flags]]
+                   (if (file-exists cxx)
+                     (do (compile->binary
+                          (assoc specs
+                                 :compiler cxx
+                                 :compiler-options (concat flags ["-o" output])))
+                         (let [output (exec-check (str "./" output) "1" "2")]
+                           (when (not (empty? output))
+                             (println )
+                             (println output))
+                           (conj h output)))
+                     h))
+                 [] cxx)
+         (every? empty?)))
+
+  (defn test-file-aux [f checker]
     (info (str "testing " f))
     (let [f-name (gensym)
           file (str f-name ".cpp")
@@ -8008,39 +8023,28 @@ Create some dummy libs under /test/modules/,
                     (assoc :base-name   f-name))]
       (compile->cpp (read-clojure-file f) specs)
       (static-check file)
-      (let [output (reduce (fn[h [cxx flags]]
-                             (if (file-exists cxx)
-                               (do (compile->binary
-                                    (assoc specs
-                                           :compiler cxx
-                                           :compiler-options (concat flags ["-o" f-name])))
-                                   (let [output (exec-check (str "./" f-name) "1" "2")]
-                                     (when (not (empty? output))
-                                       (println )
-                                       (println output))
-                                     (conj h output)))
-                               h))
-                           [] cxx)]
-        (with-sh-dir "./"
-          (sh "rm" "-f" file)
-          (sh "rm" "-f" (str f-name)))
-        (filter #(not (empty? %)) output))))
+      (let [passed? (checker file f-name specs)]
+        (when passed?
+          (with-sh-dir "./"
+            (sh "rm" "-f" file)
+            (sh "rm" "-f" (str f-name))))
+        passed?)))
 
-  (defn test-file [f]
+  (defn test-file [checker f]
     (binding [clojure.test/report
               (fn [ev]
                 (inc-report-counter (-> ev :type))
                 (when (= (-> ev :type) :fail)
                   (warn (str "test file failed => " f))))]
-      (is (empty? (test-file-aux f)))))
+      (is (true? (test-file-aux f checker)))))
 
   (deftest test-ferret
-    (test-file "test/simple_module_main.clj")
-    (test-file "test/import_module_main.clj")
-    (test-file "test/import_module_empty_aux_a.clj")
-    (test-file "test/import_module_empty_aux_b.clj")
-    (test-file "test/runtime.clj")
-    (test-file "test/memory_pool.clj"))
+    (test-file x86-checker "test/simple_module_main.clj")
+    (test-file x86-checker "test/import_module_main.clj")
+    (test-file x86-checker "test/import_module_empty_aux_a.clj")
+    (test-file x86-checker "test/import_module_empty_aux_b.clj")
+    (test-file x86-checker "test/runtime.clj")
+    (test-file x86-checker "test/memory_pool.clj"))
 
   (defn exec-form [form & [opts]]
     (let [options (compile-options {:compiler-options cxx-opts-common})

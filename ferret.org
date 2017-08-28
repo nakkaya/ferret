@@ -1116,8 +1116,9 @@ possible if the files were compiled separately. Code generation is
 done by running /emit/ on the final intermediate representation.
 
 Generated C++ code has the following structure, (All Ferret code is
-defined within *ferret* namespace. All Ferret macros starts with
-*FERRET_*.)
+defined within *ferret* namespace, all Ferret macros starts with
+*FERRET_*, all user defined functions are defined in file name
+namespace.)
 
  - Detect Hardware
  - Include files
@@ -1252,12 +1253,16 @@ C++ skeleton.
   (defn defobject [name f options]
     (let [def (read-file (first f) options)]
       (render-template
-       "$if(embed_type)$
+       "#ifndef FERRET_OBJECT_$guard$
+        #define FERRET_OBJECT_$guard$
+        $if(embed_type)$
           namespace runtime {
             namespace type {
                const size_t $type$ = $type_val$;}}
           $endif$
-        $body$"
+        $body$
+        #endif"
+       :guard       (.toUpperCase (str name))
        :embed_type  (.contains def (str "runtime::type::" name))
        :type        (str name)
        :type_val    (gensym "")
@@ -1475,56 +1480,70 @@ is supported.
   (defn program-template [source options]
     (let [{:keys [body lambdas symbol-table native-headers objects
                   native-declarations native-defines]} source
-          native-headers (->> native-headers flatten (into #{}))]
+          native-headers (->> native-headers flatten (into #{}))
+          file-ns        (-> options :base-name escape-cpp-symbol)
+          main           (render-template
+                          (read-file "ferret/main.cpp")
+                          :file       file-ns)]
       (render-template
        "
           $native_defines:{$it$} ;separator=\"\n\"$
           $native_headers:{#include \"$it$\"} ;separator=\"\n\"$
 
-          $ferret_h$
+          #ifndef FERRET_RUNTIME_H
+          #define FERRET_RUNTIME_H
+           $ferret_h$
+          #endif
 
           // Objects
           namespace ferret{
            $objects:{$it$} ;separator=\"\n\"$
           }
 
+          namespace $file$ { 
+           using namespace ferret;
+           typedef ferret::boolean boolean; 
+          }
+
           // Symbols
-          namespace ferret{
+          namespace $file${
            $symbols:{var $it$;} ;separator=\"\n\"$
           }
 
           $native_declarations:{$it$} ;separator=\"\n\"$
 
           // Runtime Implementations
-          $ferret_cpp$
+          #ifndef FERRET_RUNTIME_CPP
+          #define FERRET_RUNTIME_CPP
+           $ferret_cpp$
+          #endif
 
           // Lambda Prototypes
-          namespace ferret{
+          namespace $file${
             $lambda_classes:{$it$} ;separator=\"\n\"$
           }
 
           // Command Line Arguments
-          #if defined(FERRET_STD_LIB) &&                    \\
-              !defined(FERRET_DISABLE_CLI_ARGS) &&   \\
+          #if defined(FERRET_STD_LIB) &&               \\
+              !defined(FERRET_DISABLE_CLI_ARGS) &&     \\
               !defined(FERRET_DISABLE_STD_MAIN)
             ferret::var _star_command_line_args_star_;
           #endif
 
           // Lambda Implementations
-          namespace ferret{
+          namespace $file${
             $lambda_bodies:{$it$} ;separator=\"\n\"$
           }
 
           // Program Run
-          namespace ferret{
-           namespace program{
-            void run(){
-             $body:{$it$;} ;separator=\"\n\"$ 
-            }
+          namespace $file${
+           void main(){
+            $body:{$it$;} ;separator=\"\n\"$ 
            }
           }
 
           $ferret_main$"
+       :file                 file-ns
        :native_defines       native-defines
        :ferret_h             (read-file "ferret/runtime.h")
        :native_headers       native-headers
@@ -1535,7 +1554,7 @@ is supported.
        :lambda_classes       (lambda-definitions lambdas)
        :lambda_bodies        (lambda-implementations lambdas)
        :body                 (filter #(not (empty? %)) body)
-       :ferret_main          (read-file "ferret/main.cpp"))))
+       :ferret_main          main)))
 #+end_src
 
 ** Main
@@ -3904,9 +3923,9 @@ running in safe mode.
   | FERRET_DISABLE_CLI_ARGS            | false        | Disable command line arguments.                          |
   | FERRET_DISABLE_STD_OUT             | false        | Disables output stream. (Reduces code size.)             |
   | FERRET_DISABLE_MULTI_THREADING     | false        | Disable atomic reference counting.                       |
-  | FERRET_DISABLE_STD_MAIN            | false        | Disables auto execution of program::run()                |
+  | FERRET_DISABLE_STD_MAIN            | false        | Disables auto execution of program::main()                |
   | FERRET_DISABLE_RC                  | Not Defined  | Disable Reference Counting. (When using third party GCs) |
-  | FERRET_PROGRAM_MAIN                | Not Defined  | A function to execute after program::run()               |
+  | FERRET_PROGRAM_MAIN                | Not Defined  | A function to execute after program::main()               |
   | FERRET_UART_RATE                   | 9600         | Set default UART rate.                                   |
   | FERRET_HARDWARE_ARDUINO_UART_PORT  | Serial       | Set default UART port.                                   |
   | FERRET_NUMBER_TYPE                 | int          | Default number_t type.                                   |
@@ -4076,11 +4095,11 @@ Setup IO for Arduino boards,
 
 Unless =FERRET_DISABLE_STD_MAIN= is *defined* a =main= function is
 defined which is the designated start of the
-program. =program::run()= function contains all compiled
+program. =program::main()= function contains all compiled
 code. Executing this function has equivalent semantics to loading the
 Clojure source file into a virgin Clojure interpreter and then
 terminating its execution. If =FERRET_PROGRAM_MAIN= is defined, it
-will be called right after =program::run()=.
+will be called right after =program::main()=.
 
 #+name: runtime-native-program-run-std-main
 #+begin_src c++ :tangle no
@@ -4100,7 +4119,7 @@ will be called right after =program::run()=.
         _star_command_line_args_star_ =  runtime::cons(obj<string>(argv[i]),_star_command_line_args_star_);
      #endif
 
-      program::run();
+      $file$::main();
 
      #if defined(FERRET_PROGRAM_MAIN)
       run(FERRET_PROGRAM_MAIN);
@@ -4124,13 +4143,13 @@ procedure.
         runtime::init();
 
       #if defined(FERRET_PROGRAM_MAIN)
-        program::run();
+        $file$::main();
       #endif
     }
     void loop(){
       using namespace ferret;
       #if !defined(FERRET_PROGRAM_MAIN)
-        program::run();
+        $file$::main();
       #endif          
 
       #if defined(FERRET_PROGRAM_MAIN)

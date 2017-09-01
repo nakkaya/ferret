@@ -8109,9 +8109,9 @@ Create some dummy libs under /test/modules/,
 #+end_src
 
 ** resources/
-*** tangle-docs.el
+*** tangle-docs
 
-#+begin_src emacs-lisp :mkdirp yes :tangle src/resources/tangle-docs.el :padline no
+#+begin_src emacs-lisp :mkdirp yes :tangle src/resources/tangle-docs :padline no
   (progn 
    (require 'package)
    (package-initialize)
@@ -8156,6 +8156,20 @@ Create some dummy libs under /test/modules/,
        (write-region (org-no-properties (buffer-string)) nil "ferret-manual.html"))))
 #+end_src
 
+*** jar-sh-header
+
+#+begin_src sh :mkdirp yes :tangle src/resources/jar-sh-header :padline no
+  #!/usr/bin/env sh
+  MYSELF=`which "$0" 2>/dev/null`
+  [ $? -gt 0 -a -f "$0" ] && MYSELF="./$0"
+  java=java
+  if test -n "$JAVA_HOME"; then
+      java="$JAVA_HOME/bin/java"
+  fi
+  exec "$java" $java_args -jar $MYSELF "$@"
+  exit 1 
+#+end_src
+
 *** ferret-build/Dockerfile
 
 #+BEGIN_EXAMPLE
@@ -8194,27 +8208,13 @@ Create some dummy libs under /test/modules/,
   RUN apt-get install zip reprepro -y
 #+end_src
 
-*** bash_executable_stub.sh
+*** build-bundles
 
-#+begin_src sh :mkdirp yes :tangle src/resources/bash_executable_stub.sh :padline no
-  #!/usr/bin/env sh
-  MYSELF=`which "$0" 2>/dev/null`
-  [ $? -gt 0 -a -f "$0" ] && MYSELF="./$0"
-  java=java
-  if test -n "$JAVA_HOME"; then
-      java="$JAVA_HOME/bin/java"
-  fi
-  exec "$java" $java_args -jar $MYSELF "$@"
-  exit 1 
-#+end_src
-
-*** platform_builds.sh
-
-#+begin_src sh :mkdirp yes :tangle src/resources/platform_builds.sh :padline no
-  wget http://ferret-lang.org/build-artifacts/packr.jar
-  wget http://ferret-lang.org/build-artifacts/openjdk-1.7.0-u80-unofficial-macosx-x86_64-image.zip
-  wget http://ferret-lang.org/build-artifacts/openjdk-1.7.0-u80-unofficial-linux-amd64-image.zip
-  wget http://ferret-lang.org/build-artifacts/openjdk-1.7.0-u80-unofficial-windows-amd64-image.zip
+#+begin_src sh :mkdirp yes :tangle src/resources/build-bundles :padline no
+  wget https://ferret-lang.org/build-artifacts/packr.jar
+  wget https://ferret-lang.org/build-artifacts/openjdk-1.7.0-u80-unofficial-macosx-x86_64-image.zip
+  wget https://ferret-lang.org/build-artifacts/openjdk-1.7.0-u80-unofficial-linux-amd64-image.zip
+  wget https://ferret-lang.org/build-artifacts/openjdk-1.7.0-u80-unofficial-windows-amd64-image.zip
 
   java -jar packr.jar \
        --platform windows64 \
@@ -8259,6 +8259,27 @@ Create some dummy libs under /test/modules/,
   rm packr.jar openjdk-1.7.0-u80-unofficial-macosx-x86_64-image.zip openjdk-1.7.0-u80-unofficial-linux-amd64-image.zip openjdk-1.7.0-u80-unofficial-windows-amd64-image.zip
 #+end_src
 
+*** deb-package-conf
+
+#+begin_src fundamental :mkdirp yes :tangle src/resources/deb-package-conf :padline no
+  Package: ferret-lisp
+  Priority: extra
+  Section: devel
+  Maintainer: Nurullah Akkaya <nurullah@nakkaya.com>
+  Architecture: all
+  Depends: bash, java-runtime-headless
+  Description: Ferret lisp compiler
+  Homepage: https://ferret-lang.org/
+  Change: ownership: sudo chown -R root:root ./deb
+#+end_src
+
+*** deb-repo-conf
+
+#+begin_src fundamental :mkdirp yes :tangle src/resources/deb-repo-conf :padline no
+  Codename: ferret-lisp
+  Components: main
+  Architectures: i386 amd64
+#+end_src
 *** ferret-mode.el
 
 #+begin_src emacs-lisp :mkdirp yes :tangle src/resources/ferret-mode.el :padline no :results none
@@ -8323,25 +8344,4 @@ Create some dummy libs under /test/modules/,
                   (indent-rigidly (region-beginning) (region-end) col)
                   (buffer-string)))))))
         (goto-char cursor-point))))
-#+end_src
-*** deb-control
-
-#+begin_src fundamental :mkdirp yes :tangle src/resources/deb-control :padline no
-  Package: ferret-lisp
-  Priority: extra
-  Section: devel
-  Maintainer: Nurullah Akkaya <nurullah@nakkaya.com>
-  Architecture: all
-  Depends: bash, java-runtime-headless
-  Description: Ferret lisp compiler
-  Homepage: https://ferret-lang.org/
-  Change: ownership: sudo chown -R root:root ./deb
-#+end_src
-
-*** deb-repo-config
-
-#+begin_src fundamental :mkdirp yes :tangle src/resources/deb-repo-config :padline no
-  Codename: ferret-lisp
-  Components: main
-  Architectures: i386 amd64
 #+end_src

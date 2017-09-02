@@ -8187,8 +8187,15 @@ Create some dummy libs under /test/modules/,
 
   # Setup Test Requirements
 
+  # x86
   RUN apt-get install gcc-5 g++-5 llvm-3.6 clang-3.6 cppcheck -y
   RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 50
+
+  # arduino
+  RUN wget http://downloads.arduino.cc/arduino-1.8.4-linux64.tar.xz
+  RUN tar xf arduino-1.8.4-linux64.tar.xz
+  RUN mv arduino-1.8.4 /usr/local/share/arduino
+  RUN ln -s /usr/local/share/arduino/arduino /usr/local/bin/arduino
 
   # Setup Platform Build Requirements
   RUN apt-get install zip reprepro -y

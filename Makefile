@@ -14,29 +14,29 @@ test:	tangle
 build:  test
 	mkdir -p bin/
 	${LEIN} uberjar
-	cat src/resources/bash_executable_stub.sh src/target/ferret.jar > bin/ferret
+	cat src/resources/jar-sh-header src/target/ferret.jar > bin/ferret
 	chmod +x bin/ferret
 	mv src/target/ferret.jar bin/ferret.jar
 packr:  
-	cd src/ && bash resources/platform_builds.sh
+	cd src/ && bash resources/build-bundles
 	mv src/*.zip bin/
 deb:  
 	mkdir -p deb/usr/bin
 	cp bin/ferret deb/usr/bin/
 	mkdir -p deb/DEBIAN
-	cp src/resources/deb-control deb/DEBIAN/control
+	cp src/resources/deb-package-conf deb/DEBIAN/control
 	echo "Version: ${MAJOR_VERSION}.${MINOR_VERSION}" >> deb/DEBIAN/control
 	dpkg -b deb ferret-lisp.deb
 	rm -rf deb
 	mv ferret-lisp.deb bin/
 deb-repo: deb
 	mkdir -p bin/debian-repo/conf/
-	cp src/resources/deb-repo-config bin/debian-repo/conf/distributions
+	cp src/resources/deb-repo-conf bin/debian-repo/conf/distributions
 	reprepro -b bin/debian-repo/ includedeb ferret-lisp bin/ferret-lisp.deb
 docs:
 	wget https://s3.amazonaws.com/ferret-lang.org/build-artifacts/org-mode-assets.zip
 	unzip org-mode-assets.zip
-	emacs -nw -Q --batch -l src/resources/tangle-docs.el
+	emacs -nw -Q --batch -l src/resources/tangle-docs
 	mkdir -p docs/
 	mv ferret-manual.html docs/
 	rm org-mode-assets.zip

@@ -116,7 +116,7 @@ variable on the resulting *cpp* file.
 Following shows a blink example for Arduino. (See section [[Arduino
 Boards]] for more info on how to use Ferret lisp on Arduino boards.) 
 
-#+begin_src clojure
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/blink/blink.clj
   ;;; blink.clj
   (pin-mode 13 :output)
 
@@ -137,7 +137,7 @@ different frequencies (Yellow LED at 5 hz Blue LED at 20 hz). It uses
 a memory pool of 512 bytes allocated at compile time instead of
 calling malloc/free at runtime.
 
-#+begin_src clojure
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/blink-multi/blink-multi.clj
   (configure-runtime! FERRET_MEMORY_POOL_SIZE 512
                       FERRET_MEMORY_POOL_PAGE_TYPE char)
 

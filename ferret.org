@@ -6274,7 +6274,7 @@ Each new commit is tested against a set of assertions.  Tests are run
 by the CI system for the following compilers, 
 
  - GCC 5
- - Clang 3.4
+ - Clang 4.0
 
 Most tests are done using the built in unit testing api, but certain
 tests, those that target the workings of the compiler are easier to do
@@ -7991,12 +7991,12 @@ Create some dummy libs under /test/modules/,
                         "-Winit-self"
                         "-pthread"])
 
-  (def cxx-llvm-opts ["-fsanitize=leak" "-fsanitize=undefined"])
+  (def cxx-llvm-opts ["-stdlib=libstdc++" "-fsanitize=undefined,address" "-fno-omit-frame-pointer"])
 
   (def cxx [["/usr/bin/g++"         (concat cxx-opts-common ["-fno-rtti"])]
             ["/usr/bin/g++"         (concat cxx-opts-common ["-O3"])]
-            ["/usr/bin/clang++-3.6" (concat cxx-opts-common cxx-llvm-opts)]
-            ["/usr/bin/clang++-3.6" (concat cxx-opts-common cxx-llvm-opts ["-O3"])]])
+            ["/usr/bin/clang++-4.0" (concat cxx-opts-common cxx-llvm-opts)]
+            ["/usr/bin/clang++-4.0" (concat cxx-opts-common cxx-llvm-opts ["-O3"])]])
 
   (defn x86-checker [file output specs]
     (->> (reduce (fn [h [cxx flags]]
@@ -8201,15 +8201,20 @@ Create some dummy libs under /test/modules/,
 
   # Setup Test Requirements
 
-  # x86
-  RUN apt-get install gcc-5 g++-5 llvm-3.6 clang-3.6 cppcheck -y
-  RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 50
-
   # arduino
   RUN wget http://downloads.arduino.cc/arduino-1.8.4-linux64.tar.xz
   RUN tar xf arduino-1.8.4-linux64.tar.xz
   RUN mv arduino-1.8.4 /usr/local/share/arduino
   RUN ln -s /usr/local/share/arduino/arduino /usr/local/bin/arduino
+
+  # x86
+  RUN apt-get install gcc-5 g++-5 cppcheck -y
+  RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 50
+  RUN wget http://apt.llvm.org/llvm-snapshot.gpg.key
+  RUN apt-key add llvm-snapshot.gpg.key
+  RUN apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial main"
+  RUN apt-get update
+  RUN apt-get install clang-4.0 llvm-4.0 -y
 
   # Setup Platform Build Requirements
   RUN apt-get install zip reprepro -y

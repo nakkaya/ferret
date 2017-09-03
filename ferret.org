@@ -1571,8 +1571,11 @@ is supported.
               :base-name "solution"}
              options))
 
+    (defn file-name [options]
+      (str (:base-name options) "." (:source-extension options)))
+
     (defn cpp-file-name [options]
-      (str (:output-path options) (:base-name options) "." (:source-extension options)))
+      (str (:output-path options) (file-name options)))
   #+end_src
 
    Read the /cpp/ file parse build options embedded in
@@ -1693,7 +1696,7 @@ is supported.
                                            :default "")
                                      %])
                                  (:extra-source-files options))]
-          (flatten [cxx cxx-options source-files ["-x" "c++"] (cpp-file-name options)]))))
+          (flatten [cxx cxx-options source-files ["-x" "c++"] (file-name options)]))))
   #+end_src
 
    Run the compiler on the generated source and create the binary,

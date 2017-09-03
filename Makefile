@@ -13,7 +13,7 @@ CPPFLAGS = -std=c++11 ${CPPWARNINGS} -pthread
 test: CPPSANITIZER = -fsanitize=undefined,address -fno-omit-frame-pointer
 
 .PHONY: test-compiler test test-release packr deb deb-repo docs release docker-release clean
-.PRECIOUS: %.cpp %.gcc %.clang
+.PRECIOUS: %.cpp %.gcc %.clang %.ino
 
 src/src/ferret/core.clj: ferret.org
 	emacs -nw -Q --batch --eval "(progn (require 'org) (setq org-babel-use-quick-and-dirty-noweb-expansion t) (require 'ob) (find-file \"ferret.org\") (org-babel-tangle))"
@@ -67,10 +67,10 @@ test-compiler: src/src/ferret/core.clj
 test:     test-compiler bin/ferret $(CXX_OBJS)
 test-release:  test-compiler bin/ferret $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
 
-packr:  
-	cd src/ && bash resources/build-bundles
-	mv src/*.zip bin/
-deb:  
+packr:  bin/ferret
+	bash src/resources/build-bundles
+	mv *.zip bin/
+deb:    bin/ferret
 	mkdir -p deb/usr/bin
 	cp bin/ferret deb/usr/bin/
 	mkdir -p deb/DEBIAN

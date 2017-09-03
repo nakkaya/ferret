@@ -8159,7 +8159,7 @@ Create some dummy libs under /test/modules/,
        --platform windows64 \
        --jdk openjdk-1.7.0-u80-unofficial-windows-amd64-image.zip \
        --executable ferret \
-       --classpath target/ferret.jar \
+       --classpath bin/ferret.jar \
        --mainclass ferret.core \
        --minimizejre soft \
        --output ferret
@@ -8172,7 +8172,7 @@ Create some dummy libs under /test/modules/,
        --platform mac \
        --jdk openjdk-1.7.0-u80-unofficial-macosx-x86_64-image.zip \
        --executable ferret \
-       --classpath target/ferret.jar \
+       --classpath bin/ferret.jar \
        --mainclass ferret.core \
        --minimizejre soft \
        --output ferret
@@ -8187,7 +8187,7 @@ Create some dummy libs under /test/modules/,
        --platform linux64 \
        --jdk openjdk-1.7.0-u80-unofficial-linux-amd64-image.zip \
        --executable ferret \
-       --classpath target/ferret.jar \
+       --classpath bin/ferret.jar \
        --mainclass ferret.core \
        --minimizejre soft \
        --output ferret

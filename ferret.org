@@ -6090,7 +6090,7 @@ Evaluates expr and aborts if it does not evaluate to logical true.
   (defn assert-aux [f msg]
     (when (not (f))
       (println "Assertion Failed =>" msg)
-      (system-abort)))
+      (system-exit 1)))
 
   (defn assert-aux-callback [f callback]
     (when (not (f)) (callback)))
@@ -6113,11 +6113,13 @@ information.
     (let [expect (ex-fb)
           got  (form-fn)]
       (when (not=  expect got)
-        (println "fail in" form-str "\n expected" expect "\n      got" got))))
+        (println "fail in" form-str "\n expected" expect "\n      got" got)
+        (system-exit 1))))
 
   (defn is-aux [f msg]
     (when (not (f))
-      (println "fail" msg)))
+      (println "fail" msg)
+      (system-exit 1)))
 
   (defmacro is [form]
     (let [check-op (first form)
@@ -6136,8 +6138,8 @@ information.
 
   (defmacro run-all-tests []
     (if (bound? #'fir-unit-tests)
-      `(~'do ~@(map #(list %) @fir-unit-tests))
-      `(~'do )))
+      `(~'do ~@(map #(list %) @fir-unit-tests) (~'system-exit 0))
+      `(~'do (~'system-exit 0))))
 #+end_src
 
 ** Native
@@ -7073,37 +7075,26 @@ Create some dummy libs under /test/modules/,
 #+name: clojure-unit-tests
 #+begin_src clojure :tangle no
   (deftest testing-unit-test
-    (is (= "" (exec-form '((assert (= 2 1) (print "fail"))) {:release true})))
-    (compare-output "" (run-all-tests))
-    (compare-output
-     (str "fail in (= 2 3) \n"
-          " expected 2.0000 \n"
-          "      got 3.0000\n"
-          "fail (not (some-true))\n"
-          "fail in (= 5 (apply + (list 1 2 3))) \n"
-          " expected 5.0000 \n"
-          "      got 6.0000\n"
-          "fail in (= 3 (some-fn)) \n"
-          " expected 3.0000 \n" 
-          "      got 2.0000\n")
-     
-     (defn some-true [] true)
+    (is (= 1 (check-form '((assert (= 2 1))))))
+    (is (= 0 (check-form '((assert (= 2 1))) {:release true})))
+    (is (= 0 (check-form '((run-all-tests)))))
 
-     (deftest some-test
-       (is (= 2 3))
-       (is (= 2 2))
-       (is (not (some-true)))
-       (is (some-true)))
+    (is (= 1 (check-form '((deftest some-test
+                             (is (= 2 3)))
+                           (run-all-tests)))))
 
-     (defn some-fn [] 2)
 
-     (deftest some-other-test
-       (is (= 5 (apply + (list 1 2 3))))
-       (is (= 6 (apply + (list 1 2 3))))
-       (is (= 3 (some-fn)))
-       (is (= 2 (some-fn))))
+    (is (= 0 (check-form '((deftest some-test
+                             (is (= 2 2)))
+                           (run-all-tests)))))
 
-     (run-all-tests)))
+    (is (= 1 (check-form '((deftest some-test
+                             (is (= 5 (apply + (list 1 2 3)))))
+                           (run-all-tests)))))
+
+    (is (= 0 (check-form '((deftest some-test
+                             (is (= 6 (apply + (list 1 2 3)))))
+                           (run-all-tests))))))
 #+end_src
 
 ** Data Structures
@@ -7976,37 +7967,15 @@ Create some dummy libs under /test/modules/,
           [clojure.java.shell]
           [clojure.tools [logging :only [warn info]]]))
 
-  (defn exec-check [& cmd]
-    (let [ret (with-sh-dir "./" (apply sh cmd))]
-      (if (not= 0 (:exit ret))
-        (do (warn (str "exec-check failure" cmd))
-            (warn (:err ret))
-            (exit-failure))
-        (:out ret))))
-
-  (defn exec-form [form & [opts]]
+  (defn check-form [form & [opts]]
     (let [options (merge (compile-options) opts)]
       (compile->cpp form options)
       (compile->binary options)
-      (let [out (exec-check "./a.out" "1" "2")]
-        (with-sh-dir "./"
+      (with-sh-dir "./"
+        (let [exit (->> (sh "./a.out") :exit)]
           (sh "rm" "-rf" "a.out")
-          (sh "rm" "-rf" "solution.cpp"))
-        out)))
-
-  (defn report-test-failure [event]
-    (let [actual (with-out-str
-                   (clojure.pprint/pprint (:actual event)))
-          expected (with-out-str
-                     (clojure.pprint/pprint (:expected event)))]
-      (let [type (-> event :type)]
-        (inc-report-counter type)
-        (when (= type :fail)
-          (warn (str "test failure" \newline \newline actual \newline expected))))))
-
-  (defmacro compare-output [res & body]
-    `(binding [clojure.test/report report-test-failure]
-       (is (= ~res (exec-form (quote ~body))))))
+          (sh "rm" "-rf" "solution.cpp")
+          exit))))
 
   <<clojure-unit-tests>>
 #+end_src 

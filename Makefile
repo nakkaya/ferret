@@ -1,6 +1,7 @@
 DIR = $(shell pwd)
 MAJOR_VERSION = $(shell git describe --abbrev=0 --tags)
 MINOR_VERSION = $(shell git rev-list ${MAJOR_VERSION}.. --count)
+VERSION = ${MAJOR_VERSION}.${MINOR_VERSION}
 
 DOCKER_RUN = docker run --rm -i -t -v "${DIR}":/ferret/ -w /ferret/ nakkaya/ferret-build
 LEIN = cd src/ && lein
@@ -75,7 +76,7 @@ deb:    bin/ferret
 	cp bin/ferret deb/usr/bin/
 	mkdir -p deb/DEBIAN
 	cp src/resources/deb-package-conf deb/DEBIAN/control
-	echo "Version: ${MAJOR_VERSION}.${MINOR_VERSION}" >> deb/DEBIAN/control
+	echo "Version: ${VERSION}" >> deb/DEBIAN/control
 	dpkg -b deb ferret-lisp.deb
 	rm -rf deb
 	mv ferret-lisp.deb bin/
@@ -96,6 +97,12 @@ release: clean test-release packr deb-repo docs
 	mv bin/debian-repo release/
 	mv docs/ferret-manual.html release/index.html
 	rm -rf bin/ docs/
+
+docker-create: src/src/ferret/core.clj
+	cd src/resources/ferret-build/ && \
+	   sudo docker build -t nakkaya/ferret-build:latest -t nakkaya/ferret-build:${VERSION} .
+	sudo docker push nakkaya/ferret-build:${VERSION}
+	sudo docker push nakkaya/ferret-build:latest
 docker-release:
 	 ${DOCKER_RUN} /bin/bash -c 'make release'
 docker-test:

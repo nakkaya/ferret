@@ -8098,11 +8098,6 @@ Create some dummy libs under /test/modules/,
 
 *** ferret-build/Dockerfile
 
-#+BEGIN_EXAMPLE
-  docker build -t nakkaya/ferret-build:latest .
-  docker push nakkaya/ferret-build:latest
-#+END_EXAMPLE
-
 #+begin_src fundamental :mkdirp yes :tangle src/resources/ferret-build/Dockerfile :padline no
   FROM    ubuntu:16.04
   MAINTAINER Nurullah Akkaya <nurullah@nakkaya.com>

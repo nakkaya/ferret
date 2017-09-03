@@ -579,7 +579,7 @@ form.
       (create-ns temp-ns)
       (binding [*ns* (the-ns temp-ns)]
         (refer 'clojure.core :exclude (concat macro-symbols ['fn 'def]))
-        (use '[ferret.core :only [symbol-conversion fn->unique-args]])
+        (use '[ferret.core :only [symbol-conversion fn->unique-args exit-failure]])
         
         (doseq [m (concat core-macros form-macros)]
           (eval m)))
@@ -1057,6 +1057,12 @@ suggests and removes the node when predicate returns true.
                 (.contains os "aix")) :unix
                 (.contains os "sunos")    :solaris)))
 
+  (defn exit-failure []
+    (System/exit 1))
+
+  (defn exit-success []
+    (System/exit 0))
+
   (defn read-file-from-url [f]
     (with-open [in (.getResourceAsStream (ClassLoader/getSystemClassLoader) f)
                 rdr (BufferedReader. (InputStreamReader. in))]
@@ -1072,7 +1078,7 @@ suggests and removes the node when predicate returns true.
             (FileUtils/readFileToString (file (str (:path options) f))))
           (catch Exception e-path
             (warn "error reading =>" f)
-            (System/exit 1))))))
+            (exit-failure))))))
 
   (defn read-clojure-file [f]
     (read-string (str \( (read-file f) \))))
@@ -1713,11 +1719,11 @@ is supported.
                     (catch Exception e
                       (warn (str "error executing C++ compiler."))
                       (warn (str "" (.getMessage e)))
-                      (System/exit 1)))]
+                      (exit-failure)))]
           (if (not= 0 (:exit ret))
             (do (warn "build error")
                 (warn (:err ret))
-                (System/exit 1)))
+                (exit-failure)))
           true)))
   #+end_src
 
@@ -1784,11 +1790,11 @@ is supported.
            (println )
            (println )
            (println (:summary args))
-           (System/exit 0))
+           (exit-success))
 
          (when (not (file-exists input))
            (warn "no input file")
-           (System/exit 1))
+           (exit-failure))
 
          (let [specs (build-specs input args)]
            (if (not watch-input)
@@ -1798,7 +1804,8 @@ is supported.
                                   (watcher/on-change
                                    (fn [_] (build-solution specs))))
                  @(promise)))
-           (shutdown-agents))))
+           (shutdown-agents))
+         (exit-success)))
    #+end_src
 
 *** Logging
@@ -5813,7 +5820,7 @@ Ported from,
       (if (or (< in-max in-min)
               (< out-max out-min))
         (do (println "pid-controller invalid bounds")
-            (System/exit 1)))
+            (exit-failure)))
       
       (if (symbol? set-point)
         `(~'let [pid# (~'pid-controller-create
@@ -7974,7 +7981,7 @@ Create some dummy libs under /test/modules/,
       (if (not= 0 (:exit ret))
         (do (warn (str "exec-check failure" cmd))
             (warn (:err ret))
-            (System/exit 1))
+            (exit-failure))
         (:out ret))))
 
   (defn exec-form [form & [opts]]

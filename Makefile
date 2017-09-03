@@ -41,6 +41,10 @@ bin/ferret : src/src/ferret/core.clj
 	$(CXX) $(CPPFLAGS) $(CPPSANITIZER) -x c++ $< -o $@
 	$@ 1 2
 
+%.ino: %.cpp
+	mv $< $@
+	arduino --verify --board arduino:avr:uno $@
+
 STD_LIB_TESTS = src/test/simple_module_main.clj         \
                 src/test/import_module_main.clj         \
                 src/test/import_module_empty_aux_a.clj  \
@@ -52,11 +56,16 @@ CLANG_OBJS=$(STD_LIB_TESTS:.clj=.clang)
 GCC_OBJS=$(STD_LIB_TESTS:.clj=.gcc)
 CXX_OBJS=$(STD_LIB_TESTS:.clj=.cxx)
 
+EMBEDDED_TESTS = src/test/blink/blink.clj              \
+	         src/test/blink-multi/blink-multi.clj
+
+INO_OBJS=$(EMBEDDED_TESTS:.clj=.ino)
+
 test-compiler: src/src/ferret/core.clj
 	${LEIN} test
 
 test:     test-compiler bin/ferret $(CXX_OBJS)
-test-release:  test-compiler bin/ferret $(GCC_OBJS) $(CLANG_OBJS)
+test-release:  test-compiler bin/ferret $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
 
 packr:  
 	cd src/ && bash resources/build-bundles
@@ -92,5 +101,7 @@ release: clean test-release packr deb-repo docs
 	rm -rf bin/ docs/
 docker-release:
 	 ${DOCKER_RUN} /bin/bash -c 'make release'
+docker-test:
+	 ${DOCKER_RUN} /bin/bash -c 'make test-release'
 clean:
 	rm -rf src/ bin/ docs/ org-mode-assets* release/

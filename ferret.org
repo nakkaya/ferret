@@ -8141,6 +8141,7 @@ Create some dummy libs under /test/modules/,
   RUN apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial main"
   RUN apt-get update
   RUN apt-get install clang-4.0 llvm-4.0 -y
+  RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-4.0 50
 
   # Setup Platform Build Requirements
   RUN apt-get install zip reprepro -y

@@ -8042,7 +8042,7 @@ Create some dummy libs under /test/modules/,
    (require 'package)
    (package-initialize)
 
-   (add-to-list 'load-path "./org-mode-assets//")
+   (add-to-list 'load-path "./")
 
    (setq package-list '(htmlize clojure-mode))
 

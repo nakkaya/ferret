@@ -83,21 +83,18 @@ deb-repo: deb
 	mkdir -p bin/debian-repo/conf/
 	cp src/resources/deb-repo-conf bin/debian-repo/conf/distributions
 	reprepro -b bin/debian-repo/ includedeb ferret-lisp bin/ferret-lisp.deb
-docs:
-	wget https://s3.amazonaws.com/ferret-lang.org/build-artifacts/org-mode-assets.zip
-	unzip org-mode-assets.zip
+docs:   src/src/ferret/core.clj
+	wget https://s3.amazonaws.com/ferret-lang.org/build-artifacts/clojure-mode-extra-font-locking.el
 	emacs -nw -Q --batch -l src/resources/tangle-docs
 	mkdir -p docs/
 	mv ferret-manual.html docs/
-	rm org-mode-assets.zip
-	mv org-mode-assets docs/ferret-styles
+	rm clojure-mode-extra-font-locking.el
 release: clean test-release packr deb-repo docs
 	mkdir -p release/builds/
 	mv bin/ferret* release/builds/
 	cp release/builds/ferret.jar release/builds/ferret-`git rev-parse --short HEAD`.jar
 	mv bin/debian-repo release/
-	mv docs/* release/
-	mv release/ferret-manual.html release/index.html
+	mv docs/ferret-manual.html release/index.html
 	rm -rf bin/ docs/
 docker-release:
 	 ${DOCKER_RUN} /bin/bash -c 'make release'

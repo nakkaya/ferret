@@ -1,22 +1,67 @@
 DIR = $(shell pwd)
-DOCKER_RUN = docker run --rm -i -t -v "${DIR}":/ferret/ -w /ferret/ nakkaya/ferret-build
-LEIN = cd src/ && lein
-
 MAJOR_VERSION = $(shell git describe --abbrev=0 --tags)
 MINOR_VERSION = $(shell git rev-list ${MAJOR_VERSION}.. --count)
 
-.PHONY: tangle test build packr docs release docker-release clean
+DOCKER_RUN = docker run --rm -i -t -v "${DIR}":/ferret/ -w /ferret/ nakkaya/ferret-build
+LEIN = cd src/ && lein
 
-tangle:
+test-with-gcc:   CXX = /usr/bin/g++
+test-with-clang: CXX = /usr/bin/clang++-4.0
+
+CPPWARNINGS = -pedantic -Werror -Wall -Wextra                    \
+              -Wconversion -Wpointer-arith -Wmissing-braces      \
+              -Woverloaded-virtual -Wuninitialized -Winit-self
+CPPFLAGS = -std=c++11 ${CPPWARNINGS} -pthread
+
+test: CPPSANITIZER = -fsanitize=undefined,address -fno-omit-frame-pointer
+
+.PHONY: test-with-gcc test-with-clang test-compiler test test-ci packr deb deb-repo docs release docker-release clean
+.PRECIOUS: %.cpp %.gcc %.clang
+
+src/src/ferret/core.clj: ferret.org
 	emacs -nw -Q --batch --eval "(progn (require 'org) (setq org-babel-use-quick-and-dirty-noweb-expansion t) (require 'ob) (find-file \"ferret.org\") (org-babel-tangle))"
-test:	tangle
-	${LEIN} test
-build:  test
+
+bin/ferret : src/src/ferret/core.clj
 	mkdir -p bin/
 	${LEIN} uberjar
 	cat src/resources/jar-sh-header src/target/ferret.jar > bin/ferret
 	chmod +x bin/ferret
 	mv src/target/ferret.jar bin/ferret.jar
+
+%.cpp: %.clj
+	bin/ferret -i $<
+	cppcheck --quiet --std=c++11 --template=gcc --enable=all --error-exitcode=1 $@
+
+%.gcc: %.cpp
+	$(CXX) $(CPPFLAGS) $(CPPSANITIZER) -x c++ $< -o $@
+	$@ 1 2
+
+test-with-gcc: bin/ferret                                \
+               src/test/simple_module_main.gcc           \
+	       src/test/import_module_main.gcc           \
+	       src/test/import_module_empty_aux_a.gcc    \
+	       src/test/import_module_empty_aux_b.gcc    \
+	       src/test/memory_pool.gcc                  \
+	       src/test/runtime_all.gcc
+
+%.clang: %.cpp
+	$(CXX) $(CPPFLAGS) $(CPPSANITIZER) -x c++ $< -o $@
+	$@ 1 2
+
+test-with-clang: bin/ferret                                \
+                 src/test/simple_module_main.clang         \
+	         src/test/import_module_main.clang         \
+	         src/test/import_module_empty_aux_a.clang  \
+	         src/test/import_module_empty_aux_b.clang  \
+	         src/test/memory_pool.clang                \
+	         src/test/runtime_all.clang
+
+test-compiler: src/src/ferret/core.clj
+	${LEIN} test
+
+test:     test-compiler test-with-gcc test-with-clang
+test-ci:  test-compiler test-with-gcc test-with-clang
+
 packr:  
 	cd src/ && bash resources/build-bundles
 	mv src/*.zip bin/
@@ -41,7 +86,7 @@ docs:
 	mv ferret-manual.html docs/
 	rm org-mode-assets.zip
 	mv org-mode-assets docs/ferret-styles
-release: clean build packr deb-repo docs
+release: clean test-ci packr deb-repo docs
 	mkdir -p release/builds/
 	mv bin/ferret* release/builds/
 	cp release/builds/ferret.jar release/builds/ferret-`git rev-parse --short HEAD`.jar

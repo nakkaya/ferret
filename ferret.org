@@ -7974,84 +7974,10 @@ Create some dummy libs under /test/modules/,
             (System/exit 1))
         (:out ret))))
 
-  (defn static-check [f]
-    (exec-check
-     "cppcheck" "-q" "--std=c++11" "--template=gcc" "--enable=all" "--error-exitcode=1" f))
-
-  (def cxx-opts-common ["-std=c++11"
-                        "-pedantic"
-                        "-Werror"
-                        "-Wall"
-                        "-Wextra"
-                        "-Wconversion"
-                        "-Wpointer-arith"
-                        "-Wmissing-braces"
-                        "-Woverloaded-virtual"
-                        "-Wuninitialized"
-                        "-Winit-self"
-                        "-pthread"])
-
-  (def cxx-llvm-opts ["-stdlib=libstdc++" "-fsanitize=undefined,address" "-fno-omit-frame-pointer"])
-
-  (def cxx [["/usr/bin/g++"         (concat cxx-opts-common ["-fno-rtti"])]
-            ["/usr/bin/g++"         (concat cxx-opts-common ["-O3"])]
-            ["/usr/bin/clang++-4.0" (concat cxx-opts-common cxx-llvm-opts)]
-            ["/usr/bin/clang++-4.0" (concat cxx-opts-common cxx-llvm-opts ["-O3"])]])
-
-  (defn x86-checker [file output specs]
-    (->> (reduce (fn [h [cxx flags]]
-                   (if (file-exists cxx)
-                     (do (compile->binary
-                          (assoc specs
-                                 :compiler cxx
-                                 :compiler-options (concat flags ["-o" output])))
-                         (let [output (exec-check (str "./" output) "1" "2")]
-                           (when (not (empty? output))
-                             (println )
-                             (println output))
-                           (conj h output)))
-                     h))
-                 [] cxx)
-         (every? empty?)))
-
-  (defn test-file-aux [f checker]
-    (info (str "testing " f))
-    (let [f-name (gensym)
-          file (str f-name ".cpp")
-          specs (-> ((build-specs f {}))
-                    (assoc :output-path "./")
-                    (assoc :base-name   f-name))]
-      (compile->cpp (read-clojure-file f) specs)
-      (static-check file)
-      (let [passed? (checker file f-name specs)]
-        (when passed?
-          (with-sh-dir "./"
-            (sh "rm" "-f" file)
-            (sh "rm" "-f" (str f-name))))
-        passed?)))
-
-  (defn test-file [checker f]
-    (binding [clojure.test/report
-              (fn [ev]
-                (inc-report-counter (-> ev :type))
-                (when (= (-> ev :type) :fail)
-                  (warn (str "test file failed => " f))))]
-      (is (true? (test-file-aux f checker)))))
-
-  (deftest test-ferret
-    (test-file x86-checker "test/simple_module_main.clj")
-    (test-file x86-checker "test/import_module_main.clj")
-    (test-file x86-checker "test/import_module_empty_aux_a.clj")
-    (test-file x86-checker "test/import_module_empty_aux_b.clj")
-    (test-file x86-checker "test/runtime.clj")
-    (test-file x86-checker "test/memory_pool.clj"))
-
   (defn exec-form [form & [opts]]
-    (let [options (compile-options {:compiler-options cxx-opts-common})
-          options (merge options opts)]
+    (let [options (merge (compile-options) opts)]
       (compile->cpp form options)
       (compile->binary options)
-      (static-check "solution.cpp")
       (let [out (exec-check "./a.out" "1" "2")]
         (with-sh-dir "./"
           (sh "rm" "-rf" "a.out")
@@ -8075,9 +8001,9 @@ Create some dummy libs under /test/modules/,
   <<clojure-unit-tests>>
 #+end_src 
 
-*** runtime.clj
+*** runtime_all.clj
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/runtime.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/runtime_all.clj
   <<value-test-helpers>>
   <<ffi-test-helper>>
   <<ferret-unit-tests>>

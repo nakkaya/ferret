@@ -2395,13 +2395,10 @@ accuracy using 6 bits for fraction.
     static const int factor = 1 << N;
 
     template<typename T>
-    inline T to_rational() const { return T(m) / factor; }
+    inline base from(T d) const { return (base)(d * factor); }
 
     template<typename T>
-    inline base from_rational(T d) const { return (base)(d * factor); }
-      
-    template<typename T>
-    inline base from_whole(T i) const { return ((base)i << N); }
+    inline T to_rational() const { return T(m) / factor; }
 
     template<typename T>
     inline T to_whole() const { return (T)(m >> N); }
@@ -2411,12 +2408,10 @@ accuracy using 6 bits for fraction.
     //from types
     explicit fixed_real( )           : m(0) { }
     template<typename T>
-    explicit fixed_real(T v)         : m(from_whole<T>(v)) {}
-    explicit fixed_real(double d)    : m(from_rational<double>(d)) { }
+    explicit fixed_real(T v)         : m(from<T>(v)) {}
 
     template<typename T>
-    fixed& operator=(T v)        { m = from_whole<T>(v); return *this; }
-    fixed& operator=(double v)   { m = from_rational<double>(v); return *this; }
+    fixed& operator=(T v)        { m = from<T>(v); return *this; }
       
     //to types
     template<typename T>
@@ -2427,7 +2422,7 @@ accuracy using 6 bits for fraction.
     fixed& operator+= (const fixed& x) { m += x.m; return *this; }
     fixed& operator-= (const fixed& x) { m -= x.m; return *this; }
     fixed& operator*= (const fixed& x) { m = (base)(((next)m * (next)x.m) >> N); return *this; }
-    fixed& operator/= (const fixed& x) { m = (base)(((next)m << N) / x.m); return *this; }
+    fixed& operator/= (const fixed& x) { m = (base)(((next)m * factor) / x.m); return *this; }
     fixed& operator*= (int x)          { m *= x; return *this; }
     fixed& operator/= (int x)          { m /= x; return *this; }
     fixed  operator-  ( )              { return fixed(-m); }

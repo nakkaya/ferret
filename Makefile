@@ -9,7 +9,7 @@ LEIN = cd src/ && lein
 CPPWARNINGS = -pedantic -Werror -Wall -Wextra                    \
               -Wconversion -Wpointer-arith -Wmissing-braces      \
               -Woverloaded-virtual -Wuninitialized -Winit-self
-CPPFLAGS = -std=c++11 ${CPPWARNINGS} -pthread
+CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread
 
 test: CPPSANITIZER = -fsanitize=undefined,address -fno-omit-frame-pointer
 

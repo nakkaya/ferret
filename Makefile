@@ -32,11 +32,11 @@ bin/ferret : src/src/ferret/core.clj
 	cppcheck --quiet --std=c++11 --template=gcc --enable=all --error-exitcode=1 $@ 2> "$@.cppcheck"
 
 %.gcc: %.cpp
-	/usr/bin/g++ $(CPPFLAGS) $(CPPSANITIZER) -x c++ $< -o $@
+	g++ $(CPPFLAGS) $(CPPSANITIZER) -x c++ $< -o $@
 	$@ 1 2
 
 %.clang: %.cpp
-	/usr/bin/clang++ $(CPPFLAGS) $(CPPSANITIZER) -x c++ $< -o $@
+	clang++ $(CPPFLAGS) $(CPPSANITIZER) -x c++ $< -o $@
 	$@ 1 2
 
 %.cxx: %.cpp

@@ -13,7 +13,7 @@ CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread
 
 test: CPPSANITIZER = -fsanitize=undefined,address -fno-omit-frame-pointer
 
-.PHONY: test test-release packr deb deb-repo docs release docker-release clean
+.PHONY: test test-release deb deb-repo docs release docker-release clean
 .PRECIOUS: %.cpp %.gcc %.clang %.ino
 
 src/src/ferret/core.clj: ferret.org
@@ -66,9 +66,6 @@ INO_OBJS=$(EMBEDDED_TESTS:.clj=.ino)
 test: bin/ferret $(CXX_OBJS)
 test-release: bin/ferret $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
 
-packr:  bin/ferret
-	bash src/resources/build-bundles
-	mv *.zip bin/
 deb:    bin/ferret
 	mkdir -p deb/usr/bin
 	cp bin/ferret deb/usr/bin/
@@ -88,7 +85,7 @@ docs:   src/src/ferret/core.clj
 	mkdir -p docs/
 	mv ferret-manual.html docs/
 	rm clojure-mode-extra-font-locking.el
-release: clean test-release packr deb-repo docs
+release: clean test-release deb-repo docs
 	mkdir -p release/builds/
 	mv bin/ferret* release/builds/
 	cp release/builds/ferret.jar release/builds/ferret-`git rev-parse --short HEAD`.jar

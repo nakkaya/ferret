@@ -13,7 +13,7 @@ CPPFLAGS = -std=c++11 ${CPPWARNINGS} -pthread
 
 test: CPPSANITIZER = -fsanitize=undefined,address -fno-omit-frame-pointer
 
-.PHONY: test-compiler test test-release packr deb deb-repo docs release docker-release clean
+.PHONY: test test-release packr deb deb-repo docs release docker-release clean
 .PRECIOUS: %.cpp %.gcc %.clang %.ino
 
 src/src/ferret/core.clj: ferret.org
@@ -21,6 +21,7 @@ src/src/ferret/core.clj: ferret.org
 
 bin/ferret : src/src/ferret/core.clj
 	mkdir -p bin/
+	${LEIN} test
 	${LEIN} uberjar
 	cat src/resources/jar-sh-header src/target/ferret.jar > bin/ferret
 	chmod +x bin/ferret
@@ -62,11 +63,8 @@ EMBEDDED_TESTS = src/test/blink/blink.clj              \
 
 INO_OBJS=$(EMBEDDED_TESTS:.clj=.ino)
 
-test-compiler: src/src/ferret/core.clj
-	${LEIN} test
-
-test:     test-compiler bin/ferret $(CXX_OBJS)
-test-release:  test-compiler bin/ferret $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
+test: bin/ferret $(CXX_OBJS)
+test-release: bin/ferret $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
 
 packr:  bin/ferret
 	bash src/resources/build-bundles

@@ -340,7 +340,7 @@ Dependencies,
 Assuming all of the above is in your path just run,
 
 #+BEGIN_EXAMPLE
-  make build
+  make bin/ferret
 #+END_EXAMPLE
 
 This will extract the source from this file to *src/* directory and
@@ -358,6 +358,22 @@ Clojure/Lein project. Documentation can be built using,
 #+BEGIN_EXAMPLE
   make docs
 #+END_EXAMPLE
+
+Unit tests can be run using,
+
+#+BEGIN_EXAMPLE
+  make test
+#+END_EXAMPLE
+
+A release can be made by running,
+
+#+BEGIN_EXAMPLE
+  make docker-release
+#+END_EXAMPLE
+
+This will compile =ferret= run unit tests against all supported
+compilers/frameworks and generate a =release/= folder containing
+deployment files.
 
 * Compiler
 
@@ -6278,10 +6294,11 @@ the [[deftest][run-all-tests]].
 ** Continuous Integration
 
 Each new commit is tested against a set of assertions.  Tests are run
-by the CI system for the following compilers, 
+by the CI system for the following compilers/frameworks, 
 
  - GCC 5
  - Clang 4.0
+ - Arduino 1.8.4
 
 Most tests are done using the built in unit testing api, but certain
 tests, those that target the workings of the compiler are easier to do
@@ -6304,8 +6321,7 @@ Build options,
  - -Wuninitialized
  - -Winit-self
  - -fno-rtti
- - -fsanitize=leak
- - -fsanitize=undefined
+ - -fsanitize=undefined,address
 
 Static code analysis (cppcheck) options,
 

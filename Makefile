@@ -3,49 +3,58 @@ MAJOR_VERSION = $(shell git describe --abbrev=0 --tags)
 MINOR_VERSION = $(shell git rev-list ${MAJOR_VERSION}.. --count)
 VERSION = ${MAJOR_VERSION}.${MINOR_VERSION}
 
-DOCKER_RUN = docker run --rm -i -t -v "${DIR}":/ferret/ -w /ferret/ nakkaya/ferret-build
-LEIN = cd src/ && lein
+.PHONY: test test-release deb deb-repo docs release docker-release clean
+.PRECIOUS: %.cpp %.gcc %.clang %.ino
+
+clean:
+	rm -rf src/ bin/ docs/ release/
+
+# tangle compiler generate src/ directory
+src/src/ferret/core.clj: ferret.org
+	emacs -nw -Q --batch --eval "(progn (require 'org) (setq org-babel-use-quick-and-dirty-noweb-expansion t) (require 'ob) (find-file \"ferret.org\") (org-babel-tangle))"
+
+# run low level unit tests and generate bin/ferret
+bin/ferret : src/src/ferret/core.clj
+	mkdir -p bin/
+	cd src/ && lein test
+	cd src/ && lein uberjar
+	cat src/resources/jar-sh-header src/target/ferret.jar > bin/ferret
+	chmod +x bin/ferret
+	mv src/target/ferret.jar bin/ferret.jar
+
+# tell make how to compile Ferret lisp to C++
+%.cpp: %.clj
+	bin/ferret -i $<
+	cppcheck --quiet --std=c++11 --template=gcc --enable=all --error-exitcode=1 $@ 2> "$@.cppcheck"
+
+# each compiler/framework to be tested get an extensiton. 
+# i.e all cpp files compiled with g++ will have .gcc extension
 
 CPPWARNINGS = -pedantic -Werror -Wall -Wextra                    \
               -Wconversion -Wpointer-arith -Wmissing-braces      \
               -Woverloaded-virtual -Wuninitialized -Winit-self
 CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread
 
-test: CPPSANITIZER = -fsanitize=undefined,address -fno-omit-frame-pointer
-
-.PHONY: test test-release deb deb-repo docs release docker-release clean
-.PRECIOUS: %.cpp %.gcc %.clang %.ino
-
-src/src/ferret/core.clj: ferret.org
-	emacs -nw -Q --batch --eval "(progn (require 'org) (setq org-babel-use-quick-and-dirty-noweb-expansion t) (require 'ob) (find-file \"ferret.org\") (org-babel-tangle))"
-
-bin/ferret : src/src/ferret/core.clj
-	mkdir -p bin/
-	${LEIN} test
-	${LEIN} uberjar
-	cat src/resources/jar-sh-header src/target/ferret.jar > bin/ferret
-	chmod +x bin/ferret
-	mv src/target/ferret.jar bin/ferret.jar
-
-%.cpp: %.clj
-	bin/ferret -i $<
-	cppcheck --quiet --std=c++11 --template=gcc --enable=all --error-exitcode=1 $@ 2> "$@.cppcheck"
+# only enable sanitizers when not running in docker
+test: CPPFLAGS += -fsanitize=undefined,address -fno-omit-frame-pointer
 
 %.gcc: %.cpp
-	g++ $(CPPFLAGS) $(CPPSANITIZER) -x c++ $< -o $@
+	g++ $(CPPFLAGS) -x c++ $< -o $@
 	$@ 1 2
 
 %.clang: %.cpp
-	clang++ $(CPPFLAGS) $(CPPSANITIZER) -x c++ $< -o $@
+	clang++ $(CPPFLAGS) -x c++ $< -o $@
 	$@ 1 2
 
 %.cxx: %.cpp
-	$(CXX) $(CPPFLAGS) $(CPPSANITIZER) -x c++ $< -o $@
+	$(CXX) $(CPPFLAGS) -x c++ $< -o $@
 	$@ 1 2
 
 %.ino: %.cpp
 	mv $< $@
 	arduino --verify --board arduino:avr:uno $@
+
+# list of unit tests to run againts the current build
 
 STD_LIB_TESTS = src/test/simple_module_main.clj         \
                 src/test/import_module_main.clj         \
@@ -54,18 +63,19 @@ STD_LIB_TESTS = src/test/simple_module_main.clj         \
                 src/test/memory_pool.clj                \
                 src/test/runtime_all.clj
 
-CLANG_OBJS=$(STD_LIB_TESTS:.clj=.clang)
-GCC_OBJS=$(STD_LIB_TESTS:.clj=.gcc)
-CXX_OBJS=$(STD_LIB_TESTS:.clj=.cxx)
-
 EMBEDDED_TESTS = src/test/blink/blink.clj              \
 	         src/test/blink-multi/blink-multi.clj
 
-INO_OBJS=$(EMBEDDED_TESTS:.clj=.ino)
+# assign tests to compilers
+CLANG_OBJS = $(STD_LIB_TESTS:.clj=.clang)
+GCC_OBJS   = $(STD_LIB_TESTS:.clj=.gcc)
+CXX_OBJS   = $(STD_LIB_TESTS:.clj=.cxx)
+INO_OBJS   = $(EMBEDDED_TESTS:.clj=.ino)
 
 test: bin/ferret $(CXX_OBJS)
 test-release: bin/ferret $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
 
+# rules for preparing a release
 deb:    bin/ferret
 	mkdir -p deb/usr/bin
 	cp bin/ferret deb/usr/bin/
@@ -93,6 +103,9 @@ release: clean test-release deb-repo docs
 	mv docs/ferret-manual.html release/index.html
 	rm -rf bin/ docs/
 
+# rules for managing the docker files used by the CI
+DOCKER_RUN = docker run --rm -i -t -v "${DIR}":/ferret/ -w /ferret/ nakkaya/ferret-build
+
 docker-create: src/src/ferret/core.clj
 	cd src/resources/ferret-build/ && \
 	   sudo docker build -t nakkaya/ferret-build:latest -t nakkaya/ferret-build:${VERSION} .
@@ -102,5 +115,3 @@ docker-release:
 	 ${DOCKER_RUN} /bin/bash -c 'make release'
 docker-test:
 	 ${DOCKER_RUN} /bin/bash -c 'make test-release'
-clean:
-	rm -rf src/ bin/ docs/ org-mode-assets* release/

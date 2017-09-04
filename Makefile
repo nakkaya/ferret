@@ -29,7 +29,7 @@ bin/ferret : src/src/ferret/core.clj
 
 %.cpp: %.clj
 	bin/ferret -i $<
-	cppcheck --quiet --std=c++11 --template=gcc --enable=all --error-exitcode=1 $@
+	cppcheck --quiet --std=c++11 --template=gcc --enable=all --error-exitcode=1 $@ 2> "$@.cppcheck"
 
 %.gcc: %.cpp
 	/usr/bin/g++ $(CPPFLAGS) $(CPPSANITIZER) -x c++ $< -o $@

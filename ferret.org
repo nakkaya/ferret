@@ -1889,40 +1889,38 @@ All our types are derived from the base Object type. Which is a
   class var;
   class seekable_i;
 
-  namespace object{
-    template <typename rc>
-    class base : public rc{
-    public:
-      base() { }
-      virtual ~base() { };
+  template <typename rc>
+  class object_i : public rc{
+  public:
+    object_i() { }
+    virtual ~object_i() { };
     
-      virtual size_t type() const = 0;
+    virtual size_t type() const = 0;
     
   #if !defined(FERRET_DISABLE_STD_OUT)
-      virtual void stream_console() const = 0;
+    virtual void stream_console() const = 0;
   #endif
     
-      virtual bool equals(var const & o) const = 0;
+    virtual bool equals(var const & o) const = 0;
 
-      virtual seekable_i* cast_seekable_i() { return nullptr; }
+    virtual seekable_i* cast_seekable_i() { return nullptr; }
 
-      void* operator new(size_t, void* ptr){ return ptr; }
-      void  operator delete(void * ptr){ FERRET_ALLOC_POLICY::free(ptr); }
-    };
-  }
+    void* operator new(size_t, void* ptr){ return ptr; }
+    void  operator delete(void * ptr){ FERRET_ALLOC_POLICY::free(ptr); }
+  };
 
-  typedef object::base<FERRET_RC_POLICY> object_t;
+  typedef object_i<FERRET_RC_POLICY> object;
 #+end_src
 
-A /var/ holds a pointer to an object_t, everything is passed around as
+A /var/ holds a pointer to an object, everything is passed around as
 /vars/ it is responsible for incrementing/decrementing the reference
-count, when it reaches zero it will automatically free the object_t.
+count, when it reaches zero it will automatically free the object.
 
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
   class var{
   public:
-    explicit var(object_t* o = nullptr) : obj(o) { inc_ref(); }
+    explicit var(object* o = nullptr) : obj(o) { inc_ref(); }
 
     var(const var& o) : obj(o.obj) { inc_ref(); }
     var(var&& o) : obj(o.obj) { o.obj = nullptr; }
@@ -1964,13 +1962,13 @@ count, when it reaches zero it will automatically free the object_t.
     }
   #endif
         
-    inline object_t* get() const { return obj; }
+    inline object* get() const { return obj; }
     
     template<typename T>
     inline T* cast() const { return static_cast<T*>(obj); }
 
     inline bool is_type(size_t type) const { 
-      return (static_cast<object_t*>(obj)->type() == type);
+      return (static_cast<object*>(obj)->type() == type);
     }
 
     inline bool is_nil() const { return (obj == nullptr); }
@@ -1996,7 +1994,7 @@ count, when it reaches zero it will automatically free the object_t.
   #endif
     }
       
-    object_t* obj;
+    object* obj;
   };
 
   template<>
@@ -2036,7 +2034,7 @@ A boolean object,
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/boolean_o.h
-  class boolean final : public object_t {
+  class boolean final : public object {
     const bool value;
   public:
 
@@ -2086,7 +2084,7 @@ A boolean object,
     
     if (runtime::is_seqable(*this) && runtime::is_seqable(other))
       return get()->equals(other);
-    else if (obj->type() != other.cast<object_t>()->type())
+    else if (obj->type() != other.cast<object>()->type())
       return false;
     else
       return get()->equals(other);
@@ -2108,7 +2106,7 @@ A /pointer/ object keeps a reference to a C++ pointer.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/pointer_o.h
-  class pointer final : public object_t {
+  class pointer final : public object {
     void * _payload;
   public:
 
@@ -2174,7 +2172,7 @@ modern C++ libraries that use smart pointers for memory management.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/value_o.h
   template <typename T>
-  class value final : public object_t {
+  class value final : public object {
     T _value;
    public:
 
@@ -2291,7 +2289,7 @@ number Object,
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/number_o.h
-  class number final : public object_t {
+  class number final : public object {
     const real_t _word;
   public:
 
@@ -2471,7 +2469,7 @@ Linked list container implementing the seekable interface.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
-  class empty_sequence final : public object_t {
+  class empty_sequence final : public object {
   public:
 
     size_t type() const final { return runtime::type::empty_sequence; }
@@ -2493,7 +2491,7 @@ Linked list container implementing the seekable interface.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/sequence_o.h
-  class sequence final : public object_t, public seekable_i {
+  class sequence final : public object, public seekable_i {
     const var next;
     const var data;
   public:
@@ -2589,7 +2587,7 @@ A lazy list container implementing the seekable interface.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lazy_sequence_o.h
-  class lazy_sequence final : public object_t, public seekable_i {
+  class lazy_sequence final : public object, public seekable_i {
     const var thunk;
     const var head;
   public:
@@ -2860,7 +2858,7 @@ Each keyword in the program is converted to an /keyword/ object. A
 
     var invoke(var const & args) const {
       var map = runtime::first(args);
-      var map_args = runtime::cons(var((object_t*)this), runtime::rest(args));
+      var map_args = runtime::cons(var((object*)this), runtime::rest(args));
 
       if (map.is_type(runtime::type::d_list)){
         return map.cast<d_list>()->val_at(map_args);
@@ -2894,7 +2892,7 @@ interpreted as FFI calls.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/string_o.h
-  class string final : public object_t, public seekable_i {
+  class string final : public object, public seekable_i {
     var data;
 
     void from_char_pointer(const char * str, int length){
@@ -3071,10 +3069,10 @@ thread to =future=,
     std::future<var> task;
 
     class rc_guard{
-      object_t *obj;
+      object *obj;
     public:
       explicit rc_guard(const rc_guard &) = delete;
-      explicit rc_guard(object_t *o) : obj(o) { };
+      explicit rc_guard(object *o) : obj(o) { };
       ~rc_guard() { obj->dec_ref(); }
     };
 
@@ -3405,7 +3403,7 @@ uniform fashion.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lambda_i.h
-  class lambda_i : public object_t {
+  class lambda_i : public object {
    public:
     virtual var invoke(var const & args) const = 0;
 
@@ -3468,7 +3466,7 @@ Function invocation,
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/deref_i.h
-  class deref_i : public object_t {
+  class deref_i : public object {
    public:
 
     virtual var deref() = 0;
@@ -5371,7 +5369,7 @@ Port of Teensy elapsedMicros API,
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/elapsed_micros_o.h
   #if !defined(FERRET_SAFE_MODE)
-  class elapsed_micros : public object_t {
+  class elapsed_micros : public object {
 
     unsigned long us;
 
@@ -5691,7 +5689,7 @@ Ported from,
 
 #+begin_src c++ :mkdirp yes :tangle src/src/ferret/obj/pid_controller_o.h
   template <typename T>
-  class pid_controller : public object_t {
+  class pid_controller : public object {
     T p;
     T i;
     T d;
@@ -6185,7 +6183,7 @@ examples.
   (defn pr-object-sizes []
     (println "Object Sizes")
     (println "\tvar:\t\t\t" (cxx "__result = obj<number>(sizeof(var));"))
-    (println "\tobject:\t\t\t" (cxx "__result = obj<number>(sizeof(object_t));"))
+    (println "\tobject:\t\t\t" (cxx "__result = obj<number>(sizeof(object));"))
     (println "\tpointer:\t\t" (cxx "__result = obj<number>(sizeof(pointer));"))
     (println "\tnumber:\t\t\t" (cxx "__result = obj<number>(sizeof(number));"))
     (println "\tkeyword:\t\t" (cxx "__result = obj<number>(sizeof(keyword));"))
@@ -7687,7 +7685,7 @@ Create some dummy libs under /test/modules/,
     - http://www.hboehm.info/gc/
     Implemented =FERRET_DISABLE_RC= option.
   - *pointer* - A pointer type to handle shared pointers.
-    Implemented value object_t.
+    Implemented value object.
   - *Unit Testing*
     - https://www.cs.northwestern.edu/academics/courses/325/readings/lisp-unit.html
     - https://github.com/fukamachi/prove

@@ -58,7 +58,7 @@ test: CPPFLAGS += -fsanitize=undefined,address -fno-omit-frame-pointer
 
 %.ino: %.cpp
 	mv $< $@
-	$(call static_check,$<)
+	$(call static_check,$@)
 	arduino --verify --board arduino:avr:uno $@
 
 # list of unit tests to run againts the current build

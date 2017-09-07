@@ -7110,69 +7110,64 @@ Create some dummy libs under /test/modules/,
     (is (= 0.33333   1/3))
     (is (= 3501      0xDAD))
     (is (= 2748      0xABC)))
+#+end_src
 
+#+begin_src c++ :noweb yes :mkdirp yes :tangle src/test/fixed_real.cpp
+  #include <cassert>
+  #include <runtime.h>
 
-  (deftest fixed-real-test
-    (is (= 25          (cxx "char n = 25;
-                             auto x = ferret::fixed_real<32,8>(n);
-                             n = (char)x;
-                             __result = obj<number>((number_t)n)")))
-
-    (is (= 25          (cxx "long n = 25;
-                             auto x = ferret::fixed_real<64,8>(n);
-                             char v = (char)x;
-                             __result = obj<number>((number_t)v)")))
-
-    (is (= 2500        (cxx "unsigned long n = 2500;
-                             auto x = ferret::fixed_real<64,8>(n);
-                             unsigned long v = (unsigned long)x;
-                             __result = obj<number>((number_t)v)")))
-
-    (is (= 1024        (cxx "int n = 1024;
-                             auto x = ferret::fixed_real<32,8>(n);
-                             n = (int)x;
-                             __result = obj<number>((number_t)n)")))
-
-    (is (= 10.25       (cxx "auto x = ferret::fixed_real<32,8>();
-                             (void)x;
-                             auto y = ferret::fixed_real<32,8>();
-                             (void)y;
-                             x = 10; y = 0.250;
-                             __result = obj<number>((real_t)(x + y))")))
-
-    (is (= true       (cxx "long n = std::numeric_limits<int>::max() + 1024L;
-                             auto x = ferret::fixed_real<64,8>(n);
-                             n = (long)x;
-                             __result = obj<boolean>((n == ((long)std::numeric_limits<int>::max() + 1024L)))")))
-
-    (is (= 6.25       (cxx "auto x = ferret::fixed_real<32,8>(0);
-                            for(int i = 0; i < 100; i++)
-                              x += ferret::fixed_real<32,8>(0.0625);
-                            __result = obj<number>((double)x)")))
+  int main() {
+    typedef ferret::fixed_real<32,8> fix_32;
+    typedef ferret::fixed_real<64,8> fix_64;
     
-    (is (= 35.25       (cxx "auto x = ferret::fixed_real<32,8>(22.75);
-                             auto y = ferret::fixed_real<32,8>(12.5);
-                             __result = obj<number>((double)(x + y))")))
+    // Test Casting
+    assert((char)          fix_32(char(25))  == char(25));
+    assert((int)           fix_32(int(1024)) == int(1024));
+    assert((long)          fix_64(long(25))  == long(25));
+    assert((unsigned long) fix_64(2500UL)    == 2500UL);
 
-    (is (= (- 0.25)    (cxx "auto x = ferret::fixed_real<32,8>(22.75);
-                             auto y = ferret::fixed_real<32,8>(22.5);
-                             __result = obj<number>((double)(y - x))")))
+    long max_int = std::numeric_limits<int>::max() + 1024L;
+    assert((long)fix_64(max_int) == ((long)std::numeric_limits<int>::max() + 1024L));
 
-    (is (= (- 0.0625)  (cxx "auto x = ferret::fixed_real<32,8>(-0.25);
-                             auto y = ferret::fixed_real<32,8>(4);
-                             __result = obj<number>((double)(x / y))")))
+    // Test Arithmetic
+    fix_32 x;
+    fix_32 y;
+    x = 10;
+    y = 0.250;
+    assert(10.25 == (double)(x + y));
 
-    (is (= 9.9375      (cxx "auto x = ferret::fixed_real<32,8>(-0.0625);
-                             auto y = ferret::fixed_real<32,8>(-10);
-                             __result = obj<number>((double)(x - y))")))
+    x = fix_32(0);
+    for(int i = 0; i < 100; i++)
+      x += fix_32(0.0625);
+    assert((double)x == 6.25);
 
-    (is (= (- 29.8125) (cxx "auto x = ferret::fixed_real<32,8>(9.9375);
-                             auto y = ferret::fixed_real<32,8>(-3);
-                             __result = obj<number>((double)(x * y))")))
+    x = fix_32(22.75);
+    y = fix_32(12.5);
+    assert((double)(x + y) == 35.25);
 
-    (is (= (- 30)      (cxx "auto x = ferret::fixed_real<32,8>(-29.8125);
-                             auto y = ferret::fixed_real<32,8>(0.1875);
-                             __result = obj<number>((double)(x - y))"))))
+    x = fix_32(22.75);
+    y = fix_32(22.5);
+    assert((double)(x - y) ==  0.25);
+    assert((double)(y - x) == -0.25);
+
+    x = fix_32(-0.25);
+    y = fix_32(4);
+    assert((double)(x / y) ==  -0.0625);
+
+    x = fix_32(-0.0625);
+    y = fix_32(-10);
+    assert((double)(x - y) ==  9.9375);
+
+    x = fix_32(9.9375);
+    y = fix_32(-3);
+    assert((double)(x * y) ==  -29.8125);
+
+    x = fix_32(-29.8125);
+    y = fix_32(0.1875);
+    assert((double)(x - y) ==  -30);
+
+    return 0;
+  }
 #+end_src
 
 *** Sequence

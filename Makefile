@@ -25,7 +25,6 @@ bin/ferret : src/src/ferret/core.clj
 # tell make how to compile Ferret lisp to C++
 %.cpp: %.clj
 	bin/ferret -i $<
-	cppcheck --quiet --std=c++11 --template=gcc --enable=all --error-exitcode=1 $@ 2> "$@.cppcheck"
 
 # each compiler/framework to be tested get an extensiton. 
 # i.e all cpp files compiled with g++ will have .gcc extension
@@ -33,28 +32,37 @@ bin/ferret : src/src/ferret/core.clj
 CPPWARNINGS = -pedantic -Werror -Wall -Wextra                    \
               -Wconversion -Wpointer-arith -Wmissing-braces      \
               -Woverloaded-virtual -Wuninitialized -Winit-self
-CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread
+CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/src/ferret/
+
+define static_check
+    cppcheck --quiet --std=c++11 --template=gcc --enable=all --error-exitcode=1 $1 2> "$1.cppcheck"
+endef
 
 # only enable sanitizers when not running in docker
 test: CPPFLAGS += -fsanitize=undefined,address -fno-omit-frame-pointer
 
 %.gcc: %.cpp
 	g++ $(CPPFLAGS) -x c++ $< -o $@
+	$(call static_check,$<)
 	$@ 1 2
 
 %.clang: %.cpp
 	clang++ $(CPPFLAGS) -x c++ $< -o $@
+	$(call static_check,$<)
 	$@ 1 2
 
 %.cxx: %.cpp
 	$(CXX) $(CPPFLAGS) -x c++ $< -o $@
+	$(call static_check,$<)
 	$@ 1 2
 
 %.ino: %.cpp
 	mv $< $@
+	$(call static_check,$<)
 	arduino --verify --board arduino:avr:uno $@
 
 # list of unit tests to run againts the current build
+NATIVE_TESTS = src/test/fixed_real.cpp
 
 STD_LIB_TESTS = src/test/simple_module_main.clj         \
                 src/test/import_module_main.clj         \
@@ -67,9 +75,9 @@ EMBEDDED_TESTS = src/test/blink/blink.clj              \
 	         src/test/blink-multi/blink-multi.clj
 
 # assign tests to compilers
-CLANG_OBJS = $(STD_LIB_TESTS:.clj=.clang)
-GCC_OBJS   = $(STD_LIB_TESTS:.clj=.gcc)
-CXX_OBJS   = $(STD_LIB_TESTS:.clj=.cxx)
+CLANG_OBJS = $(NATIVE_TESTS:.cpp=.clang)   $(STD_LIB_TESTS:.clj=.clang)
+GCC_OBJS   = $(NATIVE_TESTS:.cpp=.gcc)     $(STD_LIB_TESTS:.clj=.gcc)
+CXX_OBJS   = $(NATIVE_TESTS:.cpp=.cxx)     $(STD_LIB_TESTS:.clj=.cxx)
 INO_OBJS   = $(EMBEDDED_TESTS:.clj=.ino)
 
 test: bin/ferret $(CXX_OBJS)

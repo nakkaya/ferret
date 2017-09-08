@@ -62,7 +62,8 @@ test: CPPFLAGS += -fsanitize=undefined,address -fno-omit-frame-pointer
 	arduino --verify --board arduino:avr:uno $@
 
 # list of unit tests to run againts the current build
-NATIVE_TESTS = src/test/fixed_real.cpp
+NATIVE_TESTS = src/test/fixed_real.cpp                  \
+               src/test/memory_pool.cpp
 
 STD_LIB_TESTS = src/test/simple_module_main.clj         \
                 src/test/import_module_main.clj         \

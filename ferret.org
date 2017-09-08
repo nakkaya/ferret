@@ -7436,69 +7436,56 @@ Create some dummy libs under /test/modules/,
 
 *** Memory Pool
 
-#+name: memory-pool-test
-#+begin_src clojure
-  (native-define "#define FERRET_MEMORY_POOL_SIZE 4194304") ;; 4 MB
-  (native-declare "void* ptr;")
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/test/memory_pool.cpp
+  #define FERRET_MEMORY_POOL_SIZE 4_MB
 
-  (native-declare "ferret::mem::allocator::memory_pool<size_t,14> tiny_pool;")
-  (let [next-page (fn [idx]
-                    "size_t i = number::to<size_t>(idx);
-                          __result = obj<number>((number_t)tiny_pool.next_page(i))")
-        malloc (fn [size]
-                 "size_t s = number::to<size_t>(size);;
-                       ptr = tiny_pool.allocate(sizeof(size_t) * s);
-                       __result = obj<boolean>((ptr != nullptr));")
-        free (fn [] "tiny_pool.free(ptr);")]
-    
-    (assert (= 0 (next-page 0)))
-    (assert (malloc 2))
-    (assert (= 3 (next-page 0)))
-    (assert (malloc 4))
-    (assert (= 8 (next-page 2)))
-    (free)
-    (assert (= 3 (next-page 2)))
-    (assert (false? (malloc 40)))
-    (assert (malloc 6))
-    (assert (malloc 1))
-    (assert (malloc 1))
-    (assert (false? (malloc 10))))
+  #include <cassert>
+  #include <runtime.h>
 
-  (native-declare "ferret::mem::allocator::memory_pool<size_t,256> even_pool;")
-  (let [next-page (fn [idx]
-                    "size_t i = (size_t)number::to<size_t>(idx);
-                          __result = obj<number>((number_t)even_pool.next_page(i))")
-        malloc (fn [size]
-                 "size_t s = number::to<size_t>(size);
-                       ptr = even_pool.allocate(sizeof(size_t) * s);
-                       __result = obj<boolean>((ptr != nullptr));")
-        free (fn [] "even_pool.free(ptr);")]
-    
-    (assert (= 0 (next-page 0)))
-    (assert (malloc 255))
-    (assert (= 256 (next-page 0)))
-    (free)
-    (assert (= 0 (next-page 0)))
-    (assert (false? (malloc 256)))
-    (assert (= 0 (next-page 0))))
+  int main() {
+    using namespace ferret::mem::allocator;
+    size_t item_size = sizeof(size_t);
 
-  (native-declare "ferret::mem::allocator::memory_pool<size_t,255> odd_pool;")
-  (let [next-page (fn [idx]
-                    "size_t i = number::to<size_t>(idx);
-                         __result = obj<number>((number_t)odd_pool.next_page(i))")
-        malloc (fn [size]
-                 "size_t s = number::to<size_t>(size);
-                       ptr = odd_pool.allocate(sizeof(size_t) * s);
-                       __result = obj<boolean>((ptr != nullptr));")
-        free (fn [] "odd_pool.free(ptr);")]
+    memory_pool<size_t,14> tiny_pool;
+
+    assert(0  == tiny_pool.next_page(0));
+    assert(nullptr  != tiny_pool.allocate(item_size * 2));
+    assert(3  == tiny_pool.next_page(0));
+    void* p = tiny_pool.allocate(item_size * 4);
+    assert(nullptr  != p);
+    assert(8  == tiny_pool.next_page(0));
+    tiny_pool.free(p);
+    assert(3  == tiny_pool.next_page(0));
+    assert(nullptr  == tiny_pool.allocate(item_size * 40));
+    assert(nullptr  != tiny_pool.allocate(item_size * 6));
+    assert(nullptr  != tiny_pool.allocate(item_size * 1));
+    assert(nullptr  != tiny_pool.allocate(item_size * 1));
+    assert(nullptr  == tiny_pool.allocate(item_size * 10));
+
+    memory_pool<size_t,256> even_pool;
+
+    assert(0  == even_pool.next_page(0));
+    p = even_pool.allocate(item_size * 255);
+    assert(nullptr  != p);
+    assert(256  == even_pool.next_page(0));
+    even_pool.free(p);
+    assert(0  == even_pool.next_page(0));
+    assert(nullptr  == even_pool.allocate(item_size * 256));
+    assert(0  == even_pool.next_page(0));
+
+    memory_pool<size_t,255> odd_pool;
+
+    assert(0  == odd_pool.next_page(0));
+    p = odd_pool.allocate(item_size * 254);
+    assert(nullptr  != p);
+    assert(255  == odd_pool.next_page(0));
+    odd_pool.free(p);
+    assert(0  == odd_pool.next_page(0));
+    assert(nullptr  == odd_pool.allocate(item_size * 255));
+    assert(0  == odd_pool.next_page(0));  
     
-    (assert (= 0 (next-page 0)))
-    (assert (malloc 254))
-    (assert (= 255 (next-page 0)))
-    (free)
-    (assert (= 0 (next-page 0)))
-    (assert (false? (malloc 255)))
-    (assert (= 0 (next-page 0))))
+    return 0;
+  }
 #+end_src
 
 *** Concurrency
@@ -7986,12 +7973,6 @@ Create some dummy libs under /test/modules/,
   <<ferret-unit-tests>>
 
   (run-all-tests)
-#+end_src
-
-*** memory_pool.clj
-
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/memory_pool.clj
-  <<memory-pool-test>>
 #+end_src
 
 *** module_import.clj

@@ -16,7 +16,6 @@ src/src/ferret/core.clj: ferret.org
 # run low level unit tests and generate bin/ferret
 bin/ferret : src/src/ferret/core.clj
 	mkdir -p bin/
-	cd src/ && lein test
 	cd src/ && lein uberjar
 	cat src/resources/jar-sh-header src/target/ferret.jar > bin/ferret
 	chmod +x bin/ferret
@@ -81,8 +80,10 @@ GCC_OBJS   = $(NATIVE_TESTS:.cpp=.gcc)     $(CORE_TESTS:.clj=.gcc)
 CXX_OBJS   = $(NATIVE_TESTS:.cpp=.cxx)     $(CORE_TESTS:.clj=.cxx)
 INO_OBJS   = $(EMBEDDED_TESTS:.clj=.ino)
 
-test: bin/ferret $(CXX_OBJS)
-test-release: bin/ferret $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
+test-compiler:
+	cd src/ && lein test
+test: bin/ferret test-compiler $(CXX_OBJS)
+test-release: bin/ferret test-compiler $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
 
 # rules for preparing a release
 deb:    bin/ferret

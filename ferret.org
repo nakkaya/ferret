@@ -6329,58 +6329,210 @@ Static code analysis (cppcheck) options,
  - --error-exitcode=1
 
 ** Compiler
+*** Three Shaking
 
 #+name: clojure-unit-tests
 #+begin_src clojure :tangle no
-  (deftest compiler-core
+  (deftest three-shaking
+    (is (= '((defn c [] 1)
+             (defn b [] (c))
+             (defn a [] (b))
+             (a))
+           (shake-concat '((defn no-call-a [])
+                           (defnative no-call-b [] (on "" ""))
+                           (defn c [] 1)
+                           (defn b [] (c))
+                           (defn a [] (b)))
+                         '((a)))))
+    
+    (is (= '((defn y [])
+             (let [a 1]
+               (defn b []))
+             (println (b) (y)))
+           (shake-concat '((defn x [] )
+                           (defn y [] )
+                           (let [a 1]
+                             (defn b [] )
+                             (defn c [] a)))
+                         '((println (b) (y))))))
+    
+    (is (= '((defn p-create []) (defn p-update []))
+           (take 2 (shake-concat '((defn p-create [])
+                                   (defn p-update [])
+                                   (defmacro pc [& options]
+                                     `(~'let [controller# (~'p-create)]
+                                       (~'fn [input#] (~'p-update)))))
+                                 '((pc))))))
+    
+    (is (= '(defn new-lazy-seq [f] )
+           (first (shake-concat '((defn new-lazy-seq [f] )
+                                  (defmacro lazy-seq [& body]
+                                    `(~'new-lazy-seq (~'fn [] ~@body)))
+                                  (defn range
+                                    ([high]
+                                     (range 0 high))
+                                    ([low high]
+                                     (if (< low high)
+                                       (cons low (lazy-seq
+                                                  (range (inc low) high)))))))
+                                '((range 10)))))))
+#+end_src
+
+*** Compiler
+
+#+name: clojure-unit-tests
+#+begin_src clojure :tangle no
+  (deftest compiler
     (let [program (compile '((defn one-plus-one []
                                (+ 1 1))
 
                              (while true
                                (+ 1 1))) {})]
       ;;while shoud use one-plus-one in its body
-      ;;check lambda-already-defined?
-      (is (= 2 (count (select-form program (fn [f] (= 'one_plus_one f))))))
-      ;;test shake-concat
-      (is (= '((defn c [] 1)
-               (defn b [] (c))
-               (defn a [] (b))
-               (a))
-             (shake-concat '((defn no-call-a [])
-                             (defnative no-call-b [] (on "" ""))
-                             (defn c [] 1)
-                             (defn b [] (c))
-                             (defn a [] (b)))
-                           '((a)))))
-      (is (= '((defn y [])
-               (let [a 1]
-                 (defn b []))
-               (println (b) (y)))
-             (shake-concat '((defn x [] )
-                             (defn y [] )
-                             (let [a 1]
-                               (defn b [] )
-                               (defn c [] a)))
-                           '((println (b) (y))))))
-      (is (= '((defn p-create []) (defn p-update []))
-             (take 2 (shake-concat '((defn p-create [])
-                                     (defn p-update [])
-                                     (defmacro pc [& options]
-                                       `(~'let [controller# (~'p-create)]
-                                         (~'fn [input#] (~'p-update)))))
-                                   '((pc))))))
-      (is (= '(defn new-lazy-seq [f] )
-             (first (shake-concat '((defn new-lazy-seq [f] )
-                                    (defmacro lazy-seq [& body]
-                                      `(~'new-lazy-seq (~'fn [] ~@body)))
-                                    (defn range
-                                      ([high]
-                                       (range 0 high))
-                                      ([low high]
-                                       (if (< low high)
-                                         (cons low (lazy-seq
-                                                    (range (inc low) high)))))))
-                                  '((range 10))))))))
+      ;;check lambda-defined?
+      (is (= 2 (count (select-form program (fn [f] (= 'one_plus_one f))))))))
+#+end_src
+
+*** Unit Testing
+
+#+name: clojure-unit-tests
+#+begin_src clojure :tangle no
+  (deftest testing-unit-test
+    (is (= 1 (check-form '((assert (= 2 1))))))
+    (is (= 0 (check-form '((assert (= 2 1))) {:release true})))
+    (is (= 0 (check-form '((run-all-tests)))))
+
+    (is (= 1 (check-form '((deftest some-test
+                             (is (= 2 3)))
+                           (run-all-tests)))))
+
+
+    (is (= 0 (check-form '((deftest some-test
+                             (is (= 2 2)))
+                           (run-all-tests)))))
+
+    (is (= 1 (check-form '((deftest some-test
+                             (is (= 5 (apply + (list 1 2 3)))))
+                           (run-all-tests)))))
+
+    (is (= 0 (check-form '((deftest some-test
+                             (is (= 6 (apply + (list 1 2 3)))))
+                           (run-all-tests))))))
+#+end_src
+
+** Native
+*** Fixed Point
+
+#+begin_src c++ :noweb yes :mkdirp yes :tangle src/test/fixed_real.cpp
+  #include <cassert>
+  #include <runtime.h>
+
+  int main() {
+    typedef ferret::fixed_real<32,8> fix_32;
+    typedef ferret::fixed_real<64,8> fix_64;
+    
+    // Test Casting
+    assert((char)          fix_32(char(25))  == char(25));
+    assert((int)           fix_32(int(1024)) == int(1024));
+    assert((long)          fix_64(long(25))  == long(25));
+    assert((unsigned long) fix_64(2500UL)    == 2500UL);
+
+    long max_int = std::numeric_limits<int>::max() + 1024L;
+    assert((long)fix_64(max_int) == ((long)std::numeric_limits<int>::max() + 1024L));
+
+    // Test Arithmetic
+    fix_32 x;
+    fix_32 y;
+    x = 10;
+    y = 0.250;
+    assert(10.25 == (double)(x + y));
+
+    x = fix_32(0);
+    for(int i = 0; i < 100; i++)
+      x += fix_32(0.0625);
+    assert((double)x == 6.25);
+
+    x = fix_32(22.75);
+    y = fix_32(12.5);
+    assert((double)(x + y) == 35.25);
+
+    x = fix_32(22.75);
+    y = fix_32(22.5);
+    assert((double)(x - y) ==  0.25);
+    assert((double)(y - x) == -0.25);
+
+    x = fix_32(-0.25);
+    y = fix_32(4);
+    assert((double)(x / y) ==  -0.0625);
+
+    x = fix_32(-0.0625);
+    y = fix_32(-10);
+    assert((double)(x - y) ==  9.9375);
+
+    x = fix_32(9.9375);
+    y = fix_32(-3);
+    assert((double)(x * y) ==  -29.8125);
+
+    x = fix_32(-29.8125);
+    y = fix_32(0.1875);
+    assert((double)(x - y) ==  -30);
+
+    return 0;
+  }
+#+end_src
+
+*** Memory Pool
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/test/memory_pool.cpp
+  #define FERRET_MEMORY_POOL_SIZE 4_MB
+
+  #include <cassert>
+  #include <runtime.h>
+
+  int main() {
+    using namespace ferret::mem::allocator;
+    size_t item_size = sizeof(size_t);
+
+    memory_pool<size_t,14> tiny_pool;
+
+    assert(0  == tiny_pool.next_page(0));
+    assert(nullptr  != tiny_pool.allocate(item_size * 2));
+    assert(3  == tiny_pool.next_page(0));
+    void* p = tiny_pool.allocate(item_size * 4);
+    assert(nullptr  != p);
+    assert(8  == tiny_pool.next_page(0));
+    tiny_pool.free(p);
+    assert(3  == tiny_pool.next_page(0));
+    assert(nullptr  == tiny_pool.allocate(item_size * 40));
+    assert(nullptr  != tiny_pool.allocate(item_size * 6));
+    assert(nullptr  != tiny_pool.allocate(item_size * 1));
+    assert(nullptr  != tiny_pool.allocate(item_size * 1));
+    assert(nullptr  == tiny_pool.allocate(item_size * 10));
+
+    memory_pool<size_t,256> even_pool;
+
+    assert(0  == even_pool.next_page(0));
+    p = even_pool.allocate(item_size * 255);
+    assert(nullptr  != p);
+    assert(256  == even_pool.next_page(0));
+    even_pool.free(p);
+    assert(0  == even_pool.next_page(0));
+    assert(nullptr  == even_pool.allocate(item_size * 256));
+    assert(0  == even_pool.next_page(0));
+
+    memory_pool<size_t,255> odd_pool;
+
+    assert(0  == odd_pool.next_page(0));
+    p = odd_pool.allocate(item_size * 254);
+    assert(nullptr  != p);
+    assert(255  == odd_pool.next_page(0));
+    odd_pool.free(p);
+    assert(0  == odd_pool.next_page(0));
+    assert(nullptr  == odd_pool.allocate(item_size * 255));
+    assert(0  == odd_pool.next_page(0));  
+    
+    return 0;
+  }
 #+end_src
 
 ** Core
@@ -6402,21 +6554,17 @@ Static code analysis (cppcheck) options,
         (+ (fibo (- n 1))
            (fibo (- n 2))))))
 
-  (native-declare "ferret::number_t i = 0;")
-
-  (defn inc-int []
-    "__result =  obj<number>(i++);")
-
-  (def nested-multi-call (do (fn
-                               ([]    0)
-                               ([x]   1)
-                               ([x y] 2))))
+  (def nested-multi-arity-call (do (fn
+                                     ([]    0)
+                                     ([x]   1)
+                                     ([x y] 2))))
 
   (deftest special-forms-test
-    (is (= 1                @(atom 1)))
-    (is (= 3                (#(+ 1 2))))
-    (is (= 11               ((fn [n] (+ n 1)) 10)))
-    (is (= 3               (((fn [n] (fn [n] n)) 3) 3)))
+    (is (= 1      @(atom 1)))
+    (is (= 3      (#(+ 1 2))))
+    (is (= 11     ((fn [n] (+ n 1)) 10)))
+    (is (= 3      (((fn [n] (fn [n] n)) 3) 3)))
+    
     (let [args (list "1" "2")]
       (is (= args (rest *command-line-args*))))
 
@@ -6441,14 +6589,12 @@ Static code analysis (cppcheck) options,
       (let []
         (is (= 3 (+ a b)))))
 
-    (is (= 0 (nested-multi-call)))
-    (is (= 1 (nested-multi-call 1)))
-    (is (= 2 (nested-multi-call 1 2)))
+    (is (= 0 (nested-multi-arity-call)))
+    (is (= 1 (nested-multi-arity-call 1)))
+    (is (= 2 (nested-multi-arity-call 1 2)))
     
     (is (= 10 (adder 9)))
-    (is (= 89 (fibo 10)))
-    (is (= 0 (inc-int)))
-    (is (= 1 (inc-int))))
+    (is (= 89 (fibo 10))))
 #+end_src
 
 *** Destructuring
@@ -6530,22 +6676,54 @@ Static code analysis (cppcheck) options,
       (is (= nil g))))
 #+end_src
 
+*** FFI
+
+#+name: ferret-unit-tests
+#+begin_src clojure :tangle no
+  (native-declare "ferret::number_t i = 0;")
+
+  (defn inc-int []
+    "__result =  obj<number>(i++);")
+
+  (deftest ffi-test
+    (is (= true  ((fn [a b] "__result = obj<boolean>((a == b))") (list 1 2) (list 1 2))))
+    (is (= false ((fn [a b] "__result = obj<boolean>((a != b))") (list 1 2) (list 1 2))))
+    (is (= true  ((fn [a b] "__result = obj<boolean>((a != b))") (list 1 2) 1)))
+    (is (= false ((fn [a b] "__result = obj<boolean>((a == b))") 1          (list 1 2))))
+
+    (is (= 0 (inc-int)))
+    (is (= 1 (inc-int)))
+
+    (is (=  nil   (my-find (list 5 5) (list (list 1 2)
+                                            (list 2 3)
+                                            (list 4 5)))))
+    (is (=  true  (my-find (list 1 2) (list (list 1 2)
+                                            (list 2 3)
+                                            (list 4 5)))))
+    (is (=  true  (my-find (list 4 5) (list (list 1 2)
+                                            (list 2 3)
+                                            (list 4 5)))))
+    
+    (is (= (list 1 2 3) (my-sort > (list 1 3 2))))
+    (is (= (list 3 2 1) (my-sort < (list 1 3 2)))))
+#+end_src
+
 *** Conditionals
 
 #+name: ferret-unit-tests
 #+begin_src clojure
   (deftest conditionals-test
-    (is (= 2   (if 1 2)))
-    (is (= 1   (if (zero? 0) 1 -1)))
-    (is (= -1  (if (zero? 1) 1 -1)))
-    (is (= 2   (when true 2)))
-    (is (= 2   (if nil 1 2)))
-    (is (= nil (if-let [a nil] a)))
-    (is (= 5   (if-let [a 5] a)))
-    (is (= 2   (if-let [[_ a] (list 1 2)] a)))
-    (is (= nil (when-let [a nil] a)))
-    (is (= 5   (when-let [a 5] a)))
-    (is (= 2   (when-let [[_ a] (list 1 2)] a)))
+    (is (= 2     (if 1 2)))
+    (is (= 1     (if (zero? 0) 1 -1)))
+    (is (= -1    (if (zero? 1) 1 -1)))
+    (is (= 2     (when true 2)))
+    (is (= 2     (if nil 1 2)))
+    (is (= nil   (if-let [a nil] a)))
+    (is (= 5     (if-let [a 5] a)))
+    (is (= 2     (if-let [[_ a] (list 1 2)] a)))
+    (is (= nil   (when-let [a nil] a)))
+    (is (= 5     (when-let [a 5] a)))
+    (is (= 2     (when-let [[_ a] (list 1 2)] a)))
 
     (is (= 1     (when (< 2 3) 1)))
     (is (= true  (let [a 1] (and (> a 0) (< a 10)))))
@@ -6624,66 +6802,72 @@ Static code analysis (cppcheck) options,
 
 #+name: ferret-unit-tests
 #+begin_src clojure :tangle no
+  (deftest number-test
+    (is (= 0.5       1/2))
+    (is (= 0.33333   1/3))
+    (is (= 3501      0xDAD))
+    (is (= 2748      0xABC)))
+
   (deftest math-test
-    (is (= 0.6 (+ 0.3 0.3)))
-    (is (= 0   (+ )))
-    (is (= 1   (+ 1)))
-    (is (= 10  (+ 1 2 3 4)))
-    (is (= 10  (+ 1 2.0 3 4)))
-    (is (= -1  (- 1)))
-    (is (= 0   (- 4 2 2)))
-    (is (= 0   (- 4 2 2.0)))
-    (is (= 1   (* )))
-    (is (= 8   (* 2 2 2)))
-    (is (= 8   (* 2.0 2 2)))
-    (is (= 1   (/ 1)))
-    (is (= 0.5 (/ 2)))
-    (is (= 1   (/ 4 2 2)))
-    (is (= 1   (/ 4 2 2.0)))
+    (is (= 0.6        (+ 0.3 0.3)))
+    (is (= 0          (+ )))
+    (is (= 1          (+ 1)))
+    (is (= 10         (+ 1 2 3 4)))
+    (is (= 10         (+ 1 2.0 3 4)))
+    (is (= -1         (- 1)))
+    (is (= 0          (- 4 2 2)))
+    (is (= 0          (- 4 2 2.0)))
+    (is (= 1          (* )))
+    (is (= 8          (* 2 2 2)))
+    (is (= 8          (* 2.0 2 2)))
+    (is (= 1          (/ 1)))
+    (is (= 0.5        (/ 2)))
+    (is (= 1          (/ 4 2 2)))
+    (is (= 1          (/ 4 2 2.0)))
     
-    (is (= 1         (floor 1.1)))
-    (is (= 1         (floor 1.5)))
-    (is (= 1         (floor 1.9)))
-    (is (= 0         (mod 2 2)))
-    (is (= 0         (mod 4 2)))
-    (is (= 1         (mod 5 2)))
-    (is (= 1         (mod 8 7)))
-    (is (= 1         (min 1)))
-    (is (= 1         (min 2 1)))
-    (is (= 1         (min 3 5 7 1)))
-    (is (= 1         (max 1)))
-    (is (= 2         (max 2 1)))
-    (is (= 7         (max 3 5 7 1)))
+    (is (= 1          (floor 1.1)))
+    (is (= 1          (floor 1.5)))
+    (is (= 1          (floor 1.9)))
+    (is (= 0          (mod 2 2)))
+    (is (= 0          (mod 4 2)))
+    (is (= 1          (mod 5 2)))
+    (is (= 1          (mod 8 7)))
+    (is (= 1          (min 1)))
+    (is (= 1          (min 2 1)))
+    (is (= 1          (min 3 5 7 1)))
+    (is (= 1          (max 1)))
+    (is (= 2          (max 2 1)))
+    (is (= 7          (max 3 5 7 1)))
     
-    (is (= 100 (scale 10 0 10 0 100)))
-    (is (= 50  (scale 5 0 10 0 100)))
-    (is (= 0   (scale 0 0 10 0 100)))
-    (is (= 5   (clamp 10 0 5)))
-    (is (= 10  (clamp 10 0 20)))
-    (is (= 0   (clamp 10 -10 0)))
-    (is (= -10 (clamp -100 -10 0)))
+    (is (= 100        (scale 10 0 10 0 100)))
+    (is (= 50         (scale 5 0 10 0 100)))
+    (is (= 0          (scale 0 0 10 0 100)))
+    (is (= 5          (clamp 10 0 5)))
+    (is (= 10         (clamp 10 0 20)))
+    (is (= 0          (clamp 10 -10 0)))
+    (is (= -10        (clamp -100 -10 0)))
 
-    (is (= 0     (number-combine (number-split 0))))
-    (is (= 512   (number-combine (number-split 512))))
-    (is (= 1024  (number-combine (number-split 1024))))
-    (is (= 2048  (number-combine (number-split 2048))))
-    (is (= 32000 (number-combine (number-split 32000))))
+    (is (= 0          (number-combine (number-split 0))))
+    (is (= 512        (number-combine (number-split 512))))
+    (is (= 1024       (number-combine (number-split 1024))))
+    (is (= 2048       (number-combine (number-split 2048))))
+    (is (= 32000      (number-combine (number-split 32000))))
 
-    (is (= true (not (nil? (rand)))))
-    (is (= true (not (nil? (rand 15)))))
+    (is (= true       (not (nil? (rand)))))
+    (is (= true       (not (nil? (rand 15)))))
 
-    (is (= -5 (bit-not  4)))
-    (is (= -1 (bit-not  0)))
-    (is (= 7  (bit-or   4 3)))
-    (is (= 1  (bit-or   0 1)))
-    (is (= 0  (bit-and  4 3)))
-    (is (= 0  (bit-and  0 1)))
-    (is (= 0  (bit-xor  4 4)))
-    (is (= 1  (bit-xor  1 0)))
-    (is (= 8  (bit-shift-left 4 1)))
-    (is (= 16 (bit-shift-left 4 2)))
-    (is (= 2  (bit-shift-right 4 1)))
-    (is (= 1  (bit-shift-right 4 2)))
+    (is (= -5         (bit-not  4)))
+    (is (= -1         (bit-not  0)))
+    (is (= 7          (bit-or   4 3)))
+    (is (= 1          (bit-or   0 1)))
+    (is (= 0          (bit-and  4 3)))
+    (is (= 0          (bit-and  0 1)))
+    (is (= 0          (bit-xor  4 4)))
+    (is (= 1          (bit-xor  1 0)))
+    (is (= 8          (bit-shift-left 4 1)))
+    (is (= 16         (bit-shift-left 4 2)))
+    (is (= 2          (bit-shift-right 4 1)))
+    (is (= 1          (bit-shift-right 4 2)))
 
     (is (= 32         (sqrt 1024)))
     (is (= 2          (sqrt 4)))
@@ -6718,246 +6902,6 @@ Static code analysis (cppcheck) options,
       (- b a)
       (is (= 1 a))
       (is (= 2 b))))
-#+end_src
-
-*** Control
-
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
-  (deftest pid-controller-test
-    (let [controller (pid-controller :kp 1
-                                     :ki 0
-                                     :kd 0
-                                     :set-point 5
-                                     :bounds [0 10 0 10]
-                                     :continuous false)]
-
-      (is (= 5 (controller 0)))
-      (is (= 5 (controller 0))))
-
-    (let [controller (pid-controller :kp 1
-                                     :ki 1
-                                     :kd 0
-                                     :set-point 5
-                                     :bounds [0 10 0 20]
-                                     :continuous false)]
-
-      (is (= 10 (controller 0)))
-      (is (= 15 (controller 0)))
-      (is (= 20 (controller 0)))
-      (is (= 20 (controller 0))))
-
-    (let [controller (pid-controller :kp 1
-                                     :ki 0
-                                     :kd 1
-                                     :set-point 5
-                                     :bounds [0 10 0 20]
-                                     :continuous false)]
-
-      (is (= 10 (controller 0)))
-      (is (= 5 (controller 0))))
-
-    (let [sp-fn (fn [] 5)
-          controller (pid-controller :kp 1
-                                     :ki 0
-                                     :kd 1
-                                     :set-point sp-fn
-                                     :bounds [0 10 0 20]
-                                     :continuous false)]
-
-      (is (= 10 (controller 0)))
-      (is (= 5 (controller 0)))))
-
-  (deftest state-machine-test
-    (let [state (atom 0)
-          machine (state-machine
-                   (states
-                    (off (swap! state inc) :off)
-                    (on  (swap! state inc) :on))
-                   (transitions
-                    (off (fn [] true) on)
-                    (on  (fn [] true) off)))]
-      
-      (is (= :off (machine)))
-      (is (= :on  (machine)))
-      
-      (dotimes [_ 8]
-        (machine))
-      
-      (is (= 10 (deref state))))
-
-    (let [state (atom 0)
-          machine (state-machine
-                   (states
-                    (a (swap! state inc))
-                    (b (swap! state inc))
-                    (c (swap! state inc))
-                    (no-op (swap! state inc)))
-                   (transitions
-                    (a
-                     (fn [] false) no-op
-                     (fn [] true)  b)
-                    (b
-                     (fn [] true)  c)
-                    (c
-                     (fn [] false) no-op
-                     (fn [] false) no-op
-                     (fn [] true)  a
-                     (fn [] false) no-op)))]
-      (dotimes [_ 10]
-        (machine))
-      (is (= 10 (deref state))))
-
-    (let [state (atom nil)
-          machine (state-machine
-                   (states
-                    (a (swap! state conj 1))
-                    (b (swap! state conj 2))
-                    (c (swap! state conj 3))
-                    (no-op ))
-                   (transitions
-                    (a
-                     (fn [] true) b
-                     (fn [] true) c
-                     (fn [] true) no-op)
-                    (b (fn [] true) no-op)
-                    (c (fn [] true) no-op)
-                    (no-op (fn [] true) no-op)))]
-      (dotimes [_ 50]
-        (machine))
-      (is (= (list 2 1) (deref state))))
-
-    (let [value (atom 0)
-          machine (state-machine 
-                   (states
-                    (increment (swap! value inc))
-                    (no-op ))
-                   (transitions
-                    (increment
-                     (fn [] true) increment
-                     (fn [] true) no-op)
-                    (no-op
-                     (fn [] true) no-op)))]
-      (machine)
-      (machine)
-      (is (= 2 (deref value)))))
-#+end_src
-
-*** Timing
-
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
-  (deftest timing-test
-    (let [now (millis)]
-      (sleep 150)
-      (is (>= (- (millis) now) 100)))
-    (is (>= (time-fn (fn [] (sleep 150) (+ 1 1))) 100))
-    (is (>= (benchmark (fn [] (sleep 20) (+ 1 1)) 10) 10)))
-
-  (defn ping [] true)
-
-  (deftest fn-throttler-test
-    (let [throttled-ping (fn-throttler ping 1 :second :blocking)
-          begin (millis)]
-      (throttled-ping)
-      (throttled-ping)
-      (throttled-ping)
-      (is (> (- (millis) begin) 2000))
-      (is (throttled-ping)))
-
-
-    (let [throttled-ping (fn-throttler ping 1 :second :non-blocking)
-          begin (millis)]
-      (throttled-ping)
-      (throttled-ping)
-      (throttled-ping)
-      (is (nil? (throttled-ping)))
-      (is (< (- (millis) begin) 1000))))
-#+end_src
-
-*** XOR Stream
-
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
-  (def xor-stream-state (atom nil))
-
-  (defn xor-sample-read-stream [buf]
-    (let [buffer (atom buf)]
-      (list
-       (fn []
-         (let [f (first (deref buffer))]
-           (swap! buffer rest)
-           f))
-       (fn []
-         (count (deref buffer)))
-       (fn [vals]
-         (reset! xor-stream-state vals)))))
-
-  (defn xor-sample-write-stream []
-    (let [buffer (atom (list))]
-      (list
-       (fn [v]
-         (swap! buffer conj v))
-       (fn []
-         (reverse (deref buffer))))))
-
-  (deftest xor-stream-test
-    (let [[writer get-buffer] (xor-sample-write-stream)
-          encoder (xor-stream-encoder writer)
-          data (list (list 1 2 3 4)
-                     (list 5 6 7 8))]
-      (doseq [d data] 
-        (encoder d))
-
-      (let [[read in-waiting handler] (xor-sample-read-stream (get-buffer))
-            decoder (xor-stream-decoder read in-waiting handler)]
-        (dotimes [i 4]
-          (decoder))
-        (is (= (list 1 2 3 4) @xor-stream-state))
-        (dotimes [i 4]
-          (decoder))
-        (is (= (list 5 6 7 8) @xor-stream-state)))))
- #+end_src
- 
-*** Misc
-
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
-  (deftest doto-test
-    (let [st (atom )
-          add (fn [s v]
-                (swap! s conj v))]
-      (doto st
-        (add 1)
-        (add 2)
-        (add 3))
-      (is (= (list 3 2 1) @st))))
-#+end_src
-
-*** FFI
-
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
-  (deftest ffi-test
-    (is (= true  ((fn [a b] "__result = obj<boolean>((a == b))") (list 1 2) (list 1 2))))
-    (is (= false ((fn [a b] "__result = obj<boolean>((a != b))") (list 1 2) (list 1 2))))
-    (is (= true  ((fn [a b] "__result = obj<boolean>((a != b))") (list 1 2) 1)))
-    (is (= false ((fn [a b] "__result = obj<boolean>((a == b))") 1          (list 1 2))))
-
-
-
-    (is (=  nil   (my-find (list 5 5) (list (list 1 2)
-                                            (list 2 3)
-                                            (list 4 5)))))
-    (is (=  true  (my-find (list 1 2) (list (list 1 2)
-                                            (list 2 3)
-                                            (list 4 5)))))
-    (is (=  true  (my-find (list 4 5) (list (list 1 2)
-                                            (list 2 3)
-                                            (list 4 5)))))
-    
-    (is (= (list 1 2 3) (my-sort > (list 1 3 2))))
-    (is (= (list 3 2 1) (my-sort < (list 1 3 2)))))
 #+end_src
 
 *** Module System
@@ -7078,103 +7022,6 @@ Create some dummy libs under /test/modules/,
 #+begin_src clojure :mkdirp yes :tangle src/test/modules/module-e.clj
   (defn foo [] 1)
 #+end_src 
-
-*** Testing
-
-#+name: clojure-unit-tests
-#+begin_src clojure :tangle no
-  (deftest testing-unit-test
-    (is (= 1 (check-form '((assert (= 2 1))))))
-    (is (= 0 (check-form '((assert (= 2 1))) {:release true})))
-    (is (= 0 (check-form '((run-all-tests)))))
-
-    (is (= 1 (check-form '((deftest some-test
-                             (is (= 2 3)))
-                           (run-all-tests)))))
-
-
-    (is (= 0 (check-form '((deftest some-test
-                             (is (= 2 2)))
-                           (run-all-tests)))))
-
-    (is (= 1 (check-form '((deftest some-test
-                             (is (= 5 (apply + (list 1 2 3)))))
-                           (run-all-tests)))))
-
-    (is (= 0 (check-form '((deftest some-test
-                             (is (= 6 (apply + (list 1 2 3)))))
-                           (run-all-tests))))))
-#+end_src
-
-** Data Structures
-*** Number
-
-#+name: ferret-unit-tests
-#+begin_src clojure
-  (deftest number-test
-    (is (= 0.5       1/2))
-    (is (= 0.33333   1/3))
-    (is (= 3501      0xDAD))
-    (is (= 2748      0xABC)))
-#+end_src
-
-#+begin_src c++ :noweb yes :mkdirp yes :tangle src/test/fixed_real.cpp
-  #include <cassert>
-  #include <runtime.h>
-
-  int main() {
-    typedef ferret::fixed_real<32,8> fix_32;
-    typedef ferret::fixed_real<64,8> fix_64;
-    
-    // Test Casting
-    assert((char)          fix_32(char(25))  == char(25));
-    assert((int)           fix_32(int(1024)) == int(1024));
-    assert((long)          fix_64(long(25))  == long(25));
-    assert((unsigned long) fix_64(2500UL)    == 2500UL);
-
-    long max_int = std::numeric_limits<int>::max() + 1024L;
-    assert((long)fix_64(max_int) == ((long)std::numeric_limits<int>::max() + 1024L));
-
-    // Test Arithmetic
-    fix_32 x;
-    fix_32 y;
-    x = 10;
-    y = 0.250;
-    assert(10.25 == (double)(x + y));
-
-    x = fix_32(0);
-    for(int i = 0; i < 100; i++)
-      x += fix_32(0.0625);
-    assert((double)x == 6.25);
-
-    x = fix_32(22.75);
-    y = fix_32(12.5);
-    assert((double)(x + y) == 35.25);
-
-    x = fix_32(22.75);
-    y = fix_32(22.5);
-    assert((double)(x - y) ==  0.25);
-    assert((double)(y - x) == -0.25);
-
-    x = fix_32(-0.25);
-    y = fix_32(4);
-    assert((double)(x / y) ==  -0.0625);
-
-    x = fix_32(-0.0625);
-    y = fix_32(-10);
-    assert((double)(x - y) ==  9.9375);
-
-    x = fix_32(9.9375);
-    y = fix_32(-3);
-    assert((double)(x * y) ==  -29.8125);
-
-    x = fix_32(-29.8125);
-    y = fix_32(0.1875);
-    assert((double)(x - y) ==  -30);
-
-    return 0;
-  }
-#+end_src
 
 *** Sequence
 
@@ -7440,60 +7287,6 @@ Create some dummy libs under /test/modules/,
       (is (= s1 (rest (cons 65 s1))))))
 #+end_src
 
-*** Memory Pool
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/test/memory_pool.cpp
-  #define FERRET_MEMORY_POOL_SIZE 4_MB
-
-  #include <cassert>
-  #include <runtime.h>
-
-  int main() {
-    using namespace ferret::mem::allocator;
-    size_t item_size = sizeof(size_t);
-
-    memory_pool<size_t,14> tiny_pool;
-
-    assert(0  == tiny_pool.next_page(0));
-    assert(nullptr  != tiny_pool.allocate(item_size * 2));
-    assert(3  == tiny_pool.next_page(0));
-    void* p = tiny_pool.allocate(item_size * 4);
-    assert(nullptr  != p);
-    assert(8  == tiny_pool.next_page(0));
-    tiny_pool.free(p);
-    assert(3  == tiny_pool.next_page(0));
-    assert(nullptr  == tiny_pool.allocate(item_size * 40));
-    assert(nullptr  != tiny_pool.allocate(item_size * 6));
-    assert(nullptr  != tiny_pool.allocate(item_size * 1));
-    assert(nullptr  != tiny_pool.allocate(item_size * 1));
-    assert(nullptr  == tiny_pool.allocate(item_size * 10));
-
-    memory_pool<size_t,256> even_pool;
-
-    assert(0  == even_pool.next_page(0));
-    p = even_pool.allocate(item_size * 255);
-    assert(nullptr  != p);
-    assert(256  == even_pool.next_page(0));
-    even_pool.free(p);
-    assert(0  == even_pool.next_page(0));
-    assert(nullptr  == even_pool.allocate(item_size * 256));
-    assert(0  == even_pool.next_page(0));
-
-    memory_pool<size_t,255> odd_pool;
-
-    assert(0  == odd_pool.next_page(0));
-    p = odd_pool.allocate(item_size * 254);
-    assert(nullptr  != p);
-    assert(255  == odd_pool.next_page(0));
-    odd_pool.free(p);
-    assert(0  == odd_pool.next_page(0));
-    assert(nullptr  == odd_pool.allocate(item_size * 255));
-    assert(0  == odd_pool.next_page(0));  
-    
-    return 0;
-  }
-#+end_src
-
 *** Concurrency
 
 #+name: ferret-unit-tests
@@ -7513,6 +7306,220 @@ Create some dummy libs under /test/modules/,
       (is (= 2       @d))
       (is (= 2       @d))
       (is (= 42      (force (delay 42))))))    
+#+end_src
+
+*** Control
+
+#+name: ferret-unit-tests
+#+begin_src clojure :tangle no
+  (deftest pid-controller-test
+    (let [controller (pid-controller :kp 1
+                                     :ki 0
+                                     :kd 0
+                                     :set-point 5
+                                     :bounds [0 10 0 10]
+                                     :continuous false)]
+
+      (is (= 5 (controller 0)))
+      (is (= 5 (controller 0))))
+
+    (let [controller (pid-controller :kp 1
+                                     :ki 1
+                                     :kd 0
+                                     :set-point 5
+                                     :bounds [0 10 0 20]
+                                     :continuous false)]
+
+      (is (= 10 (controller 0)))
+      (is (= 15 (controller 0)))
+      (is (= 20 (controller 0)))
+      (is (= 20 (controller 0))))
+
+    (let [controller (pid-controller :kp 1
+                                     :ki 0
+                                     :kd 1
+                                     :set-point 5
+                                     :bounds [0 10 0 20]
+                                     :continuous false)]
+
+      (is (= 10 (controller 0)))
+      (is (= 5 (controller 0))))
+
+    (let [sp-fn (fn [] 5)
+          controller (pid-controller :kp 1
+                                     :ki 0
+                                     :kd 1
+                                     :set-point sp-fn
+                                     :bounds [0 10 0 20]
+                                     :continuous false)]
+
+      (is (= 10 (controller 0)))
+      (is (= 5 (controller 0)))))
+
+  (deftest state-machine-test
+    (let [state (atom 0)
+          machine (state-machine
+                   (states
+                    (off (swap! state inc) :off)
+                    (on  (swap! state inc) :on))
+                   (transitions
+                    (off (fn [] true) on)
+                    (on  (fn [] true) off)))]
+      
+      (is (= :off (machine)))
+      (is (= :on  (machine)))
+      
+      (dotimes [_ 8]
+        (machine))
+      
+      (is (= 10 (deref state))))
+
+    (let [state (atom 0)
+          machine (state-machine
+                   (states
+                    (a (swap! state inc))
+                    (b (swap! state inc))
+                    (c (swap! state inc))
+                    (no-op (swap! state inc)))
+                   (transitions
+                    (a
+                     (fn [] false) no-op
+                     (fn [] true)  b)
+                    (b
+                     (fn [] true)  c)
+                    (c
+                     (fn [] false) no-op
+                     (fn [] false) no-op
+                     (fn [] true)  a
+                     (fn [] false) no-op)))]
+      (dotimes [_ 10]
+        (machine))
+      (is (= 10 (deref state))))
+
+    (let [state (atom nil)
+          machine (state-machine
+                   (states
+                    (a (swap! state conj 1))
+                    (b (swap! state conj 2))
+                    (c (swap! state conj 3))
+                    (no-op ))
+                   (transitions
+                    (a
+                     (fn [] true) b
+                     (fn [] true) c
+                     (fn [] true) no-op)
+                    (b (fn [] true) no-op)
+                    (c (fn [] true) no-op)
+                    (no-op (fn [] true) no-op)))]
+      (dotimes [_ 50]
+        (machine))
+      (is (= (list 2 1) (deref state))))
+
+    (let [value (atom 0)
+          machine (state-machine 
+                   (states
+                    (increment (swap! value inc))
+                    (no-op ))
+                   (transitions
+                    (increment
+                     (fn [] true) increment
+                     (fn [] true) no-op)
+                    (no-op
+                     (fn [] true) no-op)))]
+      (machine)
+      (machine)
+      (is (= 2 (deref value)))))
+#+end_src
+
+*** Timing
+
+#+name: ferret-unit-tests
+#+begin_src clojure :tangle no
+  (deftest timing-test
+    (let [now (millis)]
+      (sleep 150)
+      (is (>= (- (millis) now) 100)))
+    (is (>= (time-fn (fn [] (sleep 150) (+ 1 1))) 100))
+    (is (>= (benchmark (fn [] (sleep 20) (+ 1 1)) 10) 10)))
+
+  (defn ping [] true)
+
+  (deftest fn-throttler-test
+    (let [throttled-ping (fn-throttler ping 1 :second :blocking)
+          begin (millis)]
+      (throttled-ping)
+      (throttled-ping)
+      (throttled-ping)
+      (is (> (- (millis) begin) 2000))
+      (is (throttled-ping)))
+
+
+    (let [throttled-ping (fn-throttler ping 1 :second :non-blocking)
+          begin (millis)]
+      (throttled-ping)
+      (throttled-ping)
+      (throttled-ping)
+      (is (nil? (throttled-ping)))
+      (is (< (- (millis) begin) 1000))))
+#+end_src
+
+*** XOR Stream
+
+#+name: ferret-unit-tests
+#+begin_src clojure :tangle no
+  (def xor-stream-state (atom nil))
+
+  (defn xor-sample-read-stream [buf]
+    (let [buffer (atom buf)]
+      (list
+       (fn []
+         (let [f (first (deref buffer))]
+           (swap! buffer rest)
+           f))
+       (fn []
+         (count (deref buffer)))
+       (fn [vals]
+         (reset! xor-stream-state vals)))))
+
+  (defn xor-sample-write-stream []
+    (let [buffer (atom (list))]
+      (list
+       (fn [v]
+         (swap! buffer conj v))
+       (fn []
+         (reverse (deref buffer))))))
+
+  (deftest xor-stream-test
+    (let [[writer get-buffer] (xor-sample-write-stream)
+          encoder (xor-stream-encoder writer)
+          data (list (list 1 2 3 4)
+                     (list 5 6 7 8))]
+      (doseq [d data] 
+        (encoder d))
+
+      (let [[read in-waiting handler] (xor-sample-read-stream (get-buffer))
+            decoder (xor-stream-decoder read in-waiting handler)]
+        (dotimes [i 4]
+          (decoder))
+        (is (= (list 1 2 3 4) @xor-stream-state))
+        (dotimes [i 4]
+          (decoder))
+        (is (= (list 5 6 7 8) @xor-stream-state)))))
+ #+end_src
+ 
+*** Misc
+
+#+name: ferret-unit-tests
+#+begin_src clojure :tangle no
+  (deftest doto-test
+    (let [st (atom )
+          add (fn [s v]
+                (swap! s conj v))]
+      (doto st
+        (add 1)
+        (add 2)
+        (add 3))
+      (is (= (list 3 2 1) @st))))
 #+end_src
 
 * Roadmap

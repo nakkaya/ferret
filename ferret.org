@@ -6297,7 +6297,13 @@ tests, those that target the workings of the compiler are easier to do
 using /clojure.test/ framework by compiling forms using Ferret then
 comparing the their runtime output to their expected output. All
 generated code is statically checked using /cppcheck/ and tested
-against memory leaks.
+against memory leaks and undefined behavior.
+
+Tests are grouped into 4 categories. *Compiler tests* test the inner
+workings of the compiler, *native tests* tests the inner workings of
+the Ferret lisp runtime, *core tests* tests the behavior of complete
+Ferret programs and finally *embedded tests* are used to verify
+code compiles on various embedded systems.
 
 Build options,
 

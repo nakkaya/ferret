@@ -65,20 +65,20 @@ test: CPPFLAGS += -fsanitize=undefined,address -fno-omit-frame-pointer
 NATIVE_TESTS = src/test/fixed_real.cpp                  \
                src/test/memory_pool.cpp
 
-STD_LIB_TESTS = src/test/simple_module_main.clj         \
-                src/test/import_module_main.clj         \
-                src/test/import_module_empty_aux_a.clj  \
-                src/test/import_module_empty_aux_b.clj  \
-                src/test/memory_pool.clj                \
-                src/test/runtime_all.clj
+CORE_TESTS = src/test/simple_module_main.clj         \
+             src/test/import_module_main.clj         \
+             src/test/import_module_empty_aux_a.clj  \
+             src/test/import_module_empty_aux_b.clj  \
+             src/test/memory_pool.clj                \
+             src/test/runtime_all.clj
 
 EMBEDDED_TESTS = src/test/blink/blink.clj              \
 	         src/test/blink-multi/blink-multi.clj
 
 # assign tests to compilers
-CLANG_OBJS = $(NATIVE_TESTS:.cpp=.clang)   $(STD_LIB_TESTS:.clj=.clang)
-GCC_OBJS   = $(NATIVE_TESTS:.cpp=.gcc)     $(STD_LIB_TESTS:.clj=.gcc)
-CXX_OBJS   = $(NATIVE_TESTS:.cpp=.cxx)     $(STD_LIB_TESTS:.clj=.cxx)
+CLANG_OBJS = $(NATIVE_TESTS:.cpp=.clang)   $(CORE_TESTS:.clj=.clang)
+GCC_OBJS   = $(NATIVE_TESTS:.cpp=.gcc)     $(CORE_TESTS:.clj=.gcc)
+CXX_OBJS   = $(NATIVE_TESTS:.cpp=.cxx)     $(CORE_TESTS:.clj=.cxx)
 INO_OBJS   = $(EMBEDDED_TESTS:.clj=.ino)
 
 test: bin/ferret $(CXX_OBJS)

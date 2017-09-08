@@ -6908,8 +6908,7 @@ Static code analysis (cppcheck) options,
 
 Run import tests. 
 
-#+name: import-module-test
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/module.clj
   (require '[modules.module-a :as mod-a]
            '[modules.module-b :as mod-b])
 
@@ -6946,11 +6945,20 @@ Run import tests.
 
 Create some dummy programs under /test/,
 
-#+begin_src clojure :mkdirp yes :tangle src/test/import_module_empty_aux_a.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/module_unit_test.clj
+  (require 'modules.module-e)
+
+  (deftest simple-module-test
+    (is (= 1  (modules.module-e/foo))))
+
+  (run-all-tests)
+#+end_src
+
+#+begin_src clojure :mkdirp yes :tangle src/test/module_import_empty_aux_a.clj
   (require '[modules.module-a :as mod-a])
 #+end_src 
 
-#+begin_src clojure :mkdirp yes :tangle src/test/import_module_empty_aux_b.clj
+#+begin_src clojure :mkdirp yes :tangle src/test/module_import_empty_aux_b.clj
   (require '[modules.module-a :as mod-a])
   (require '[modules.module-b :as mod-b])
 
@@ -7978,29 +7986,12 @@ Create some dummy libs under /test/modules/,
   <<clojure-unit-tests>>
 #+end_src 
 
-*** runtime_all.clj
+*** core.clj
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/runtime_all.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core.clj
   <<value-test-helpers>>
   <<ffi-test-helper>>
   <<ferret-unit-tests>>
-
-  (run-all-tests)
-#+end_src
-
-*** module_import.clj
-
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/import_module_main.clj
-  <<import-module-test>>
-#+end_src
-
-*** simple_module_main.clj
-
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/simple_module_main.clj
-  (require 'modules.module-e)
-
-  (deftest simple-module-test
-    (is (= 1  (modules.module-e/foo))))
 
   (run-all-tests)
 #+end_src

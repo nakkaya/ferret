@@ -64,12 +64,11 @@ test: CPPFLAGS += -fsanitize=undefined,address -fno-omit-frame-pointer
 NATIVE_TESTS = src/test/fixed_real.cpp                  \
                src/test/memory_pool.cpp
 
-CORE_TESTS = src/test/simple_module_main.clj         \
-             src/test/import_module_main.clj         \
-             src/test/import_module_empty_aux_a.clj  \
-             src/test/import_module_empty_aux_b.clj  \
-             src/test/memory_pool.clj                \
-             src/test/runtime_all.clj
+CORE_TESTS = src/test/module.clj                     \
+	     src/test/module_unit_test.clj           \
+             src/test/module_import_empty_aux_a.clj  \
+             src/test/module_import_empty_aux_b.clj  \
+             src/test/core.clj
 
 EMBEDDED_TESTS = src/test/blink/blink.clj              \
 	         src/test/blink-multi/blink-multi.clj

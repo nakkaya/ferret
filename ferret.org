@@ -7964,10 +7964,10 @@ Create some dummy libs under /test/modules/,
 #+end_src 
 
 ** test/
-*** compiler.clj
+*** compiler/ferret.clj
 
-#+begin_src clojure :noweb yes :mkdirp yes :tangle src/test/compiler/core.clj
-  (ns core
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/test/compiler/ferret.clj
+  (ns ferret
     (:refer-clojure :exclude [compile])
     (:use [ferret.core] :reload)
     (:use [clojure.test]
@@ -7987,7 +7987,7 @@ Create some dummy libs under /test/modules/,
   <<clojure-unit-tests>>
 #+end_src 
 
-*** core.clj
+*** core/core.clj
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core/core.clj
   <<value-test-helpers>>

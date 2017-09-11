@@ -110,7 +110,7 @@ variable on the resulting *cpp* file.
 Following shows a blink example for Arduino. (See section [[Arduino
 Boards]] for more info on how to use Ferret lisp on Arduino boards.) 
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/blink/blink.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/embedded/blink/blink.clj
   ;;; blink.clj
   (pin-mode 13 :output)
 
@@ -131,7 +131,7 @@ different frequencies (Yellow LED at 5 hz Blue LED at 20 hz). It uses
 a memory pool of 512 bytes allocated at compile time instead of
 calling malloc/free at runtime.
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/blink-multi/blink-multi.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/embedded/blink-multi/blink-multi.clj
   (configure-runtime! FERRET_MEMORY_POOL_SIZE 512
                       FERRET_MEMORY_POOL_PAGE_TYPE char)
 
@@ -6423,7 +6423,7 @@ Static code analysis (cppcheck) options,
 ** Native
 *** Fixed Point
 
-#+begin_src c++ :noweb yes :mkdirp yes :tangle src/test/fixed_real.cpp
+#+begin_src c++ :noweb yes :mkdirp yes :tangle src/test/native/fixed_real.cpp
   #include <cassert>
   #include <runtime.h>
 
@@ -6483,7 +6483,7 @@ Static code analysis (cppcheck) options,
 
 *** Memory Pool
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/test/memory_pool.cpp
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/test/native/memory_pool.cpp
   #define FERRET_MEMORY_POOL_SIZE 4_MB
 
   #include <cassert>
@@ -6908,7 +6908,7 @@ Static code analysis (cppcheck) options,
 
 Run import tests. 
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/module.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core/module.clj
   (require '[modules.module-a :as mod-a]
            '[modules.module-b :as mod-b])
 
@@ -6945,7 +6945,7 @@ Run import tests.
 
 Create some dummy programs under /test/,
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/module_unit_test.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core/module_unit_test.clj
   (require 'modules.module-e)
 
   (deftest simple-module-test
@@ -6954,11 +6954,11 @@ Create some dummy programs under /test/,
   (run-all-tests)
 #+end_src
 
-#+begin_src clojure :mkdirp yes :tangle src/test/module_import_empty_aux_a.clj
+#+begin_src clojure :mkdirp yes :tangle src/test/core/module_import_empty_aux_a.clj
   (require '[modules.module-a :as mod-a])
 #+end_src 
 
-#+begin_src clojure :mkdirp yes :tangle src/test/module_import_empty_aux_b.clj
+#+begin_src clojure :mkdirp yes :tangle src/test/core/module_import_empty_aux_b.clj
   (require '[modules.module-a :as mod-a])
   (require '[modules.module-b :as mod-b])
 
@@ -6968,7 +6968,7 @@ Create some dummy programs under /test/,
 
 Create some dummy libs under /test/modules/,
 
-#+begin_src clojure :mkdirp yes :tangle src/test/modules/module-a.clj
+#+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-a.clj
   (configure-runtime! FERRET_PROGRAM_MAIN "ferret::program_no_exec()")
 
   (defn helper-a [] 10)
@@ -6991,7 +6991,7 @@ Create some dummy libs under /test/modules/,
   (defn some-d-list [] {:a :b :c :d})
 #+end_src 
 
-#+begin_src clojure :mkdirp yes :tangle src/test/modules/module-b.clj
+#+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-b.clj
   (require '[modules.module-c :as mod-c])
 
   (defn helper-b []
@@ -7013,7 +7013,7 @@ Create some dummy libs under /test/modules/,
     `(~'do (~'macro-aux)))
 #+end_src 
 
-#+begin_src clojure :mkdirp yes :tangle src/test/modules/module-c.clj
+#+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-c.clj
   (native-header "cmath")
 
   (defn helper-c []
@@ -7023,11 +7023,11 @@ Create some dummy libs under /test/modules/,
     `(~'fn [] 11))
 #+end_src 
 
-#+begin_src clojure :mkdirp yes :tangle src/test/modules/module-d.clj
+#+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-d.clj
   (native-declare "int dummy_native_fn(){ return 25; }")
 #+end_src 
 
-#+begin_src clojure :mkdirp yes :tangle src/test/modules/module-e.clj
+#+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-e.clj
   (defn foo [] 1)
 #+end_src 
 
@@ -7749,6 +7749,7 @@ Create some dummy libs under /test/modules/,
                    :port 7888
                    :init-ns ferret.core}
 
+    :test-paths ["test/compiler/"]
     :filespecs [{:type :bytes :path "build.info"
                  :bytes ~(:out (clojure.java.shell/sh
                                 "git" "rev-parse" "--short" "HEAD"))}]
@@ -7965,8 +7966,8 @@ Create some dummy libs under /test/modules/,
 ** test/
 *** compiler.clj
 
-#+begin_src clojure :noweb yes :mkdirp yes :tangle src/test/compiler.clj
-  (ns compiler
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/test/compiler/core.clj
+  (ns core
     (:refer-clojure :exclude [compile])
     (:use [ferret.core] :reload)
     (:use [clojure.test]
@@ -7988,7 +7989,7 @@ Create some dummy libs under /test/modules/,
 
 *** core.clj
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core/core.clj
   <<value-test-helpers>>
   <<ffi-test-helper>>
   <<ferret-unit-tests>>

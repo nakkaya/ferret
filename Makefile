@@ -61,17 +61,17 @@ test: CPPFLAGS += -fsanitize=undefined,address -fno-omit-frame-pointer
 	arduino --verify --board arduino:avr:uno $@
 
 # list of unit tests to run againts the current build
-NATIVE_TESTS = src/test/fixed_real.cpp                  \
-               src/test/memory_pool.cpp
+NATIVE_TESTS = src/test/native/fixed_real.cpp                  \
+               src/test/native/memory_pool.cpp
 
-CORE_TESTS = src/test/module.clj                     \
-	     src/test/module_unit_test.clj           \
-             src/test/module_import_empty_aux_a.clj  \
-             src/test/module_import_empty_aux_b.clj  \
-             src/test/core.clj
+CORE_TESTS = src/test/core/module.clj                     \
+	     src/test/core/module_unit_test.clj           \
+             src/test/core/module_import_empty_aux_a.clj  \
+             src/test/core/module_import_empty_aux_b.clj  \
+             src/test/core/core.clj
 
-EMBEDDED_TESTS = src/test/blink/blink.clj              \
-	         src/test/blink-multi/blink-multi.clj
+EMBEDDED_TESTS = src/test/embedded/blink/blink.clj              \
+	         src/test/embedded/blink-multi/blink-multi.clj
 
 # assign tests to compilers
 CLANG_OBJS = $(NATIVE_TESTS:.cpp=.clang)   $(CORE_TESTS:.clj=.clang)

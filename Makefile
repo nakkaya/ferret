@@ -120,6 +120,8 @@ docker-create: src/
 	   sudo docker build -t nakkaya/ferret-build:latest -t nakkaya/ferret-build:${VERSION} .
 	sudo docker push nakkaya/ferret-build:${VERSION}
 	sudo docker push nakkaya/ferret-build:latest
+docker-bash:
+	 ${DOCKER_RUN} /bin/bash
 docker-release:
 	 ${DOCKER_RUN} /bin/bash -c 'make release'
 docker-test:

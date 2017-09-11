@@ -10,11 +10,11 @@ clean:
 	rm -rf src/ bin/ docs/ release/
 
 # tangle compiler generate src/ directory
-src/src/ferret/core.clj: ferret.org
+src/: ferret.org
 	emacs -nw -Q --batch --eval "(progn (require 'org) (setq org-babel-use-quick-and-dirty-noweb-expansion t) (require 'ob) (find-file \"ferret.org\") (org-babel-tangle))"
 
 # run low level unit tests and generate bin/ferret
-bin/ferret : src/src/ferret/core.clj
+bin/ferret : src/
 	mkdir -p bin/
 	cd src/ && lein uberjar
 	cat src/resources/jar-sh-header src/target/ferret.jar > bin/ferret
@@ -98,7 +98,7 @@ deb-repo: deb
 	mkdir -p bin/debian-repo/conf/
 	cp src/resources/deb-repo-conf bin/debian-repo/conf/distributions
 	reprepro -b bin/debian-repo/ includedeb ferret-lisp bin/ferret-lisp.deb
-docs:   src/src/ferret/core.clj
+docs:   src/
 	wget https://s3.amazonaws.com/ferret-lang.org/build-artifacts/clojure-mode-extra-font-locking.el
 	emacs -nw -Q --batch -l src/resources/tangle-docs
 	mkdir -p docs/
@@ -115,7 +115,7 @@ release: clean test-release deb-repo docs
 # rules for managing the docker files used by the CI
 DOCKER_RUN = docker run --rm -i -t -v "${DIR}":/ferret/ -w /ferret/ nakkaya/ferret-build
 
-docker-create: src/src/ferret/core.clj
+docker-create: src/
 	cd src/resources/ferret-build/ && \
 	   sudo docker build -t nakkaya/ferret-build:latest -t nakkaya/ferret-build:${VERSION} .
 	sudo docker push nakkaya/ferret-build:${VERSION}

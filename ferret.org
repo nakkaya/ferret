@@ -547,8 +547,7 @@ key/value pairs enclosed in braces: {:a 1 :b 2}.
 #+begin_src clojure :tangle no
   (defn expand-reader-macros [form]
     (-> form
-        (morph-form (is-form-fn? 'clojure.core/deref)
-                    (fn [f] `(~'deref ~@(rest f))))
+        (morph-form (is-form-fn? 'clojure.core/deref) (fn [f] (cons 'deref (rest f))))
         (morph-form map? (fn [x] (cons 'new-d-list (-> x seq flatten))))))
 #+end_src
 
@@ -592,15 +591,23 @@ form.
         (use '[ferret.core :only [symbol-conversion fn->unique-args exit-failure]])
         
         (doseq [m (concat core-macros form-macros)]
-          (eval m)))
-      
+          ;;replace clojure.core/fn with ferret/fn
+          (-> (morph-form m (fn [x]
+                              (and (is-form? 'quote x)
+                                   (or (= 'clojure.core/fn (second x))
+                                       (= 'clojure.core/while (second x)))))
+                          (fn [[_ s]] `'~(symbol (str temp-ns) (-> s name symbol str))))
+              eval)))
+
       (let [form (-> form
                      (macro-normalize)
                      (expand-reader-macros)
                      (morph-form (apply is-form-fn? macro-symbols)
                                  (fn [f]
                                    (binding [*ns* (the-ns temp-ns)]
-                                     (walk/macroexpand-all f)))))]
+                                     (-> (walk/macroexpand-all f)
+                                         ;;strip ns from symbols
+                                         (morph-form symbol? #(-> % name symbol)))))))]
         (remove-ns temp-ns)
         form)))
 
@@ -714,7 +721,7 @@ that takes no parameters and executed in place.
   (defn do->fn [form]
     (morph-form form
                 (is-form-fn? 'do)
-                (fn [f] `((~'fn* () ~@(rest f))))))
+                (fn [f] `((fn* () ~@(rest f))))))
 #+end_src
 
 *** Closure Conversion
@@ -2650,7 +2657,7 @@ A lazy list container implementing the seekable interface.
     "__result = obj<lazy_sequence>(f);")
 
   (defmacro lazy-seq [& body]
-    `(~'new-lazy-seq (~'fn [] ~@body)))
+    `(new-lazy-seq (fn [] ~@body)))
 #+end_src
 
 **** D-List
@@ -2674,11 +2681,11 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     "__result = obj<d_list>();")
 
   (defmacro new-d-list [& args]
-    `(~'-> (~'new-d-list-aux)
-           ~@(map (fn [v]
-                    (let [[k v] v]
-                      (list 'assoc k v)))
-                  (partition 2 args))))
+    `(-> (new-d-list-aux)
+         ~@(map (fn [v]
+                  (let [[k v] v]
+                    (list 'assoc k v)))
+                (partition 2 args))))
 
   (defn assoc [m k v]
     "__result = m.cast<d_list>()->assoc(k,v);")
@@ -2888,7 +2895,7 @@ interpreted as FFI calls.
 #+begin_src clojure :tangle no
   (defmacro new-string [& ss]
     (let [s (apply str ss)]
-      `((~'fn [] ~(str "__result = obj<string>(\"" s "\");")))))
+      `((fn [] ~(str "__result = obj<string>(\"" s "\");")))))
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/string_o.h
@@ -3043,7 +3050,7 @@ not yet finished, calls to deref/@ will block.
   (defobject async "ferret/obj/async_o.h")
 
   (defmacro future [& body]
-    `(~'_future_ (~'fn [] ~@body)))
+    `(_future_ (fn [] ~@body)))
 
   (defn _future_ [f] "__result = obj<async>(f);")
 
@@ -3142,7 +3149,7 @@ calls.
     "__result = obj<delayed>(f)")
 
   (defmacro delay [& body]
-    `(~'_delay_ (~'fn [] ~@body)))
+    `(_delay_ (fn [] ~@body)))
 
   (defn delay? [d]
     "__result = obj<boolean>(d.is_type(runtime::type::delayed));")
@@ -4335,7 +4342,7 @@ qualified Clojure symbols, so the symbol /fn/ should not expand to
 #+name: runtime-clojure-fn-macros
 #+begin_src clojure :tangle no
   (defmacro defn [name & body]
-    `(~'def ~name (~'fn ~@body)))
+    `(def ~name (fn ~@body)))
 #+end_src
 
 ** Functions
@@ -4379,9 +4386,9 @@ implementation.
                            (take-last 2) first (= '&)) ;; check &
                     (let [switch        (drop-last 1 fns)
                           [[_ default]] (take-last 1 fns)]
-                      `(~'fn-multi-arity ~switch ~default))
-                    `(~'fn-multi-arity ~fns))]
-        `(~'fn* () ~fns))))
+                      `(fn-multi-arity ~switch ~default))
+                    `(fn-multi-arity ~fns))]
+        `(fn* () ~fns))))
 #+end_src
 
 A simple macro for calling inline C++,
@@ -4390,7 +4397,7 @@ A simple macro for calling inline C++,
 #+begin_src clojure :tangle no
   (defmacro cxx [& body]
     (let [body (apply str body)]
-      `((~'fn [] ~body))))
+      `((fn [] ~body))))
 #+end_src
 
 ** I/O
@@ -4508,8 +4515,8 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defmacro doseq [binding & body]
-    `(~'_doseq_ ~(second binding)
-                (~'fn [~(first binding)] ~@body)))
+    `(_doseq_ ~(second binding)
+              (fn [~(first binding)] ~@body)))
 
   (defn _doseq_ [seq f] "for(auto const& it : runtime::range(seq)) run(f,it);")
 #+end_src
@@ -4519,8 +4526,8 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defmacro dotimes [binding & body]
-    `(~'_dotimes_ ~(second binding)
-                  (~'fn [~(first binding)] ~@body)))
+    `(_dotimes_ ~(second binding)
+                (fn [~(first binding)] ~@body)))
 
   (defn _dotimes_ [t f] "for(number_t i = 0; i < number::to<number_t>(t); i++) run(f,obj<number>(i));")
 #+end_src
@@ -4531,7 +4538,7 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
   (defmacro when [test & body]
-    `(~'if ~test (~'do ~@body)))
+    `(if ~test (do ~@body)))
 #+end_src
 
 *** cond
@@ -4540,12 +4547,12 @@ A simple macro for calling inline C++,
 #+begin_src clojure :tangle no
   (defmacro cond [& clauses]
     (when clauses
-      `(~'if ~(first clauses)
-        ~(if (next clauses)
-           (second clauses)
-           (throw (IllegalArgumentException.
-                   "cond requires an even number of forms")))
-        (~'cond ~@(next (next clauses))))))
+      `(if ~(first clauses)
+         ~(if (next clauses)
+            (second clauses)
+            (throw (IllegalArgumentException.
+                    "cond requires an even number of forms")))
+         (cond ~@(next (next clauses))))))
 #+end_src
 
 *** while
@@ -4557,7 +4564,7 @@ A simple macro for calling inline C++,
        run(fn);")
 
   (defmacro while [test & body]
-    `(~'_while_ (~'fn [] ~test) (~'fn [] ~@body)))
+    `(_while_ (fn [] ~test) (fn [] ~@body)))
 #+end_src
 
 *** forever
@@ -4565,7 +4572,7 @@ A simple macro for calling inline C++,
 #+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
   (defmacro forever [& body]
-    `(~'while true ~@body))
+    `(while true ~@body))
 #+end_src
 
 *** if-let
@@ -4574,14 +4581,14 @@ A simple macro for calling inline C++,
 #+begin_src clojure :tangle no
   (defmacro if-let
     ([bindings then]
-     `(~'if-let ~bindings ~then nil))
+     `(if-let ~bindings ~then nil))
     ([bindings then else & oldform]
      (let [form (bindings 0) tst (bindings 1)]
-       `(~'let* [temp# ~tst]
-                (~'if temp#
-                  (~'let* [~form temp#]
-                          ~then)
-                  ~else)))))
+       `(let* [temp# ~tst]
+          (if temp#
+            (let* [~form temp#]
+              ~then)
+            ~else)))))
 #+end_src
 
 *** when-let
@@ -4593,10 +4600,10 @@ When test is true, evaluates body with binding-form bound to the value of test.
   (defmacro when-let
     [bindings & body]
     (let [form (bindings 0) tst (bindings 1)]
-      `(~'let* [temp# ~tst]
-               (~'when temp#
-                 (~'let* [~form temp#]
-                         ~@body)))))
+      `(let* [temp# ~tst]
+         (when temp#
+           (let* [~form temp#]
+             ~@body)))))
 #+end_src
 
 ** Logical Operators
@@ -4619,7 +4626,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
   (defmacro not= [& test]
-    `(~'not (~'= ~@test)))
+    `(not (= ~@test)))
 #+end_src
 
 *** <
@@ -4690,7 +4697,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([] true)
     ([x] x)
     ([x & next]
-     `(~'if ~x (~'and ~@next) false)))
+     `(if ~x (and ~@next) false)))
 #+end_src
 
 *** or
@@ -4701,7 +4708,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     ([] nil)
     ([x] x)
     ([x & next]
-     `(~'if ~x ~x (~'or ~@next))))
+     `(if ~x ~x (or ~@next))))
 #+end_src
 
 *** not
@@ -5476,8 +5483,8 @@ function *f* to run in milliseconds,
                     :month 2678400000000}
           rate (/ (unit->ms unit) rate)]
       (if (= policy :blocking)
-        `(~'fn-throttler-aux-blocking     (~'new-elapsed-micros) ~f ~rate)
-        `(~'fn-throttler-aux-non-blocking (~'new-elapsed-micros) ~f ~rate))))
+        `(fn-throttler-aux-blocking     (new-elapsed-micros) ~f ~rate)
+        `(fn-throttler-aux-non-blocking (new-elapsed-micros) ~f ~rate))))
 #+end_src
 
 ** Misc
@@ -5612,7 +5619,7 @@ returns true, returns the next state.
   (defmacro state-machine [[_ & states] [_ & transitions]]
     (let [states (reduce (fn [h v]
                            (let [[name & body] v]
-                             (conj h name `(~'fn [] ~@body))))
+                             (conj h name `(fn [] ~@body))))
                          [] states)
           transitions (->> transitions
                            (map (fn [v]
@@ -5621,17 +5628,17 @@ returns true, returns the next state.
                                                    (reduce (fn [h v]
                                                              (let [[check state] v]
                                                                (conj h `(~check) state))) []))]
-                                    `((~'= ~'state ~state) (~'cond ~@conds true ~state)))))
+                                    `((= state ~state) (cond ~@conds true ~state)))))
                            (reduce (fn [h v]
                                      (let [[check transition] v]
                                        (conj h check transition)))
                                    ['cond]))]
       `(let [~@states
-             machine-state# (~'atom ~(first states))]
-         (~'fn []
-          (~'let [ret# ((~'deref machine-state#))]
-           (~'swap! machine-state# (~'fn [~'state] (~@transitions)))
-           ret#)))))
+             machine-state# (atom ~(first states))]
+         (fn []
+           (let [ret# ((deref machine-state#))]
+             (swap! machine-state# (fn [state] (~@transitions)))
+             ret#)))))
 #+end_src
 
 *** PID Control
@@ -5826,17 +5833,17 @@ Ported from,
             (exit-failure)))
       
       (if (symbol? set-point)
-        `(~'let [pid# (~'pid-controller-create
-                       ~kp ~ki ~kd ~in-min ~in-max ~out-min ~out-max ~continuous)]
-          (~'pid-controller-set-point pid# (~set-point))
-          (~'fn [input#]
-           (~'pid-controller-set-point pid# (~set-point))
-           (~'pid-controller-update pid# input#)))
-        `(~'let [pid# (~'pid-controller-create
-                       ~kp ~ki ~kd ~in-min ~in-max ~out-min ~out-max ~continuous)]
-          (~'pid-controller-set-point pid# ~set-point)
-          (~'fn [input#]
-           (~'pid-controller-update pid# input#))))))
+        `(let [pid# (pid-controller-create
+                     ~kp ~ki ~kd ~in-min ~in-max ~out-min ~out-max ~continuous)]
+           (pid-controller-set-point pid# (~set-point))
+           (fn [input#]
+             (pid-controller-set-point pid# (~set-point))
+             (pid-controller-update pid# input#)))
+        `(let [pid# (pid-controller-create
+                     ~kp ~ki ~kd ~in-min ~in-max ~out-min ~out-max ~continuous)]
+           (pid-controller-set-point pid# ~set-point)
+           (fn [input#]
+             (pid-controller-update pid# input#))))))
 #+end_src
 
 *** Moving Average Filter
@@ -5870,7 +5877,7 @@ output.
                 pin
                 (str "number::to<number_t>(" (symbol-conversion pin) ")"))
           mode (-> mode name .toUpperCase)]
-      `(~'cxx ~(str "::pinMode(" pin ", " mode ");"))))
+      `(cxx ~(str "::pinMode(" pin ", " mode ");"))))
 #+end_src
 
 *** digital-write
@@ -5987,9 +5994,9 @@ Registers an interrupt function for the given pin and mode. See
                 (str "number::to<number_t>(" (symbol-conversion pin) ")"))
           mode (-> mode name .toUpperCase)
           cb-sym (gensym)]
-      `(~'do
-        (~'def ~cb-sym ~callback)
-        (~'cxx
+      `(do
+        (def ~cb-sym ~callback)
+        (cxx
          ~(str "::pinMode(" pin " , INPUT_PULLUP);\n"
                "auto int_pin = digitalPinToInterrupt(" pin ");\n"
                "::attachInterrupt(int_pin, [](){ run(" cb-sym ");}, " mode ");")))))
@@ -6002,7 +6009,7 @@ Executes critical section with interrupts disabled.
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defmacro no-interrupt [& body]
-    `(~'no-interrupt-aux  (~'fn [] ~@body)))
+    `(no-interrupt-aux  (fn [] ~@body)))
 
   (defn no-interrupt-aux [f]
     "noInterrupts();
@@ -6024,8 +6031,7 @@ Turns off the given interrupt.
     (let [pin (if (number? pin)
                 pin
                 (str "number::to<number_t>(" (symbol-conversion pin) ")"))]
-      `(~'cxx
-        ~(str "::detachInterrupt(digitalPinToInterrupt(" pin "));"))))
+      `(cxx ~(str "::detachInterrupt(digitalPinToInterrupt(" pin "));"))))
 #+end_src
 
 *** SPI
@@ -6063,8 +6069,7 @@ Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation
                        :mode-1 "SPI_MODE1"
                        :mode-2 "SPI_MODE2"
                        :mode-3 "SPI_MODE3")]
-      `(~'cxx
-        ~(str "__result = obj<value<SPISettings>>(" speed "," data-order "," data-mode ");"))))
+      `(cxx ~(str "__result = obj<value<SPISettings>>(" speed "," data-order "," data-mode ");"))))
 #+end_src
 
 **** Transaction
@@ -6077,7 +6082,7 @@ Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation
      SPI.endTransaction();")
 
   (defmacro with-spi [conf & body]
-    `(~'with-spi-aux ~conf (~'fn [] ~@body)))
+    `(with-spi-aux ~conf (fn [] ~@body)))
 
   (defn spi-write [val]
     "__result = obj<number>(SPI.transfer(number::to<int>(val)));")
@@ -6100,9 +6105,9 @@ Evaluates expr and aborts if it does not evaluate to logical true.
 
   (defmacro assert
     ([exp]
-     `(~'assert-aux (~'fn [] ~exp) ~(-> exp pr-str (clojure.string/escape {\\ "\\\\"}))))
+     `(assert-aux (fn [] ~exp) ~(-> exp pr-str (clojure.string/escape {\\ "\\\\"}))))
     ([exp callback]
-     `(~'assert-aux-callback (~'fn [] ~exp) (~'fn [] ~callback))))
+     `(assert-aux-callback (fn [] ~exp) (fn [] ~callback))))
 #+end_src
 
 *** deftest
@@ -6130,19 +6135,19 @@ information.
 
       (cond (= check-op '=)
             (let [[_ expected form] form]
-              `(~'is-aux-expect (~'fn [] ~expected) (~'fn [] ~form) ~form-str))
+              `(is-aux-expect (fn [] ~expected) (fn [] ~form) ~form-str))
             
-            :default `(~'is-aux (~'fn [] ~form) ~form-str))))
+            :default `(is-aux (fn [] ~form) ~form-str))))
 
   (defmacro deftest [name & exprs]
     (defonce fir-unit-tests (atom []))
     (swap! fir-unit-tests conj name)
-    `(def ~name (~'fn [] ~@exprs)))
+    `(def ~name (fn [] ~@exprs)))
 
   (defmacro run-all-tests []
     (if (bound? #'fir-unit-tests)
-      `(~'do ~@(map #(list %) @fir-unit-tests) (~'system-exit 0))
-      `(~'do (~'system-exit 0))))
+      `(do ~@(map #(list %) @fir-unit-tests) (system-exit 0))
+      `(do (system-exit 0))))
 #+end_src
 
 ** Native
@@ -6173,7 +6178,7 @@ examples.
                                     (apply str (map (fn [line] (str line "\n")) (second %)))
                                     "\n#endif\n"))
                          (map #(list 'native-declare %)))]
-      `(~'def ~name (~'fn ~args ~@includes ~@pre-ample  ~body))))
+      `(def ~name (fn ~args ~@includes ~@pre-ample  ~body))))
 #+end_src
 
 *** pr-object-sizes
@@ -6232,9 +6237,9 @@ Configure Ferret Runtime options. See table in [[Configuration]] section.
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defmacro configure-runtime! [& body]
-    `(~'native-define ~(->> (partition 2 body)
-                            (map #(str "#define " (first %) " " (second %) "\n"))
-                            (list))))
+    `(native-define ~(->> (partition 2 body)
+                          (map #(str "#define " (first %) " " (second %) "\n"))
+                          (list))))
 #+end_src
 
 *** configure-ferret!
@@ -6244,9 +6249,9 @@ Embed compilations options.
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defmacro configure-ferret! [& body]
-    `(~'native-define ~(str "// build-conf-begin\n"
-                            "//" (str (apply hash-map body)) "\n"
-                            "// build-conf-end\n")))
+    `(native-define ~(str "// build-conf-begin\n"
+                          "//" (str (apply hash-map body)) "\n"
+                          "// build-conf-end\n")))
 #+end_src
 
 * Testing
@@ -6360,14 +6365,14 @@ Static code analysis (cppcheck) options,
            (take 2 (shake-concat '((defn p-create [])
                                    (defn p-update [])
                                    (defmacro pc [& options]
-                                     `(~'let [controller# (~'p-create)]
-                                       (~'fn [input#] (~'p-update)))))
+                                     `(let [controller# (p-create)]
+                                       (fn [input#] (p-update)))))
                                  '((pc))))))
     
     (is (= '(defn new-lazy-seq [f] )
            (first (shake-concat '((defn new-lazy-seq [f] )
                                   (defmacro lazy-seq [& body]
-                                    `(~'new-lazy-seq (~'fn [] ~@body)))
+                                    `(new-lazy-seq (fn [] ~@body)))
                                   (defn range
                                     ([high]
                                      (range 0 high))
@@ -6973,7 +6978,7 @@ Create some dummy libs under /test/modules/,
 
   (defn helper-a [] 10)
 
-  (defmacro ten-fn [] `(~'fn [] 10))
+  (defmacro ten-fn [] `(fn [] 10))
 
   (defmacro helper-b []
     (reduce (fn [a b] (+ a b)) (list 1 2 3))
@@ -7010,7 +7015,7 @@ Create some dummy libs under /test/modules/,
         "__result = obj<number>((number_t)42);"))
 
   (defmacro macro-call []
-    `(~'do (~'macro-aux)))
+    `(do (~'macro-aux)))
 #+end_src 
 
 #+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-c.clj
@@ -7020,7 +7025,7 @@ Create some dummy libs under /test/modules/,
     (print "Module C"))
 
   (defmacro eleven-fn []
-    `(~'fn [] 11))
+    `(fn [] 11))
 #+end_src 
 
 #+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-d.clj

@@ -28,9 +28,11 @@ bin/ferret : src/
 # each compiler/framework to be tested get an extensiton. 
 # i.e all cpp files compiled with g++ will have .gcc extension
 
-CPPWARNINGS = -pedantic -Werror -Wall -Wextra                    \
-              -Wconversion -Wpointer-arith -Wmissing-braces      \
-              -Woverloaded-virtual -Wuninitialized -Winit-self
+CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
+              -Wconversion -Wpointer-arith -Wmissing-braces          \
+              -Woverloaded-virtual -Wuninitialized -Winit-self       \
+	      -Wsign-conversion
+
 CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/src/ferret/
 
 define static_check

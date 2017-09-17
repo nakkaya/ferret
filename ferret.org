@@ -6330,6 +6330,7 @@ Build options,
  - -Woverloaded-virtual
  - -Wuninitialized
  - -Winit-self
+ - -Wsign-conversion
  - -fno-rtti
  - -fsanitize=undefined,address
 

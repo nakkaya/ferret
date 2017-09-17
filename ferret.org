@@ -591,13 +591,7 @@ form.
         (use '[ferret.core :only [symbol-conversion fn->unique-args exit-failure]])
         
         (doseq [m (concat core-macros form-macros)]
-          ;;replace clojure.core/fn with ferret/fn
-          (-> (morph-form m (fn [x]
-                              (and (is-form? 'quote x)
-                                   (or (= 'clojure.core/fn (second x))
-                                       (= 'clojure.core/while (second x)))))
-                          (fn [[_ s]] `'~(symbol (str temp-ns) (-> s name symbol str))))
-              eval)))
+          (eval m)))
 
       (let [form (-> form
                      (macro-normalize)
@@ -1098,7 +1092,22 @@ suggests and removes the node when predicate returns true.
             (exit-failure))))))
 
   (defn read-clojure-file [f]
-    (read-string (str \( (read-file f) \))))
+    (let [ns (gensym)
+          ns-str (str ns)]
+      (create-ns ns)
+      (binding [*ns* (the-ns ns)]
+        (refer 'clojure.core)
+        (-> (read-string (str \( (read-file f) \)))
+            (morph-form symbol? #(if (= (namespace %) ns-str)
+                                   (-> % name symbol)
+                                   %))
+            ;;replace clojure.core/fn with fn
+            ;;replace clojure.core/while with while
+            (morph-form (fn [x]
+                          (and (is-form? 'quote x)
+                               (or (= 'clojure.core/fn    (second x))
+                                   (= 'clojure.core/while (second x)))))
+                        (fn [[_ s]] `'~(-> s name symbol)))))))
 
   (defn write-to-file [f s]
     (FileUtils/writeStringToFile (file f) (.trim s)))
@@ -1827,7 +1836,7 @@ is supported.
 
 *** Logging
 
-  #+name: core-compiler-helpers
+  #+name: core-compiler-logging
   #+begin_src clojure
     (.reset (java.util.logging.LogManager/getLogManager))
 
@@ -4334,9 +4343,7 @@ once primitives are in place rest can be defined in pure Clojure,
 #+end_src
 
 As for macros, normal Clojure rules apply since they are expended using
-Clojure, the only exception is that stuff should not expand to fully
-qualified Clojure symbols, so the symbol /fn/ should not expand to
-/clojure.core/fn/,
+Clojure.
 
 
 #+name: runtime-clojure-fn-macros
@@ -7787,8 +7794,9 @@ Create some dummy libs under /test/modules/,
     (:import (org.apache.commons.io FileUtils)
              (java.io BufferedReader InputStreamReader)))
 
-  <<core-file-io>>
   <<core-compiler-helpers>>
+  <<core-file-io>>
+  <<core-compiler-logging>>
   <<core-compiler-macro-expansion>>
   <<core-compiler-tree-shaking>>
   <<core-compiler-escape-analysis>>

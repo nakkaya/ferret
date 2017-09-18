@@ -7613,6 +7613,7 @@ Create some dummy libs under /test/modules/,
     - [[https://github.com/FelixPetriconi/AllocatorBuilder][Allocator Builder]]
     - https://github.com/mtrebi/memory-allocators
     - [[https://www.gamedev.net/articles/programming/general-and-gameplay-programming/c-custom-memory-allocation-r3010/][C++: Custom memory allocation]]
+    - [[Some useful Malloc Implementations][Some useful Malloc Implementations]]
   - *defproject* - Combine *configure-* macros under one macro.
   - *defproject* - Ability to define dependencies
     - automatically pull other ferret projects

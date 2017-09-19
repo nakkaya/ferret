@@ -6332,7 +6332,8 @@ Build options,
  - -Winit-self
  - -Wsign-conversion
  - -fno-rtti
- - -fsanitize=undefined,address
+ - -fsanitize=undefined,address,leak
+ - -fno-omit-frame-pointer
 
 Static code analysis (cppcheck) options,
 
@@ -6573,7 +6574,6 @@ Static code analysis (cppcheck) options,
                                      ([x y] 2))))
 
   (deftest special-forms-test
-    (is (= 1      @(atom 1)))
     (is (= 3      (#(+ 1 2))))
     (is (= 11     ((fn [n] (+ n 1)) 10)))
     (is (= 3      (((fn [n] (fn [n] n)) 3) 3)))
@@ -7255,23 +7255,6 @@ Create some dummy libs under /test/modules/,
                            (get-data obj-24))))))
 #+end_src
 
-*** Atom
-
-#+name: ferret-unit-tests
-#+begin_src clojure
-  (deftest atom-test
-    (let [a (atom nil)
-          b (atom nil)]
-      (is (= nil          (deref a)))
-      (is (= 1            (do (reset! a 1) (deref a))))
-      (is (= 2            (do (swap! a inc) (deref a))))
-      (is (= (list 1 2 3) (do (reset! a (list 1 2 3)) (deref a))))
-      (is (= 6            (do (swap! a (fn [l] (reduce + l))) (deref a))))
-      (is (= true         (= a a)))
-      (is (= false        (= a b)))
-      (is (= false        (= a 3.14)))))
-#+end_src
-
 *** Keyword
 
 #+name: ferret-unit-tests
@@ -7310,8 +7293,20 @@ Create some dummy libs under /test/modules/,
 
 *** Concurrency
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core/concurrency.clj
+  (deftest atom-test
+    (let [a (atom nil)
+          b (atom nil)]
+      (is (= nil          (deref a)))
+      (is (= 1            @(atom 1)))
+      (is (= 1            (do (reset! a 1) (deref a))))
+      (is (= 2            (do (swap! a inc) (deref a))))
+      (is (= (list 1 2 3) (do (reset! a (list 1 2 3)) (deref a))))
+      (is (= 6            (do (swap! a (fn [l] (reduce + l))) (deref a))))
+      (is (= true         (= a a)))
+      (is (= false        (= a b)))
+      (is (= false        (= a 3.14)))))
+
   (deftest future-test
     (is (= 42    @(future (+ 41 1))))
     (is (= 42    @(future (sleep 100) (+ 40 2))))

@@ -39,8 +39,8 @@ define static_check
     cppcheck --quiet --std=c++11 --template=gcc --enable=all --error-exitcode=1 $1 2> "$1.cppcheck"
 endef
 
-# only enable sanitizers when not running in docker
-test: CPPFLAGS += -fsanitize=undefined,address -fno-omit-frame-pointer
+# only enable sanitizers when running in docker
+test-release: CPPFLAGS += -fsanitize=undefined,address,leak -fno-omit-frame-pointer
 
 %.gcc: %.cpp
 	g++ $(CPPFLAGS) -x c++ $< -o $@

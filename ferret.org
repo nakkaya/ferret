@@ -4758,10 +4758,17 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn map [f col]
-    (if (not (empty? col))
-      (cons (f (first col))
-            (lazy-seq (map f (rest col))))))
+  (defn map
+    ([f col]
+     (if (not (empty? col))
+       (cons (f (first col))
+             (lazy-seq (map f (rest col))))))
+    ([f s1 s2]
+     (lazy-seq
+      (when (and (not (empty? s1))
+                 (not (empty? s2)))
+        (cons (f (first s1) (first s2))
+              (map f (rest s1) (rest s2)))))))
 #+end_src
 
 *** range
@@ -7154,6 +7161,7 @@ Create some dummy libs under /test/modules/,
     (is (= 0   (first (map dec (list 1 2 3)))))
     (is (= 4   (first (map (fn [x] (+ 3 x)) (list 1 2 3)))))
     (is (= 3   (count (map inc (list 1 2 3)))))
+    (is (= (list (list 1 4) (list 2 5))   (map (fn [a b] (list a b)) (list 1 2) (list 4 5))))
     (is (= 10  (apply + (range 5))))
     (is (= 5   (count (range 5))))
     (is (= 2   (first (take 2 (map inc (list 1 2 3))))))

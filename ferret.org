@@ -683,6 +683,11 @@ after transformation becomes,
 
         (morph-form (is-form-fn? 'let*)
                     (fn [[_ bindings & body]]
+                      (when (odd? (count bindings))
+                        (warn
+                         (str "let requires an even number of forms in binding vector => " bindings))
+                        (exit-failure))
+                      
                       (if (empty? bindings)
                         `((~'fn () ~@body))
                         (apply

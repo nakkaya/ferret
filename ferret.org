@@ -112,12 +112,14 @@ Boards]] for more info on how to use Ferret lisp on Arduino boards.)
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/embedded/blink/blink.clj
   ;;; blink.clj
-  (pin-mode 13 :output)
+  (require '[ferret.arduino :as gpio])
+
+  (gpio/pin-mode 13 :output)
 
   (forever
-   (digital-write 13 1)
+   (gpio/digital-write 13 1)
    (sleep 500)
-   (digital-write 13 0)
+   (gpio/digital-write 13 0)
    (sleep 500))
 #+end_src
 
@@ -135,17 +137,19 @@ calling malloc/free at runtime.
   (configure-runtime! FERRET_MEMORY_POOL_SIZE 512
                       FERRET_MEMORY_POOL_PAGE_TYPE char)
 
+  (require '[ferret.arduino :as gpio])
+
   (def yellow-led 13)
   (def blue-led   12)
 
-  (pin-mode yellow-led :output)
-  (pin-mode blue-led   :output)
+  (gpio/pin-mode yellow-led :output)
+  (gpio/pin-mode blue-led   :output)
 
   (defn make-led-toggler [pin]
     (fn []
-      (->> (digital-read pin)
+      (->> (gpio/digital-read pin)
            (bit-xor 1)
-           (digital-write pin))))
+           (gpio/digital-write pin))))
 
   (def job-one
     (fn-throttler (make-led-toggler yellow-led) 5 :second :non-blocking))
@@ -5883,14 +5887,13 @@ moving average of the last K samples by setting the value of alpha to
  - http://electronics.stackexchange.com/a/34426
  - http://stackoverflow.com/a/3761318
 
-** GPIO
+** Arduino
 *** pin-mode
 
 Configures the specified pin to behave either as an input or an
 output.
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defmacro pin-mode [pin mode]
     (let [pin (if (number? pin)
                 pin
@@ -5903,8 +5906,7 @@ output.
 
 Write a HIGH or a LOW value to a digital pin.
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defnative digital-write [pin val]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "::digitalWrite(number::to<number_t>(pin), number::to<number_t>(val));"))
@@ -5914,8 +5916,7 @@ Write a HIGH or a LOW value to a digital pin.
 
 Reads the value from a specified digital pin, either HIGH or LOW.
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defnative digital-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "__result = obj<number>(::digitalRead(number::to<number_t>(pin)));"))
@@ -5925,8 +5926,7 @@ Reads the value from a specified digital pin, either HIGH or LOW.
 
 Writes an analog value (PWM wave) to a pin.
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defnative analog-write [pin val]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "::analogWrite(number::to<number_t>(pin),number::to<number_t>(val));"))
@@ -5936,8 +5936,7 @@ Writes an analog value (PWM wave) to a pin.
 
 Reads the value from the specified analog pin.
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defnative analog-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "__result = obj<number>((number_t)::analogRead(number::to<number_t>(pin)));"))
@@ -5947,8 +5946,7 @@ Reads the value from the specified analog pin.
 
 Sets the resolution of the *analog-write*
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defnative analog-write-resolution [bit]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "::analogWriteResolution(number::to<number_t>(bit));"))
@@ -5958,8 +5956,7 @@ Sets the resolution of the *analog-write*
 
 Sets the size (in bits) of the value returned by *analog-read*.
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defnative analog-read-resolution [bit]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "::analogReadResolution(number::to<number_t>(bit));"))
@@ -5970,15 +5967,11 @@ Sets the size (in bits) of the value returned by *analog-read*.
 Generates a square wave of the specified frequency (and 50% duty
 cycle) on a pin.
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defnative tone [pin freq]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "::tone(number::to<number_t>(pin), number::to<number_t>(freq));"))
-#+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
   (defnative no-tone [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "::noTone(number::to<number_t>(pin));"))
@@ -6005,8 +5998,7 @@ Registers an interrupt function for the given pin and mode. See
    (sleep 100))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defmacro attach-interrupt [callback pin mode]
     (let [pin (if (number? pin)
                 pin
@@ -6025,8 +6017,7 @@ Registers an interrupt function for the given pin and mode. See
 
 Executes critical section with interrupts disabled.
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defmacro no-interrupt [& body]
     `(no-interrupt-aux  (fn [] ~@body)))
 
@@ -6044,8 +6035,7 @@ Turns off the given interrupt.
   (detach-interrupt input-pin)
 #+END_EXAMPLE
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defmacro detach-interrupt [pin]
     (let [pin (if (number? pin)
                 pin
@@ -6063,8 +6053,7 @@ Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation
 
 **** Initialization
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defnative spi-begin []
     (on "defined FERRET_HARDWARE_ARDUINO"
         ("SPI.h")
@@ -6076,8 +6065,7 @@ Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation
 
 **** Settings
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defmacro spi-settings [max-speed data-order data-mode]
     (let [speed      (* max-speed 1000000)
           data-order (if (= data-order :msb-first)
@@ -6093,8 +6081,7 @@ Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation
 
 **** Transaction
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defn with-spi-aux [conf f]
     "SPI.beginTransaction(value<SPISettings>::to_reference(conf));
      __result = run(f);

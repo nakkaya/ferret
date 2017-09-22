@@ -74,7 +74,8 @@ CORE_TESTS = src/test/core/module.clj                     \
              src/test/core/concurrency.clj
 
 EMBEDDED_TESTS = src/test/embedded/blink/blink.clj              \
-	         src/test/embedded/blink-multi/blink-multi.clj
+	         src/test/embedded/blink-multi/blink-multi.clj  \
+	         src/test/embedded/interrupt/interrupt.clj
 
 # assign tests to compilers
 CLANG_OBJS = $(NATIVE_TESTS:.cpp=.clang)   $(CORE_TESTS:.clj=.clang)

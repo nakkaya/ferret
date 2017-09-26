@@ -462,20 +462,23 @@ of mod -> aliases pairs.
   (defn import-modules-load-modules [package-list options]
     (->> package-list
          (reduce (fn[h [m aliases]]
-                   (let [mod           (-> (str (:path options) (.replace (str m) "." "/") ".clj")
-                                           (read-clojure-file)
-                                           (remove-form (is-form-fn? 'configure-runtime!))
-                                           (remove-form (is-form-fn? 'configure-ferret!)))
-                         macro-symbols (->> (select-form mod (is-form-fn? 'defmacro))
-                                            (map second)
-                                            (into #{}))
+                   (let [file-name      (str (.replace (str m) "." "/") ".clj")
+                         mod            (-> (if (clojure.java.io/resource file-name)
+                                              file-name
+                                              (str (:path options) file-name))
+                                            (read-clojure-file)
+                                            (remove-form (is-form-fn? 'configure-runtime!))
+                                            (remove-form (is-form-fn? 'configure-ferret!)))
+                         macro-symbols  (->> (select-form mod (is-form-fn? 'defmacro))
+                                             (map second)
+                                             (into #{}))
                          def-symbols    (->> (select-form (expand-macros-all mod) (is-form-fn? 'def))
                                              (map second)
                                              (into #{}))
-                         replace?        (set/union macro-symbols def-symbols)
-                         mod             (morph-form
-                                          mod #(and (symbol? %) (replace? %))
-                                          #(symbol (str (.replace (str m) "." "_") "_" %)))]
+                         replace?       (set/union macro-symbols def-symbols)
+                         mod            (morph-form
+                                         mod #(and (symbol? %) (replace? %))
+                                         #(symbol (str (.replace (str m) "." "_") "_" %)))]
                      (reduce (fn [h v] (conj h v)) h mod)))
                  [])
          lazy-seq))
@@ -5687,7 +5690,7 @@ output trying to make the input equal the setpoint.
   (def controller (pid-controller :kp 0.5
                                   :ki 0
                                   :kd 0
-                                  :set-point 5 ;; or symbol to a fn
+                                  :set-point 5 ;; or a fn
                                   ;;in min - in max - out min - out max
                                   :bounds [0 10 0 10]
                                   :continuous false))
@@ -5719,7 +5722,7 @@ Ported from,
 
 #+begin_src c++ :mkdirp yes :tangle src/src/ferret/obj/pid_controller_o.h
   template <typename T>
-  class pid_controller : public object {
+  class pid_controller : public lambda_i {
     T p;
     T i;
     T d;
@@ -5728,17 +5731,19 @@ Ported from,
     T maximum_input;
     T minimum_input;
     bool continuous;
-    T prev_error;
-    T total_error;
-    T setpoint;
-    T error;
-    T result;
-    T input;
+    var setpoint_fn;
+    mutable T setpoint;
+    mutable T prev_error;
+    mutable T total_error;
+    mutable T error;
+    mutable T result;
+    mutable T input;
   public:
 
     pid_controller(var const & kp, var const & ki, var const & kd,
                    var const & inMin, var const & inMax, var const & outMin, var const & outMax,
-                   var const & cont){
+                   var const & cont,
+                   var const & sp){
       p = number::to<T>(kp);
       i = number::to<T>(ki);
       d = number::to<T>(kd);
@@ -5747,9 +5752,16 @@ Ported from,
       maximum_input = number::to<T>(inMax);
       minimum_input = number::to<T>(inMin);
       continuous = cont.cast<boolean>()->container();
+
+      if (sp.is_type(runtime::type::lambda_i)){
+        setpoint_fn = sp;
+        set_setpoint(run(setpoint_fn));
+      }else{
+        set_setpoint(sp);
+      }
+
       prev_error = 0;
       total_error = 0;
-      setpoint = 0;
       error = 0;
       result = 0;
       input = 0;
@@ -5767,8 +5779,7 @@ Ported from,
     }
   #endif
 
-
-    var update(var const & in){
+    var update(var const & in) const {
       input = number::to<T>(in);
 
       // Calculate the error signal
@@ -5809,7 +5820,8 @@ Ported from,
 
       return obj<number>(result);
     }
-    void set_setpoint(var const & p){
+    
+    void set_setpoint(var const & p) const {
       T sp = number::to<T>(p);
       if (maximum_input > minimum_input) {
         if (sp > maximum_input) {
@@ -5823,26 +5835,26 @@ Ported from,
         setpoint = sp;
       }
     }
+
+    var invoke(var const & args) const {
+      if (!setpoint_fn.is_nil())
+        set_setpoint(run(setpoint_fn));
+      return update(runtime::first(args));
+    }
+    
     void reset(){
       prev_error = 0;
       total_error = 0;
       result = 0;
     }
   };
+
 #+end_src
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn pid-controller-create [kp ki kd in-min in-max out-min out-max continuous]
-    "__result = obj<pid_controller<real_t>>(kp, ki, kd, 
-                                           in_min, in_max, out_min, out_max, 
-                                           continuous);")
-
-  (defn pid-controller-set-point [controller sp]
-    "controller.cast<pid_controller<real_t>>()->set_setpoint(sp);")
-
-  (defn pid-controller-update [controller input]
-    "__result = controller.cast<pid_controller<real_t>>()->update(input)")
+  (defn new-pid-controller [kp ki kd i-min i-max o-min o-max cont sp]
+    "__result = obj<pid_controller<real_t>>(kp, ki, kd, i_min, i_max, o_min, o_max, cont, sp);")
 
   (defmacro pid-controller [& options]
     (let [defaults {:kp 0 :ki 0 :kd 0 :set-point 0 :bounds [-1 1 -1 1] :continuous false}
@@ -5855,18 +5867,7 @@ Ported from,
         (do (println "pid-controller invalid bounds")
             (exit-failure)))
       
-      (if (symbol? set-point)
-        `(let [pid# (pid-controller-create
-                     ~kp ~ki ~kd ~in-min ~in-max ~out-min ~out-max ~continuous)]
-           (pid-controller-set-point pid# (~set-point))
-           (fn [input#]
-             (pid-controller-set-point pid# (~set-point))
-             (pid-controller-update pid# input#)))
-        `(let [pid# (pid-controller-create
-                     ~kp ~ki ~kd ~in-min ~in-max ~out-min ~out-max ~continuous)]
-           (pid-controller-set-point pid# ~set-point)
-           (fn [input#]
-             (pid-controller-update pid# input#))))))
+      `(new-pid-controller ~kp ~ki ~kd ~in-min ~in-max ~out-min ~out-max ~continuous ~set-point)))
 #+end_src
 
 *** Moving Average Filter
@@ -5982,17 +5983,19 @@ cycle) on a pin.
 Registers an interrupt function for the given pin and mode. See
 [[https://www.arduino.cc/en/Reference/AttachInterrupt][attachInterrupt()]] for more information.
 
-#+begin_src clojure
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/embedded/interrupt/interrupt.clj
+  (require '[ferret.arduino :as gpio])
+
   (def input-pin  3)
   (def debug-pin 13)
 
-  (pin-mode debug-pin :output)
+  (gpio/pin-mode debug-pin :output)
 
   (defn control-light []
-    (->> (digital-read  input-pin)
-         (digital-write debug-pin)))
+    (->> (gpio/digital-read  input-pin)
+         (gpio/digital-write debug-pin)))
 
-  (attach-interrupt control-light input-pin :change)
+  (gpio/attach-interrupt control-light input-pin :change)
 
   (forever
    (sleep 100))

@@ -1118,6 +1118,7 @@ suggests and removes the node when predicate returns true.
             (morph-form (fn [x]
                           (and (is-form? 'quote x)
                                (or (= 'clojure.core/fn    (second x))
+                                   (= 'clojure.core/defn  (second x))
                                    (= 'clojure.core/while (second x)))))
                         (fn [[_ s]] `'~(-> s name symbol)))))))
 

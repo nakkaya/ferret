@@ -3839,8 +3839,8 @@ Garbage collection is handled by reference counting. Reference count
 is kept within the [[Base][obj::base]] using one of the following reference
 counting policies.
 
- - =atomic_rc= - Atomic reference counting. (using =std::atomic=)
- - =rc= - Non Atomic reference counting. (using =size_t=)
+ - =atomic_rc= - Atomic reference counting. (using =std::atomic<int>=)
+ - =rc= - Non Atomic reference counting. (using =int=)
  - =no_rc= - No reference counting.
 
 #+name: runtime-native-reference-counting

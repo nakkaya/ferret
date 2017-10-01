@@ -3584,22 +3584,8 @@ Enable and configure GC
   (configure-ferret! :command "g++ -std=c++11 core.cpp -lgc")
 #+end_src
 
-*** Memory Allocation
-
-Ferret supports various memory allocation schemes,
-
- - *malloc/free* - Allocations are handled by the system
-   implementation. (Default memory management.)
- - *Memory Pooling* - On memory constraint systems such as
-   microcontrollers Ferret can use a memory pool to avoid heap
-   fragmentation and calling malloc/free. Effectively running with
-   no heap, allocating all memory at compile time on the stack.
- - *Third party allocators* (i.e tcmalloc)
- - *Third party garbage collectors* (i.e The Boehm-Demers-Weiser
-   conservative garbage collector.) - All memory is managed by a third
-   party GC disables reference counting.
-
-**** Pool Allocator
+*** Allocators
+**** Pool
 
 When =FERRET_MEMORY_POOL_SIZE= is defined Ferret programs will use a
 memory pool called =mem::allocator::program_memory= instead of
@@ -3818,7 +3804,7 @@ libgc.{a,so}.
   #endif
 #+end_src 
 
-**** System Allocator
+**** System
 
 [[Object]]s are allocated from system implementation. (Default memory
 allocator used.)
@@ -3853,9 +3839,9 @@ Garbage collection is handled by reference counting. Reference count
 is kept within the [[Base][obj::base]] using one of the following reference
 counting policies.
 
- - *atomic_rc* - Atomic reference counting. (using =std::atomic=)
- - *rc* - Non Atomic reference counting. (using =size_t=)
- - *no_rc* - No reference counting.
+ - =atomic_rc= - Atomic reference counting. (using =std::atomic=)
+ - =rc= - Non Atomic reference counting. (using =size_t=)
+ - =no_rc= - No reference counting.
 
 #+name: runtime-native-reference-counting
 #+begin_src c++ :tangle no

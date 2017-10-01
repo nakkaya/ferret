@@ -7751,7 +7751,7 @@ Create some dummy libs under /test/modules/,
 
 #+begin_src clojure :mkdirp yes :tangle src/project.clj
   (defproject ferret "1.0.0-SNAPSHOT"
-    :dependencies [[org.clojure/clojure "1.7.0"]
+    :dependencies [[org.clojure/clojure "1.8.0"]
                    [fast-zip "0.7.0"]
                    [org.clojure/tools.cli "0.3.3"]
                    [org.bituf/clj-stringtemplate "0.2"]

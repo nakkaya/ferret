@@ -5874,9 +5874,45 @@ moving average of the last K samples by setting the value of alpha to
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn moving-average-filter [alpha average data]
-    (+ (* alpha data)
-       (* (- 1.0 alpha) average)))
+  (defobject moving_average_filter "ferret/obj/moving_average_filter_o.h")
+
+  (defn new-moving-average-filter [a]
+    "__result = obj<moving_average_filter<real_t>>(a);")
+#+end_src
+
+#+begin_src c++ :mkdirp yes :tangle src/src/ferret/obj/moving_average_filter_o.h
+  template <typename T>
+  class moving_average_filter : public lambda_i {
+    T alpha;
+    mutable T avrg;
+  public:
+
+    explicit moving_average_filter(var const & a) : avrg(0) {
+      alpha = number::to<T>(a);
+    }
+
+    size_t type() const { return runtime::type::moving_average_filter; }
+
+    bool equals(var const & o) const {
+      return (this == o.cast<moving_average_filter>());
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    void stream_console() const {
+      runtime::print("moving_average_filter<");
+      runtime::print(alpha);
+      runtime::print(",");
+      runtime::print(avrg);
+      runtime::print(">");
+    }
+  #endif
+
+    var invoke(var const & args) const {
+      T data = number::to<T>(runtime::first(args));
+      avrg = ((alpha * data) + ((1. - alpha) * avrg));
+      return obj<number>(avrg);
+    }
+  };
 #+end_src
 
  - http://electronics.stackexchange.com/a/34426
@@ -7325,6 +7361,13 @@ Create some dummy libs under /test/modules/,
 
 #+name: ferret-unit-tests
 #+begin_src clojure :tangle no
+  (deftest moving-average-filter-test
+    (let [f (new-moving-average-filter 0.1)]
+
+      (is (= 1.00 (f 10)))
+      (is (= 1.90 (f 10)))
+      (is (= 2.71 (f 10)))))
+
   (deftest pid-controller-test
     (let [controller (pid-controller :kp 1
                                      :ki 0

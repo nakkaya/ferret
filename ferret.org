@@ -3839,8 +3839,8 @@ Garbage collection is handled by reference counting. Reference count
 is kept within the [[Base][obj::base]] using one of the following reference
 counting policies.
 
- - =atomic_rc= - Atomic reference counting. (using =std::atomic<int>=)
- - =rc= - Non Atomic reference counting. (using =int=)
+ - =atomic_rc= - Atomic reference counting. (using =std::atomic<unsigned int>=)
+ - =rc= - Non Atomic reference counting. (using =unsigned int=)
  - =no_rc= - No reference counting.
 
 #+name: runtime-native-reference-counting
@@ -3848,6 +3848,11 @@ counting policies.
   #if !defined(FERRET_RC_POLICY)
   namespace mem {
     namespace gc {
+
+  #if !defined(FERRET_RC_TYPE)
+    #define FERRET_RC_TYPE unsigned int
+  #endif
+      
   #if defined(FERRET_DISABLE_RC)
 
   #define FERRET_RC_POLICY mem::gc::no_rc
@@ -3873,11 +3878,11 @@ counting policies.
       };    
 
       #if defined(FERRET_DISABLE_MULTI_THREADING) || !defined(FERRET_STD_LIB)
-        #define FERRET_RC_POLICY mem::gc::rc<int>
+        #define FERRET_RC_POLICY mem::gc::rc<FERRET_RC_TYPE>
       #endif
       
       #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)
-        #define FERRET_RC_POLICY mem::gc::rc<::std::atomic<int>>
+        #define FERRET_RC_POLICY mem::gc::rc<::std::atomic<FERRET_RC_TYPE>>
       #endif
   #endif
     }
@@ -3953,9 +3958,10 @@ running in safe mode.
   | FERRET_DISABLE_CLI_ARGS            | false        | Disable command line arguments.                          |
   | FERRET_DISABLE_STD_OUT             | false        | Disables output stream. (Reduces code size.)             |
   | FERRET_DISABLE_MULTI_THREADING     | false        | Disable atomic reference counting.                       |
-  | FERRET_DISABLE_STD_MAIN            | false        | Disables auto execution of program::main()                |
-  | FERRET_DISABLE_RC                  | Not Defined  | Disable Reference Counting. (When using third party GCs) |
-  | FERRET_PROGRAM_MAIN                | Not Defined  | A function to execute after program::main()               |
+  | FERRET_DISABLE_STD_MAIN            | false        | Disables auto execution of program::main()               |
+  | FERRET_DISABLE_RC                  | Not Defined  | Disable reference counting. (When using third party GCs) |
+  | FERRET_RC_TYPE                     | unsigned int | Type to use to hold the object reference count.          |
+  | FERRET_PROGRAM_MAIN                | Not Defined  | A function to execute after program::main()              |
   | FERRET_UART_RATE                   | 9600         | Set default UART rate.                                   |
   | FERRET_HARDWARE_ARDUINO_UART_PORT  | Serial       | Set default UART port.                                   |
   | FERRET_NUMBER_TYPE                 | int          | Default number_t type.                                   |

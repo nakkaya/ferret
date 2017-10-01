@@ -3529,7 +3529,8 @@ memory management schemes,
    no heap, allocating all memory at compile time on the stack.
  - *Third party allocators* (i.e tcmalloc)
  - *Third party garbage collectors* (i.e The Boehm-Demers-Weiser
-   conservative garbage collector.)
+   conservative garbage collector.) - All memory is managed by a third
+   party GC disables reference counting.
 
 To enable memory pooling,
 
@@ -3538,7 +3539,7 @@ To enable memory pooling,
 #+END_EXAMPLE
 
 This will create a pool object as a global variable that holds an
-array of *256 / sizeof(size_t)*. 
+array of =256 / sizeof(size_t)=.
 
 Pool sizes can also be defined using user-defined suffixes.
 
@@ -3595,7 +3596,8 @@ Ferret supports various memory allocation schemes,
    no heap, allocating all memory at compile time on the stack.
  - *Third party allocators* (i.e tcmalloc)
  - *Third party garbage collectors* (i.e The Boehm-Demers-Weiser
-   conservative garbage collector.)
+   conservative garbage collector.) - All memory is managed by a third
+   party GC disables reference counting.
 
 **** Pool Allocator
 

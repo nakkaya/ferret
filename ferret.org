@@ -4477,50 +4477,49 @@ A simple macro for calling inline C++,
     "::std::abort();")
 #+end_src
 
-*** xor-stream-encoder/decoder
+*** byte-stream-encoder/decoder
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn xor-stream-encoder [write]
-    (fn [seq]
-      (let [length (count seq)
-            checksum (reduce bit-xor length seq)]
+  (defn byte-stream-encoder [write]
+    (fn [bytes]
+      (let [size (count bytes)
+            CS   (reduce bit-xor size bytes)]
         (write 0X06)
         (write 0X85)
-        (write length)
-        (doseq [s seq] 
-          (write s))
-        (write checksum))))
+        (write size)
+        (doseq [b bytes] 
+          (write b))
+        (write CS))))
 #+end_src
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn xor-stream-header-ready [read in-waiting]
+  (defn byte-stream-header-ready [read in-waiting]
     (and (>= (in-waiting) 3) (= (read) 0X06) (= (read) 0X85)))
 
-  (defn xor-stream-payload-ready [payload-size in-waiting]
-    (>= (in-waiting) (inc (deref payload-size))))
+  (defn byte-stream-payload-ready [size in-waiting]
+    (>= (in-waiting) (inc @size)))
 
-  (defn xor-stream-decoder-goto [] true)
+  (defn byte-stream-decoder-goto [] true)
 
-  (defn xor-stream-decoder [read in-waiting handler]
-    (let [payload-size (atom nil)]
+  (defn byte-stream-decoder [read in-waiting handler]
+    (let [size (atom nil)]
       (state-machine 
        (states
         (sync-header)
-        (reset-payload    (reset! payload-size (read)))
+        (reset-payload    (reset! size (read)))
         (wait-payload)
         (handle-payload   (let [payload (atom (list))]
-                            (dotimes [_ (deref payload-size)]
+                            (dotimes [_ @size]
                               (swap! payload conj (read)))
-                            (when (= (read) (reduce bit-xor (deref payload-size) (deref payload)))
-                              (swap! payload reverse)
-                              (handler (deref payload))))))
+                            (if (= (read) (reduce bit-xor @size @payload))
+                              (handler (reverse @payload))))))
        (transitions
-        (sync-header     #(xor-stream-header-ready read in-waiting)           reset-payload)
-        (reset-payload   xor-stream-decoder-goto                              wait-payload)
-        (wait-payload    #(xor-stream-payload-ready payload-size in-waiting)  handle-payload)
-        (handle-payload  xor-stream-decoder-goto                              sync-header)))))
+        (sync-header     #(byte-stream-header-ready read in-waiting)      reset-payload)
+        (reset-payload   byte-stream-decoder-goto                         wait-payload)
+        (wait-payload    #(byte-stream-payload-ready size in-waiting)     handle-payload)
+        (handle-payload  byte-stream-decoder-goto                         sync-header)))))
 #+end_src
 
 ** Looping
@@ -7519,13 +7518,13 @@ Create some dummy libs under /test/modules/,
       (is (< (- (millis) begin) 1000))))
 #+end_src
 
-*** XOR Stream
+*** Byte Stream
 
 #+name: ferret-unit-tests
 #+begin_src clojure :tangle no
-  (def xor-stream-state (atom nil))
+  (def byte-stream-state (atom nil))
 
-  (defn xor-sample-read-stream [buf]
+  (defn byte-sample-read-stream [buf]
     (let [buffer (atom buf)]
       (list
        (fn []
@@ -7535,9 +7534,9 @@ Create some dummy libs under /test/modules/,
        (fn []
          (count (deref buffer)))
        (fn [vals]
-         (reset! xor-stream-state vals)))))
+         (reset! byte-stream-state vals)))))
 
-  (defn xor-sample-write-stream []
+  (defn byte-sample-write-stream []
     (let [buffer (atom (list))]
       (list
        (fn [v]
@@ -7545,22 +7544,22 @@ Create some dummy libs under /test/modules/,
        (fn []
          (reverse (deref buffer))))))
 
-  (deftest xor-stream-test
-    (let [[writer get-buffer] (xor-sample-write-stream)
-          encoder (xor-stream-encoder writer)
+  (deftest byte-stream-test
+    (let [[writer get-buffer] (byte-sample-write-stream)
+          encoder (byte-stream-encoder writer)
           data (list (list 1 2 3 4)
                      (list 5 6 7 8))]
       (doseq [d data] 
         (encoder d))
 
-      (let [[read in-waiting handler] (xor-sample-read-stream (get-buffer))
-            decoder (xor-stream-decoder read in-waiting handler)]
+      (let [[read in-waiting handler] (byte-sample-read-stream (get-buffer))
+            decoder (byte-stream-decoder read in-waiting handler)]
         (dotimes [i 4]
           (decoder))
-        (is (= (list 1 2 3 4) @xor-stream-state))
+        (is (= (list 1 2 3 4) @byte-stream-state))
         (dotimes [i 4]
           (decoder))
-        (is (= (list 5 6 7 8) @xor-stream-state)))))
+        (is (= (list 5 6 7 8) @byte-stream-state)))))
  #+end_src
  
 *** Misc

@@ -5843,7 +5843,6 @@ Ported from,
       result = 0;
     }
   };
-
 #+end_src
 
 #+name: runtime-clojure-core

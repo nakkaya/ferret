@@ -5657,26 +5657,31 @@ returns true, returns the next state.
   (defmacro state-machine [[_ & states] [_ & transitions]]
     (let [states (reduce (fn [h v]
                            (let [[name & body] v]
-                             (conj h name `(fn [] ~@body))))
+                             (conj h (keyword name) `(fn [] ~@body))))
                          [] states)
           transitions (->> transitions
                            (map (fn [v]
                                   (let [[state & conds] v
+                                        state (keyword state)
                                         conds (->> (partition 2 conds)
                                                    (reduce (fn [h v]
-                                                             (let [[check state] v]
+                                                             (let [[check state] v
+                                                                   state (keyword state)]
                                                                (conj h `(~check) state))) []))]
-                                    `((= state ~state) (cond ~@conds true ~state)))))
+                                    `(~state (fn [] (cond ~@conds true ~state))))))
                            (reduce (fn [h v]
                                      (let [[check transition] v]
                                        (conj h check transition)))
-                                   ['cond]))]
-      `(let [~@states
-             machine-state# (atom ~(first states))]
-         (fn []
-           (let [ret# ((deref machine-state#))]
-             (swap! machine-state# (fn [state] (~@transitions)))
-             ret#)))))
+                                   []))]
+      
+      `((fn [state states transitions]
+          (fn []
+            (let [ret# ((states @state))]
+              (reset! state ((transitions @state)))
+              ret#)))
+        (atom ~(first states))
+        (new-d-list ~@states)
+        (new-d-list ~@transitions))))
 #+end_src
 
 *** PID Control

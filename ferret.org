@@ -4503,21 +4503,39 @@ A simple macro for calling inline C++,
 
   (defn byte-stream-decoder-goto [] true)
 
+  (defn byte-stream-handle-payload [read s handler]
+    "number_t size = number::to<number_t>(s);
+     number_t cs_calculated = size;
+     var payload_rev;
+
+     for(number_t i = 0 ; i < size; i++){
+       var v = run(read);
+       cs_calculated ^= number::to<number_t>(v);
+       payload_rev = runtime::cons(v,payload_rev);
+     }
+
+     number_t cs_read = number::to<number_t>(run(read));
+
+     if (cs_calculated == cs_read){
+       var payload;
+
+       for(auto const& i : runtime::range(payload_rev))
+         payload = runtime::cons(i,payload);
+       
+       run(handler,payload);
+     }")
+
   (defn byte-stream-decoder [read in-waiting handler]
     (let [size (atom nil)]
       (state-machine 
        (states
         (sync-header)
-        (reset-payload    (reset! size (read)))
+        (read-size        (reset! size (read)))
         (wait-payload)
-        (handle-payload   (let [payload (atom (list))]
-                            (dotimes [_ @size]
-                              (swap! payload conj (read)))
-                            (if (= (read) (reduce bit-xor @size @payload))
-                              (handler (reverse @payload))))))
+        (handle-payload   (byte-stream-handle-payload read @size handler)))
        (transitions
-        (sync-header     #(byte-stream-header-ready read in-waiting)      reset-payload)
-        (reset-payload   byte-stream-decoder-goto                         wait-payload)
+        (sync-header     #(byte-stream-header-ready read in-waiting)      read-size)
+        (read-size       byte-stream-decoder-goto                         wait-payload)
         (wait-payload    #(byte-stream-payload-ready size in-waiting)     handle-payload)
         (handle-payload  byte-stream-decoder-goto                         sync-header)))))
 #+end_src

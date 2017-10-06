@@ -3641,11 +3641,11 @@ parameterized. Thus, close to optimal performance will result.
   #endif
 #+end_src 
 
-When /allocate/ is called the pool will scan the memory pool using
-the /used/ bit array to find a block of memory big enough to
-satisfy the request. If found, it will the mark the region as used and
-return a pointer from /pool/ array to the user which points to
-the memory block.
+Pool allocator uses circular first-fit strategy, when /allocate/ is
+called the pool will scan the memory pool using the /used/ bit array
+to find a block of memory big enough to satisfy the request. If found,
+it will the mark the region as used and return a pointer from /pool/
+array to the user which points to the memory block.
 
 When a free request is received, we resolve the pointer in to the
 memory pool read the book keeping information on how much memory

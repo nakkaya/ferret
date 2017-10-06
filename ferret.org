@@ -128,7 +128,7 @@ Boards]] for more info on how to use Ferret lisp on Arduino boards.)
 #+END_EXAMPLE
 
 Then upload as usual. Following is another example, showing the usage
-of [[Memory Pooling]]. Program will blink two LEDs simultaneously at
+of [[Memory Management][Memory Pooling]]. Program will blink two LEDs simultaneously at
 different frequencies (Yellow LED at 5 hz Blue LED at 20 hz). It uses
 a memory pool of 512 bytes allocated at compile time instead of
 calling malloc/free at runtime.

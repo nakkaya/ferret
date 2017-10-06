@@ -7782,14 +7782,14 @@ Create some dummy libs under /test/modules/,
     - *--release* - CLI option added.
   - *pointer* - Ability to call cleanup function before *GC*
   - *Debugging* - Add some debugging macros, native side.
-  - *pid_controller* - Implement Unit Tests.
+  - =pid_controller= - Implement Unit Tests.
   - *Continuous Integration* - Setup Travis CI, automate testing and
     deployment.
   - Implement *Range-based for loop* for seekable containers.
   - *Benchmarking* - Add a benchmarking function.
   - *Memory Pool* - Functions report in bytes.
   - *sequence* - Remove size from object.
-  - *memory_pool* - Enable Locking, make it thread safe.
+  - =memory_pool= - Enable Locking, make it thread safe.
     - Removed - Wasted to much memory.
   - *Lazy Sequence* - Should cache the result of *rest* and return it
     on subsequent calls.

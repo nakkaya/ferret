@@ -874,11 +874,14 @@ with the global name for readability.
                                                   (and (seq? f)
                                                        (= 'def (first f))
                                                        (every? true? (map = f v))))))
-                               form fn-defs)        
+                               form fn-defs)
+          unique-fn #(if-let [imp ((apply hash-map (flatten fn-table)) %)]
+                       (list 'fir-new-lambda %)
+                       %)
           embeded-fn-calls (reduce (fn[h [name gensym]]
-                                     (morph-form h  #(and (symbol? %)
-                                                          (= % name))
-                                                 (fn [_] (list 'fir-new-lambda gensym))))
+                                     (morph-form h
+                                                 #(is-form? name %)
+                                                 (fn [call] (map unique-fn call))))
                                    no-global-fn fn-table)
           embed-fn-names (reduce (fn[h [name gensym]]
                                    (morph-form h #(and (symbol? %)
@@ -6485,6 +6488,20 @@ Static code analysis (cppcheck) options,
 
     (is (= 0 (check-form '((deftest some-test
                              (is (= 6 (apply + (list 1 2 3)))))
+                           (run-all-tests))))))
+#+end_src
+
+*** Misc
+
+#+name: clojure-unit-tests
+#+begin_src clojure :tangle no
+  (deftest testing-compilation
+    (is (= 0 (check-form '((defn handler []     )
+                           (defn call [handler] "return obj<number>(42);")
+
+                           (deftest some-test
+                             (is (= 42 (call handler))))
+                           
                            (run-all-tests))))))
 #+end_src
 

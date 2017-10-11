@@ -6094,11 +6094,8 @@ Turns off the given interrupt.
 #+END_EXAMPLE
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
-  (defmacro detach-interrupt [pin]
-    (let [pin (if (number? pin)
-                pin
-                (str "number::to<number_t>(" (symbol-conversion pin) ")"))]
-      `(cxx ~(str "::detachInterrupt(digitalPinToInterrupt(" pin "));"))))
+  (defn detach-interrupt [p]
+    "detachInterrupt(digitalPinToInterrupt(number::to<number_t>(p)));")
 #+end_src
 
 *** SPI

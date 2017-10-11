@@ -6050,25 +6050,24 @@ Registers an interrupt function for the given pin and mode. See
     (->> (gpio/digital-read  input-pin)
          (gpio/digital-write debug-pin)))
 
-  (gpio/attach-interrupt control-light input-pin :change)
+  (gpio/attach-interrupt input-pin :change control-light)
 
   (forever
    (sleep 100))
 #+end_src
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
-  (defmacro attach-interrupt [callback pin mode]
-    (let [pin (if (number? pin)
-                pin
-                (str "number::to<number_t>(" (symbol-conversion pin) ")"))
-          mode (-> mode name .toUpperCase)
-          cb-sym (gensym)]
+  (defmacro attach-interrupt [pin mode callback]
+    (let [mode    (-> mode name .toUpperCase)
+          isr-fn  (gensym)
+          isr-pin (gensym)]
       `(do
-        (def ~cb-sym ~callback)
-        (cxx
-         ~(str "::pinMode(" pin " , INPUT_PULLUP);\n"
-               "auto int_pin = digitalPinToInterrupt(" pin ");\n"
-               "::attachInterrupt(int_pin, [](){ run(" cb-sym ");}, " mode ");")))))
+         (def ~isr-fn  ~callback)
+         (def ~isr-pin ~pin)
+         (cxx
+          ~(str "::pinMode(" isr-pin " , INPUT_PULLUP);\n"
+                "auto isr_pin = digitalPinToInterrupt(" isr-pin ");\n"
+                "::attachInterrupt(isr_pin, [](){ run(" isr-fn ");}, " mode ");")))))
 #+end_src
 
 *** no-interrupt

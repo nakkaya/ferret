@@ -3906,19 +3906,29 @@ not defined.)
 #+name: runtime-native-hardware-concurrency
 #+begin_src c++ :tangle no
   namespace ferret {
-  #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)
-    class mutex {
-      ::std::mutex m;
-    public:
-      void lock()   { m.lock(); } 
-      void unlock() { m.unlock(); }
-    };
-  #else
+  #if defined(FERRET_DISABLE_MULTI_THREADING)
     class mutex {
     public:
       void lock()   {} 
       void unlock() {} 
     };
+  #else
+    #if defined(FERRET_STD_LIB)
+      class mutex {
+        ::std::mutex m;
+      public:
+        void lock()   { m.lock();   } 
+        void unlock() { m.unlock(); }
+      };
+    #endif
+
+    #if defined(FERRET_HARDWARE_ARDUINO)
+      class mutex {
+      public:
+        void lock()   { noInterrupts(); } 
+        void unlock() { interrupts();   }
+      };
+    #endif
   #endif
   }
 
@@ -4006,7 +4016,6 @@ indicating platform.
     
     #if defined(FERRET_HARDWARE_ARDUINO)
       # undef  FERRET_CONFIG_SAFE_MODE
-      # define FERRET_DISABLE_MULTI_THREADING TRUE
       # define FERRET_DISABLE_STD_MAIN TRUE
 
 

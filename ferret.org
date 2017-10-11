@@ -869,27 +869,26 @@ with the global name for readability.
                         (= 'fir-new-lambda (first val)))))))
 
   (defn replace-fn-call-sites-pure [form fn-defs fn-table]
-    (let [no-global-fn (reduce (fn[h v]
-                                 (remove-form h (fn [f]
-                                                  (and (seq? f)
-                                                       (= 'def (first f))
-                                                       (every? true? (map = f v))))))
-                               form fn-defs)
-          invoke (let [fn-table (apply hash-map (flatten fn-table))]
-                   #(if-let [imp (fn-table %)]
-                      (list 'fir-new-lambda imp)
-                      %))
-          embeded-fn-calls (reduce (fn[h [name gensym]]
-                                     (morph-form h
-                                                 #(is-form? name %)
-                                                 (fn [f] (map invoke f))))
-                                   no-global-fn fn-table)
-          embed-fn-names (reduce (fn[h [name gensym]]
-                                   (morph-form h #(and (symbol? %)
-                                                       (= % gensym))
-                                               (fn [_] (identity name))))
-                                 embeded-fn-calls fn-table)]
-      embed-fn-names))
+    (let [def-fn? (fn [f]
+                    (and (is-form? 'def f)
+                         (is-form? 'fir-new-lambda (->> f (drop 2) first))))
+          invoke  (let [fn-table (apply hash-map (flatten fn-table))]
+                    #(if-let [imp (fn-table %)]
+                       (list 'fir-new-lambda imp)
+                       %))
+          
+          no-def-fn    (reduce (fn[h v] (remove-form h def-fn?)) form fn-defs)
+          inline-fns   (reduce (fn[h [name gensym]]
+                                 (morph-form h
+                                             #(or (is-form? name %)
+                                                  (is-form? 'def %))
+                                             (fn [f] (map invoke f))))
+                               no-def-fn fn-table)]
+      (reduce (fn[h [name gensym]]
+                (morph-form h #(and (symbol? %)
+                                    (= % gensym))
+                            (fn [_] (identity name))))
+              inline-fns fn-table)))
 
   (defn replace-fn-call-sites [options form]
     (if (:global-functions options)

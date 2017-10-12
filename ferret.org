@@ -3878,6 +3878,42 @@ Enable synchronized access,
   #endif
 #+end_src 
 
+**** Allocator API
+
+User defined allocators are supported. A Ferret allocator is a class
+with three static functions,
+
+ - =init()= - Initializes the allocator.
+ - =allocate<T>()= - Allocates Ferret object T.
+ - =free(void*)= - Frees the memory.
+
+Allocators are defined seperately in header files. They can then be
+used by including the header files.
+
+#+begin_src c++ :mkdirp yes :tangle src/test/core/allocator_user.h
+  #include <stdlib.h>
+
+  struct allocator_user{
+    static bool loaded;
+
+    static void init(){ loaded = true; }
+
+    template<typename FT>
+    static inline void* allocate(){ return ::malloc(sizeof(FT)); }
+
+    static inline void  free(void * ptr){ ::free(ptr); } 
+  };
+
+  bool allocator_user::loaded = false;
+  #define FERRET_ALLOC_POLICY allocator_user
+#+end_src 
+
+#+begin_src clojure :mkdirp yes :tangle src/test/core/allocator_api.clj
+  (native-header "allocator_user.h")
+
+  (assert (cxx "__result = obj<boolean>(allocator_user::loaded)"))
+#+end_src 
+
 *** Reference Counting
 
 Garbage collection is handled by reference counting. Reference count

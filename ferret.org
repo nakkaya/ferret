@@ -1915,7 +1915,7 @@ Built in interfaces,
 *** Base
 
 All our types are derived from the base Object type. Which is a
-=typedef= of =obj::base<FERRET_RC_POLICY,FERRET_ALLOC_POLICY>=. See
+=typedef= of =obj::base<FERRET_RC_POLICY,FERRET_ALLOCATOR>=. See
 [[Reference Counting]] for available reference counting policies and
 [[Memory Allocation]] for available allocation policies.
 
@@ -1941,7 +1941,7 @@ All our types are derived from the base Object type. Which is a
     virtual seekable_i* cast_seekable_i() { return nullptr; }
 
     void* operator new(size_t, void* ptr){ return ptr; }
-    void  operator delete(void * ptr){ FERRET_ALLOC_POLICY::free(ptr); }
+    void  operator delete(void * ptr){ FERRET_ALLOCATOR::free(ptr); }
   };
 
   typedef object_i<FERRET_RC_POLICY> object;
@@ -2049,7 +2049,7 @@ new *var* containing a pointer to an [[Object System][Object]]. *nil* is represe
 #+begin_src c++ :tangle no
   template<typename FT, typename... Args>
   inline var obj(Args... args) {
-    void * storage = FERRET_ALLOC_POLICY::allocate<FT>();
+    void * storage = FERRET_ALLOCATOR::allocate<FT>();
     return var(new(storage) FT(args...));
   }
 
@@ -2995,7 +2995,7 @@ interpreted as FFI calls.
   #ifdef FERRET_STD_LIB
   template<>
   inline var obj<string>(std::string s) {
-    void * storage = FERRET_ALLOC_POLICY::allocate<string>();
+    void * storage = FERRET_ALLOCATOR::allocate<string>();
     return var(new(storage) string(s.c_str(), (number_t)s.size()));
   }
 
@@ -3619,7 +3619,7 @@ parameterized. Thus, close to optimal performance will result.
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_POOL_SIZE
 
-   #define FERRET_ALLOC_POLICY mem::allocator::pool
+   #define FERRET_ALLOCATOR mem::allocator::pool
 
    #if !defined(FERRET_MEMORY_POOL_PAGE_TYPE)
     #define FERRET_MEMORY_POOL_PAGE_TYPE size_t
@@ -3778,7 +3778,7 @@ libgc.{a,so}.
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_BOEHM_GC
 
-  #define FERRET_ALLOC_POLICY mem::allocator::gc
+  #define FERRET_ALLOCATOR mem::allocator::gc
   #define FERRET_DISABLE_RC true
 
   #include <gc.h>
@@ -3814,9 +3814,9 @@ allocator used.)
 
 #+name: runtime-native-allocators
 #+begin_src c++ :tangle no
-  #if !defined(FERRET_ALLOC_POLICY)
+  #if !defined(FERRET_ALLOCATOR)
 
-  #define FERRET_ALLOC_POLICY mem::allocator::system
+  #define FERRET_ALLOCATOR mem::allocator::system
 
   namespace mem{
     namespace allocator{
@@ -3848,17 +3848,17 @@ Synchronizes access to other allocators.
         static mutex lock;
       public:
 
-        static void init(){ FERRET_ALLOC_POLICY::init(); }
+        static void init(){ FERRET_ALLOCATOR::init(); }
 
         template<typename FT>
         static inline void* allocate(){
           lock_guard guard(lock);
-          return FERRET_ALLOC_POLICY::allocate<FT>();
+          return FERRET_ALLOCATOR::allocate<FT>();
         }
 
         static inline void  free(void * ptr){
           lock_guard guard(lock);
-          FERRET_ALLOC_POLICY::free(ptr);
+          FERRET_ALLOCATOR::free(ptr);
         }
       };
     }
@@ -3873,8 +3873,8 @@ Enable synchronized access,
 
     #if defined(FERRET_MEMORY_POOL_SIZE) || defined(FERRET_HARDWARE_ARDUINO)
       mutex mem::allocator::synchronized::lock;
-      #undef  FERRET_ALLOC_POLICY
-      #define FERRET_ALLOC_POLICY mem::allocator::synchronized
+      #undef  FERRET_ALLOCATOR
+      #define FERRET_ALLOCATOR mem::allocator::synchronized
     #endif
 
   #endif
@@ -3907,7 +3907,7 @@ used by including the header files.
   };
 
   bool allocator_user::loaded = false;
-  #define FERRET_ALLOC_POLICY allocator_user
+  #define FERRET_ALLOCATOR allocator_user
 #+end_src 
 
 #+begin_src clojure :mkdirp yes :tangle src/test/core/allocator_api.clj
@@ -4239,8 +4239,8 @@ will be called right after =program::main()=.
    #endif
     {     
       using namespace ferret;
-
-      FERRET_ALLOC_POLICY::init();
+      FERRET_ALLOCATOR::init();
+      runtime::init();
 
      #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_CLI_ARGS)
       for (int i = argc - 1; i > -1 ; i--)
@@ -4267,13 +4267,14 @@ procedure.
   #if defined(FERRET_HARDWARE_ARDUINO)
     void setup(){
       using namespace ferret;
-
-        runtime::init();
+      FERRET_ALLOCATOR::init();
+      runtime::init();
 
       #if defined(FERRET_PROGRAM_MAIN)
         $file$::main();
       #endif
     }
+
     void loop(){
       using namespace ferret;
       #if !defined(FERRET_PROGRAM_MAIN)

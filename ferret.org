@@ -5928,12 +5928,6 @@ Ported from,
           options (merge defaults (apply hash-map options))
           {:keys [container kp ki kd set-point bounds continuous]} options
           [in-min in-max out-min out-max] bounds]
-
-      (if (or (< in-max in-min)
-              (< out-max out-min))
-        (do (println "pid-controller invalid bounds")
-            (exit-failure)))
-      
       `(new-pid-controller ~kp ~ki ~kd ~in-min ~in-max ~out-min ~out-max ~continuous ~set-point)))
 #+end_src
 

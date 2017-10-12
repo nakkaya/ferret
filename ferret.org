@@ -2878,7 +2878,9 @@ Each keyword in the program is converted to an /keyword/ object. A
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
+      runtime::print("keyword<");
       runtime::print(_word);
+      runtime::print(">");
     }
   #endif
 
@@ -3029,7 +3031,7 @@ Mimics Clojure's /atom/. It is thread safe when used on system where
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      runtime::print("atom <");
+      runtime::print("atom<");
       data.stream_console();
       runtime::print(">");
     }
@@ -3128,7 +3130,7 @@ thread to =future=,
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      runtime::print("future <");
+      runtime::print("future<");
       fn.stream_console();
       runtime::print(">");
     }

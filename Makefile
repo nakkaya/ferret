@@ -70,6 +70,7 @@ CORE_TESTS = src/test/core/module.clj                     \
 	     src/test/core/module_unit_test.clj           \
              src/test/core/module_import_empty_aux_a.clj  \
              src/test/core/module_import_empty_aux_b.clj  \
+             src/test/core/allocator_api.clj              \
              src/test/core/core.clj                       \
              src/test/core/concurrency.clj
 

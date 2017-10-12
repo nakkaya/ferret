@@ -3681,7 +3681,6 @@ to each other in the array which improves data locality.
       template<typename page_size, size_t pool_size>
       class memory_pool{
       public:
-        mutex lock;
         bit_array<pool_size> used;
         page_size pool[pool_size];
         size_t offset;
@@ -3729,8 +3728,6 @@ to each other in the array which improves data locality.
         }
 
         void *allocate(size_t req_size){
-          lock_guard guard(lock);
-
           size_t length = chunk_length(++req_size);
           size_t page   = scan_pool(length, offset);
 
@@ -3749,8 +3746,6 @@ to each other in the array which improves data locality.
         }
 
         void free(void *p){
-          lock_guard guard(lock);
-
           ptrdiff_t begin = (static_cast<page_size *>(p) - pool) - 1;
           ptrdiff_t end = begin + (ptrdiff_t)pool[begin];
 
@@ -3833,6 +3828,50 @@ allocator used.)
       };
     }
   }
+  #endif
+#+end_src 
+
+**** Synchronized
+
+Synchronizes access to other allocators.
+
+#+name: runtime-native-allocators
+#+begin_src c++ :tangle no
+  namespace mem{
+    namespace allocator{
+      class synchronized{
+        static mutex lock;
+      public:
+
+        static void init(){ FERRET_ALLOC_POLICY::init(); }
+
+        template<typename FT>
+        static inline void* allocate(){
+          lock_guard guard(lock);
+          return FERRET_ALLOC_POLICY::allocate<FT>();
+        }
+
+        static inline void  free(void * ptr){
+          lock_guard guard(lock);
+          FERRET_ALLOC_POLICY::free(ptr);
+        }
+      };
+    }
+  }
+#+end_src 
+
+Enable synchronized access,
+
+#+name: runtime-native-allocators
+#+begin_src c++ :tangle no
+  #if  !defined(FERRET_DISABLE_MULTI_THREADING)
+
+    #if defined(FERRET_MEMORY_POOL_SIZE) || defined(FERRET_HARDWARE_ARDUINO)
+      mutex mem::allocator::synchronized::lock;
+      #undef  FERRET_ALLOC_POLICY
+      #define FERRET_ALLOC_POLICY mem::allocator::synchronized
+    #endif
+
   #endif
 #+end_src 
 

@@ -411,7 +411,7 @@ maintain.
          (let->fn)
          (do->fn)
          (closure-conversion)
-         (replace-fn-call-sites options)
+         (inline-global-fns options)
          (escape-analysis)
          (symbol-conversion)))
 #+end_src
@@ -846,7 +846,7 @@ with the global name for readability.
                  (+ a x)))
              (defn my-inc [x] (+ 1 x))))
 
-  (replace-fn-call-sites
+  (inline-global-fns
    '((define_lambda G__3885 (a) (x) (_plus_ a x))
      (define_lambda G__3886 () (a) (def adder (lambda_object G__3885 a)))
      (define_lambda G__3887 () () (define_var a 1) ((lambda_object G__3886) a))
@@ -869,7 +869,7 @@ with the global name for readability.
                    (and (seq? val)
                         (= 'fir-new-lambda (first val)))))))
 
-  (defn replace-fn-call-sites-pure [form fn-defs fn-table]
+  (defn inline-global-fns-pure [form fn-defs fn-table]
     (let [def-fn? (fn [f]
                     (and (is-form? 'def f)
                          (is-form? 'fir-new-lambda (->> f (drop 2) first))))
@@ -891,13 +891,13 @@ with the global name for readability.
                             (fn [_] (identity name))))
               inline-fns fn-table)))
 
-  (defn replace-fn-call-sites [options form]
+  (defn inline-global-fns [options form]
     (if (:global-functions options)
       form
       (let [pure-fn-defs (->> (select-def-fn form)
                               (filter #(= 2 (-> % last count))))
             pure-fn-table (map (fn [[_ name [_ gensym]]] [name gensym]) pure-fn-defs)
-            form (replace-fn-call-sites-pure form pure-fn-defs pure-fn-table)
+            form (inline-global-fns-pure form pure-fn-defs pure-fn-table)
             closure-fn-defs (->> (select-def-fn form)
                                  (filter #(not= 2 (-> % last count))))
             closure-fn-table (map (fn [[_ name [_ gensym]]] [name gensym]) closure-fn-defs)]
@@ -1668,29 +1668,30 @@ is supported.
   #+begin_src clojure
     (defn build-specs [input args]
       (fn []
-        (let [output (if (->> args :options :output)
-                       (->> args :options :output)
-                       input)
-              output-path (file-path output)
-              output-extension (if (->> args :options :output)
-                                 (file-extension output)
+        (let [args             (fn [k]
+                                 (->> args :options k))
+              output           (if (args :output)
+                                 (args :output)
+                                 input)
+              output-path      (file-path output)
+              output-extension (if (args :output) 
+                                 (file-extension (args :output))
                                  default-cpp-extension)
-              base-name (file-base-name output)
-              input-path (file-path input)
-              default-compiled-file (make-file output-path base-name output-extension)
-              default-options (compile-options-parse-source default-compiled-file)]
-          
+              base-name        (file-base-name output)
+              input-path       (file-path input)
+              output-file      (make-file output-path base-name output-extension)
+              default-options  (compile-options-parse-source output-file)]
           (-> default-options
-              (assoc :input-file input)
-              (assoc :base-name base-name)
-              (assoc :path input-path)
-              (assoc :output-path output-path)
-              (assoc :source-extension output-extension)
-              (assoc :ast (->> args :options :ast))
-              (assoc :compile-program (->> args :options :compile))
-              (assoc :release (->> args :options :release))
-              (assoc :format-code (not (->> args :options :disable-formatting)))
-              (assoc :global-functions (->> args :options :global-functions))
+              (assoc :input-file         input)
+              (assoc :base-name          base-name)
+              (assoc :path               input-path)
+              (assoc :output-path        output-path)
+              (assoc :source-extension   output-extension)
+              (assoc :ast                (args :ast))
+              (assoc :compile-program    (args :compile))
+              (assoc :release            (args :release))
+              (assoc :format-code        (not (args :disable-formatting)))
+              (assoc :global-functions   (args :global-functions))
               (assoc :extra-source-files
                      (cond (not (empty? (:arguments args)))
                            (:arguments args)
@@ -1805,15 +1806,16 @@ is supported.
 
    #+name: core-compiler-main
    #+begin_src clojure
-     (def program-options [["-i" "--input FILE" "Input File" :default "./core.clj"]
-                           ["-o" "--output FILE" "Output File"]
-                           ["-c" "--compile" "Compile to Binary"]
-                           ["-w" "--watch-input" "Automatically Recompile Input File on Change."]
-                           [nil "--release" "Compile in Release Mode. Strip Debug Information."]
-                           [nil "--disable-formatting" "Disables Solution Formatting Using clang-format."]
-                           [nil "--global-functions" "Disables replace-fn-call-sites Optimization."]
-                           [nil "--ast" "Print Intermediate AST."]
-                           ["-h" "--help" "Print Help"]])
+     (def program-options
+       [["-i" "--input FILE"         "Input File" :default "./core.clj"]
+        ["-o" "--output FILE"        "Output File"]
+        ["-c" "--compile"            "Compile to Binary"]
+        ["-w" "--watch-input"        "Automatically Recompile Input File on Change"]
+        [nil  "--release"            "Compile in Release Mode. Strip Debug Information"]
+        [nil  "--disable-formatting" "Disables Output File Formatting Using clang-format"]
+        [nil  "--global-functions"   "Disables inline-global-fns Optimization"]
+        [nil  "--ast"                "Print Intermediate AST"]
+        ["-h" "--help"               "Print Help"]])
    #+end_src
 
    Compiler /main/,

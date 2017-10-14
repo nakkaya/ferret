@@ -3916,6 +3916,35 @@ used by including the header files.
   (assert (cxx "__result = obj<boolean>(allocator_user::loaded)"))
 #+end_src 
 
+Helper functions for user defined allocators.
+
+#+name: runtime-native-allocator-helpers
+#+begin_src c++ :tangle no
+  namespace mem{
+    inline size_t align_of(uintptr_t size, size_t align){
+      return (size + align - 1) & ~(align - 1);
+    }
+
+    template<class T>
+    size_t align_of(const void * ptr) {
+      return align_of(reinterpret_cast<uintptr_t>(ptr), sizeof(T));
+    }
+      
+    inline size_t align_req(uintptr_t size, size_t align){
+      size_t adjust = align - (size & (align - 1));
+        
+      if(adjust == align)
+        return 0;
+      return adjust;
+    }
+
+    template<class T>
+    size_t align_req(const void * ptr) {
+      return align_req(reinterpret_cast<uintptr_t>(ptr), sizeof(T));
+    }
+  }
+#+end_src 
+
 *** Reference Counting
 
 Garbage collection is handled by reference counting. Reference count
@@ -6655,7 +6684,23 @@ Static code analysis (cppcheck) options,
   #include <runtime.h>
 
   int main() {
-    using namespace ferret::mem::allocator;
+    using namespace ferret::mem;
+
+    assert(0  == ferret::mem::align_req(0,8));
+    assert(7  == ferret::mem::align_req(1,8));
+    assert(0  == ferret::mem::align_req(8,8));
+
+    assert(0  == ferret::mem::align_of(0,8));
+    assert(8  == ferret::mem::align_of(1,8));
+    assert(8  == ferret::mem::align_of(8,8));
+
+    alignas(16) int buff [4];
+    assert(0  == ferret::mem::align_req<int16_t>(buff));
+    assert(reinterpret_cast<std::uintptr_t>(buff)
+           == ferret::mem::align_of<int16_t>(buff));
+
+    using namespace allocator;
+
     size_t item_size = sizeof(size_t);
 
     memory_pool<size_t,14> tiny_pool;
@@ -8104,6 +8149,7 @@ Create some dummy libs under /test/modules/,
 
   // Object System Base
   namespace ferret{
+    <<runtime-native-allocator-helpers>>
     <<runtime-native-allocator-pool-implementation>>
     <<runtime-native-allocator-pool>>
     <<runtime-native-allocators>>

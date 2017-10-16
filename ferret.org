@@ -3596,7 +3596,7 @@ Enable and configure GC
 **** Pool
 
 When =FERRET_MEMORY_POOL_SIZE= is defined Ferret programs will use a
-memory pool called =mem::allocator::program_memory= instead of
+memory pool called =memory::allocator::program_memory= instead of
 /mallac/,/free/ for memory allocation, depending on the pool size
 Ferret will allocate /N/ bytes of memory on stack and all memory
 allocation happens in this memory pool useful when working with very
@@ -3619,7 +3619,7 @@ parameterized. Thus, close to optimal performance will result.
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_POOL_SIZE
 
-   #define FERRET_ALLOCATOR mem::allocator::pool
+   #define FERRET_ALLOCATOR memory::allocator::pool
 
    #if !defined(FERRET_MEMORY_POOL_PAGE_TYPE)
     #define FERRET_MEMORY_POOL_PAGE_TYPE size_t
@@ -3629,7 +3629,7 @@ parameterized. Thus, close to optimal performance will result.
     #define FERRET_MEMORY_POOL_PAGE_COUNT FERRET_MEMORY_POOL_SIZE
    #endif
 
-  namespace mem{
+  namespace memory{
     namespace allocator{
 
       memory_pool<FERRET_MEMORY_POOL_PAGE_TYPE, FERRET_MEMORY_POOL_PAGE_COUNT> program_memory;
@@ -3666,7 +3666,7 @@ to each other in the array which improves data locality.
 #+name: runtime-native-allocator-pool-implementation
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_POOL_SIZE
-  namespace mem{
+  namespace memory{
     namespace allocator{
       template<size_t pool_size>
       class bit_array {
@@ -3778,12 +3778,12 @@ libgc.{a,so}.
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_BOEHM_GC
 
-  #define FERRET_ALLOCATOR mem::allocator::gc
+  #define FERRET_ALLOCATOR memory::allocator::gc
   #define FERRET_DISABLE_RC true
 
   #include <gc.h>
 
-  namespace mem{
+  namespace memory{
     namespace allocator{
       
       class gc{
@@ -3816,9 +3816,9 @@ allocator used.)
 #+begin_src c++ :tangle no
   #if !defined(FERRET_ALLOCATOR)
 
-  #define FERRET_ALLOCATOR mem::allocator::system
+  #define FERRET_ALLOCATOR memory::allocator::system
 
-  namespace mem{
+  namespace memory{
     namespace allocator{
 
       class system{
@@ -3842,7 +3842,7 @@ Synchronizes access to other allocators.
 
 #+name: runtime-native-allocators
 #+begin_src c++ :tangle no
-  namespace mem{
+  namespace memory{
     namespace allocator{
       class synchronized{
         static mutex lock;
@@ -3872,9 +3872,9 @@ Enable synchronized access,
   #if  !defined(FERRET_DISABLE_MULTI_THREADING)
 
     #if defined(FERRET_MEMORY_POOL_SIZE) || defined(FERRET_HARDWARE_ARDUINO)
-      mutex mem::allocator::synchronized::lock;
+      mutex memory::allocator::synchronized::lock;
       #undef  FERRET_ALLOCATOR
-      #define FERRET_ALLOCATOR mem::allocator::synchronized
+      #define FERRET_ALLOCATOR memory::allocator::synchronized
     #endif
 
   #endif
@@ -3920,7 +3920,7 @@ Helper functions for user defined allocators.
 
 #+name: runtime-native-allocator-helpers
 #+begin_src c++ :tangle no
-  namespace mem{
+  namespace memory{
     inline size_t align_of(uintptr_t size, size_t align){
       return (size + align - 1) & ~(align - 1);
     }
@@ -3958,7 +3958,7 @@ counting policies.
 #+name: runtime-native-reference-counting
 #+begin_src c++ :tangle no
   #if !defined(FERRET_RC_POLICY)
-  namespace mem {
+  namespace memory {
     namespace gc {
 
   #if !defined(FERRET_RC_TYPE)
@@ -3967,7 +3967,7 @@ counting policies.
       
   #if defined(FERRET_DISABLE_RC)
 
-  #define FERRET_RC_POLICY mem::gc::no_rc
+  #define FERRET_RC_POLICY memory::gc::no_rc
       
       class no_rc{
       public:
@@ -3990,11 +3990,11 @@ counting policies.
       };    
 
       #if defined(FERRET_DISABLE_MULTI_THREADING) || !defined(FERRET_STD_LIB)
-        #define FERRET_RC_POLICY mem::gc::rc<FERRET_RC_TYPE>
+        #define FERRET_RC_POLICY memory::gc::rc<FERRET_RC_TYPE>
       #endif
       
       #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_MULTI_THREADING)
-        #define FERRET_RC_POLICY mem::gc::rc<::std::atomic<FERRET_RC_TYPE>>
+        #define FERRET_RC_POLICY memory::gc::rc<::std::atomic<FERRET_RC_TYPE>>
       #endif
   #endif
     }
@@ -6385,7 +6385,7 @@ examples.
     (on "defined FERRET_MEMORY_POOL_SIZE"
         "size_t acc = 0;
          for(size_t i = 0; i < FERRET_MEMORY_POOL_PAGE_COUNT; i++)
-           if(mem::allocator::program_memory.used.get(i) == false)
+           if(memory::allocator::program_memory.used.get(i) == false)
              acc++;
          __result = obj<number>((acc*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
 #+end_src
@@ -6684,20 +6684,19 @@ Static code analysis (cppcheck) options,
   #include <runtime.h>
 
   int main() {
-    using namespace ferret::mem;
+    using namespace ferret::memory;
 
-    assert(0  == ferret::mem::align_req(0,8));
-    assert(7  == ferret::mem::align_req(1,8));
-    assert(0  == ferret::mem::align_req(8,8));
+    assert(0  == align_req(0,8));
+    assert(7  == align_req(1,8));
+    assert(0  == align_req(8,8));
 
-    assert(0  == ferret::mem::align_of(0,8));
-    assert(8  == ferret::mem::align_of(1,8));
-    assert(8  == ferret::mem::align_of(8,8));
+    assert(0  == align_of(0,8));
+    assert(8  == align_of(1,8));
+    assert(8  == align_of(8,8));
 
     alignas(16) int buff [4];
-    assert(0  == ferret::mem::align_req<int16_t>(buff));
-    assert(reinterpret_cast<std::uintptr_t>(buff)
-           == ferret::mem::align_of<int16_t>(buff));
+    assert(0  == align_req<int16_t>(buff));
+    assert(reinterpret_cast<std::uintptr_t>(buff) == align_of<int16_t>(buff));
 
     using namespace allocator;
 

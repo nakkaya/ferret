@@ -301,6 +301,34 @@ details.)
   $ ./ferret -i blink.clj -c
 #+END_EXAMPLE
 
+Sample Makefile for automating compilation and upload on an Arduino,
+
+#+begin_src makefile
+  FERRET  = ferret
+  INPUT   = core.clj
+  OUTPUT  = core.ino
+  ARDUINO = ~/arduino-1.8.5/arduino
+  BOARD   = arduino:sam:arduino_due_x_dbg
+  PORT    = /dev/ttyACM0
+  RM      = rm -f
+
+  .PHONY: verify upload clean
+
+  default: verify
+
+  core: core.clj
+          $(FERRET) -o $(OUTPUT)
+
+  verify: core
+          $(ARDUINO) --board $(BOARD) --verify $(OUTPUT)
+
+  upload: core
+          $(ARDUINO) --board $(BOARD) --port $(PORT) --upload $(OUTPUT)
+
+  clean:
+          $(RM) $(OUTPUT)
+#+end_src
+
 *Pre Arduino 1.5.0*, recommended way is to go to preferences and set
 Arduino IDE to use an External Editor. This way when Ferret recompiles
 the sketch changes will be automatically picked up by the IDE ready to

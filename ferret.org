@@ -29,6 +29,7 @@ computers running Linux/Mac OS X/Windows.
      - Due / AT91SAM3X8E
      - 101 / Intel Curie
    - Teensy
+     - 2.0 / 16 MHz AVR
      - 3.2 / Cortex-M4
      - 3.6 / Cortex-M4F
    - SparkFun SAMD21 Mini / ATSAMD21G18 - ARM Cortex-M0+

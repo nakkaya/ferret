@@ -5151,6 +5151,36 @@ Returns the nth rest of coll, coll when n is 0.
             (list (take n (concat p pad)))))))))
 #+end_src
 
+*** every?
+
+Returns true if (pred x) is logical true for every x in coll, else
+false.
+
+#+name: runtime-clojure-core
+#+begin_src clojure
+  (defn every? [pred coll]
+    "for(auto const& i : runtime::range(coll)){
+       if (!run(pred, i))
+        return cached::false_t;
+     }
+     __result = cached::true_t;")
+#+end_src
+
+*** interleave
+
+Returns a lazy seq of the first item in each coll, then the second etc.
+
+#+name: runtime-clojure-core
+#+begin_src clojure
+  (defn interleave
+    ([s1 s2]
+     (lazy-seq
+      (when (and (not (empty? s1))
+                 (not (empty? s2)))
+        (cons (first s1) (cons (first s2) 
+                               (interleave (rest s1) (rest s2))))))))    
+#+end_src
+
 ** Math
 *** zero?
 
@@ -7397,6 +7427,12 @@ Create some dummy libs under /test/modules/,
     (= (list 1 1 2 3 5) (take 5 (fib-seq)))
     (= 12 (apply + (take 5 (fib-seq))))
 
+    (is (= false (every? false? (list true false))))
+    (is (= true  (every? false? (list false false))))
+    
+    (is (= (list 1 3 2 4) (interleave (list 1 2) (list 3 4))))
+    (is (= (list 1 3)     (interleave (list 1 2) (list 3))))
+    
     (is (= (list (list 0 1 2 3) (list 4 5 6 7))                              (partition 4 (range 10))))
     (is (= (list (list 0 1 2 3) (list 4 5 6 7))                              (partition 4 (range 8))))
     (is (= (list (list 0 1 2 3) (list 6 7 8 9) (list 12 13 14 15))           (partition 4 6 (range 20))))

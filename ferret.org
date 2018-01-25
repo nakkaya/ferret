@@ -348,6 +348,74 @@ Then compile with,
 Result will be *blink.ino* ready to be uploaded. Any changes to the
 *clj* file should be picked up by the IDE.
 
+*** Yocto
+
+    Install [[https://wiki.yoctoproject.org/wiki/Building_your_own_recipes_from_first_principles][Yocto]] and create a package for your application. A sample
+    recipe for a simple Ferret application is given below.
+
+#+BEGIN_EXAMPLE
+  recipes-example/
+  └── core
+      ├── core-0.1
+      │   └── core.clj
+      └── core_0.1.bb
+#+END_EXAMPLE
+
+#+begin_src clojure
+  ;; core.clj
+  (println "Hello World!")
+#+end_src
+
+#+begin_src fundamental
+  # core_0.1.bb
+  SUMMARY = "Simple Ferret application"
+  SECTION = "examples"
+  LICENSE = "MIT"
+  LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
+
+  SRC_URI = "file://core.cpp"
+
+  S = "${WORKDIR}"
+
+  do_compile() {
+           ferret -i ./core.clj
+           ${CXX} -std=c++11 core.cpp -o core
+  }
+
+  do_install() {
+           install -d ${D}${bindir}
+           install -m 0755 core ${D}${bindir}
+  }
+#+end_src
+
+Finally add the application to your =layer.conf=.
+
+#+BEGIN_EXAMPLE
+  IMAGE_INSTALL_append = " core"
+#+END_EXAMPLE
+
+*** Raspberry Pi
+
+Clone required layers,
+
+#+BEGIN_EXAMPLE
+  git clone -b jethro git://git.yoctoproject.org/meta-raspberrypi
+#+END_EXAMPLE
+
+Add =meta-raspberrypi= to =BBLAYERS= in =build/conf/bblayers.conf=,
+and and Select your machine type in =build/conf/local.conf=. See
+[[http://meta-raspberrypi.readthedocs.io/en/latest/layer-contents.html#supported-machines][Supported Machines]] for =MACHINE= type. Build the image,
+
+#+BEGIN_EXAMPLE
+  bitbake rpi-basic-image
+#+END_EXAMPLE
+
+Write the image,
+
+#+BEGIN_EXAMPLE
+  dd if=tmp/deploy/images/raspberrypi2/rpi-basic-image-raspberrypi2.rpi-sdimg of=/dev/mmcblk0
+#+END_EXAMPLE
+
 ** Building From Sources
 
 The code in this document is the executable source. Use the *build*

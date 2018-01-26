@@ -3,6 +3,7 @@ MAJOR_VERSION = $(shell git describe --abbrev=0 --tags)
 MINOR_VERSION = $(shell git rev-list ${MAJOR_VERSION}.. --count)
 VERSION = ${MAJOR_VERSION}.${MINOR_VERSION}
 
+.DEFAULT_GOAL := bin/ferret
 .PHONY: test test-release deb deb-repo docs release docker-release clean
 .PRECIOUS: %.cpp %.gcc %.clang %.ino
 

@@ -4152,6 +4152,87 @@ accuracy using 6 bits for fraction.
   };
 #+end_src
 
+Euclidean geometry, See [[Euclidean Vector]] unit test for usage.
+
+#+name: runtime-native-euclidean-vector
+#+begin_src c++ :tangle no
+  namespace euclidean{
+    template <size_t D, typename T>
+    struct vector {
+      T d[D];
+   
+      T& operator [](size_t idx)      { return d[idx]; }
+      T operator [](size_t idx) const { return d[idx]; }
+      
+      friend vector operator+ (vector u, const vector& v) {
+        vector result;
+        for (size_t i = 0; i < D; i++)
+          result.d[i] = u.d[i] + v.d[i];
+        return result;
+      }
+   
+      friend vector operator- (vector u, const vector& v) {
+        vector result;
+        for (size_t i = 0; i < D; i++)
+          result.d[i] = u.d[i] - v.d[i];
+        return result;
+      }
+   
+      friend vector operator* (vector u, const T& v) {
+        vector result;
+        for (size_t i = 0; i < D; i++)
+          result.d[i] = u.d[i] * v;
+        return result;
+      }
+   
+      friend bool operator== (const vector& x, const vector& y) {
+        for (size_t i = 0; i < D; i++)
+          if (x.d[i] != y.d[i])
+            return false;
+        return true;
+      }
+   
+      T magnitude(){
+        T acc = 0;
+        for(size_t i = 0; i < D; i++){
+          T t = d[i] * d[i];
+          acc += t;
+        }
+   
+        return sqrt(acc);
+      }
+   
+      vector normalize(){
+        T mag = magnitude();
+        if (mag == 0)
+          return vector{{0}};
+   
+        vector r;
+        for(size_t i = 0; i < D; i++){
+          r[i] = d[i] / mag;
+        }
+        
+        return r;
+      }
+   
+      T dist(vector v){ return ((*this) - v).magnitude(); }
+   
+  #if defined(AUTOMATON_STD_LIB)
+      friend std::ostream& operator<< (std::ostream& stream, const vector& x) {
+        stream << '[';
+        for (size_t i = 0; i < D - 1; i++)
+          stream << x.d[i] << ',';
+        stream << x.d[D - 1] << ']';
+        return stream;
+      }
+  #endif
+    };
+
+    typedef euclidean::vector<2, ferret::real_t> vector_2d;
+    typedef euclidean::vector<3, ferret::real_t> vector_3d;
+  }
+#+end_src
+
 ** Containers
 
 C++ containers used by the Ferret runtime. Most embedded systems does
@@ -6911,6 +6992,38 @@ Static code analysis (cppcheck) options,
   }
 #+end_src
 
+*** Euclidean Vector
+
+#+begin_src c++ :noweb yes :mkdirp yes :tangle src/test/native/euclidean_vector.cpp
+  #include <cassert>
+  #include <runtime.h>
+
+  int main() {
+    using namespace std;
+    using namespace ferret::euclidean;
+
+    vector_3d z = {{0, 0, 0}};
+    vector_3d u = {{1, 2, 3}};
+    vector_3d v = {{3, 2, 1}};
+
+    vector_3d a = u + v;
+    vector_3d s = u - v;
+    vector_3d m = u * 2;
+
+    
+    assert((z == vector_3d{{ 0, 0, 0}}));
+    assert((a == vector_3d{{ 4, 4, 4}}));
+    assert((s == vector_3d{{-2, 0, 2}}));
+    assert((m == vector_3d{{ 2, 4, 6}}));
+
+    assert((10                    == vector_3d{{ 0, 10, 0}}.magnitude()));
+    assert((vector_3d{{ 0, 1, 0}} == vector_3d{{ 0, 10, 0}}.normalize()));
+    assert((10                    == vector_3d{{ 0, 0, 0}}.dist(vector_3d{{0, 10, 0}})));
+    
+    return 0;
+  }
+#+end_src
+
 *** Memory Pool
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/test/native/memory_pool.cpp
@@ -8376,15 +8489,16 @@ Create some dummy libs under /test/modules/,
 
   <<runtime-native-hardware-concurrency>>
 
+  // Number Configuration
+  <<runtime-native-number-config-macros>>
+
   namespace ferret{
     // Fixed Point Real
     <<runtime-native-fixed-point-real>>
+    <<runtime-native-euclidean-vector>>
     // Containers
     <<runtime-native-containers>>
   }
-
-  // Number Configuration
-  <<runtime-native-number-config-macros>>
 
   // Initialize Hardware
   namespace ferret{

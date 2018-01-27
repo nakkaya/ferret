@@ -4289,6 +4289,16 @@ Default UART rate (if supported),
   #endif
 #+end_src
 
+Default stream size, represents the number of characters transferred
+in an I/O operation or the size of an I/O buffer.
+
+#+name: runtime-native-hardware-initialize
+#+begin_src c++ :tangle no
+  #if !defined(FERRET_IO_STREAM_SIZE)
+    # define FERRET_IO_STREAM_SIZE 80
+  #endif
+#+end_src
+
 Setup dummy IO,
 
 #+name: runtime-native-hardware-initialize
@@ -4318,6 +4328,10 @@ Setup IO for general purpose OS,
       void print(const real_t n){
         std::cout << std::fixed << std::setprecision(number_precision) << n;
       }
+
+      void read_line(char *buff, std::streamsize len){
+        std::cin.getline(buff, len);
+      }
     }
   #endif
 #+end_src
@@ -4343,6 +4357,17 @@ Setup IO for Arduino boards,
 
       template <> void print(const void * const p){
         FERRET_HARDWARE_ARDUINO_UART_PORT.print((size_t)p, HEX);
+      }
+
+      void read_line(char *buff, size_t len){
+        uint8_t idx = 0;
+        char c;
+        do{
+          while (FERRET_HARDWARE_ARDUINO_UART_PORT.available() == 0);
+          c = FERRET_HARDWARE_ARDUINO_UART_PORT.read();
+          buff[idx++] = c;
+        }while (c != '\n');
+        buff[--idx] = 0x00;
       }
      }
   #endif

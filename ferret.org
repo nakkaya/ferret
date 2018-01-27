@@ -62,9 +62,11 @@ Platform independent builds (requires JVM),
    - [[https://ferret-lang.org/builds/ferret.jar][Standalone Jar]]
    - [[https://ferret-lang.org/builds/ferret][Executable]] (Requires Bash)
 
-Available Linux repositories,
+Supported package managers,
 
-   - Debian/Ubuntu - =echo "deb [trusted=yes] https://ferret-lang.org/debian-repo ferret-lisp main" >> /etc/apt/sources.list=
+   - Debian/Ubuntu
+     - Add repository - =echo "deb [trusted=yes] https://ferret-lang.org/debian-repo ferret-lisp main" >> /etc/apt/sources.list=
+     - Install Ferret - =apt-get install ferret-lisp=
 
 ** A glimpse of Ferret
 

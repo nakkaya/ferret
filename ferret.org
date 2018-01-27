@@ -3601,25 +3601,10 @@ to each other in the array which improves data locality.
   #ifdef FERRET_MEMORY_POOL_SIZE
   namespace memory{
     namespace allocator{
-      template<size_t pool_size>
-      class bit_array {
-      private:
-        uint8_t bits[pool_size / 8 + 1];
-
-        inline size_t index (size_t i) { return i / 8; }
-        inline size_t offset(size_t i) { return i % 8; }
-      public:
-        bit_array() : bits{ false } { }
-
-        inline void set   (size_t b){         bits[index(b)] = (uint8_t)(bits[index(b)] |  (1 << (offset(b))));}
-        inline void reset (size_t b){         bits[index(b)] = (uint8_t)(bits[index(b)] & ~(1 << (offset(b))));}
-        inline bool test  (size_t b){ return (bits[index(b)] & (1 << (offset(b))));}
-      };
-
       template<typename page_size, size_t pool_size>
       class memory_pool{
       public:
-        bit_array<pool_size> used;
+        bitset<pool_size> used;
         page_size pool[pool_size];
         size_t offset;
         size_t page_not_found;
@@ -4164,6 +4149,72 @@ accuracy using 6 bits for fraction.
       return stream;
     }
   #endif
+  };
+#+end_src
+
+** Containers
+
+C++ containers used by the Ferret runtime. Most embedded systems does
+not provide standard containers such as =std::array= so Ferret
+provides its own containers that are portable across architectures.
+
+*** Array 
+
+=array= is a container that encapsulates fixed size arrays.
+
+#+name: runtime-native-containers
+#+begin_src c++ :tangle no
+  template<class Type>
+  struct array_seq {
+    Type* p;
+    explicit array_seq(Type* p) : p(p) {}
+    bool operator!=(array_seq rhs) {return p != rhs.p;}
+    Type& operator*() {return *p;}
+    void operator++() {++p;}
+  };
+   
+  template<size_t S, class T>
+  struct array {
+    T data[S];
+        
+    T& operator [](int idx)      { return data[idx]; }
+    T operator [](int idx) const { return data[idx]; }
+      
+    array_seq<T> begin() { return array_seq<T>(data);      }
+    array_seq<T> end()   { return array_seq<T>(data + S);  }
+    size_t       size()  { return S;                       }
+  };
+#+end_src
+
+*** Bitset
+
+=bitset= represents a fixed-size sequence of N bits. 
+
+#+name: runtime-native-containers
+#+begin_src c++ :tangle no
+  template<size_t S>
+  class bitset {
+  private:
+    uint8_t bits[S / 8 + 1];
+
+    inline size_t index (size_t i) { return i / 8; }
+    inline size_t offset(size_t i) { return i % 8; }
+    
+  public:
+    
+    bitset() : bits{ false } { }
+
+    inline void set   (size_t b){
+      bits[index(b)] = (uint8_t)(bits[index(b)] |  (1 << (offset(b))));
+    }
+    
+    inline void reset (size_t b){
+      bits[index(b)] = (uint8_t)(bits[index(b)] & ~(1 << (offset(b))));
+    }
+    
+    inline bool test  (size_t b){
+      return (bits[index(b)] & (1 << (offset(b))));
+    }
   };
 #+end_src
 
@@ -8325,9 +8376,11 @@ Create some dummy libs under /test/modules/,
 
   <<runtime-native-hardware-concurrency>>
 
-  // Fixed Point Real
   namespace ferret{
+    // Fixed Point Real
     <<runtime-native-fixed-point-real>>
+    // Containers
+    <<runtime-native-containers>>
   }
 
   // Number Configuration

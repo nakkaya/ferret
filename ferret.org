@@ -4690,6 +4690,18 @@ A simple macro for calling inline C++,
 
 *** println
 *** get-char
+*** read-line
+
+Reads the next line from default I/O stream.
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn read-line []
+    "char buf[FERRET_IO_STREAM_SIZE] = {0};
+     runtime::read_line(buf, FERRET_IO_STREAM_SIZE);
+     return obj<string>(buf);")
+#+end_src
+
 *** sh
 
 #+name: runtime-clojure-core

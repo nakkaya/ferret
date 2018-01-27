@@ -8,13 +8,9 @@
 * Getting Started
 ** What Is Ferret
 
-Ferret is a free software Clojure implementation, it compiles a
-restricted subset of the Clojure language to self contained *ISO
-C++11* which allows for the use of Clojure in real time embedded
-control systems. 
-
-Generated code is self contained *ISO C++11*, it is not tied to any
-one compiler, generated code should be portable between any Operating
+Ferret is a free software lisp implementation designed to be used in
+real time embedded control systems. Ferret lisp compiles down to self
+contained *C++11*. Generated code is portable between any Operating
 System and/or Microcontroller that supports a *C++11* compliant
 compiler. It has been verified to run on architectures ranging from
 embedded systems with as little as *2KB of RAM* to general purpose
@@ -234,13 +230,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 * Overview
 
-Ferret is a functional, lazy language. All functions should mimic
-their Clojure counter parts. If they don't it is considered a bug. (or
-not possible to implement with the current implementation.)
+Ferret is a functional, lazy language. It is heavily inspired by
+Clojure. Functions / Macros that are present in both Ferret and
+Clojure should mimic their Clojure counter parts. If they don't it is
+considered a bug. (or not possible to implement with the current
+implementation.)
 
-This document is not intended to be a full Clojure tutorial. It is a
-specification of the subset of Clojure implemented by Ferret, and
-the particular workings of the Object / Runtime system.
+This document is not intended to be a full lisp tutorial. It is a
+specification of the subset of lisp implemented by Ferret, and the
+particular workings of the [[Runtime]] and [[Core][standart library]].
 
 ** Documentation Structure
 
@@ -256,14 +254,14 @@ The compiler and the C++ runtime needed is split into three sections.
  - [[Core]]
 
 *[[Compiler]]* section contains the actual compiler written in Clojure. It
-takes the Clojure code and converts it to a Intermediate
-representation by taking the Clojure form and running it [[Compilation][through some
+takes the Ferret code and converts it to a Intermediate
+representation by taking the Ferret form and running it [[Compilation][through some
 transformations]]. This IR is then run through [[Code Generation]] module to
-create C++ code. *[[Runtime]]* contains the C++ runtime needed to
-support Ferret such as [[Object System]], [[Memory Pool][ Memory Pooling]], [[Reference Counting][Garbage
-Collection]]. It is written in a mixture of C++ and Ferret DSL. *[[Clojure
-Core]]* corresponds to *clojure.core*, contains all Clojure functions
-supported by Ferret.
+create C++ code. *[[Runtime]]* contains the C++ runtime needed to support
+Ferret such as [[Object System]], [[Memory Pool][ Memory Pooling]], [[Reference Counting][Garbage Collection]]. It
+is written in a mixture of C++ and Ferret DSL. *[[Core]]* is the standard
+library of Ferret, provides a ton of general-purpose functionality for
+writing robust, maintainable embedded applications.
 
 ** Hardware / Operating System Support
 
@@ -479,7 +477,7 @@ Ferret has a similar architecture to other modern compilers,
 #+NAME:   fig:compiler_architecture
 [[./ferret-styles/graphs/compiler_arch.png]]
 
-First, an input file containing Clojure code is loaded from the
+First, an input file containing Ferret code is loaded from the
 command line. From there a series of source-to-source transformations
 are performed on the AST to expand macros, perform optimizations, and
 make the code easier to compile to C++. (Optionally these intermediate
@@ -489,12 +487,12 @@ compiler is invoked to create the final executable or object file.
 
 ** Compilation
 
-Clojure (or any other Lisp) has features not provided by C++ such as
+Ferret (or any other Lisp) has features not provided by C++ such as
 automatic memory management i.e. garbage collection (GC), closures
 etc. Source-to-source transformations are used to add constructs
-required by C++, restructure Clojure forms in preparation to generate
+required by C++, restructure Ferret forms in preparation to generate
 C++ code. Final intermediate representation can be directly compiled
-to C++. Any Clojure form go through nine transformations before they
+to C++. Any Ferret form go through nine transformations before they
 are passed to the code generation phase. Each transformation makes a
 separate pass over the form, this makes the compiler easier to
 maintain.
@@ -624,8 +622,7 @@ modules names. So =helper-a= defined in module =util.db= becomes
 #+end_src
 
 Generates the required runtime for the form by importing the required
-modules and concatenate the required runtime from clojure.core
-(src/ferret/runtime.clj)
+modules and concatenate the required runtime from [[Core]].
 
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
@@ -721,9 +718,9 @@ form.
 #+end_src
 
 Takes a *fn* form and converts all argument symbols with their unique
-replacements. This is needed because most Clojure/Lisp forms are
-represented as =fn='s and some forms such as =let= need to be able to
-shadow already defined variable names.
+replacements. This is needed because most lisp forms are represented
+as =fn='s and some forms such as =let= need to be able to shadow
+already defined variable names.
 
 #+begin_src clojure
   (fn [a b] (list a b))
@@ -897,7 +894,7 @@ the free variable problem.
 
 *** Symbol Conversion
 
-Some symbols valid in Clojure are not valid C++ identifiers. This
+Some symbols valid in lisp are not valid C++ identifiers. This
 transformation converts all symbols that are not legal C++ identifiers
 into legal ones.
 
@@ -1254,7 +1251,7 @@ suggests and removes the node when predicate returns true.
 ** Code Generation
 
 The compiler's code generation phase takes a single pass over the
-transformed Clojure code and outputs C++ code. All Ferret modules and
+transformed lisp code and outputs C++ code. All Ferret modules and
 the program code is amalgamated in to a single source file which
 allows the generated code to be compiled as a single translation
 unit.This allows many compilers to do optimization's that would not be
@@ -4379,9 +4376,9 @@ Unless =FERRET_DISABLE_STD_MAIN= is *defined* a =main= function is
 defined which is the designated start of the
 program. =program::main()= function contains all compiled
 code. Executing this function has equivalent semantics to loading the
-Clojure source file into a virgin Clojure interpreter and then
-terminating its execution. If =FERRET_PROGRAM_MAIN= is defined, it
-will be called right after =program::main()=.
+source file into a virgin interpreter and then terminating its
+execution. If =FERRET_PROGRAM_MAIN= is defined, it will be called
+right after =program::main()=.
 
 #+name: runtime-native-program-run-std-main
 #+begin_src c++ :tangle no
@@ -4570,8 +4567,8 @@ are immutable you can freely call Ferret code from C++,
 
 * Core
 
-Once our object system is in place we can define rest of the runtime
-(functions/macros) using our Clojure subset,
+The standard library of Ferret, provides a ton of general-purpose
+functionality for writing robust, maintainable embedded applications.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
@@ -4584,9 +4581,12 @@ Once our object system is in place we can define rest of the runtime
   (defn nil? [x] "__result = obj<boolean>(x.is_nil())")
 #+end_src
 
-We can embed C++ code into our functions, which is how most of the
-primitive functions are defined such as the /first/ function above,
-once primitives are in place rest can be defined in pure Clojure,
+Ferret provides the ability to embed C++ language source code within a
+Ferret program. A Ferret function can contain a short program written
+in C++ language, which is executed whenever this funtion is executed.
+Which is how most of the primitive functions are implemented such as
+the /first/ function above, once primitives are in place rest can be
+defined in pure Ferret lisp,
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no

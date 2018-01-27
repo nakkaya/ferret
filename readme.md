@@ -4,9 +4,13 @@
 [![CI Build Status][badge-ferret-build]][ferret-travis]
 ![BSD 2 Clause License][badge-ferret-license]
 
-Ferret is a free software Clojure implementation, it compiles a restricted subset of the 
-Clojure language to self contained ISO C++11 which allows for the use of 
-Clojure in real time embedded control systems. 
+Ferret is a free software lisp implementation designed to be used in
+real time embedded control systems. Ferret lisp compiles down to self
+contained *C++11*. Generated code is portable between any Operating
+System and/or Microcontroller that supports a *C++11* compliant
+compiler. It has been verified to run on architectures ranging from
+embedded systems with as little as *2KB of RAM* to general purpose
+computers running Linux/Mac OS X/Windows.
 
 This repository contains the Ferret compiler. For more information about Ferret, 
 including downloads and documentation for the latest release, check 

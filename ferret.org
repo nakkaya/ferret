@@ -2155,7 +2155,8 @@ new *var* containing a pointer to an [[Object System][Object]]. *nil* is represe
 *** Objects
 **** Boolean
 
-A boolean object,
+The boolean type has two values, false and true, which represent the
+traditional boolean values.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
@@ -2417,7 +2418,8 @@ fixed point numbers. (See [[Math]] runtime.)
 
 **** Sequence
 
-Linked list container implementing the seekable interface.
+Sequences are collections. They implement the seekable interface
+directly. count is O(n). conj puts the item at the front of the list.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
@@ -2536,7 +2538,10 @@ Linked list container implementing the seekable interface.
 
 **** Lazy Sequence
 
-A lazy list container implementing the seekable interface.
+Ferret supports lazily evaluated sequences. This means that sequence
+elements are not available ahead of time and produced as the result of
+a computation. The computation is performed as needed when lazy
+sequence is iterated.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
@@ -2774,8 +2779,9 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 
 **** Keyword
 
-Each keyword in the program is converted to an /keyword/ object. A
-/keyword/ holds a simple hash of the keyword as an integer.
+Keywords are symbolic identifiers that evaluate to themselves. They
+provide very fast equality tests. A =keyword= holds a simple hash of
+the keyword as =number_t=.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
@@ -2833,8 +2839,10 @@ Each keyword in the program is converted to an /keyword/ object. A
 
 **** String
 
-Strings are represented as a linked list of numbers each representing
-a character.
+Ferret strings are represented as a [[Sequence]] of numbers each
+representing a character in the string. This scheme uses more memory
+but provides low memory fragmentation and ability to use sequence
+operations on strings.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
@@ -2935,8 +2943,11 @@ interpreted as FFI calls.
 
 **** Atom
 
-Mimics Clojure's /atom/. It is thread safe when used on system where
-=FERRET_STD_LIB= is defined.
+Atoms provide a way to manage shared, synchronous, independent state.
+The intended use of atom is to hold one of Ferret’s immutable data
+structures.  You create an atom with =atom=, and can access its state
+with =deref/@=.  To change the value of an atom, you can use =swap!=
+or =reset!= .  Changes to atoms are always free of race conditions.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
@@ -3087,9 +3098,6 @@ thread to =future=,
 #+end_src
 
 **** Delay
-
-Mimics Clojure's /delay/. It is thread safe when used on system where
-=FERRET_STD_LIB= is defined.
 
 Takes a body of expressions and yields a Delay object that will invoke
 the body only the first time it is forced (with force or deref/@),

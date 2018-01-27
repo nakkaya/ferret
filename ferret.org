@@ -2343,74 +2343,10 @@ modern C++ libraries that use smart pointers for memory management.
 
 **** Number
 
-In the interest of simplicity Ferret supports only one type of number:
-floating point numbers. By default these are double precision floating
-point numbers. However Ferret programs can easily be recompiled to
-support any real number type the system supports.
-
-Default number configuration,
-
-#+name: runtime-native-number-config-macros
-#+begin_src c++ :tangle no
-  namespace ferret{
-  #if !defined(FERRET_NUMBER_TYPE)
-     #define FERRET_NUMBER_TYPE int
-  #endif
-
-  #if !defined(FERRET_REAL_TYPE)
-     #define FERRET_REAL_TYPE   double
-  #endif
-
-  #if !defined(FERRET_REAL_EPSILON)
-     #define FERRET_REAL_EPSILON   0.00001
-  #endif
-    
-    typedef FERRET_NUMBER_TYPE           number_t;                   // Whole number Container.
-    typedef FERRET_REAL_TYPE             real_t;                     // Real number Container.
-    const   real_t                       real_epsilon(FERRET_REAL_EPSILON);
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    const   size_t                       number_precision = 4;       // number Format String (fprinf)
-  #endif
-
-    constexpr auto operator "" _pi(long double x) -> double {
-      return 3.14159265358979323846 * (double)x;
-    }
-
-    constexpr auto operator "" _pi(unsigned long long int  x) -> double {
-      return 1.0_pi * (double)x;
-    }
-
-    constexpr auto operator "" _deg(long double x) -> double {
-      return (1.0_pi * (double)x) / 180;
-    }
-
-    constexpr auto operator "" _deg(unsigned long long int  x) -> double {
-      return 1.0_deg * (double)x;
-    }
-  }
-#+end_src
-
-Helper functions,
-
-#+name: runtime-native-prototypes
-#+begin_src c++ :tangle no
-  namespace runtime{
-    #undef min
-    #undef abs
-
-    template<typename T>
-    constexpr T min(T a, T b){
-      return ((a) < (b) ? (a) : (b));
-    }
-
-    template<typename T>
-    constexpr T abs(T a){
-      return ((a) < (T)0 ? -(a) : (a));
-    }
-  }
-#+end_src
-
-number Object,
+The number type represents real (double-precision floating-point)
+numbers. Ferret has no integer type. On systems without hardware
+support for floating point Ferret programs can be configured to use
+fixed point numbers. (See [[Math]] runtime.)
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
@@ -2476,114 +2412,6 @@ number Object,
     template<typename T> static T to(var const & v){
       return (T)v.cast<number>()->word();
     }
-  };
-#+end_src
-
-A fixed point number, like a floating point number, is an approximate
-representation of a rational number. Unlike floating point numbers
-exponent in a fixed point numbers is constant, this allows fixed point
-numbers to be represented internally as integers and the operations on
-fixed point numbers can be performed using integer arithmetic. This
-can often improve the speed of arithmetic operation on embedded
-systems without a built in FPU.
-
-Fixed point numbers can be enabled by overriding the
-=FERRET_REAL_TYPE= definition. Following defines fixed point numbers
-as 32 bit integers with 8 bits used as fractional part.
-
-#+begin_src clojure
-  (configure-runtime! FERRET_REAL_TYPE "ferret::fixed_real<32,8>")
-#+end_src
-
-or you can automatically calculate required fraction bits using a
-literal. Following defines a 32 bit =fixed_real= with 0.01 fractional
-accuracy using 6 bits for fraction.
-
-#+begin_src clojure
-  (configure-runtime! FERRET_REAL_TYPE "ferret::fixed_real<32,0.01_QN>")
-#+end_src
-
-#+name: runtime-native-fixed-point-real
-#+begin_src c++ :tangle no
-  #if !defined(__clang__)
-  constexpr auto operator "" _QN(long double x) -> int {
-    return (int)::floor(::log(1.0/(double)x)/::log(2));
-  }
-  #endif
-
-  template<int bits> struct fixed_real_container;
-  template<> struct fixed_real_container<8>  { typedef int8_t  base_type;
-                                               typedef int16_t next_type; };
-  template<> struct fixed_real_container<16> { typedef int16_t base_type;
-                                               typedef int32_t next_type; };
-  template<> struct fixed_real_container<32> { typedef int32_t base_type;
-                                               typedef int64_t next_type; };
-  template<> struct fixed_real_container<64> { typedef int64_t base_type;
-                                               typedef int64_t next_type; };
-
-  template<int bits, int exp>
-  class fixed_real{
-    typedef fixed_real fixed;
-    typedef typename fixed_real_container<bits>::base_type base;
-    typedef typename fixed_real_container<bits>::next_type next;
-
-    base m;
-    static const int N      = (exp - 1);
-    static const int factor = 1 << N;
-
-    template<typename T>
-    inline base from(T d) const { return (base)(d * factor); }
-
-    template<typename T>
-    inline T to_rational() const { return T(m) / factor; }
-
-    template<typename T>
-    inline T to_whole() const { return (T)(m >> N); }
-      
-  public:
-
-    //from types
-    explicit fixed_real( )           : m(0) { }
-    template<typename T>
-    explicit fixed_real(T v)         : m(from<T>(v)) {}
-
-    template<typename T>
-    fixed& operator=(T v)        { m = from<T>(v); return *this; }
-      
-    //to types
-    template<typename T>
-    operator T()           const { return to_whole<T>();    }
-    operator double()      const { return to_rational<double>(); }
-      
-    // operations
-    fixed& operator+= (const fixed& x) { m += x.m; return *this; }
-    fixed& operator-= (const fixed& x) { m -= x.m; return *this; }
-    fixed& operator*= (const fixed& x) { m = (base)(((next)m * (next)x.m) >> N); return *this; }
-    fixed& operator/= (const fixed& x) { m = (base)(((next)m * factor) / x.m); return *this; }
-    fixed& operator*= (int x)          { m *= x; return *this; }
-    fixed& operator/= (int x)          { m /= x; return *this; }
-    fixed  operator-  ( )              { return fixed(-m); }
-      
-    // friend functions
-    friend fixed operator+ (fixed x, const fixed& y) { return x += y; }
-    friend fixed operator- (fixed x, const fixed& y) { return x -= y; }
-    friend fixed operator* (fixed x, const fixed& y) { return x *= y; }
-    friend fixed operator/ (fixed x, const fixed& y) { return x /= y; }
-      
-    // comparison operators
-    friend bool operator== (const fixed& x, const fixed& y) { return x.m == y.m; }
-    friend bool operator!= (const fixed& x, const fixed& y) { return x.m != y.m; }
-    friend bool operator>  (const fixed& x, const fixed& y) { return x.m > y.m; }
-    friend bool operator<  (const fixed& x, const fixed& y) { return x.m < y.m; }
-    friend bool operator>= (const fixed& x, const fixed& y) { return x.m >= y.m; }
-    friend bool operator<= (const fixed& x, const fixed& y) { return x.m <= y.m; }
-
-  #if defined(FERRET_STD_LIB)
-    friend std::ostream& operator<< (std::ostream& stream, const fixed& x) {
-      stream << (double)x;
-      return stream;
-    }
-  #endif
   };
 #+end_src
 
@@ -4147,6 +3975,188 @@ not defined.)
       ~lock_guard() { _ref.unlock(); }
     };
   }
+#+end_src
+
+** Math
+
+In the interest of simplicity Ferret supports only one type of number:
+floating point numbers. By default these are double precision floating
+point numbers. However Ferret programs can easily be recompiled to
+support any real number type the system supports.
+
+#+name: runtime-native-number-config-macros
+#+begin_src c++ :tangle no
+  namespace ferret{
+  #if !defined(FERRET_NUMBER_TYPE)
+     #define FERRET_NUMBER_TYPE int
+  #endif
+
+  #if !defined(FERRET_REAL_TYPE)
+     #define FERRET_REAL_TYPE   double
+  #endif
+
+  #if !defined(FERRET_REAL_EPSILON)
+     #define FERRET_REAL_EPSILON   0.00001
+  #endif
+    
+    typedef FERRET_NUMBER_TYPE           number_t;                   // Whole number Container.
+    typedef FERRET_REAL_TYPE             real_t;                     // Real number Container.
+    const   real_t                       real_epsilon(FERRET_REAL_EPSILON);
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    const   size_t                       number_precision = 4;       // number Format String (fprinf)
+  #endif
+  }
+#+end_src
+
+Math related string literals,
+
+#+name: runtime-native-number-config-macros
+#+begin_src c++ :tangle no
+  namespace ferret{
+    constexpr auto operator "" _pi(long double x) -> double {
+      return 3.14159265358979323846 * (double)x;
+    }
+
+    constexpr auto operator "" _pi(unsigned long long int  x) -> double {
+      return 1.0_pi * (double)x;
+    }
+
+    constexpr auto operator "" _deg(long double x) -> double {
+      return (1.0_pi * (double)x) / 180;
+    }
+
+    constexpr auto operator "" _deg(unsigned long long int  x) -> double {
+      return 1.0_deg * (double)x;
+    }
+  }
+#+end_src
+
+Math functions,
+
+#+name: runtime-native-prototypes
+#+begin_src c++ :tangle no
+  namespace runtime{
+    #undef min
+    #undef abs
+
+    template<typename T>
+    constexpr T min(T a, T b){
+      return ((a) < (b) ? (a) : (b));
+    }
+
+    template<typename T>
+    constexpr T abs(T a){
+      return ((a) < (T)0 ? -(a) : (a));
+    }
+  }
+#+end_src
+
+A fixed point number, like a floating point number, is an approximate
+representation of a rational number. Unlike floating point numbers
+exponent in a fixed point numbers is constant, this allows fixed point
+numbers to be represented internally as integers and the operations on
+fixed point numbers can be performed using integer arithmetic. This
+can often improve the speed of arithmetic operation on embedded
+systems without a built in FPU.
+
+Fixed point numbers can be enabled by overriding the
+=FERRET_REAL_TYPE= definition. Following defines fixed point numbers
+as 32 bit integers with 8 bits used as fractional part.
+
+#+begin_src clojure
+  (configure-runtime! FERRET_REAL_TYPE "ferret::fixed_real<32,8>")
+#+end_src
+
+or you can automatically calculate required fraction bits using a
+literal. Following defines a 32 bit =fixed_real= with 0.01 fractional
+accuracy using 6 bits for fraction.
+
+#+begin_src clojure
+  (configure-runtime! FERRET_REAL_TYPE "ferret::fixed_real<32,0.01_QN>")
+#+end_src
+
+#+name: runtime-native-fixed-point-real
+#+begin_src c++ :tangle no
+  #if !defined(__clang__)
+  constexpr auto operator "" _QN(long double x) -> int {
+    return (int)::floor(::log(1.0/(double)x)/::log(2));
+  }
+  #endif
+
+  template<int bits> struct fixed_real_container;
+  template<> struct fixed_real_container<8>  { typedef int8_t  base_type;
+                                               typedef int16_t next_type; };
+  template<> struct fixed_real_container<16> { typedef int16_t base_type;
+                                               typedef int32_t next_type; };
+  template<> struct fixed_real_container<32> { typedef int32_t base_type;
+                                               typedef int64_t next_type; };
+  template<> struct fixed_real_container<64> { typedef int64_t base_type;
+                                               typedef int64_t next_type; };
+
+  template<int bits, int exp>
+  class fixed_real{
+    typedef fixed_real fixed;
+    typedef typename fixed_real_container<bits>::base_type base;
+    typedef typename fixed_real_container<bits>::next_type next;
+
+    base m;
+    static const int N      = (exp - 1);
+    static const int factor = 1 << N;
+
+    template<typename T>
+    inline base from(T d) const { return (base)(d * factor); }
+
+    template<typename T>
+    inline T to_rational() const { return T(m) / factor; }
+
+    template<typename T>
+    inline T to_whole() const { return (T)(m >> N); }
+      
+  public:
+
+    //from types
+    explicit fixed_real( )           : m(0) { }
+    template<typename T>
+    explicit fixed_real(T v)         : m(from<T>(v)) {}
+
+    template<typename T>
+    fixed& operator=(T v)        { m = from<T>(v); return *this; }
+      
+    //to types
+    template<typename T>
+    operator T()           const { return to_whole<T>();    }
+    operator double()      const { return to_rational<double>(); }
+      
+    // operations
+    fixed& operator+= (const fixed& x) { m += x.m; return *this; }
+    fixed& operator-= (const fixed& x) { m -= x.m; return *this; }
+    fixed& operator*= (const fixed& x) { m = (base)(((next)m * (next)x.m) >> N); return *this; }
+    fixed& operator/= (const fixed& x) { m = (base)(((next)m * factor) / x.m); return *this; }
+    fixed& operator*= (int x)          { m *= x; return *this; }
+    fixed& operator/= (int x)          { m /= x; return *this; }
+    fixed  operator-  ( )              { return fixed(-m); }
+      
+    // friend functions
+    friend fixed operator+ (fixed x, const fixed& y) { return x += y; }
+    friend fixed operator- (fixed x, const fixed& y) { return x -= y; }
+    friend fixed operator* (fixed x, const fixed& y) { return x *= y; }
+    friend fixed operator/ (fixed x, const fixed& y) { return x /= y; }
+      
+    // comparison operators
+    friend bool operator== (const fixed& x, const fixed& y) { return x.m == y.m; }
+    friend bool operator!= (const fixed& x, const fixed& y) { return x.m != y.m; }
+    friend bool operator>  (const fixed& x, const fixed& y) { return x.m > y.m; }
+    friend bool operator<  (const fixed& x, const fixed& y) { return x.m < y.m; }
+    friend bool operator>= (const fixed& x, const fixed& y) { return x.m >= y.m; }
+    friend bool operator<= (const fixed& x, const fixed& y) { return x.m <= y.m; }
+
+  #if defined(FERRET_STD_LIB)
+    friend std::ostream& operator<< (std::ostream& stream, const fixed& x) {
+      stream << (double)x;
+      return stream;
+    }
+  #endif
+  };
 #+end_src
 
 ** Configuration

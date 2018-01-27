@@ -252,14 +252,14 @@ expressed clearly but they are grounded in the actual source code.
 The compiler and the C++ runtime needed is split into three sections.
 
  - [[Compiler]]
- - [[Native Core]]
- - [[Clojure Core]]
+ - [[Runtime]]
+ - [[Core]]
 
 *[[Compiler]]* section contains the actual compiler written in Clojure. It
 takes the Clojure code and converts it to a Intermediate
 representation by taking the Clojure form and running it [[Compilation][through some
 transformations]]. This IR is then run through [[Code Generation]] module to
-create C++ code. *[[Native Core]]* contains the C++ runtime needed to
+create C++ code. *[[Runtime]]* contains the C++ runtime needed to
 support Ferret such as [[Object System]], [[Memory Pool][ Memory Pooling]], [[Reference Counting][Garbage
 Collection]]. It is written in a mixture of C++ and Ferret DSL. *[[Clojure
 Core]]* corresponds to *clojure.core*, contains all Clojure functions
@@ -513,7 +513,7 @@ maintain.
          (symbol-conversion)))
 #+end_src
 
-*** Runtime
+*** Generate Runtime
 
 Import all modules in the given form. Supported =require= forms,
 
@@ -1979,9 +1979,9 @@ is supported.
                   (.setLevel   java.util.logging.Level/INFO)))
   #+end_src
 
-* Native Core
+* Runtime
 
-Runtime needed on the C++ side to support [[Clojure Core]]. [[Object System][Object system]],
+Runtime needed on the C++ side to support [[Core]]. [[Object System][Object system]],
 [[Reference Counting][garbage collection]],[[Memory Pool][memory pooling]] and host specific initialization
 code. (ie. printing on different embedded systems.)
 
@@ -4568,7 +4568,7 @@ are immutable you can freely call Ferret code from C++,
   ::std::cout << ::std::endl;
 #+end_src
 
-* Clojure Core
+* Core
 
 Once our object system is in place we can define rest of the runtime
 (functions/macros) using our Clojure subset,

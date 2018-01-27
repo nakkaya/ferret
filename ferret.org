@@ -2349,7 +2349,7 @@ modern C++ libraries that use smart pointers for memory management.
 In the interest of simplicity Ferret supports only one type of number:
 floating point numbers. By default these are double precision floating
 point numbers. However Ferret programs can easily be recompiled to
-support any real number type the system supported.
+support any real number type the system supports.
 
 Default number configuration,
 

@@ -416,8 +416,10 @@ Write the image,
 
 ** Building From Sources
 
-The code in this document is the executable source. Use the *build*
-script in the source distribution to extract source code.
+#+BEGIN_HTML
+  <img src="https://img.shields.io/github/last-commit/nakkaya/ferret.svg" style="float: left; padding-right: 0.5cm;">
+  <img src="https://img.shields.io/github/issues/nakkaya/ferret.svg" style="margin-left: 0;">
+#+END_HTML
 
 The latest sources are available at,
 
@@ -434,7 +436,7 @@ Dependencies,
 Assuming all of the above is in your path just run,
 
 #+BEGIN_EXAMPLE
-  make bin/ferret
+  make
 #+END_EXAMPLE
 
 This will extract the source from this file to *src/* directory and

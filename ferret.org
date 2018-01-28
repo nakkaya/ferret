@@ -4243,6 +4243,15 @@ C++ containers used by the Ferret runtime. Most embedded systems does
 not provide standard containers such as =std::array= so Ferret
 provides its own containers that are portable across architectures.
 
+*** Byte
+
+=byte= is a collection of bits.
+
+#+name: runtime-native-containers
+#+begin_src c++ :tangle no
+  enum class byte : unsigned char { };
+#+end_src
+
 *** Array 
 
 =array= is a container that encapsulates fixed size arrays.
@@ -4258,7 +4267,7 @@ provides its own containers that are portable across architectures.
     void operator++() {++p;}
   };
    
-  template<size_t S, class T>
+  template<class T, size_t S>
   struct array {
     T data[S];
         
@@ -4280,25 +4289,25 @@ provides its own containers that are portable across architectures.
   template<size_t S>
   class bitset {
   private:
-    uint8_t bits[S / 8 + 1];
-
+    byte bits[S / 8 + 1];
+             
     inline size_t index (size_t i) { return i / 8; }
     inline size_t offset(size_t i) { return i % 8; }
-    
+               
   public:
-    
-    bitset() : bits{ false } { }
-
+               
+    bitset() : bits{ (byte)0x00 } { }
+             
     inline void set   (size_t b){
-      bits[index(b)] = (uint8_t)(bits[index(b)] |  (1 << (offset(b))));
+      bits[index(b)] = (byte)((int)bits[index(b)] |  (1 << (offset(b))));
     }
-    
+               
     inline void reset (size_t b){
-      bits[index(b)] = (uint8_t)(bits[index(b)] & ~(1 << (offset(b))));
+      bits[index(b)] = (byte)((int)bits[index(b)] & ~(1 << (offset(b))));
     }
-    
+               
     inline bool test  (size_t b){
-      return (bits[index(b)] & (1 << (offset(b))));
+      return ((int)bits[index(b)] & (1 << (offset(b))));
     }
   };
 #+end_src
@@ -5008,11 +5017,11 @@ other members of the group and port.
     "__result = obj<boolean>(con.cast<multicast_socket>()->have_pending_data());")
 
   (defn send [con data]
-    "datagram_t buffer = {{0}};
+    "datagram_t buffer;
      number_t idx = 0; 
 
      for(auto const& b : runtime::range(data))
-      buffer[idx++] = (unsigned char)number::to<number_t>(b);
+      buffer[idx++] = (byte)number::to<number_t>(b);
     
      __result = obj<boolean>(con.cast<multicast_socket>()->send(buffer,idx));")
 
@@ -5083,7 +5092,7 @@ other members of the group and port.
     const size_t max_data_gram_size = 65507;
 
     class udp{
-      std::array<char, max_data_gram_size> buf;
+      ferret::array<ferret::byte, max_data_gram_size> buf;
       int fd;
    
     public:
@@ -5107,7 +5116,7 @@ other members of the group and port.
       bool wait(int timeout_ms = -1) const;
       bool have_pending_data() const;
    
-      const char* data() const{ return buf.data(); }
+      const ferret::byte* data() const{ return buf.data; }
     };
    
     bool address::set_host(const char *hostname, unsigned short port){
@@ -5226,7 +5235,7 @@ other members of the group and port.
    
     ssize_t udp::recv(address &src){
       src.addr_len = sizeof(src.addr);
-      ssize_t len = recvfrom(fd, buf.data(), max_data_gram_size, 0, &src.addr, &src.addr_len);
+      ssize_t len = recvfrom(fd, buf.data, max_data_gram_size, 0, &src.addr, &src.addr_len);
    
       if (len > 0) {
         recv_packets++;
@@ -5262,7 +5271,7 @@ other members of the group and port.
     }
   }
 
-  typedef ferret::array<multicast_aux::max_data_gram_size, uint8_t> datagram_t;
+  typedef ferret::array<ferret::byte, multicast_aux::max_data_gram_size> datagram_t;
 
   class multicast_socket final : public object {
     std::string ip;
@@ -5307,7 +5316,7 @@ other members of the group and port.
       return (number_t)net.recv(src_addr);
     }
 
-    const char* data() const{ return net.data(); }
+    const byte* data() const{ return net.data(); }
   };
 #+end_src
 
@@ -6018,7 +6027,7 @@ Split a number into bytes.
 #+begin_src clojure :tangle no :noweb yes
   (defn number-split [n]
     "number_t val = number::to<number_t>(n);
-     unsigned char *p = (unsigned char*)&val;
+     byte *p = (byte*)&val;
      __result = runtime::list();
      for(size_t i = 0; i < sizeof(number_t); i++)
        __result = runtime::cons(obj<number>((number_t)p[i]),__result);")
@@ -7395,7 +7404,7 @@ Static code analysis (cppcheck) options,
   int main() {
     using namespace ferret;
 
-    array<5, int> numbers{{1, 2, 3, 4, 5}};
+    array<int, 5> numbers{{1, 2, 3, 4, 5}};
    
     assert((numbers[0] == 1));
     assert((numbers[1] == 2));

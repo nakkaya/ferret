@@ -3554,7 +3554,7 @@ parameterized. Thus, close to optimal performance will result.
 
 #+name: runtime-native-allocator-pool
 #+begin_src c++ :tangle no
-  #ifdef FERRET_MEMORY_POOL_SIZE
+  #if defined(FERRET_MEMORY_POOL_SIZE) && !defined(FERRET_ALLOCATOR)
 
    #define FERRET_ALLOCATOR memory::allocator::pool
 
@@ -3829,6 +3829,7 @@ used by including the header files.
   };
 
   bool allocator_user::loaded = false;
+
   #define FERRET_ALLOCATOR allocator_user
 #+end_src 
 

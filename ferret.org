@@ -3904,12 +3904,13 @@ counting policies.
       template<typename T>
       class rc{
       public:
-        
+        rc() : ref_count(0) {}
+
         inline void inc_ref() { ref_count++; }
         inline bool dec_ref() { return (--ref_count == 0); }
       
       private:
-        T ref_count{0};
+        T ref_count;
       };    
 
       #if defined(FERRET_DISABLE_MULTI_THREADING) || !defined(FERRET_STD_LIB)

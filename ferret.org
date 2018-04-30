@@ -240,7 +240,7 @@ implementation.)
 
 This document is not intended to be a full lisp tutorial. It is a
 specification of the subset of lisp implemented by Ferret, and the
-particular workings of the [[Runtime]] and [[Core][standart library]].
+particular workings of the [[Runtime]] and [[Core][standard library]].
 
 ** Documentation Structure
 

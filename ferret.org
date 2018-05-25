@@ -968,13 +968,14 @@ with the global name for readability.
                         (= 'fir-new-lambda (first val)))))))
 
   (defn inline-global-fns-pure [form fn-defs fn-table]
-    (let [def-fn? (fn [f]
+    (let [pure-fn-table  (apply hash-map (flatten fn-table))
+          def-fn? (fn [f]
                     (and (is-form? 'def f)
+                         (pure-fn-table (second f))
                          (is-form? 'fir-new-lambda (->> f (drop 2) first))))
-          invoke  (let [fn-table (apply hash-map (flatten fn-table))]
-                    #(if-let [imp (fn-table %)]
-                       (list 'fir-new-lambda imp)
-                       %))
+          invoke  #(if-let [imp (pure-fn-table %)]
+                     (list 'fir-new-lambda imp)
+                     %)
           
           no-def-fn    (reduce (fn[h v] (remove-form h def-fn?)) form fn-defs)
           inline-fns   (reduce (fn[h [name gensym]]
@@ -7554,6 +7555,11 @@ Static code analysis (cppcheck) options,
     
     (is (= 10 (adder 9)))
     (is (= 89 (fibo 10))))
+
+  (let [x 42]
+    (defn let-over-lambda [] x))
+
+  (is (= 42 (let-over-lambda)))
 #+end_src
 
 *** Destructuring

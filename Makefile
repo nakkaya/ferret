@@ -122,7 +122,7 @@ release: clean test-release deb-repo docs
 	rm -rf bin/ docs/
 
 # rules for managing the docker files used by the CI
-DOCKER_RUN = docker run --rm -i -t -v "${DIR}":/ferret/ -w /ferret/ nakkaya/ferret-build
+DOCKER_RUN = docker run --rm -i -e LEIN_JVM_OPTS='-Dhttps.protocols=TLSv1.2' -t -v "${DIR}":/ferret/ -w /ferret/ nakkaya/ferret-build
 
 docker-create: src/
 	cd src/resources/ferret-build/ && \

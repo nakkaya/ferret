@@ -6489,7 +6489,8 @@ returns true, returns the next state.
       `((fn [state states transitions]
           (fn []
             (let [ret# ((states @state))]
-              (reset! state ((transitions @state)))
+              (if-let [next# (transitions @state)]
+                (reset! state (next#)))
               ret#)))
         (atom ~(first states))
         (new-d-list ~@states)
@@ -8410,7 +8411,22 @@ Create some dummy libs under /test/modules/,
                      (fn [] true) no-op)))]
       (machine)
       (machine)
-      (is (= 2 (deref value)))))
+      (is (= 2 (deref value))))
+
+    (let [machine (state-machine
+                   (states
+                    (setup :setup)
+                    (done  :done))
+                   
+                   (transitions
+                    (setup (fn [] true) done)))]
+      
+      (is (= :setup (machine)))
+      (is (= :done  (machine)))
+      (is (= :done  (machine)))
+      
+      (dotimes [_ 8]
+        (machine))))
 #+end_src
 
 *** Timing

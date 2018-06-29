@@ -19,7 +19,7 @@ out [Ferret's website](https://ferret-lang.org)
 ## General Information
 
    - Website - https://ferret-lang.org
-   - Source Code - https://github.com/nakkaya/ferret - https://git.nakkaya.com/nakkaya/ferret
+   - Source Code - https://github.com/nakkaya/ferret
    - Mailing List - https://groups.google.com/forum/#!forum/ferret-lang
    - Issue Tracker - https://github.com/nakkaya/ferret/issues
 

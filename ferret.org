@@ -180,26 +180,26 @@ calling malloc/free at runtime.
  - [[https://nakkaya.com/2017/02/15/bare-metal-lisp-rc-control-using-ferret/][Bare Metal Lisp - RC Control using Ferret]]
  - [[http://nakkaya.com/2016/06/10/ferret-a-hard-real-time-clojure-for-lisp-machines/][Ferret - A Hard Real-Time Clojure for Lisp Machines]] -
    Implementation of a line following robot in Ferret.
- - [[https://git.nakkaya.com/nakkaya/solarcar-tracker][solarcar-tracker]] - A Tracking device for the [[http://solarcar.neu.edu.tr][Ra27 solar car]]. (GPS,
+ - [[https://github.com/nakkaya/solarcar-tracker][solarcar-tracker]] - A Tracking device for the [[http://solarcar.neu.edu.tr][Ra27 solar car]]. (GPS,
    IMU etc.) (Raspberry Pi)
- - [[https://git.nakkaya.com/nakkaya/solarcar-turn-indicator/tree/master][solarcar-turn-indicator]] - Controller for the turn indicator
+ - [[https://github.com/nakkaya/solarcar-turn-indicator][solarcar-turn-indicator]] - Controller for the turn indicator
    assembly on the [[http://solarcar.neu.edu.tr][Ra27 solar car]]. (Atmega MCU)
- - [[https://git.nakkaya.com/nakkaya/ferret-qt-hello-world][ferret-qt-hello-world]] - QT Hello World FFI Example in Ferret Lisp
+ - [[https://github.com/nakkaya/ferret-qt-hello-world][ferret-qt-hello-world]] - QT Hello World FFI Example in Ferret Lisp
 
 *** Wrappers
 
- - [[https://git.nakkaya.com/nakkaya/ferret-mosquitto][ferret-mosquitto]] - Ferret bindings for Mosquitto MQTT Client
- - [[https://git.nakkaya.com/nakkaya/ferret-opencv][ferret-opencv]] - Ferret bindings for OpenCV
- - [[https://git.nakkaya.com/nakkaya/ferret-genann][ferret-genann]] - Ferret bindings for [[https://codeplea.com/genann][genann]] - simple neural
+ - [[https://github.com/nakkaya/ferret-mosquitto][ferret-mosquitto]] - Ferret bindings for Mosquitto MQTT Client
+ - [[https://github.com/nakkaya/ferret-opencv][ferret-opencv]] - Ferret bindings for OpenCV
+ - [[https://github.com/nakkaya/ferret-genann][ferret-genann]] - Ferret bindings for [[https://codeplea.com/genann][genann]] - simple neural
    network library in ANSI C.
- - [[https://git.nakkaya.com/nakkaya/ferret-teensy-flight-sim][ferret-teensy-flight-sim]] - Wrapper for Teensy flight sim controls.
- - [[https://git.nakkaya.com/nakkaya/ferret-arduino-keypad][ferret-arduino-keypad]] - Arduino Keypad library bindings.
- - [[https://git.nakkaya.com/nakkaya/ferret-arduino-adafruit-pcd8544][ferret-arduino-adafruit-pcd8544]] - Adafruit Arduino PCD8544 screen
+ - [[https://github.com/nakkaya/ferret-teensy-flight-sim][ferret-teensy-flight-sim]] - Wrapper for Teensy flight sim controls.
+ - [[https://github.com/nakkaya/ferret-arduino-keypad][ferret-arduino-keypad]] - Arduino Keypad library bindings.
+ - [[https://github.com/nakkaya/ferret-arduino-adafruit-pcd8544][ferret-arduino-adafruit-pcd8544]] - Adafruit Arduino PCD8544 screen
    library bindings most commonly found in Nokia 5110.
- - [[https://git.nakkaya.com/nakkaya/ferret-boost][ferret-boost]] - Boost bindings.
- - [[https://git.nakkaya.com/nakkaya/ferret-websocket][ferret-websocket]] - WebSocket++ bindigns.
- - [[https://git.nakkaya.com/nakkaya/ferret-logging][ferret-logging]] - easyloggingpp bindigns.
- - [[https://git.nakkaya.com/nakkaya/ferret-great-circle-navigation][ferret-great-circle-navigation]] - Utils for great circle
+ - [[https://github.com/nakkaya/ferret-boost][ferret-boost]] - Boost bindings.
+ - [[https://github.com/nakkaya/ferret-websocket][ferret-websocket]] - WebSocket++ bindigns.
+ - [[https://github.com/nakkaya/ferret-logging][ferret-logging]] - easyloggingpp bindigns.
+ - [[https://github.com/nakkaya/ferret-great-circle-navigation][ferret-great-circle-navigation]] - Utils for great circle
    navigation.
 
 ** License
@@ -425,7 +425,6 @@ Write the image,
 
 The latest sources are available at,
 
-  - [[https://git.nakkaya.com/nakkaya/ferret][git.nakkaya.com]]
   - [[https://github.com/nakkaya/ferret][Github]]
 
 Dependencies,
@@ -8703,9 +8702,9 @@ Create some dummy libs under /test/modules/,
 *** Libraries
 
   - JSON Encode/Decode
-    - https://git.nakkaya.com/nakkaya/ferret-boost
+    - [[https://github.com/nakkaya/ferret-boost]]
   - HTTP & WebSocket Client
-    - https://git.nakkaya.com/nakkaya/ferret-websocket
+    - https://github.com/nakkaya/ferret-websocket
 
 * Files                                                            :noexport:
 ** project.clj

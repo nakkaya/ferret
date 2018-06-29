@@ -5322,6 +5322,27 @@ other members of the group and port.
   };
 #+end_src
 
+*** slurp
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defnative slurp [f]
+    (on "defined FERRET_STD_LIB"
+        ("fstream")
+        "std::ifstream ifs(string::to<std::string>(f).c_str(),
+                           std::ios::in | std::ios::binary | std::ios::ate);
+   
+         if (!ifs.good())
+           return nil();
+   
+         std::ifstream::pos_type file_size = ifs.tellg();
+         ifs.seekg(0, std::ios::beg);
+
+         std::vector<char> bytes(file_size);
+         ifs.read(bytes.data(), file_size);
+         __result = obj<string>(std::string(bytes.data(), file_size));"))
+#+end_src
+
 ** Looping
 *** doseq
 

@@ -91,12 +91,12 @@ executable. Here's a program that sums the first 5 positive numbers.
 #+end_src
 
 We can compile this program using *ferret*, creating an executable named
-*a.out*.
+*lazy-sum*.
 
 #+BEGIN_EXAMPLE
   $ ./ferret -i lazy-sum.clj
-  $ g++ -std=c++11 -pthread lazy-sum.cpp
-  $ ./a.out
+  $ g++ -std=c++11 -pthread lazy-sum.cpp -o lazy-sum
+  $ ./lazy-sum
   15
 #+END_EXAMPLE
 
@@ -106,7 +106,7 @@ variable on the resulting *cpp* file.
 
 #+BEGIN_EXAMPLE
   $ ./ferret -i lazy-sum.clj -c
-  $ ./a.out
+  $ ./lazy-sum
   15
 #+END_EXAMPLE
 
@@ -1719,7 +1719,8 @@ is supported.
       (merge {:compiler "g++"
               :compiler-options ["-std=c++11"]
               :source-extension default-cpp-extension
-              :base-name "solution"}
+              :base-name "solution"
+              :binary-file "solution"}
              options))
 
     (defn file-name [options]
@@ -1782,6 +1783,9 @@ is supported.
               base-name        (file-base-name output)
               input-path       (file-path input)
               output-file      (make-file output-path base-name output-extension)
+              binary-file      (if (args :binary) 
+                                 (args :binary)
+                                 base-name)
               default-options  (compile-options-parse-source output-file)]
           (-> default-options
               (assoc :input-file         input)
@@ -1789,6 +1793,7 @@ is supported.
               (assoc :path               input-path)
               (assoc :output-path        output-path)
               (assoc :source-extension   output-extension)
+              (assoc :binary-file        binary-file)
               (assoc :ast                (args :ast))
               (assoc :compile-program    (args :compile))
               (assoc :release            (args :release))
@@ -1848,7 +1853,9 @@ is supported.
                                            :default "")
                                      %])
                                  (:extra-source-files options))]
-          (flatten [cxx cxx-options source-files ["-x" "c++"] (file-name options)]))))
+          (flatten [cxx cxx-options source-files
+                    ["-x" "c++"] (file-name options)
+                    ["-o" (:binary-file options)]]))))
   #+end_src
 
    Run the compiler on the generated source and create the binary,
@@ -1910,7 +1917,8 @@ is supported.
    #+begin_src clojure
      (def program-options
        [["-i" "--input FILE"         "Input File" :default "./core.clj"]
-        ["-o" "--output FILE"        "Output File"]
+        ["-o" "--output FILE"        "Output C++ File"]
+        ["-b" "--binary FILE"        "Output Binary File"]
         ["-c" "--compile"            "Compile to Binary"]
         ["-w" "--watch-input"        "Automatically Recompile Input File on Change"]
         [nil  "--release"            "Compile in Release Mode. Strip Debug Information"]
@@ -9016,8 +9024,8 @@ Create some dummy libs under /test/modules/,
       (compile->cpp form options)
       (compile->binary options)
       (with-sh-dir "./"
-        (let [exit (->> (sh "./a.out") :exit)]
-          (sh "rm" "-rf" "a.out")
+        (let [exit (->> (sh "./solution") :exit)]
+          (sh "rm" "-rf" "solution")
           (sh "rm" "-rf" "solution.cpp")
           exit))))
 

@@ -126,7 +126,7 @@ release: clean test-release clojars deb-repo docs
 # rules for managing the docker files used by the CI
 DOCKER_RUN = docker run --rm -i \
 		-e LEIN_JVM_OPTS='-Dhttps.protocols=TLSv1.2' \
-		-e LEIN_PASSWORD='${LEIN_USERNAME}' \
+		-e LEIN_USERNAME='${LEIN_USERNAME}' \
 		-e LEIN_PASSWORD='${LEIN_PASSWORD}' \
 		-t -v "${DIR}":/ferret/ -w /ferret/ nakkaya/ferret-build
 

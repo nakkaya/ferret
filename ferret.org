@@ -8757,6 +8757,11 @@ Create some dummy libs under /test/modules/,
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/project.clj
   (defproject ferret "0.3.0-<<git-sha()>>"
+    :description "Ferret is a lisp implementation designed to be used in real time embedded control systems."
+    :url "https://ferret-lang.org/"
+    :license {:name "BSD 2-Clause"
+              :url "https://github.com/nakkaya/ferret/blob/master/LICENSE"}
+    
     :dependencies [[org.clojure/clojure "1.8.0"]
                    [fast-zip "0.7.0"]
                    [org.clojure/tools.cli "0.3.3"]

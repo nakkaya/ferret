@@ -121,6 +121,9 @@ release: clean test-release deb-repo docs
 	mv docs/ferret-manual.html release/index.html
 	rm -rf bin/ docs/
 
+deploy: 
+	cd src/ && lein deploy
+
 # rules for managing the docker files used by the CI
 DOCKER_RUN = docker run --rm -i -e LEIN_JVM_OPTS='-Dhttps.protocols=TLSv1.2' -t -v "${DIR}":/ferret/ -w /ferret/ nakkaya/ferret-build
 

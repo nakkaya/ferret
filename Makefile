@@ -121,7 +121,7 @@ release: clean test-release deb-repo docs
 	mv docs/ferret-manual.html release/index.html
 	rm -rf bin/ docs/
 
-deploy: 
+clojars: 
 	cd src/ && lein deploy
 
 # rules for managing the docker files used by the CI

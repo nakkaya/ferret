@@ -107,13 +107,15 @@ deb-repo: deb
 	mkdir -p bin/debian-repo/conf/
 	cp src/resources/deb-repo-conf bin/debian-repo/conf/distributions
 	reprepro -b bin/debian-repo/ includedeb ferret-lisp bin/ferret-lisp.deb
+clojars: 
+	cd src/ && lein deploy
 docs:   src/
 	wget https://s3.amazonaws.com/ferret-lang.org/build-artifacts/clojure-mode-extra-font-locking.el
 	emacs -nw -Q --batch -l src/resources/tangle-docs
 	mkdir -p docs/
 	mv ferret-manual.html docs/
 	rm clojure-mode-extra-font-locking.el
-release: clean test-release deb-repo docs
+release: clean test-release clojars deb-repo docs
 	mkdir -p release/builds/
 	mv bin/ferret* release/builds/
 	cp release/builds/ferret.jar release/builds/ferret-`git rev-parse --short HEAD`.jar
@@ -121,11 +123,12 @@ release: clean test-release deb-repo docs
 	mv docs/ferret-manual.html release/index.html
 	rm -rf bin/ docs/
 
-clojars: 
-	cd src/ && lein deploy
-
 # rules for managing the docker files used by the CI
-DOCKER_RUN = docker run --rm -i -e LEIN_JVM_OPTS='-Dhttps.protocols=TLSv1.2' -t -v "${DIR}":/ferret/ -w /ferret/ nakkaya/ferret-build
+DOCKER_RUN = docker run --rm -i \
+		-e LEIN_JVM_OPTS='-Dhttps.protocols=TLSv1.2' \
+		-e LEIN_PASSWORD='${LEIN_USERNAME}' \
+		-e LEIN_PASSWORD='${LEIN_PASSWORD}' \
+		-t -v "${DIR}":/ferret/ -w /ferret/ nakkaya/ferret-build
 
 docker-create: src/
 	cd src/resources/ferret-build/ && \
@@ -135,6 +138,6 @@ docker-create: src/
 docker-bash:
 	 ${DOCKER_RUN} /bin/bash
 docker-release:
-	 ${DOCKER_RUN} /bin/bash -c 'make release'
+	 @${DOCKER_RUN} /bin/bash -c 'make release'
 docker-test:
 	 ${DOCKER_RUN} /bin/bash -c 'make test-release'

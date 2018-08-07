@@ -3,12 +3,7 @@
 #+TAGS: noexport(e)
 #+EXPORT_EXCLUDE_TAGS: noexport
 #+SETUPFILE: org-mode.conf
-#+OPTIONS: H:10 author:nil
-
-#+name: git-sha
-#+begin_src sh :exports none noweb: yes
-  echo "`git rev-parse --short HEAD`"
-#+end_src   
+#+OPTIONS: H:10 author:nil  
 
 * Getting Started
 ** What Is Ferret
@@ -8753,6 +8748,12 @@ Create some dummy libs under /test/modules/,
     - https://github.com/nakkaya/ferret-websocket
 
 * Files                                                            :noexport:
+
+#+name: git-sha
+#+begin_src sh :exports results noweb: yes
+  echo "`git rev-parse --short HEAD`"
+#+end_src 
+
 ** project.clj
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/project.clj

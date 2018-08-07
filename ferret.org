@@ -8557,6 +8557,7 @@ Create some dummy libs under /test/modules/,
 ** Compiler
 
   - *fn* - Named anonymous functions.
+  - *defn-* - Private Functions.
   - *Maps* - Implement destructuring.
   - *Shared Library* - Ability to be run as a shared lib.
     - Export functions to JNA (C API)
@@ -8566,6 +8567,9 @@ Create some dummy libs under /test/modules/,
   - *Escape Analysis* for other types. Currently escape analysis is
     only used for functions.    
     - [[https://news.ycombinator.com/item?id=12158191][Static Analysis]]
+  - *Improved Library Support* - Something along the lines of [[https://clojure.org/news/2018/01/05/git-deps][Git Deps for Clojure]].
+  - *Improved Hardware Support* - Support for 3rd party machine
+    architectures.
   - *Readbility* - Add context to auto generated symbols in compiled
     code.
   * Check out Typed Racket
@@ -8592,6 +8596,7 @@ Create some dummy libs under /test/modules/,
   - C++ implementations of Clojure's persistent data structures. 
     - https://github.com/mninja/persistent-data-structures
     - [[https://news.ycombinator.com/item?id=13049843][Immer: immutable and persistent data structures for C++]]
+    - [[https://www.reddit.com/r/cpp/comments/8utg8u/postmodern_immutable_vector_now_boost_licensed/][Postmodern Immutable Vector]]
   - *Implement Channel*
     - https://www.reddit.com/r/cpp/comments/6p3zch/diy_channels/
   - *Unbounded Precision Integers*
@@ -8624,6 +8629,7 @@ Create some dummy libs under /test/modules/,
     - https://github.com/mtrebi/memory-allocators
     - [[https://www.gamedev.net/articles/programming/general-and-gameplay-programming/c-custom-memory-allocation-r3010/][C++: Custom memory allocation]]
     - [[Some useful Malloc Implementations][Some useful Malloc Implementations]]
+    - [[http://brnz.org/hbr/?p=1735][A little bit of floating point in a memory allocator — Part 1: Background]]
   - *defproject* - Combine *configure-* macros under one macro.
   - *defproject* - Ability to define dependencies
     - automatically pull other ferret projects
@@ -8661,7 +8667,7 @@ Create some dummy libs under /test/modules/,
   - *Multimethods*
 
 ** Libraries
-
+  - [[https://github.com/nakkaya/ferret-teensy-flight-sim][ferret-teensy-flight-sim]] - Use `obj::value`.
   - [[https://github.com/whoshuu/cpr][cpr]] - C++ Requests: Curl for People
   - [[https://github.com/cesanta/mongoose/blob/master/examples/mqtt_client/mqtt_client.c][mongoose mqtt]] - Mongoose MQTT Client/Server
   - [[https://github.com/roboterclubaachen/xpcc][xpcc]] - C++ microcontroller framework

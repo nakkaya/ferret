@@ -5,6 +5,11 @@
 #+SETUPFILE: org-mode.conf
 #+OPTIONS: H:10 author:nil
 
+#+name: git-sha
+#+begin_src sh :exports none noweb: yes
+  echo "`git rev-parse --short HEAD`"
+#+end_src   
+
 * Getting Started
 ** What Is Ferret
 
@@ -67,6 +72,10 @@ Supported package managers,
    - Debian/Ubuntu
      - Add repository - =echo "deb [trusted=yes] https://ferret-lang.org/debian-repo ferret-lisp main" >> /etc/apt/sources.list=
      - Install Ferret - =apt-get install ferret-lisp=
+   - Clojars
+     - Latest SHA: call_git-sha()
+     - Dependency: =[ferret "0.3.0-SHA"]=
+     - URL: https://clojars.org/ferret
 
 ** A glimpse of Ferret
 
@@ -8746,8 +8755,8 @@ Create some dummy libs under /test/modules/,
 * Files                                                            :noexport:
 ** project.clj
 
-#+begin_src clojure :mkdirp yes :tangle src/project.clj
-  (defproject ferret "1.0.0-SNAPSHOT"
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/project.clj
+  (defproject ferret "0.3.0-<<git-sha()>>"
     :dependencies [[org.clojure/clojure "1.8.0"]
                    [fast-zip "0.7.0"]
                    [org.clojure/tools.cli "0.3.3"]
@@ -8756,7 +8765,12 @@ Create some dummy libs under /test/modules/,
                    [commons-lang "2.5"]
                    [watchtower "0.1.1"]
                    [org.clojure/tools.logging "0.2.3"]
-                   [clojure-term-colors "0.1.0-SNAPSHOT"]]
+                   [clojure-term-colors "0.1.0"]]
+
+    :deploy-repositories [["releases"  {:sign-releases false :url "https://clojars.org/repo"
+                                        :username :env
+                                        :password :env}]]
+
     :repl-options {:host "0.0.0.0"
                    :port 7888
                    :init-ns ferret.core}
@@ -9048,7 +9062,9 @@ Create some dummy libs under /test/modules/,
    (require 'clojure-mode-extra-font-locking)
    (setq org-export-with-section-numbers nil)
    (setq org-babel-use-quick-and-dirty-noweb-expansion t)
-
+   (setq org-confirm-babel-evaluate nil)
+   (org-babel-do-load-languages 'org-babel-load-languages '((sh . t))) 
+   
    (set-face-foreground 'font-lock-string-face "#990000")
    (set-face-foreground 'font-lock-keyword-face "#ff5f00")
    (set-face-foreground 'font-lock-function-name-face "#d7af00")

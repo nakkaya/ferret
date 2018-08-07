@@ -11,6 +11,8 @@ install:
   - git checkout -qf $TRAVIS_COMMIT
 script:
   - make docker-release
+before_deploy:
+  - sudo make clojars
 deploy:
   on:
     branch: master
@@ -22,8 +24,6 @@ deploy:
   local-dir: release
   acl: public_read
   detect_encoding: true
-after_deploy:
-  - make clojars
 notifications:
   email:
     on_success: never

@@ -531,6 +531,15 @@ Import all modules in the given form. Supported =require= forms,
            '[package.udp :as udp])
 #+END_SRC
 
+Helper functions or variables in modules that should not be exposed
+outside the namespace can be defined using the following form,
+
+#+BEGIN_SRC clojure :tangle no
+  (def ^{:private true}  helper-var :value)
+
+  (defn ^{:private true} helper-fn [] 42)
+#+END_SRC
+
 Compiler will look for a file under current working directory called,
 /package/io.clj/ all expression in the that file will be added to the
 front of the current form with symbols renamed to /some-fn/ =>
@@ -579,9 +588,12 @@ of mod -> aliases pairs.
                                              (map second)
                                              (into #{}))
                          replace?       (set/union macro-symbols def-symbols)
-                         mod            (morph-form
-                                         mod #(and (symbol? %) (replace? %))
-                                         #(symbol (str (.replace (str m) "." "_") "_" %)))]
+                         mod            (morph-form mod
+                                                    #(and (symbol? %)
+                                                          (replace? %))
+                                                    #(let [package (str (.replace (str m) "." "_"))
+                                                           fqn     (symbol (str package "_" %))]
+                                                       (with-meta fqn (meta %))))]
                      (reduce (fn [h v] (conj h v)) h mod)))
                  [])
          lazy-seq))
@@ -617,7 +629,19 @@ modules names. So =helper-a= defined in module =util.db= becomes
     (let [package-list (import-modules-select-require form)
           form         (remove-form form (is-form-fn? 'require))
           modules      (import-modules-load-modules package-list options)
-          form         (import-modules-convert-alias-to-module package-list form)]
+          non-public?  (->> modules
+                            (reduce (fn[private-symbols mod]
+                                      (-> mod
+                                          (select-form #(and (symbol? %)
+                                                             (-> % meta :private)))
+                                          (concat private-symbols))) [])
+                            (into #{}))
+          form         (import-modules-convert-alias-to-module package-list form)
+          violations   (select-form form #(non-public? %) #(zip/node (zip/up %)))]
+      (when (not (empty? violations))
+        (doseq [v violations]
+          (warn "non-public-access =>" v))
+        (exit-failure))
       (shake-concat modules form)))
 
   (defn import-modules-all [form options]
@@ -1153,16 +1177,19 @@ suggests and removes the node when predicate returns true.
               (zip/remove loc)
               loc)))))))
 
-  (defn select-form [tree pred]
-    (loop [loc (zip/seq-zip tree)
-           nodes []]
-      (if (zip/end? loc)
-        nodes
-        (recur
-         (zip/next loc)
-         (if (pred (zip/node loc))
-           (conj nodes (zip/node loc))
-           nodes)))))
+  (defn select-form [tree pred & [node-fn]]
+    (let [node-fn (if node-fn
+                    node-fn
+                    #(zip/node %))]
+      (loop [loc (zip/seq-zip tree)
+             nodes []]
+        (if (zip/end? loc)
+          nodes
+          (recur
+           (zip/next loc)
+           (if (pred (zip/node loc))
+             (conj nodes (node-fn loc))
+             nodes))))))
 
   (defn is-form? [s f]
     (and (seq? f)
@@ -8560,8 +8587,9 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Compiler
 
+  - *Metadata* - Nodes in program tree should retain metadata during
+    transformations.
   - *fn* - Named anonymous functions.
-  - *defn-* - Private Functions.
   - *Maps* - Implement destructuring.
   - *Shared Library* - Ability to be run as a shared lib.
     - Export functions to JNA (C API)
@@ -8595,8 +8623,6 @@ Create some dummy libs under /test/modules/,
     - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/Atom.java
     - http://www.cplusplus.com/reference/atomic/
   - Warn wrong number of arguments passed to function.
-  - *Convert Data Structures* - Automatically convert unsupported data
-    structures and warn user. i.e. Vector to List.
   - C++ implementations of Clojure's persistent data structures. 
     - https://github.com/mninja/persistent-data-structures
     - [[https://news.ycombinator.com/item?id=13049843][Immer: immutable and persistent data structures for C++]]
@@ -8696,6 +8722,8 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *defn-* - Private Functions.
+    - Support Clojure's =(def ^{:private true} some-var :value)= form.
   - *Maps* - Implement default =get= values.
   - *Fixed-point Arithmetic*
     Implement fixed point real number type for embedded systems

@@ -591,9 +591,8 @@ of mod -> aliases pairs.
                          mod            (morph-form mod
                                                     #(and (symbol? %)
                                                           (replace? %))
-                                                    #(let [package (str (.replace (str m) "." "_"))
-                                                           fqn     (symbol (str package "_" %))]
-                                                       (with-meta fqn (meta %))))]
+                                                    #(->> (str (.replace (str m) "." "_") "_" %)
+                                                          (symbol)))]
                      (reduce (fn [h v] (conj h v)) h mod)))
                  [])
          lazy-seq))
@@ -1160,10 +1159,16 @@ suggests and removes the node when predicate returns true.
 #+name: core-compiler-helpers
 #+begin_src clojure :tangle no
   (defn morph-form [tree pred f]
-    (walk/prewalk (fn [x]
-                    (if (pred x)
-                      (f x)
-                      x)) tree))
+    (walk/prewalk (fn [form]
+                    (if (pred form)
+                      (let [new-form (f form)
+                            meta (meta form)]
+                        (if (and (instance? clojure.lang.IMeta form)
+                                 (instance? clojure.lang.IMeta new-form))
+                          (with-meta new-form meta)
+                          new-form))
+                      form))
+                  tree))
 
   (defn remove-form [tree pred]
     (if (every? true? (map #(pred %) tree))
@@ -8587,8 +8592,6 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Compiler
 
-  - *Metadata* - Nodes in program tree should retain metadata during
-    transformations.
   - *fn* - Named anonymous functions.
   - *Maps* - Implement destructuring.
   - *Shared Library* - Ability to be run as a shared lib.
@@ -8722,6 +8725,8 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Metadata* - Nodes in program tree should retain metadata during
+    transformations.
   - *defn-* - Private Functions.
     - Support Clojure's =(def ^{:private true} some-var :value)= form.
   - *Maps* - Implement default =get= values.

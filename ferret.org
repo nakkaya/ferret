@@ -1308,6 +1308,10 @@ namespace.)
                          (or (true? form) (false? form)) :boolean
                          (seq? form) :invoke-lambda)))
 
+  (defmethod emit nil [_ form _]
+    (warn "unsopported form =>" form)
+    (exit-failure))
+
   (defn emit-ast
     [options ast state]
     (reduce (fn[h v]

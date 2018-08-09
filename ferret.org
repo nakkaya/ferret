@@ -901,8 +901,10 @@ the free variable problem.
     (if-let [fn-name (@fns (concat [env args] body))]
       (apply list 'fir-new-lambda fn-name env)))
 
-  (defn define-lambda [fns env args body]
-    (let [n (gensym)]
+  (defn define-lambda [fns env name args body]
+    (let [n (if name
+              name
+              (gensym "FN__"))]
       (swap! fns assoc (concat [env args] body) n)
       (apply list 'fir-new-lambda n env)))
 
@@ -923,7 +925,7 @@ the free variable problem.
                          body (closure-conversion body fns (concat args env))]
                      (if-let [n (lambda-defined? fns env args body)]
                        n
-                       (define-lambda fns env args body)))))))
+                       (define-lambda fns env name args body)))))))
 #+end_src
 
 *** Symbol Conversion
@@ -4856,13 +4858,13 @@ implementation.
         (let [[args & body] body
               [args body] (fn-make-unique args body)]
           (if name
-            `(~'fn* ~name ~args ~@body)
-            `(~'fn* ~args ~@body)))
+            `(fn* ~(symbol (str name (gensym "__"))) ~args ~@body)
+            `(fn* ~args ~@body)))
         ;; handle multi arity function
         (let [fns   (map (fn* [body]
                               (let [[args & body] body
                                     [args body] (fn-make-unique args body)]
-                                `(~'fn* ~args ~@body)))
+                                `(fn* ~args ~@body)))
                          body)
               arity (->> (map first body)
                          (map (fn* [args] (filter #(not (= % '&)) args)))
@@ -4877,7 +4879,7 @@ implementation.
                         `(fn-multi-arity ~switch ~default))
                       `(fn-multi-arity ~fns))]
           (if name
-            `(fn* ~name () ~fns)
+            `(fn* ~(symbol (str name (gensym "__"))) () ~fns)
             `(fn* () ~fns))))))
 #+end_src
 

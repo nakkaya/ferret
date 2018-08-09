@@ -720,7 +720,7 @@ form.
       (create-ns temp-ns)
       (binding [*ns* (the-ns temp-ns)]
         (refer 'clojure.core :exclude (concat macro-symbols ['fn 'def]))
-        (use '[ferret.core :only [symbol-conversion fn->unique-args exit-failure]])
+        (use '[ferret.core :only [symbol-conversion fn-make-unique exit-failure]])
         
         (doseq [m (concat core-macros form-macros)]
           (eval m)))
@@ -760,13 +760,12 @@ already defined variable names.
 
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
-  (defn fn->unique-args [form]
-    (let [valid-symbol? (fn [s] (and (symbol? s) (not= s '&) (not= s '_)))
-          [args & body] form]
+  (let [valid-symbol?  (fn [s] (and (symbol? s) (not= s '&) (not= s '_)))]
+    (defn fn-make-unique [args body]
       (if (string?  (->> body
                          (filter #(not (is-form? 'native-declare %)))
                          first))
-        `(~'fn* ~args ~@body)
+        [args body]
         (let [unique-args (->> args
                                flatten
                                (filter valid-symbol?)
@@ -776,15 +775,16 @@ already defined variable names.
                                              (filter valid-symbol?))
                                         unique-args)
                             (apply hash-map))
-              unique-body (walk/prewalk
-                           (fn [x]
-                             (if (and (symbol? x)
-                                      (replace? x))
-                               (replace? x)
-                               x)) body)
-              args (->> (morph-form args #(replace? %) #(replace? %))
-                        (into []))]
-          `(~'fn* ~args ~@unique-body)))))
+              body     (walk/prewalk
+                        (fn [x]
+                          (if (and (symbol? x)
+                                   (replace? x))
+                            (replace? x)
+                            x)) body)
+              args      (->> (morph-form
+                              args #(replace? %) #(replace? %))
+                             (into []))]
+          [args body]))))
 #+end_src
 
 *** let->fn
@@ -821,17 +821,18 @@ after transformation becomes,
                         (exit-failure))
                       
                       (if (empty? bindings)
-                        `((~'fn () ~@body))
+                        `((~'fir-let-fn () ~@body))
                         (apply
                          (fn close [[arg val] & more]
                            (if (empty? more)
-                             `((~'fn [~arg] ~@body) ~val)
-                             `((~'fn [~arg] ~(apply close more)) ~val)))
+                             `((~'fir-let-fn [~arg] ~@body) ~val)
+                             `((~'fir-let-fn [~arg] ~(apply close more)) ~val)))
                          (partition 2 bindings)))))
 
-        (morph-form (is-form-fn? 'fn)
-                    (fn [[_ & body]]
-                      (fn->unique-args body)))))
+        (morph-form (is-form-fn? 'fir-let-fn)
+                    (fn [[_ args & body]]
+                      (let [[args body] (fn-make-unique args body)]
+                        `(~'fn* ~args ~@body))))))
 #+end_src
 
 *** do->fn
@@ -914,8 +915,11 @@ the free variable problem.
     ([form fns & env]
      (morph-form form
                  (is-form-fn? 'fn*)
-                 (fn [[_ args & body]]
-                   (let [env  (if (nil? env) '() (first env))
+                 (fn [sig]
+                   (let [name (if (symbol? (second sig)) (second sig) nil)
+                         sig  (if name (drop 2 sig) (rest sig))
+                         [args & body] sig
+                         env  (if (nil? env) '() (first env))
                          body (closure-conversion body fns (concat args env))]
                      (if-let [n (lambda-defined? fns env args body)]
                        n
@@ -4845,24 +4849,36 @@ implementation.
 
 #+name: runtime-clojure-fn-macros
 #+begin_src clojure :tangle no
-  (defmacro fn [& body]
-    (if (vector? (first body))
-      (fn->unique-args body)
-      ;; handle multi arity function
-      (let [fns   (map #(fn->unique-args %) body)
-            arity (->> (map first body)
-                       (map (fn* [args] (filter #(not (= % '&)) args)))
-                       (map #(count %)))
-            fns   (->> (interleave arity fns)
-                       (partition 2)
-                       (sort-by first))
-            fns   (if (->> fns last second second      ;; last arity arguments
-                           (take-last 2) first (= '&)) ;; check &
-                    (let [switch        (drop-last 1 fns)
-                          [[_ default]] (take-last 1 fns)]
-                      `(fn-multi-arity ~switch ~default))
-                    `(fn-multi-arity ~fns))]
-        `(fn* () ~fns))))
+  (defmacro fn [& sig]
+    (let [name (if (symbol? (first sig)) (first sig) nil)
+          body (if name (rest sig) sig)]
+      (if (vector? (first body))
+        (let [[args & body] body
+              [args body] (fn-make-unique args body)]
+          (if name
+            `(~'fn* ~name ~args ~@body)
+            `(~'fn* ~args ~@body)))
+        ;; handle multi arity function
+        (let [fns   (map (fn* [body]
+                              (let [[args & body] body
+                                    [args body] (fn-make-unique args body)]
+                                `(~'fn* ~args ~@body)))
+                         body)
+              arity (->> (map first body)
+                         (map (fn* [args] (filter #(not (= % '&)) args)))
+                         (map #(count %)))
+              fns   (->> (interleave arity fns)
+                         (partition 2)
+                         (sort-by first))
+              fns   (if (->> fns last second second      ;; last arity arguments
+                             (take-last 2) first (= '&)) ;; check &
+                      (let [switch        (drop-last 1 fns)
+                            [[_ default]] (take-last 1 fns)]
+                        `(fn-multi-arity ~switch ~default))
+                      `(fn-multi-arity ~fns))]
+          (if name
+            `(fn* ~name () ~fns)
+            `(fn* () ~fns))))))
 #+end_src
 
 A simple macro for calling inline C++,

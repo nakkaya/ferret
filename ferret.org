@@ -591,8 +591,7 @@ of mod -> aliases pairs.
                          mod            (morph-form mod
                                                     #(and (symbol? %)
                                                           (replace? %))
-                                                    #(->> (str (.replace (str m) "." "_") "_" %)
-                                                          (symbol)))]
+                                                    #(new-symbol m "_" %))]
                      (reduce (fn [h v] (conj h v)) h mod)))
                  [])
          lazy-seq))
@@ -613,7 +612,7 @@ concatenation of all modules listed in form.
                   (fn [f]
                     (if-let [[_ alias fn] (re-find #"(.*?)/(.*)" (str f))]
                       (if-let [mod-sym (alias-to-mod (symbol alias))]
-                        (symbol (str (.replace (str mod-sym) "." "_") "_" fn))
+                        (new-symbol mod-sym "_" fn)
                         f)
                       f)))))
 #+end_src
@@ -720,7 +719,7 @@ form.
       (create-ns temp-ns)
       (binding [*ns* (the-ns temp-ns)]
         (refer 'clojure.core :exclude (concat macro-symbols ['fn 'def]))
-        (use '[ferret.core :only [symbol-conversion fn-make-unique exit-failure]])
+        (use '[ferret.core :only [symbol-conversion new-symbol fn-make-unique exit-failure]])
         
         (doseq [m (concat core-macros form-macros)]
           (eval m)))
@@ -769,7 +768,7 @@ already defined variable names.
         (let [unique-args (->> args
                                flatten
                                (filter valid-symbol?)
-                               (map #(symbol (str % (gensym "__")))))
+                               (map #(new-symbol % (gensym "__"))))
               replace? (->> (interleave (->> args
                                              flatten
                                              (filter valid-symbol?))
@@ -1035,7 +1034,7 @@ with the global name for readability.
         (reduce (fn[h [name gensym]]
                   (morph-form h #(and (symbol? %)
                                       (= % gensym))
-                              (fn [_] (symbol (str name "_" gensym)))))
+                              (fn [_] (new-symbol name "_" gensym))))
                 form closure-fn-table))))
 #+end_src
 
@@ -1209,6 +1208,10 @@ suggests and removes the node when predicate returns true.
   (defn is-form-fn? [& s]
     (fn [f]
       (some true? (map #(is-form? % f) s))))
+
+  (defn new-symbol [& parts]
+    (let [parts (map #(.replace (str %) "." "_") parts)]
+      (symbol (apply str parts))))
 #+end_src
 
 *** File I/O
@@ -4858,7 +4861,7 @@ implementation.
         (let [[args & body] body
               [args body] (fn-make-unique args body)]
           (if name
-            `(fn* ~(symbol (str name (gensym "__"))) ~args ~@body)
+            `(fn* ~(new-symbol name (gensym "__")) ~args ~@body)
             `(fn* ~args ~@body)))
         ;; handle multi arity function
         (let [fns   (map (fn* [body]
@@ -4879,7 +4882,7 @@ implementation.
                         `(fn-multi-arity ~switch ~default))
                       `(fn-multi-arity ~fns))]
           (if name
-            `(fn* ~(symbol (str name (gensym "__"))) () ~fns)
+            `(fn* ~(new-symbol name (gensym "__")) () ~fns)
             `(fn* () ~fns))))))
 #+end_src
 

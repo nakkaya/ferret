@@ -8615,20 +8615,24 @@ Create some dummy libs under /test/modules/,
 
   - *fn* - Named anonymous functions.
   - *Maps* - Implement destructuring.
-  - *Shared Library* - Ability to be run as a shared lib.
-    - Export functions to JNA (C API)
   - *Escape Analysis* - Escape known language structures. Certain
-    forms generate =fn=s that never escape. These can be generated on
+    forms generate lambdas that never escape. These can be generated on
     the stack.
   - *Escape Analysis* for other types. Currently escape analysis is
     only used for functions.    
     - [[https://news.ycombinator.com/item?id=12158191][Static Analysis]]
-  - *Improved Library Support* - Something along the lines of [[https://clojure.org/news/2018/01/05/git-deps][Git Deps for Clojure]].
+  - *defproject* - Combine *configure-* macros under one macro.
+  - *Improved Library Support*
+    - Something along the lines of [[https://clojure.org/news/2018/01/05/git-deps][Git Deps for Clojure]].
+    - automatically pull other ferret projects
+    - https://www.reddit.com/r/cpp/comments/3d1vjq/is_there_a_c_package_manager_if_not_how_do_you/ct2s6oy/
+    - https://stackoverflow.com/questions/38657064/package-management-for-c
   - *Improved Hardware Support* - Support for 3rd party machine
     architectures.
-  - *Readbility* - Add context to auto generated symbols in compiled
-    code.
-  * Check out Typed Racket
+  - *Pre/Post conditions* for functions.
+    - By default print error and abort. 
+    - Let user define a callback function.
+  - *Multimethods*
   - Since Ferret does whole-program compilation. Implement
     optimizations from Stalin Scheme compiler.
     - https://github.com/barak/stalin
@@ -8646,13 +8650,39 @@ Create some dummy libs under /test/modules/,
     provides same behaviour.
     - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/Atom.java
     - http://www.cplusplus.com/reference/atomic/
-  - Warn wrong number of arguments passed to function.
+  - *Memory Pool* - Allow chainable allocators. i.e Use system
+    allocator until OOM then switch to pool allocator or vice versa.
+    - [[https://github.com/FelixPetriconi/AllocatorBuilder][Allocator Builder]]
+    - https://github.com/mtrebi/memory-allocators
+    - [[https://www.gamedev.net/articles/programming/general-and-gameplay-programming/c-custom-memory-allocation-r3010/][C++: Custom memory allocation]]
+    - [[Some useful Malloc Implementations][Some useful Malloc Implementations]]
+    - [[http://brnz.org/hbr/?p=1735][A little bit of floating point in a memory allocator — Part 1: Background]]
+  - *Memory Pool* - Ability to run functions on different Memory Pools.
+    - Improved data locality and safety.
+    - Optionally disable reference counting to improve performance since
+      whole pool can be garbage collected when done.
+    - Stalin also does very good lifetime analysis to reduce the
+      amount of garbage needing collection. i.e. it will compute good
+      places in the stack to create a heap, then objects that are
+      determined to be born and die within that sub-stack are
+      allocated from that heap. When the stack unwinds past that
+      point, the entire local heap can be released in one fell swoop.
   - C++ implementations of Clojure's persistent data structures. 
     - https://github.com/mninja/persistent-data-structures
     - [[https://news.ycombinator.com/item?id=13049843][Immer: immutable and persistent data structures for C++]]
     - [[https://www.reddit.com/r/cpp/comments/8utg8u/postmodern_immutable_vector_now_boost_licensed/][Postmodern Immutable Vector]]
   - *Implement Channel*
     - https://www.reddit.com/r/cpp/comments/6p3zch/diy_channels/
+  - *Co-Operative Multitasking* - For Embedded Systems.
+    - http://soda.swedish-ict.se/2372/1/SICS-T--2005-05--SE.pdf
+    - https://forum.pjrc.com/threads/25628-Lightweight-Teensy3-x-Fibers-Library-%28C-%29-Available
+    - https://github.com/ve3wwg/teensy3_fibers/blob/1ba0c1e79a423f097e12e6c4176b40cf9d4f44e4/fibers.cpp
+    - [[https://news.ycombinator.com/item?id=11323660][Simple coroutines for games in C++]]
+    - [[https://hackage.haskell.org/package/Workflow-0.8.3/docs/Control-Workflow.html][Control.Workflow]]
+    - [[https://news.ycombinator.com/item?id=9402314][Coroutines in C with Arbitrary Arguments]]
+    - https://github.com/akouz/a_coos/tree/1a56f686a24c2085fe82986d568f4577b068c0da
+    - https://github.com/mikaelpatel/Arduino-Scheduler/tree/d09521f7dc1447ddaea09e32413cf6e96e9e6816
+    - http://dotat.at/cgi/git/picoro.git/tree
   - *Unbounded Precision Integers*
     - [[http://www.more-magic.net/posts/numeric-tower-part-2.html][CHICKEN's numeric tower: part 2]]
     - [[https://web.archive.org/web/20101208222557/http://www.mactech.com/articles/mactech/Vol.08/08.03/BigNums/index.html][Arbitrarily Large Bignums]]
@@ -8674,51 +8704,6 @@ Create some dummy libs under /test/modules/,
      - On versions of PICOBIT which do not support unbounded precision
        integers (including PICOBIT Light), integers are limited to 24
        bits, and encoded directly in the object.
-
-** Core
-
-  - *Memory Pool* - Allow chainable allocators. i.e Use system
-    allocator until OOM then switch to pool allocator or vice versa.
-    - [[https://github.com/FelixPetriconi/AllocatorBuilder][Allocator Builder]]
-    - https://github.com/mtrebi/memory-allocators
-    - [[https://www.gamedev.net/articles/programming/general-and-gameplay-programming/c-custom-memory-allocation-r3010/][C++: Custom memory allocation]]
-    - [[Some useful Malloc Implementations][Some useful Malloc Implementations]]
-    - [[http://brnz.org/hbr/?p=1735][A little bit of floating point in a memory allocator — Part 1: Background]]
-  - *defproject* - Combine *configure-* macros under one macro.
-  - *defproject* - Ability to define dependencies
-    - automatically pull other ferret projects
-    - https://www.reddit.com/r/cpp/comments/3d1vjq/is_there_a_c_package_manager_if_not_how_do_you/ct2s6oy/
-    - https://stackoverflow.com/questions/38657064/package-management-for-c
-  - =std::current_exception= - Create wrapper.
-    - http://en.cppreference.com/w/cpp/error/current_exception
-  - *Pre/Post conditions* for functions.
-    - By default print error and abort. 
-    - Let user define a callback function.
-  - *Cleaner FFI* - Current FFI system is modeled after [[http://gambitscheme.org/wiki/index.php/Using_Gambit_with_External_Libraries][Gambit
-    Scheme]]. 
-    - With a set a macros can provide a DSL like [[https://github.com/tomhrr/dale][Dale]].
-    - Cleans up /defobject/ macro.
-  - *Memory Pool* - Ability to run functions on different Memory Pools.
-    - Improved data locality and safety.
-    - Optionally disable reference counting to improve performance since
-      whole pool can be garbage collected when done.
-    - Stalin also does very good lifetime analysis to reduce the
-      amount of garbage needing collection. i.e. it will compute good
-      places in the stack to create a heap, then objects that are
-      determined to be born and die within that sub-stack are
-      allocated from that heap. When the stack unwinds past that
-      point, the entire local heap can be released in one fell swoop.
-  - *Co-Operative Multitasking* - For Embedded Systems.
-    - http://soda.swedish-ict.se/2372/1/SICS-T--2005-05--SE.pdf
-    - https://forum.pjrc.com/threads/25628-Lightweight-Teensy3-x-Fibers-Library-%28C-%29-Available
-    - https://github.com/ve3wwg/teensy3_fibers/blob/1ba0c1e79a423f097e12e6c4176b40cf9d4f44e4/fibers.cpp
-    - [[https://news.ycombinator.com/item?id=11323660][Simple coroutines for games in C++]]
-    - [[https://hackage.haskell.org/package/Workflow-0.8.3/docs/Control-Workflow.html][Control.Workflow]]
-    - [[https://news.ycombinator.com/item?id=9402314][Coroutines in C with Arbitrary Arguments]]
-    - https://github.com/akouz/a_coos/tree/1a56f686a24c2085fe82986d568f4577b068c0da
-    - https://github.com/mikaelpatel/Arduino-Scheduler/tree/d09521f7dc1447ddaea09e32413cf6e96e9e6816
-    - http://dotat.at/cgi/git/picoro.git/tree
-  - *Multimethods*
 
 ** Libraries
   - [[https://github.com/nakkaya/ferret-teensy-flight-sim][ferret-teensy-flight-sim]] - Use `obj::value`.

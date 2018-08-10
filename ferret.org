@@ -8646,6 +8646,7 @@ Create some dummy libs under /test/modules/,
 ** Data Structures
 
   - *atomic* - Implement add-watch
+    - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/ARef.java
     - https://clojuredocs.org/clojure.core/add-watch
     - https://stackoverflow.com/questions/13371123/how-do-refs-notify-its-watches-in-clojure
     - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/Atom.java

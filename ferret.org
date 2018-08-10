@@ -8633,6 +8633,10 @@ Create some dummy libs under /test/modules/,
     - By default print error and abort. 
     - Let user define a callback function.
   - *Multimethods*
+  - *Finger Trees* - As basis for other functional data structures
+    i.e. Set, Vector
+    - http://www.staff.city.ac.uk/~ross/papers/FingerTree.html
+    - https://www.youtube.com/watch?v=UXdr_K0Lwg4
   - Since Ferret does whole-program compilation. Implement
     optimizations from Stalin Scheme compiler.
     - https://github.com/barak/stalin

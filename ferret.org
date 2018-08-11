@@ -552,7 +552,7 @@ front of the current form with symbols renamed to /some-fn/ =>
                          (if (symbol? f)
                            [f :as f]
                            f))]
-      (->> (select-form form (is-form-fn? 'require))
+      (->> (select-form form (form? 'require))
            (reduce (fn[h v]
                      (if (= 2 (count v))
                        ;; require single module
@@ -579,12 +579,12 @@ of mod -> aliases pairs.
                                               file-name
                                               (str (:path options) file-name))
                                             (read-clojure-file)
-                                            (remove-form (is-form-fn? 'configure-runtime!))
-                                            (remove-form (is-form-fn? 'configure-ferret!)))
-                         macro-symbols  (->> (select-form mod (is-form-fn? 'defmacro))
+                                            (remove-form (form? 'configure-runtime!))
+                                            (remove-form (form? 'configure-ferret!)))
+                         macro-symbols  (->> (select-form mod (form? 'defmacro))
                                              (map second)
                                              (into #{}))
-                         def-symbols    (->> (select-form (expand-macros-all mod) (is-form-fn? 'def))
+                         def-symbols    (->> (select-form (expand-macros-all mod) (form? 'def))
                                              (map second)
                                              (into #{}))
                          replace?       (set/union macro-symbols def-symbols)
@@ -625,7 +625,7 @@ modules names. So =helper-a= defined in module =util.db= becomes
 #+begin_src clojure :tangle no
   (defn import-modules [form options]
     (let [package-list (import-modules-select-require form)
-          form         (remove-form form (is-form-fn? 'require))
+          form         (remove-form form (form? 'require))
           modules      (import-modules-load-modules package-list options)
           non-public?  (->> modules
                             (reduce (fn[private-symbols mod]
@@ -678,7 +678,7 @@ key/value pairs enclosed in braces: {:a 1 :b 2}.
 #+begin_src clojure :tangle no
   (defn expand-reader-macros [form]
     (-> form
-        (morph-form (is-form-fn? 'clojure.core/deref) (fn [f] (cons 'deref (rest f))))
+        (morph-form (form? 'clojure.core/deref) (fn [f] (cons 'deref (rest f))))
         (morph-form map? (fn [x] (cons 'new-d-list (-> x seq flatten))))))
 #+end_src
 
@@ -688,7 +688,7 @@ Prepare form /f/ for macro expansion,
 #+begin_src clojure :tangle no
   (defn macro-normalize [f]
     (morph-form f
-                (is-form-fn? 'let)
+                (form? 'let)
                 (fn [[_ bindings & body]]
                   `(~'let* ~(apply list bindings) ~@body))))
 #+end_src
@@ -706,13 +706,13 @@ form.
 
   (defn expand-macros [form]
     (let [core-macros (->> (read-clojure-file "ferret/runtime.clj")
-                           (filter (is-form-fn? 'defmacro)))
+                           (filter (form? 'defmacro)))
           core-macro-symbols (into #{} (map second core-macros))
-          form-macros (->> (filter (is-form-fn? 'defmacro) form)
+          form-macros (->> (filter (form? 'defmacro) form)
                            (filter (fn [[_ name]]
                                      (not (core-macro-symbols name)))))
           form-macro-symbols (map second form-macros)
-          form (remove-form form (is-form-fn? 'defmacro))
+          form (remove-form form (form? 'defmacro))
           temp-ns (gensym)
           macro-symbols (concat core-macro-symbols form-macro-symbols)]
       
@@ -727,7 +727,8 @@ form.
       (let [form (-> form
                      (macro-normalize)
                      (expand-reader-macros)
-                     (morph-form (apply is-form-fn? macro-symbols)
+                     (morph-form (fn [f]
+                                   (some true? (map #(form? % f) macro-symbols)))
                                  (fn [f]
                                    (binding [*ns* (the-ns temp-ns)]
                                      (-> (walk/macroexpand-all f)
@@ -772,7 +773,7 @@ after transformation becomes,
   (defn let->fn [form]
     (-> form
 
-        (morph-form (is-form-fn? 'let*)
+        (morph-form (form? 'let*)
                     (fn [[_ bindings & body]]
                       (when (odd? (count bindings))
                         (warn
@@ -788,7 +789,7 @@ after transformation becomes,
                              `((~'fir-let-fn [~arg] ~(apply close more)) ~val)))
                          (partition 2 bindings)))))
 
-        (morph-form (is-form-fn? 'fir-let-fn)
+        (morph-form (form? 'fir-let-fn)
                     (fn [[_ args & body]]
                       (new-fir-fn :args args :body body)))))
 #+end_src
@@ -810,7 +811,7 @@ that takes no parameters and executed in place.
 #+begin_src clojure :tangle no
   (defn do->fn [form]
     (morph-form form
-                (is-form-fn? 'do)
+                (form? 'do)
                 (fn [f] `(~(new-fir-fn :body (rest f))))))
 #+end_src
 
@@ -874,7 +875,7 @@ the free variable problem.
        (concat form fns)))
     ([form fns & env]
      (morph-form form
-                 (is-form-fn? 'fn*)
+                 (form? 'fn*)
                  (fn [sig]
                    (let [name (if (symbol? (second sig)) (second sig) nil)
                          sig  (if name (drop 2 sig) (rest sig))
@@ -915,7 +916,7 @@ into legal ones.
   (defn remove-assertions [options form]
     (if (:release options)
       (do (info "option => release mode")
-          (remove-form form (is-form-fn? 'assert)))
+          (remove-form form (form? 'assert)))
       form))
 #+end_src
 
@@ -952,7 +953,7 @@ with the global name for readability.
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn select-def-fn [form]
-    (->> (select-form form (is-form-fn? 'def))
+    (->> (select-form form (form? 'def))
          (filter (fn [[_ name val]]
                    (and (seq? val)
                         (= 'fir-new-lambda (first val)))))))
@@ -960,9 +961,9 @@ with the global name for readability.
   (defn inline-global-fns-pure [form fn-defs fn-table]
     (let [pure-fn-table  (apply hash-map (flatten fn-table))
           def-fn? (fn [f]
-                    (and (is-form? 'def f)
+                    (and (form? 'def f)
                          (pure-fn-table (second f))
-                         (is-form? 'fir-new-lambda (->> f (drop 2) first))))
+                         (form? 'fir-new-lambda (->> f (drop 2) first))))
           invoke  #(if-let [imp (pure-fn-table %)]
                      (list 'fir-new-lambda imp)
                      %)
@@ -970,8 +971,8 @@ with the global name for readability.
           no-def-fn    (reduce (fn[h v] (remove-form h def-fn?)) form fn-defs)
           inline-fns   (reduce (fn[h [name gensym]]
                                  (morph-form h
-                                             #(or (is-form? name %)
-                                                  (is-form? 'def %))
+                                             #(or (form? name %)
+                                                  (form? 'def %))
                                              (fn [f] (map invoke f))))
                                no-def-fn fn-table)]
       (reduce (fn[h [name gensym]]
@@ -1014,8 +1015,8 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
   (defn shake-concat
     ([header form]
      (let [shakeable? (fn [f]
-                        (or (is-form? 'defn f)
-                            (is-form? 'defnative f)))
+                        (or (form? 'defn f)
+                            (form? 'defnative f)))
            header-symbols (->> (select-form header seq?)
                                flatten
                                (filter symbol?)
@@ -1063,7 +1064,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
     (morph-form form
                 (fn [f]
                   (and (seq? f)
-                       (is-form? 'fir-new-lambda (first f))))
+                       (form? 'fir-new-lambda (first f))))
                 (fn [f]
                   (let [[[_ & fn] & args] f]
                     `((~'fir-new-lambda-stack ~@fn) ~@args)))))
@@ -1075,10 +1076,10 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 #+begin_src clojure
   (defn escape-fn-dispatch [form]
     (morph-form form
-                (is-form-fn? 'fn-multi-arity)
+                (form? 'fn-multi-arity)
                 (fn [f]
                   (morph-form f
-                              (is-form-fn? 'fir-new-lambda)
+                              (form? 'fir-new-lambda)
                               (fn [[_ & f]]
                                 `(~'fir-new-lambda-stack ~@f))))))
 #+end_src
@@ -1088,17 +1089,10 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 #+name: core-compiler-escape-analysis
 #+begin_src clojure
   (defn escape-lambdas [form]
-    (let [stack-lambda-pred (fn [f]
-                              (and (seq? f)
-                                   (is-form? 'fir-new-lambda (first f))))
-          heap-lambdas (->> (select-form form (fn [f]
-                                                (and (seq? f)
-                                                     (is-form? 'fir-new-lambda f))))
+    (let [heap-lambdas (->> (select-form form (form? 'fir-new-lambda))
                             (map second)
                             (into #{}))
-          stack-lambdas (->> (select-form form (fn [f]
-                                                 (and (seq? f)
-                                                      (is-form? 'fir-new-lambda-stack f))))
+          stack-lambdas (->> (select-form form (form? 'fir-new-lambda-stack))
                              (map second)
                              (into #{}))
           escapeable-lambdas (clojure.set/difference stack-lambdas heap-lambdas)]
@@ -1113,12 +1107,33 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 
 *** Helpers
 
-During each pass we iterate over the nodes in the form using
-/morph-form/ and /remove-form/, they both take a s-expression and a
-predicate if the predicate returns true, morph-form will call /f/
-passing the current node as an argument and replace that node with
-/f/'s return value, remove-form on the other hand does what its name
-suggests and removes the node when predicate returns true.
+Each transformation happens by walking over the program form. Forms
+are selected using =form?= function.
+
+#+begin_src clojure :tangle no
+  (form? 'fn* '(fn* [n] (+ x n)))
+  ;; true
+#+end_src
+
+#+name: core-compiler-helpers
+#+begin_src clojure :tangle no
+  (defn form?
+    ([s]
+     #(form? s %))
+    ([s f]
+     (and (seq? f)
+          (= (first f) s))))
+#+end_src
+
+During each pass we iterate over the nodes in the form using one of
+three functions, =morph-form= , =remove-form= and =select-form=. They
+all take a s-expression and a predicate. If the predicate returns
+true, morph-form will call =f= passing the current node as an argument
+and replace that node with =f= 's return value, remove-form on the
+other hand does what its name suggests and removes the node when
+predicate returns true. =select-form= is used to peek at sections of
+the form, does not alter the form only returns the list of nodes
+matching the predicate.
 
 #+name: core-compiler-helpers
 #+begin_src clojure :tangle no
@@ -1159,14 +1174,6 @@ suggests and removes the node when predicate returns true.
            (if (pred (zip/node loc))
              (conj nodes (node-fn loc))
              nodes))))))
-
-  (defn is-form? [s f]
-    (and (seq? f)
-         (= (first f) s)))
-
-  (defn is-form-fn? [& s]
-    (fn [f]
-      (some true? (map #(is-form? % f) s))))
 #+end_src
 
 Takes a *fn* form and converts all argument symbols with their unique
@@ -1189,7 +1196,7 @@ already defined variable names.
   (let [valid-symbol?  (fn [s] (and (symbol? s) (not= s '&) (not= s '_)))]
     (defn fn-make-unique [args body]
       (if (string?  (->> body
-                         (filter #(not (is-form? 'native-declare %)))
+                         (filter #(not (form? 'native-declare %)))
                          first))
         [args body]
         (let [unique-args (->> args
@@ -1274,7 +1281,7 @@ already defined variable names.
             ;;replace clojure.core/fn with fn
             ;;replace clojure.core/while with while
             (morph-form (fn [x]
-                          (and (is-form? 'quote x)
+                          (and (form? 'quote x)
                                (or (= 'clojure.core/fn    (second x))
                                    (= 'clojure.core/defn  (second x))
                                    (= 'clojure.core/while (second x)))))
@@ -1340,17 +1347,17 @@ namespace.)
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no  
   (defmulti emit (fn [_ form _]
-                   (cond (is-form? 'fir_lambda form) 'fir_lambda
-                         (is-form? 'fir_lambda_stack form) 'fir_lambda_stack
-                         (is-form? 'fn_multi_arity form) 'fn_multi_arity
-                         (is-form? 'fir_new_lambda form) 'fir_new_lambda
-                         (is-form? 'fir_new_lambda_stack form) 'fir_new_lambda_stack
-                         (is-form? 'defobject form) 'defobject
-                         (is-form? 'native_header form) 'native_header
-                         (is-form? 'native_declare form) 'native_declare
-                         (is-form? 'native_define form) 'native_define
-                         (is-form? 'if form) 'if
-                         (is-form? 'def form) 'def
+                   (cond (form? 'fir_lambda form) 'fir_lambda
+                         (form? 'fir_lambda_stack form) 'fir_lambda_stack
+                         (form? 'fn_multi_arity form) 'fn_multi_arity
+                         (form? 'fir_new_lambda form) 'fir_new_lambda
+                         (form? 'fir_new_lambda_stack form) 'fir_new_lambda_stack
+                         (form? 'defobject form) 'defobject
+                         (form? 'native_header form) 'native_header
+                         (form? 'native_declare form) 'native_declare
+                         (form? 'native_define form) 'native_define
+                         (form? 'if form) 'if
+                         (form? 'def form) 'def
                          (symbol? form) :symbol
                          (keyword? form) :keyword
                          (number? form) :number
@@ -1596,12 +1603,12 @@ is supported.
     (new-lambda-stack f))
 
   (defn emit-lambda [options name env args body state]
-    (let [native-declarations (filter #(is-form? 'native_declare %) body)
-          body (filter #(not (is-form? 'native_declare %)) body)
+    (let [native-declarations (filter (form? 'native_declare) body)
+          body (filter #(not (form? 'native_declare %)) body)
           body (cond  (empty? body)
                       ["nil()"]
                       ;; multi arity dispacth
-                      (is-form? 'fn_multi_arity (first body))
+                      (form? 'fn_multi_arity (first body))
                       (emit options (first body) state)
                       ;; ffi call
                       (->> (map string? body)

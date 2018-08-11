@@ -719,7 +719,7 @@ form.
       (create-ns temp-ns)
       (binding [*ns* (the-ns temp-ns)]
         (refer 'clojure.core :exclude (concat macro-symbols ['fn 'def]))
-        (use '[ferret.core :only [symbol-conversion new-symbol fn-make-unique exit-failure]])
+        (use '[ferret.core :only [symbol-conversion new-fir-fn exit-failure]])
         
         (doseq [m (concat core-macros form-macros)]
           (eval m)))
@@ -744,46 +744,6 @@ form.
           (recur expanded)))))
 
   (def expand-macros-all (memoize expand-macros-all-aux))
-#+end_src
-
-Takes a *fn* form and converts all argument symbols with their unique
-replacements. This is needed because most lisp forms are represented
-as =fn='s and some forms such as =let= need to be able to shadow
-already defined variable names.
-
-#+begin_src clojure
-  (fn [a b] (list a b))
-  ;;becomes
-  (fn [a__1510 b__1511] (list a__1510 b__1511))
-#+end_src
-
-#+name: core-compiler-transformations
-#+begin_src clojure :tangle no
-  (let [valid-symbol?  (fn [s] (and (symbol? s) (not= s '&) (not= s '_)))]
-    (defn fn-make-unique [args body]
-      (if (string?  (->> body
-                         (filter #(not (is-form? 'native-declare %)))
-                         first))
-        [args body]
-        (let [unique-args (->> args
-                               flatten
-                               (filter valid-symbol?)
-                               (map #(new-symbol % (gensym "__"))))
-              replace? (->> (interleave (->> args
-                                             flatten
-                                             (filter valid-symbol?))
-                                        unique-args)
-                            (apply hash-map))
-              body     (walk/prewalk
-                        (fn [x]
-                          (if (and (symbol? x)
-                                   (replace? x))
-                            (replace? x)
-                            x)) body)
-              args      (->> (morph-form
-                              args #(replace? %) #(replace? %))
-                             (into []))]
-          [args body]))))
 #+end_src
 
 *** let->fn
@@ -830,8 +790,7 @@ after transformation becomes,
 
         (morph-form (is-form-fn? 'fir-let-fn)
                     (fn [[_ args & body]]
-                      (let [[args body] (fn-make-unique args body)]
-                        `(~'fn* ~args ~@body))))))
+                      (new-fir-fn :args args :body body)))))
 #+end_src
 
 *** do->fn
@@ -852,7 +811,7 @@ that takes no parameters and executed in place.
   (defn do->fn [form]
     (morph-form form
                 (is-form-fn? 'do)
-                (fn [f] `((fn* () ~@(rest f))))))
+                (fn [f] `(~(new-fir-fn :body (rest f))))))
 #+end_src
 
 *** Closure Conversion
@@ -1208,10 +1167,62 @@ suggests and removes the node when predicate returns true.
   (defn is-form-fn? [& s]
     (fn [f]
       (some true? (map #(is-form? % f) s))))
+#+end_src
 
+Takes a *fn* form and converts all argument symbols with their unique
+replacements. This is needed because most lisp forms are represented
+as =fn='s and some forms such as =let= need to be able to shadow
+already defined variable names.
+
+#+begin_src clojure
+  (fn [a b] (list a b))
+  ;;becomes
+  (fn [a__1510 b__1511] (list a__1510 b__1511))
+#+end_src
+
+#+name: core-compiler-helpers
+#+begin_src clojure :tangle no
   (defn new-symbol [& parts]
     (let [parts (map #(.replace (str %) "." "_") parts)]
       (symbol (apply str parts))))
+
+  (let [valid-symbol?  (fn [s] (and (symbol? s) (not= s '&) (not= s '_)))]
+    (defn fn-make-unique [args body]
+      (if (string?  (->> body
+                         (filter #(not (is-form? 'native-declare %)))
+                         first))
+        [args body]
+        (let [unique-args (->> args
+                               flatten
+                               (filter valid-symbol?)
+                               (map #(new-symbol % (gensym "__"))))
+              replace? (->> (interleave (->> args
+                                             flatten
+                                             (filter valid-symbol?))
+                                        unique-args)
+                            (apply hash-map))
+              body     (walk/prewalk
+                        (fn [x]
+                          (if (and (symbol? x)
+                                   (replace? x))
+                            (replace? x)
+                            x)) body)
+              args      (->> (morph-form
+                              args #(replace? %) #(replace? %))
+                             (into []))]
+          [args body]))))
+
+  (defn new-fir-fn
+    ([& {:keys [name args body escape] :or {escape  true
+                                            args    []}}]
+     (let [name        (if name
+                         (new-symbol name (gensym "__")))
+           [args body] (if escape
+                         (fn-make-unique args body)
+                         [args body])]
+       (if name
+         `(fn* ~name ~args ~@body)
+         `(fn* ~args ~@body)))))
 #+end_src
 
 *** File I/O
@@ -4858,16 +4869,12 @@ implementation.
     (let [name (if (symbol? (first sig)) (first sig) nil)
           body (if name (rest sig) sig)]
       (if (vector? (first body))
-        (let [[args & body] body
-              [args body] (fn-make-unique args body)]
-          (if name
-            `(fn* ~(new-symbol name (gensym "__")) ~args ~@body)
-            `(fn* ~args ~@body)))
+        (let [[args & body] body]
+          (new-fir-fn :name name :args args :body body))
         ;; handle multi arity function
         (let [fns   (map (fn* [body]
-                              (let [[args & body] body
-                                    [args body] (fn-make-unique args body)]
-                                `(fn* ~args ~@body)))
+                              (let [[args & body] body]
+                                (new-fir-fn :args args :body body)))
                          body)
               arity (->> (map first body)
                          (map (fn* [args] (filter #(not (= % '&)) args)))
@@ -4881,9 +4888,7 @@ implementation.
                             [[_ default]] (take-last 1 fns)]
                         `(fn-multi-arity ~switch ~default))
                       `(fn-multi-arity ~fns))]
-          (if name
-            `(fn* ~(new-symbol name (gensym "__")) () ~fns)
-            `(fn* () ~fns))))))
+          (new-fir-fn :escape false :name name :body [fns])))))
 #+end_src
 
 A simple macro for calling inline C++,

@@ -1989,34 +1989,37 @@ is supported.
    #+name: core-compiler-main
    #+begin_src clojure
      (defn -main [& args]
-       (let [args (parse-opts args program-options)
-             {:keys [help input watch-input]} (:options args)]
+       (try
+         (let [args (parse-opts args program-options)
+               {:keys [help input watch-input]} (:options args)]
 
-         (when help
-           (try
-             (let [version (read-file "build.info")]
-               (print "ferret-lisp build:" version))
-             (catch Exception e
-               (print "ferret-lisp")))
-           (println )
-           (println )
-           (println (:summary args))
+           (when help
+             (try
+               (let [version (read-file "build.info")]
+                 (print "ferret-lisp build:" version))
+               (catch Exception e
+                 (print "ferret-lisp")))
+             (println )
+             (println )
+             (println (:summary args))
+             (exit-success))
+
+           (when (not (file-exists input))
+             (warn "no input file")
+             (exit-failure))
+
+           (let [specs (build-specs input args)]
+             (if (not watch-input)
+               (build-solution specs)
+               (do (watcher/watcher [input]
+                                    (watcher/rate 1000)
+                                    (watcher/on-change
+                                     (fn [_] (build-solution specs))))
+                   @(promise)))
+             (shutdown-agents))
            (exit-success))
-
-         (when (not (file-exists input))
-           (warn "no input file")
-           (exit-failure))
-
-         (let [specs (build-specs input args)]
-           (if (not watch-input)
-             (build-solution specs)
-             (do (watcher/watcher [input]
-                                  (watcher/rate 1000)
-                                  (watcher/on-change
-                                   (fn [_] (build-solution specs))))
-                 @(promise)))
-           (shutdown-agents))
-         (exit-success)))
+         (catch Exception e
+           (stacktrace/print-stack-trace e 10))))
    #+end_src
 
 *** Logging
@@ -8871,6 +8874,7 @@ Create some dummy libs under /test/modules/,
     (:require [clojure.set :as set]
               [fast-zip.core :as zip]
               [clojure.walk :as walk]
+              [clojure.stacktrace :as stacktrace]
               [clojure.pprint :as pprint]
               [clojure.tools.cli :refer [parse-opts]]
               [watchtower.core :as watcher]

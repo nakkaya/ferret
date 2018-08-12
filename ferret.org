@@ -3943,6 +3943,11 @@ Helper functions for user defined allocators.
     size_t align_req(const void * ptr) {
       return align_req(reinterpret_cast<uintptr_t>(ptr), sizeof(T));
     }
+
+    template <typename... Ts>
+    constexpr size_t max_sizeof() {
+      return runtime::max(sizeof(Ts)...);
+    }
   }
 #+end_src 
 

@@ -3943,6 +3943,11 @@ Helper functions for user defined allocators.
     size_t align_req(const void * ptr) {
       return align_req(reinterpret_cast<uintptr_t>(ptr), sizeof(T));
     }
+
+    template <typename... Ts>
+    constexpr size_t max_sizeof() {
+      return max(sizeof(Ts)...);
+    }
   }
 #+end_src 
 
@@ -4110,15 +4115,30 @@ Math related string literals,
 
 Math functions,
 
-#+name: runtime-native-prototypes
+#+name: runtime-native-math
 #+begin_src c++ :tangle no
   namespace runtime{
     #undef min
     #undef abs
 
+    template <typename T>
+    static constexpr T max(T a, T b) {
+      return a < b ? b : a;
+    }
+
+    template <typename T, typename... Ts>
+    static constexpr T max(T a, Ts... bs) {
+      return max(a, max(bs...));
+    }
+    
     template<typename T>
     constexpr T min(T a, T b){
       return ((a) < (b) ? (a) : (b));
+    }
+
+    template <typename T, typename... Ts>
+    static constexpr T min(T a, Ts... bs) {
+      return min(a, min(bs...));
     }
 
     template<typename T>
@@ -9036,6 +9056,7 @@ Create some dummy libs under /test/modules/,
   <<runtime-native-number-config-macros>>
 
   namespace ferret{
+    <<runtime-native-math>>
     // Fixed Point Real
     <<runtime-native-fixed-point-real>>
     <<runtime-native-euclidean-vector>>

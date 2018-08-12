@@ -4114,6 +4114,7 @@ Math functions,
 #+begin_src c++ :tangle no
   namespace runtime{
     #undef min
+    #undef max
     #undef abs
 
     template <typename T>

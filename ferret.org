@@ -757,8 +757,8 @@ as arguments.
 So following form,
 
 #+begin_src clojure :tangle no
-  (let->fn '(let [a 1
-                  b 2]
+  (let->fn '(let* [a 1
+                   b 2]
               (+ a b)))
 #+end_src
 

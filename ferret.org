@@ -1208,15 +1208,8 @@ already defined variable names.
                                              (filter valid-symbol?))
                                         unique-args)
                             (apply hash-map))
-              body     (walk/prewalk
-                        (fn [x]
-                          (if (and (symbol? x)
-                                   (replace? x))
-                            (replace? x)
-                            x)) body)
-              args      (->> (morph-form
-                              args #(replace? %) #(replace? %))
-                             (into []))]
+              body      (morph-form body #(replace? %) #(replace? %))
+              args      (morph-form args #(replace? %) #(replace? %))]
           [args body]))))
 
   (defn new-fir-fn

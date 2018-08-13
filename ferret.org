@@ -880,7 +880,14 @@ the free variable problem.
                    (let [name (if (symbol? (second sig)) (second sig) nil)
                          sig  (if name (drop 2 sig) (rest sig))
                          [args & body] sig
-                         body (closure-conversion body fns (concat args env))]
+                         body (closure-conversion body fns (concat args env))
+                         env  (->> body
+                                   flatten
+                                   (filter symbol?)
+                                   (into #{})
+                                   (set/intersection
+                                    (into #{} (flatten env)))
+                                   (into ()))]
                      (if-let [n (lambda-defined? fns env args body)]
                        n
                        (define-lambda fns env name args body)))))))
@@ -7372,14 +7379,38 @@ Static code analysis (cppcheck) options,
 #+name: clojure-unit-tests
 #+begin_src clojure :tangle no
   (deftest compiler
-    (let [program (compile '((defn one-plus-one []
-                               (+ 1 1))
+    (let [prg-a (compile '((defn one-plus-one []
+                             (+ 1 1))
 
-                             (while true
-                               (+ 1 1))) {})]
+                           (while true
+                             (+ 1 1))) {})
+          prg-b (closure-conversion
+                 '(fn* outer [a]
+                       (fn* inner-a [b]
+                            (+ a b))
+                       (fn* inner-b [c] c)))
+
+          prg-c (closure-conversion
+                 '((fn* inner-a [a]
+                        ((fn* inner-b [b]
+                              ((fn* inner-c [c] (+ b))
+                               3))
+                         2))
+                   1))]
       ;;while shoud use one-plus-one in its body
       ;;check lambda-defined?
-      (is (= 2 (count (select-form program (fn [f] (= 'one_plus_one f))))))))
+      (is (= 2 (count (select-form prg-a (fn [f] (= 'one_plus_one f))))))
+
+      (is (= 1 (->> (fn [f] (= '(fir-lambda inner-a (a) [b] (+ a b)) f))
+                    (select-form prg-b)
+                    count)))
+      (is (= 1 (->> (fn [f] (= '(fir-lambda inner-b () [c] c) f))
+                    (select-form prg-b)
+                    count)))
+
+      (is (= 1 (->> (fn [f] (= '(fir-lambda inner-c (b) [c] (+ b)) f))
+                    (select-form prg-c)
+                    count)))))
 #+end_src
 
 *** Unit Testing

@@ -873,14 +873,13 @@ the free variable problem.
            form (closure-conversion form fns)
            fns  (map (fn [[body name]] (concat ['fir-lambda name] body)) @fns)]
        (concat form fns)))
-    ([form fns & env]
+    ([form fns & [env]]
      (morph-form form
                  (form? 'fn*)
                  (fn [sig]
                    (let [name (if (symbol? (second sig)) (second sig) nil)
                          sig  (if name (drop 2 sig) (rest sig))
                          [args & body] sig
-                         env  (if (nil? env) '() (first env))
                          body (closure-conversion body fns (concat args env))]
                      (if-let [n (lambda-defined? fns env args body)]
                        n
@@ -1095,7 +1094,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
           stack-lambdas (->> (select-form form (form? 'fir-new-lambda-stack))
                              (map second)
                              (into #{}))
-          escapeable-lambdas (clojure.set/difference stack-lambdas heap-lambdas)]
+          escapeable-lambdas (set/difference stack-lambdas heap-lambdas)]
       (morph-form form
                   (fn [f]
                     (and (seq? f)

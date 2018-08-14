@@ -512,7 +512,7 @@ maintain.
          (expand-macros-all)
          (let->fn)
          (do->fn)
-         (closure-conversion)
+         (fn->lift)
          (inline-global-fns options)
          (escape-analysis)
          (symbol-conversion)))
@@ -815,12 +815,12 @@ that takes no parameters and executed in place.
                 (fn [f] `(~(new-fir-fn :body (rest f))))))
 #+end_src
 
-*** Closure Conversion
+*** fn->lift
 
-/closure-conversion/ handles the problem of free variables. Free
+/fn->lift/ handles the problem of free variables. Free
 variables passed to a nested function must be captured in a closure so
 they can be referenced at runtime. The closure conversion
-transformation modifies lambda definitions as necessary to create new
+transformation modifies function definitions as necessary to create new
 closures.
 
 #+begin_src clojure :tangle no
@@ -835,16 +835,16 @@ function will pass its arguments to inner functions (if any) it
 contains.
 
 #+begin_src clojure :tangle no
-  (closure-conversion '(fn* [x]
-                            (fn* [n] (+ x n))))
+  (fn->lift '(fn* [x]
+                  (fn* [n] (+ x n))))
 #+end_src
 
 Above form will be converted to,
 
 #+begin_src clojure :tangle no
-  (fir-lambda G__1333  (x) (n)  (+ x n))
-  (fir-lambda G__1334  ()  (x)  (fir-new-lambda G__1333 x))
-  (fir-new-lambda G__1334)
+  (fir-defn-heap G__1333  (x) (n)  (+ x n))
+  (fir-defn-heap G__1334  ()  (x)  (fir-fn-heap G__1333 x))
+  (fir-fn-heap G__1334)
 #+end_src
 
 What this means is, define a functor named =G__3154= that holds a
@@ -856,23 +856,23 @@ the free variable problem.
 
 #+name: core-compiler-transformations 
 #+begin_src clojure :tangle no
-  (defn lambda-defined? [fns env args body]
+  (defn fn-defined? [fns env args body]
     (if-let [fn-name (@fns (concat [env args] body))]
-      (apply list 'fir-new-lambda fn-name env)))
+      (apply list 'fir-fn-heap fn-name env)))
 
-  (defn define-lambda [fns env name args body]
+  (defn define-fn [fns env name args body]
     (let [n (if name
               name
               (gensym "FN__"))]
       (swap! fns assoc (concat [env args] body) n)
-      (apply list 'fir-new-lambda n env)))
+      (apply list 'fir-fn-heap n env)))
 
-  (defn closure-conversion
+  (defn fn->lift
     ([form]
-     (let [fns  (atom {})
-           form (closure-conversion form fns)
-           fns  (map (fn [[body name]] (concat ['fir-lambda name] body)) @fns)]
-       (concat form fns)))
+     (let [fns  (atom (ordered-map/ordered-map))
+           form (fn->lift form fns)
+           fns  (map (fn [[body name]] (concat ['fir-defn-heap name] body)) @fns)]
+       (concat fns form)))
     ([form fns & [env]]
      (morph-form form
                  (form? 'fn*)
@@ -880,7 +880,7 @@ the free variable problem.
                    (let [name (if (symbol? (second sig)) (second sig) nil)
                          sig  (if name (drop 2 sig) (rest sig))
                          [args & body] sig
-                         body (closure-conversion body fns (concat args env))
+                         body (fn->lift body fns (concat args env))
                          env  (->> body
                                    flatten
                                    (filter symbol?)
@@ -888,9 +888,9 @@ the free variable problem.
                                    (set/intersection
                                     (into #{} (flatten env)))
                                    (into ()))]
-                     (if-let [n (lambda-defined? fns env args body)]
+                     (if-let [n (fn-defined? fns env args body)]
                        n
-                       (define-lambda fns env name args body)))))))
+                       (define-fn fns env name args body)))))))
 #+end_src
 
 *** Symbol Conversion
@@ -929,32 +929,10 @@ into legal ones.
 *** Optimizations
 **** Replace Fn Call Sites
 
-Final step replaces all functions calls with new function
-objects =define_lambda= are renamed to /fn/. This removes all globals
-variables unless the /fn/ defined is a closure. In which case it is
-left as a global variable and the class implementation is prepended
-with the global name for readability.
-
-#+BEGIN_EXAMPLE
-  (compile '((let [a 1]
-               (defn adder [x]
-                 (+ a x)))
-             (defn my-inc [x] (+ 1 x))))
-
-  (inline-global-fns
-   '((define_lambda G__3885 (a) (x) (_plus_ a x))
-     (define_lambda G__3886 () (a) (def adder (lambda_object G__3885 a)))
-     (define_lambda G__3887 () () (define_var a 1) ((lambda_object G__3886) a))
-     (define_lambda G__3888 () (x) (_plus_ 1 x))
-     ((lambda_object G__3887))
-     (def my_inc (lambda_object G__3888))))
-
-  ((define_lambda adder_G__3885 (a) (x) (_plus_ a x))
-   (define_lambda G__3886 () (a) (def adder (lambda_object adder_G__3885 a)))
-   (define_lambda G__3887 () () (define_var a 1) ((lambda_object G__3886) a))
-   (define_lambda my_inc () (x) (_plus_ 1 x))
-   ((lambda_object G__3887)))
-#+END_EXAMPLE
+Replace all functions calls with new function. This removes all
+globals variables unless the /fn/ defined is a closure. In which case
+it is left as a global variable and the class implementation is
+prepended with the global name for readability.
 
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
@@ -962,16 +940,16 @@ with the global name for readability.
     (->> (select-form form (form? 'def))
          (filter (fn [[_ name val]]
                    (and (seq? val)
-                        (= 'fir-new-lambda (first val)))))))
+                        (= 'fir-fn-heap (first val)))))))
 
   (defn inline-global-fns-pure [form fn-defs fn-table]
     (let [pure-fn-table  (apply hash-map (flatten fn-table))
           def-fn? (fn [f]
                     (and (form? 'def f)
                          (pure-fn-table (second f))
-                         (form? 'fir-new-lambda (->> f (drop 2) first))))
+                         (form? 'fir-fn-heap (->> f (drop 2) first))))
           invoke  #(if-let [imp (pure-fn-table %)]
-                     (list 'fir-new-lambda imp)
+                     (list 'fir-fn-heap imp)
                      %)
           
           no-def-fn    (reduce (fn[h v] (remove-form h def-fn?)) form fn-defs)
@@ -1059,7 +1037,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
   (defn escape-analysis [form]
     (->> (escape-fn-calls form)
          (escape-fn-dispatch)
-         (escape-lambdas)))
+         (escape-fns)))
 #+end_src
 
 ***** Escape Function Calls
@@ -1070,10 +1048,10 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
     (morph-form form
                 (fn [f]
                   (and (seq? f)
-                       (form? 'fir-new-lambda (first f))))
+                       (form? 'fir-fn-heap (first f))))
                 (fn [f]
                   (let [[[_ & fn] & args] f]
-                    `((~'fir-new-lambda-stack ~@fn) ~@args)))))
+                    `((~'fir-fn-stack ~@fn) ~@args)))))
 #+end_src
 
 ***** Escape Dispatch Functions
@@ -1082,33 +1060,33 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
 #+begin_src clojure
   (defn escape-fn-dispatch [form]
     (morph-form form
-                (form? 'fn-multi-arity)
+                (form? 'fir-defn-arity)
                 (fn [f]
                   (morph-form f
-                              (form? 'fir-new-lambda)
+                              (form? 'fir-fn-heap)
                               (fn [[_ & f]]
-                                `(~'fir-new-lambda-stack ~@f))))))
+                                `(~'fir-fn-stack ~@f))))))
 #+end_src
 
-***** Escape Lambda Classes
+***** Escape Function Classes
 
 #+name: core-compiler-escape-analysis
 #+begin_src clojure
-  (defn escape-lambdas [form]
-    (let [heap-lambdas (->> (select-form form (form? 'fir-new-lambda))
-                            (map second)
-                            (into #{}))
-          stack-lambdas (->> (select-form form (form? 'fir-new-lambda-stack))
-                             (map second)
-                             (into #{}))
-          escapeable-lambdas (set/difference stack-lambdas heap-lambdas)]
+  (defn escape-fns [form]
+    (let [heap-fns (->> (select-form form (form? 'fir-fn-heap))
+                        (map second)
+                        (into #{}))
+          stack-fns (->> (select-form form (form? 'fir-fn-stack))
+                         (map second)
+                         (into #{}))
+          escapeable-fns (set/difference stack-fns heap-fns)]
       (morph-form form
                   (fn [f]
                     (and (seq? f)
-                         (= (first f) 'fir-lambda)
-                         (escapeable-lambdas (second f))))
+                         (= (first f) 'fir-defn-heap)
+                         (escapeable-fns (second f))))
                   (fn [[_ & f]]
-                    `(~'fir-lambda-stack ~@f)))))
+                    `(~'fir-defn-stack ~@f)))))
 #+end_src
 
 *** Helpers
@@ -1345,26 +1323,26 @@ namespace.)
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no  
-  (defmulti emit (fn [_ form _]
-                   (cond (form? 'fir_lambda form) 'fir_lambda
-                         (form? 'fir_lambda_stack form) 'fir_lambda_stack
-                         (form? 'fn_multi_arity form) 'fn_multi_arity
-                         (form? 'fir_new_lambda form) 'fir_new_lambda
-                         (form? 'fir_new_lambda_stack form) 'fir_new_lambda_stack
-                         (form? 'defobject form) 'defobject
-                         (form? 'native_header form) 'native_header
-                         (form? 'native_declare form) 'native_declare
-                         (form? 'native_define form) 'native_define
-                         (form? 'if form) 'if
-                         (form? 'def form) 'def
-                         (symbol? form) :symbol
-                         (keyword? form) :keyword
-                         (number? form) :number
-                         (nil? form) :nil
-                         (char? form) :char
-                         (string? form) :string
-                         (or (true? form) (false? form)) :boolean
-                         (seq? form) :invoke-lambda)))
+  (defmulti emit (fn [_ f _]
+                   (cond (form? 'fir_defn_heap f)   'fir_defn_heap
+                         (form? 'fir_defn_stack f)  'fir_defn_stack
+                         (form? 'fir_defn_arity f)  'fir_defn_arity
+                         (form? 'fir_fn_heap f)     'fir_fn_heap
+                         (form? 'fir_fn_stack f)    'fir_fn_stack
+                         (form? 'defobject f)       'defobject
+                         (form? 'native_header f)   'native_header
+                         (form? 'native_declare f)  'native_declare
+                         (form? 'native_define f)   'native_define
+                         (form? 'if f)              'if
+                         (form? 'def f)             'def
+                         (symbol? f)                :symbol
+                         (keyword? f)               :keyword
+                         (number? f)                :number
+                         (nil? f)                   :nil
+                         (char? f)                  :char
+                         (string? f)                :string
+                         (or (true? f) (false? f))  :boolean
+                         (seq? f)                   :invoke-fn)))
 
   (defmethod emit nil [_ form _]
     (warn "unsopported form =>" form)
@@ -1494,32 +1472,32 @@ C++ skeleton.
     (append-to! state [:native-defines] define))
 #+end_src
 
-*** Lambdas
+*** Functions
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
-  (defn norm-lambda-env [env]
+  (defn norm-fn-env [env]
     (->> env
          (flatten)
          (filter #(and (not (= '& %))
                        (not (= '_ %))
                        (not (= :as %))))))
 
-  (defn new-lambda-heap [l]
+  (defn new-fn-heap [l]
     (let [n (second l)
-          e (norm-lambda-env (drop 2 l))]
+          e (norm-fn-env (drop 2 l))]
       (if (empty? e)
         (str "obj<" n ">()")
         (str "obj<" n ">(" (apply str (interpose \, e)) ")"))))
 
-  (defn new-lambda-stack [l]
+  (defn new-fn-stack [l]
     (let [n (second l)
-          e (norm-lambda-env (drop 2 l))]
+          e (norm-fn-env (drop 2 l))]
       (if (empty? e)
         (str n "()")
         (str n "(" (apply str (interpose \, e)) ")"))))
 
-  (defn invoke-lambda [n args]
+  (defn invoke-fn [n args]
     (if (empty? args)
       (str "run(" n ")")
       (str "run(" n ","  (apply str (interpose \, args))")")))
@@ -1542,35 +1520,35 @@ is supported.
     (str "const var " name " = "
          parent ".cast<d_list>()->val_at(" (emit nil key nil) ");"))
 
-  (defn new-lambda-arg [name parent pos]
+  (defn new-fn-arg [name parent pos]
     (str "const var " name " = " (destructure-nth parent pos)))
 
-  (defn new-lambda-var-arg [name parent pos]
+  (defn new-fn-var-arg [name parent pos]
     (str "const var " name " = " (destructure-nth-rest parent pos)))
 
   (defn destructure-associative [name parent pos]
     (let [tmp-name (gensym)]
-      [(new-lambda-arg tmp-name parent pos)
+      [(new-fn-arg tmp-name parent pos)
        (map (fn [[s k]] (destructure-get s tmp-name k)) name)]))
 
   (defn destructure-sequential [args parent]
     (reduce
      (fn [h [pos name]]
-       (let [name (cond (symbol? name) (new-lambda-arg name parent pos)
+       (let [name (cond (symbol? name) (new-fn-arg name parent pos)
                         (map?    name) (destructure-associative name parent pos)
                         (coll?   name) (destructure-arguments name (destructure-nth parent pos)))]
          (conj h name))) [] args))
 
   (defn destructure-var-args [name parent pos]
     (cond (nil?     name)  []
-          (symbol?  name)  (new-lambda-var-arg name parent pos)
+          (symbol?  name)  (new-fn-var-arg name parent pos)
           (coll?    name)  (let [tmp-name (gensym)]
-                             [(new-lambda-var-arg tmp-name parent pos)
+                             [(new-fn-var-arg tmp-name parent pos)
                               (destructure-arguments name tmp-name)])))
 
   (defn destructure-as-arg [name parent]
     (if (symbol?     name)
-      (new-lambda-var-arg name parent 0)
+      (new-fn-var-arg name parent 0)
       []))
 
   (defn destructure-arguments
@@ -1592,14 +1570,14 @@ is supported.
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
-  (defmethod emit :invoke-lambda [options [fn & args] state]
-    (invoke-lambda (emit options fn state) (emit-ast options args state)))
+  (defmethod emit :invoke-fn [options [fn & args] state]
+    (invoke-fn (emit options fn state) (emit-ast options args state)))
 
-  (defmethod emit 'fir_new_lambda [_ f state]
-    (new-lambda-heap f))
+  (defmethod emit 'fir_fn_heap [_ f state]
+    (new-fn-heap f))
 
-  (defmethod emit 'fir_new_lambda_stack [_ f state]
-    (new-lambda-stack f))
+  (defmethod emit 'fir_fn_stack [_ f state]
+    (new-fn-stack f))
 
   (defn emit-lambda [options name env args body state]
     (let [native-declarations (filter (form? 'native_declare) body)
@@ -1607,7 +1585,7 @@ is supported.
           body (cond  (empty? body)
                       ["nil()"]
                       ;; multi arity dispacth
-                      (form? 'fn_multi_arity (first body))
+                      (form? 'fir_defn_arity (first body))
                       (emit options (first body) state)
                       ;; ffi call
                       (->> (map string? body)
@@ -1621,25 +1599,25 @@ is supported.
                             [body "nil()"])))
                       ;; s-expression
                       :default (emit-ast options body state))
-          env  (norm-lambda-env env)
+          env  (norm-fn-env env)
           vars (destructure-arguments args)]
       (doseq [dec native-declarations] 
         (emit options dec state))
       {:name name :env env :args args :vars vars :body body}))
 
-  (defmethod emit 'fir_lambda [options [_ name env args & body] state]
+  (defmethod emit 'fir_defn_heap [options [_ name env args & body] state]
     (append-to! state [:lambdas] (emit-lambda options name env args body state)))
 
-  (defmethod emit 'fir_lambda_stack [options [_ name env args & body] state]
+  (defmethod emit 'fir_defn_stack [options [_ name env args & body] state]
     (append-to! state [:lambdas] (-> (emit-lambda options name env args body state)
                                      (assoc :stack true))))
 #+end_src
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
-  (defmethod emit 'fn_multi_arity [_ [_ switch default] state]
+  (defmethod emit 'fir_defn_arity [_ [_ switch default] state]
     (let [default (if default
-                    (str (new-lambda-stack default) ".invoke(_args_)")
+                    (str (new-fn-stack default) ".invoke(_args_)")
                     "nil()")
           switch  (render-template
                    "switch(runtime::count(_args_)) {
@@ -1647,7 +1625,7 @@ is supported.
                       case $fn.case$ :
                          return $fn.fn$.invoke(_args_); };separator=\"\n\"$
                     }"
-                   :fns (map (fn [[s f]] {:fn (new-lambda-stack f) :case s}) switch))]
+                   :fns (map (fn [[s f]] {:fn (new-fn-stack f) :case s}) switch))]
       [switch default]))
 #+end_src
 
@@ -4916,8 +4894,8 @@ implementation.
                              (take-last 2) first (= '&)) ;; check &
                       (let [switch        (drop-last 1 fns)
                             [[_ default]] (take-last 1 fns)]
-                        `(fn-multi-arity ~switch ~default))
-                      `(fn-multi-arity ~fns))]
+                        `(fir-defn-arity ~switch ~default))
+                      `(fir-defn-arity ~fns))]
           (new-fir-fn :escape false :name name :body [fns])))))
 #+end_src
 
@@ -7384,13 +7362,13 @@ Static code analysis (cppcheck) options,
 
                            (while true
                              (+ 1 1))) {})
-          prg-b (closure-conversion
+          prg-b (fn->lift
                  '(fn* outer [a]
                        (fn* inner-a [b]
                             (+ a b))
                        (fn* inner-b [c] c)))
 
-          prg-c (closure-conversion
+          prg-c (fn->lift
                  '((fn* inner-a [a]
                         ((fn* inner-b [b]
                               ((fn* inner-c [c] (+ b))
@@ -7398,17 +7376,17 @@ Static code analysis (cppcheck) options,
                          2))
                    1))]
       ;;while shoud use one-plus-one in its body
-      ;;check lambda-defined?
+      ;;check fn-defined?
       (is (= 2 (count (select-form prg-a (fn [f] (= 'one_plus_one f))))))
 
-      (is (= 1 (->> (fn [f] (= '(fir-lambda inner-a (a) [b] (+ a b)) f))
+      (is (= 1 (->> (fn [f] (= '(fir-defn-heap inner-a (a) [b] (+ a b)) f))
                     (select-form prg-b)
                     count)))
-      (is (= 1 (->> (fn [f] (= '(fir-lambda inner-b () [c] c) f))
+      (is (= 1 (->> (fn [f] (= '(fir-defn-heap inner-b () [c] c) f))
                     (select-form prg-b)
                     count)))
 
-      (is (= 1 (->> (fn [f] (= '(fir-lambda inner-c (b) [c] (+ b)) f))
+      (is (= 1 (->> (fn [f] (= '(fir-defn-heap inner-c (b) [c] (+ b)) f))
                     (select-form prg-c)
                     count)))))
 #+end_src
@@ -8316,11 +8294,11 @@ Create some dummy libs under /test/modules/,
                                                 (apply +))))))
 #+end_src
 
-*** Lambda
+*** Fn
 
 #+name: ferret-unit-tests
 #+begin_src clojure
-  (deftest lambda-test
+  (deftest fn-test
     (let [f1 (fn [])
           f2 (fn [])
           m-func (fn
@@ -8675,7 +8653,7 @@ Create some dummy libs under /test/modules/,
   - *fn* - Named anonymous functions.
   - *Maps* - Implement destructuring.
   - *Escape Analysis* - Escape known language structures. Certain
-    forms generate lambdas that never escape. These can be generated on
+    forms generate functions that never escape. These can be generated on
     the stack.
   - *Escape Analysis* for other types. Currently escape analysis is
     only used for functions.    
@@ -8892,6 +8870,7 @@ Create some dummy libs under /test/modules/,
                    [org.bituf/clj-stringtemplate "0.2"]
                    [org.clojars.amit/commons-io "1.4.0"]
                    [commons-lang "2.5"]
+                   [org.flatland/ordered "1.5.6"]
                    [watchtower "0.1.1"]
                    [clojure-term-colors "0.1.0"]]
 
@@ -8923,6 +8902,7 @@ Create some dummy libs under /test/modules/,
     (:gen-class)
     (:use [clojure.java.io])
     (:require [clojure.set :as set]
+              [flatland.ordered.map :as ordered-map]
               [fast-zip.core :as zip]
               [clojure.walk :as walk]
               [clojure.stacktrace :as stacktrace]

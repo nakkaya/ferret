@@ -8885,14 +8885,14 @@ Create some dummy libs under /test/modules/,
     :license {:name "BSD 2-Clause"
               :url "https://github.com/nakkaya/ferret/blob/master/LICENSE"}
     
-    :dependencies [[org.clojure/clojure "1.8.0"]
+    :dependencies [[org.clojure/clojure "1.9.0"]
+                   [org.clojure/tools.cli "0.3.7"]
+                   [org.clojure/tools.logging "0.4.1"]
                    [fast-zip "0.7.0"]
-                   [org.clojure/tools.cli "0.3.3"]
                    [org.bituf/clj-stringtemplate "0.2"]
                    [org.clojars.amit/commons-io "1.4.0"]
                    [commons-lang "2.5"]
                    [watchtower "0.1.1"]
-                   [org.clojure/tools.logging "0.2.3"]
                    [clojure-term-colors "0.1.0"]]
 
     :deploy-repositories [["releases"  {:sign-releases false :url "https://clojars.org/repo"

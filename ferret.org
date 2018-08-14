@@ -7226,7 +7226,7 @@ Embed compilations options.
 
 The reliability and robustness of Ferret is achieved in part by
 thorough and careful testing. Ferret lisp has built-in support for
-unit testing using an api that mimics [[https://clojure.github.io/clojure/clojure.test-api.html][clojure.test]] api.
+unit testing using an API that mimics [[https://clojure.github.io/clojure/clojure.test-api.html][clojure.test]].
 
 The core of the library is the "is" macro, which lets you make
 assertions of any arbitrary expression, which will print a message if
@@ -7264,11 +7264,11 @@ by the CI system for the following compilers/frameworks,
  - Clang 4.0
  - Arduino 1.8.4
 
-Most tests are done using the built in unit testing api, but certain
+Most tests are done using the built in unit testing framework, but certain
 tests, those that target the workings of the compiler are easier to do
-using /clojure.test/ framework by compiling forms using Ferret then
+using =clojure.test= framework by compiling forms using Ferret then
 comparing the their runtime output to their expected output. All
-generated code is statically checked using /cppcheck/ and tested
+generated code is statically checked using =cppcheck= and tested
 against memory leaks and undefined behavior.
 
 Tests are grouped into 4 categories. *Compiler tests* test the inner
@@ -7352,11 +7352,11 @@ Static code analysis (cppcheck) options,
                                 '((range 10)))))))
 #+end_src
 
-*** Compiler
+*** Lambda Lifting
 
 #+name: clojure-unit-tests
 #+begin_src clojure :tangle no
-  (deftest compiler
+  (deftest lambda-lifting
     (let [prg-a (compile '((defn one-plus-one []
                              (+ 1 1))
 
@@ -7415,20 +7415,6 @@ Static code analysis (cppcheck) options,
 
     (is (= 0 (check-form '((deftest some-test
                              (is (= 6 (apply + (list 1 2 3)))))
-                           (run-all-tests))))))
-#+end_src
-
-*** Misc
-
-#+name: clojure-unit-tests
-#+begin_src clojure :tangle no
-  (deftest testing-compilation
-    (is (= 0 (check-form '((defn handler []     )
-                           (defn call [handler] "return obj<number>(42);")
-
-                           (deftest some-test
-                             (is (= 42 (call handler))))
-                           
                            (run-all-tests))))))
 #+end_src
 
@@ -7624,7 +7610,7 @@ Static code analysis (cppcheck) options,
 #+end_src
 
 ** Core
-*** Special Forms
+*** Functions
 
 #+name: ferret-unit-tests
 #+begin_src clojure :tangle no
@@ -7642,16 +7628,34 @@ Static code analysis (cppcheck) options,
         (+ (fibo (- n 1))
            (fibo (- n 2))))))
 
-  (def nested-multi-arity-call (do (fn
-                                     ([]    0)
-                                     ([x]   1)
-                                     ([x y] 2))))
+  (deftest fn-test
+    (let [f1 (fn [])
+          f2 (fn [])
+          m-func (fn
+                   ([a] 1)
+                   ([a b] 2)
+                   ([a b c] 3))
+          n-func (do (fn
+                       ([]    0)
+                       ([x]   1)
+                       ([x y] 2)))]
+      
+      (is (= true  (= f1 f1)))
+      (is (= false (= f1 f2)))
+      (is (= true  (= f1 (do f1))))
+      (is (= false (= f2 (do f1))))
+      (is (= 1 (m-func 1)))
+      (is (= 2 (m-func 1 2)))
+      (is (= 3 (m-func 1 2 3)))
+      (is (= 0 (n-func)))
+      (is (= 1 (n-func 1)))
+      (is (= 2 (n-func 1 2)))
+
+      (is (= 3      (#(+ 1 2))))
+      (is (= 11     ((fn [n] (+ n 1)) 10)))
+      (is (= 3      (((fn [n] (fn [n] n)) 3) 3)))))
 
   (deftest special-forms-test
-    (is (= 3      (#(+ 1 2))))
-    (is (= 11     ((fn [n] (+ n 1)) 10)))
-    (is (= 3      (((fn [n] (fn [n] n)) 3) 3)))
-    
     (let [args (list "1" "2")]
       (is (= args (rest *command-line-args*))))
 
@@ -7675,10 +7679,6 @@ Static code analysis (cppcheck) options,
           b 2]
       (let []
         (is (= 3 (+ a b)))))
-
-    (is (= 0 (nested-multi-arity-call)))
-    (is (= 1 (nested-multi-arity-call 1)))
-    (is (= 2 (nested-multi-arity-call 1 2)))
     
     (is (= 10 (adder 9)))
     (is (= 89 (fibo 10))))
@@ -7996,133 +7996,6 @@ Static code analysis (cppcheck) options,
       (is (= 2 b))))
 #+end_src
 
-*** Module System
-
-Run import tests. 
-
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core/module.clj
-  (require '[modules.module-a :as mod-a]
-           '[modules.module-b :as mod-b])
-
-  (deftest module-test-load-as
-    (is (= 10  (mod-a/helper-a)))
-    (is (= 1   (mod-a/helper-b)))
-    (is (= 10  ((mod-a/ten-fn))))
-    (is (= 11  ((mod-b/eleven-fn))))
-    (is (= 1   (mod-a/helper-c)))
-    (is (= 42  (mod-b/macro-call)))
-    (is (= :b  (:a (mod-a/some-d-list))))
-    (is (= 42  (mod-b/native-single-argument 42))))
-
-  (require 'modules.module-a
-           'modules.module-b)
-
-  (require '[modules.module-c :as mod-c]
-           'modules.module-d)
-
-  (deftest module-test-load
-    (is (= 10  (modules.module-a/helper-a)))
-    (is (= 1   (modules.module-a/helper-b)))
-    (is (= 10  ((modules.module-a/ten-fn))))
-    (is (= 11  ((modules.module-b/eleven-fn))))
-    (is (= 1   (modules.module-a/helper-c)))
-    (is (= 42  (modules.module-b/macro-call)))
-    (is (= 25  (cxx " __result = obj<number>(dummy_native_fn());")))
-    (is (= 2   (cxx "__result = obj<number>((number_t)std::sqrt(4));"))))
-
-  (run-all-tests)
-#+end_src
-
-**** Dummy Modules
-
-Create some dummy programs under /test/,
-
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core/module_unit_test.clj
-  (require 'modules.module-e)
-
-  (deftest simple-module-test
-    (is (= 1  (modules.module-e/foo))))
-
-  (run-all-tests)
-#+end_src
-
-#+begin_src clojure :mkdirp yes :tangle src/test/core/module_import_empty_aux_a.clj
-  (require '[modules.module-a :as mod-a])
-#+end_src 
-
-#+begin_src clojure :mkdirp yes :tangle src/test/core/module_import_empty_aux_b.clj
-  (require '[modules.module-a :as mod-a])
-  (require '[modules.module-b :as mod-b])
-
-  (native-declare "const int XYZ_SIZE = 123;")
-  (native-declare "int xyz_arr[XYZ_SIZE];")
-#+end_src 
-
-Create some dummy libs under /test/modules/,
-
-#+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-a.clj
-  (configure-runtime! FERRET_PROGRAM_MAIN "ferret::program_no_exec()")
-
-  (defn helper-a [] 10)
-
-  (defmacro ten-fn [] `(fn [] 10))
-
-  (defmacro helper-b []
-    (reduce (fn [a b] (+ a b)) (list 1 2 3))
-    1)
-
-  (defn helper-c []
-    (helper-b))
-
-  (defn update-aux []
-    )
-
-  (def update-data
-    (fn-throttler update-aux 1000 :second :blocking))
-
-  (defn some-d-list [] {:a :b :c :d})
-#+end_src 
-
-#+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-b.clj
-  (require '[modules.module-c :as mod-c])
-
-  (defn helper-b []
-    (mod-c/helper-c))
-
-  (defn eleven-fn []
-    (mod-c/eleven-fn))
-
-  (defnative native-single-argument [x]
-    (on "defined FERRET_STD_LIB"
-        ("utility") ;; dummy include
-        "__result = obj<number>(number::to<int>(x));"))
-
-  (defnative macro-aux []
-    (on "defined FERRET_STD_LIB"
-        "__result = obj<number>((number_t)42);"))
-
-  (defmacro macro-call []
-    `(do (~'macro-aux)))
-#+end_src 
-
-#+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-c.clj
-  (native-header "cmath")
-
-  (defn helper-c []
-    (print "Module C"))
-
-  (defmacro eleven-fn []
-    `(fn [] 11))
-#+end_src 
-
-#+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-d.clj
-  (native-declare "int dummy_native_fn(){ return 25; }")
-#+end_src 
-
-#+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-e.clj
-  (defn foo [] 1)
-#+end_src 
-
 *** Sequence
 
 #+name: ferret-unit-tests
@@ -8292,28 +8165,6 @@ Create some dummy libs under /test/modules/,
       (is (= 6                             (->> mn
                                                 (map second)
                                                 (apply +))))))
-#+end_src
-
-*** Fn
-
-#+name: ferret-unit-tests
-#+begin_src clojure
-  (deftest fn-test
-    (let [f1 (fn [])
-          f2 (fn [])
-          m-func (fn
-                   ([a] 1)
-                   ([a b] 2)
-                   ([a b & c] 3)
-                   ([a b [c d] & e] 4))]
-      (is (= true  (= f1 f1)))
-      (is (= false (= f1 f2)))
-      (is (= true  (= f1 (do f1))))
-      (is (= false (= f2 (do f1))))
-      (is (= 1 (m-func 1)))
-      (is (= 2 (m-func 1 2)))
-      (is (= 3 (m-func 1 2 3)))
-      (is (= 4 (m-func 1 2 (list 3 3) 4)))))
 #+end_src
 
 *** Pointer
@@ -8646,6 +8497,133 @@ Create some dummy libs under /test/modules/,
         (add 3))
       (is (= (list 3 2 1) @st))))
 #+end_src
+
+*** Module System
+
+Run import tests. 
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core/module.clj
+  (require '[modules.module-a :as mod-a]
+           '[modules.module-b :as mod-b])
+
+  (deftest module-test-load-as
+    (is (= 10  (mod-a/helper-a)))
+    (is (= 1   (mod-a/helper-b)))
+    (is (= 10  ((mod-a/ten-fn))))
+    (is (= 11  ((mod-b/eleven-fn))))
+    (is (= 1   (mod-a/helper-c)))
+    (is (= 42  (mod-b/macro-call)))
+    (is (= :b  (:a (mod-a/some-d-list))))
+    (is (= 42  (mod-b/native-single-argument 42))))
+
+  (require 'modules.module-a
+           'modules.module-b)
+
+  (require '[modules.module-c :as mod-c]
+           'modules.module-d)
+
+  (deftest module-test-load
+    (is (= 10  (modules.module-a/helper-a)))
+    (is (= 1   (modules.module-a/helper-b)))
+    (is (= 10  ((modules.module-a/ten-fn))))
+    (is (= 11  ((modules.module-b/eleven-fn))))
+    (is (= 1   (modules.module-a/helper-c)))
+    (is (= 42  (modules.module-b/macro-call)))
+    (is (= 25  (cxx " __result = obj<number>(dummy_native_fn());")))
+    (is (= 2   (cxx "__result = obj<number>((number_t)std::sqrt(4));"))))
+
+  (run-all-tests)
+#+end_src
+
+**** Dummy Modules
+
+Create some dummy programs under /test/,
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core/module_unit_test.clj
+  (require 'modules.module-e)
+
+  (deftest simple-module-test
+    (is (= 1  (modules.module-e/foo))))
+
+  (run-all-tests)
+#+end_src
+
+#+begin_src clojure :mkdirp yes :tangle src/test/core/module_import_empty_aux_a.clj
+  (require '[modules.module-a :as mod-a])
+#+end_src 
+
+#+begin_src clojure :mkdirp yes :tangle src/test/core/module_import_empty_aux_b.clj
+  (require '[modules.module-a :as mod-a])
+  (require '[modules.module-b :as mod-b])
+
+  (native-declare "const int XYZ_SIZE = 123;")
+  (native-declare "int xyz_arr[XYZ_SIZE];")
+#+end_src 
+
+Create some dummy libs under /test/modules/,
+
+#+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-a.clj
+  (configure-runtime! FERRET_PROGRAM_MAIN "ferret::program_no_exec()")
+
+  (defn helper-a [] 10)
+
+  (defmacro ten-fn [] `(fn [] 10))
+
+  (defmacro helper-b []
+    (reduce (fn [a b] (+ a b)) (list 1 2 3))
+    1)
+
+  (defn helper-c []
+    (helper-b))
+
+  (defn update-aux []
+    )
+
+  (def update-data
+    (fn-throttler update-aux 1000 :second :blocking))
+
+  (defn some-d-list [] {:a :b :c :d})
+#+end_src 
+
+#+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-b.clj
+  (require '[modules.module-c :as mod-c])
+
+  (defn helper-b []
+    (mod-c/helper-c))
+
+  (defn eleven-fn []
+    (mod-c/eleven-fn))
+
+  (defnative native-single-argument [x]
+    (on "defined FERRET_STD_LIB"
+        ("utility") ;; dummy include
+        "__result = obj<number>(number::to<int>(x));"))
+
+  (defnative macro-aux []
+    (on "defined FERRET_STD_LIB"
+        "__result = obj<number>((number_t)42);"))
+
+  (defmacro macro-call []
+    `(do (~'macro-aux)))
+#+end_src 
+
+#+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-c.clj
+  (native-header "cmath")
+
+  (defn helper-c []
+    (print "Module C"))
+
+  (defmacro eleven-fn []
+    `(fn [] 11))
+#+end_src 
+
+#+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-d.clj
+  (native-declare "int dummy_native_fn(){ return 25; }")
+#+end_src 
+
+#+begin_src clojure :mkdirp yes :tangle src/test/core/modules/module-e.clj
+  (defn foo [] 1)
+#+end_src 
 
 * Roadmap
 ** Compiler

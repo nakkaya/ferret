@@ -7414,6 +7414,31 @@ Static code analysis (cppcheck) options,
                     count)))))
 #+end_src
 
+*** Escape Analysis
+
+#+name: clojure-unit-tests
+#+begin_src clojure :tangle no
+  (deftest test-escape-analysis
+    (let [prg-a (compile '((defn self [x] x)
+                           (self 42)) {})
+          prg-b (compile '((defn self [x] x)
+                           (self self)) {})
+
+          prg-c (compile '((defn multi ([x] x))) {})]
+
+      (is (not (empty? (select-form prg-a (form? 'fir_defn_stack)))))
+      (is (not (empty? (select-form
+                        prg-a (fn [f] (= '(fir_fn_stack self) f))))))
+      
+      (is (not (empty? (select-form prg-b (form? 'fir_defn_heap)))))
+      (is (not (empty? (select-form
+                        prg-b (fn [f] (= '((fir_fn_stack self) (fir_fn_heap self)) f))))))
+
+      (is (= (->> (select-form prg-c (form? 'fir_defn_arity))
+                  first second first second second)
+             (->> (select-form prg-c (form? 'fir_defn_stack)) first second)))))
+#+end_src
+
 *** Unit Testing
 
 #+name: clojure-unit-tests

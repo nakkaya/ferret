@@ -927,12 +927,21 @@ into legal ones.
 #+end_src
 
 *** Optimizations
-**** Replace Fn Call Sites
+**** Inline Global Functions
 
-Replace all functions calls with new function. This removes all
-globals variables unless the /fn/ defined is a closure. In which case
-it is left as a global variable and the class implementation is
-prepended with the global name for readability.
+This optimization trades memory for performance. When a global
+variable pointing to a function is defined, memory for that function
+is allocated at the start of the program and never released until
+program exits even if the said function is called only once in the
+program. In order to keep the memory usage low Ferret will replace all
+functions calls with new function objects. So every time a function is
+called a new function object is created used and released. If
+performance is more important than memory usage this optimization can
+be disabled using compiler option =--global-functions=.
+
+This pass removes all globals variables unless the /fn/ defined is a
+closure. In which case it is left as a global variable and the class
+implementation is prepended with the global name for readability.
 
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
@@ -1040,7 +1049,11 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
          (escape-fns)))
 #+end_src
 
-***** Escape Function Calls
+***** Function Calls
+
+By default Ferret assumes all functions can escape their scope and
+they are allocated on the heap. Functions proven to not escape their
+scope are replaced with stack allocated functions.
 
 #+name: core-compiler-escape-analysis
 #+begin_src clojure
@@ -1054,7 +1067,11 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
                     `((~'fir-fn-stack ~@fn) ~@args)))))
 #+end_src
 
-***** Escape Dispatch Functions
+***** Dispatch Functions
+
+User programs has no access to dispatch functions used by multi-arity
+functions. They can be safely escaped and replaced by the stack
+allocated versions.
 
 #+name: core-compiler-escape-analysis
 #+begin_src clojure
@@ -1068,7 +1085,13 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
                                 `(~'fir-fn-stack ~@f))))))
 #+end_src
 
-***** Escape Function Classes
+***** Function Classes
+
+Each Ferret =fn= generates a corresponding C++ class that extends a
+Ferret Object. If a function can be proven to be only allocated on the
+stack in all uses of the said function, it can be replaced with a C++
+POD type. This saves program space since said function does not need
+to inherit from a Ferret Object.
 
 #+name: core-compiler-escape-analysis
 #+begin_src clojure

@@ -509,16 +509,16 @@ maintain.
   (defn compile [form options]
     (->> (ferret-runtime options form)
          (remove-assertions options)
-         (expand-macros-all)
+         (expand-macros)
          (let->fn)
          (do->fn)
          (fn->lift)
-         (inline-global-fns options)
+         (fn->inline options)
          (escape-analysis)
          (symbol-conversion)))
 #+end_src
 
-*** Generate Runtime
+*** Runtime
 
 Import all modules in the given form. Supported =require= forms,
 
@@ -541,9 +541,9 @@ outside the namespace can be defined using the following form,
 #+END_SRC
 
 Compiler will look for a file under current working directory called,
-/package/io.clj/ all expression in the that file will be added to the
-front of the current form with symbols renamed to /some-fn/ =>
-/io/some-function/.
+=package/io.clj= all expression in the that file will be added to the
+front of the current form with symbols renamed from =some-fn= to
+=io/some-function=.
 
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
@@ -567,7 +567,7 @@ front of the current form with symbols renamed to /some-fn/ =>
 #+end_src
 
 Extract the list of packages and aliases from the form. Returns a map
-of mod -> aliases pairs.
+of =mod / aliases= pairs.
 
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
@@ -584,7 +584,7 @@ of mod -> aliases pairs.
                          macro-symbols  (->> (parser/peek mod (parser/form? 'defmacro))
                                              (map second)
                                              (into #{}))
-                         def-symbols    (->> (parser/peek (expand-macros-all mod) (parser/form? 'def))
+                         def-symbols    (->> (parser/peek (expand-macros mod) (parser/form? 'def))
                                              (map second)
                                              (into #{}))
                          replace?       (set/union macro-symbols def-symbols)
@@ -599,7 +599,7 @@ of mod -> aliases pairs.
 #+end_src
 
 Loads all modules listed in the package list. When a module is loaded
-all its symbols are replaced with its module name except /core/
+all its symbols are replaced with its module name except =core=
 functions. Module names acts as namespaces. Returns a form that the is
 concatenation of all modules listed in form.
 
@@ -669,11 +669,11 @@ modules and concatenate the required runtime from [[Core]].
                                       (str "// ferret-lisp")))))))
 #+end_src
 
-*** Expand Macros
+*** Macros
 
-Process some supported reader macros, /@/ and /#(some-fn)/ and convert
+Process some supported reader macros, =@= and =#(some-fn)= and convert
 =map= reader forms to Ferret =d-list=.  Maps are zero or more
-key/value pairs enclosed in braces: {:a 1 :b 2}.
+key/value pairs enclosed in braces: ={:a 1 :b 2}=.
 
 #+name: core-compiler-macro-expansion
 #+begin_src clojure :tangle no
@@ -687,7 +687,7 @@ key/value pairs enclosed in braces: {:a 1 :b 2}.
          (fn [x] (cons 'new-d-list (-> x seq flatten))))))
 #+end_src
 
-Prepare form /f/ for macro expansion,
+Prepare form =f= for macro expansion,
 
 #+name: core-compiler-macro-expansion
 #+begin_src clojure :tangle no
@@ -699,7 +699,7 @@ Prepare form /f/ for macro expansion,
 #+end_src
 
 Macro expansion is done by reading all the macros present in
-src/ferret/runtime.clj and combining them with user defined macros. They
+=src/ferret/runtime.clj= and combining them with user defined macros. They
 are evaluated in a temporary namespace, using =parser/transform= we iterate
 all the macros used in the code that we are compiling and expand them
 in the temporary namespace then the node is replaced with its expanded
@@ -707,9 +707,7 @@ form.
 
 #+name: core-compiler-macro-expansion
 #+begin_src clojure :tangle no
-  (declare expand-macros-all)
-
-  (defn expand-macros [form]
+  (defn expand-macros-single [form]
     (let [core-macros (->> (read-clojure-file "ferret/runtime.clj")
                            (filter (parser/form? 'defmacro)))
           core-macro-symbols (into #{} (map second core-macros))
@@ -745,19 +743,19 @@ form.
         (remove-ns temp-ns)
         form)))
 
-  (defn expand-macros-all-aux [form]
+  (defn expand-macros-aux [form]
     (loop [f form]
-      (let [expanded (expand-macros f)]
+      (let [expanded (expand-macros-single f)]
         (if (= f expanded)
           expanded
           (recur expanded)))))
 
-  (def expand-macros-all (memoize expand-macros-all-aux))
+  (def expand-macros (memoize expand-macros-aux))
 #+end_src
 
 *** let->fn
 
-/let/ forms are transformed into nested functions which are then
+=let= forms are transformed into nested functions which are then
 called immediately, bindings are setup in the outer function,
 expressions are placed in the inner function which takes the bindings
 as arguments.
@@ -830,7 +828,7 @@ that takes no parameters and executed in place.
 
 *** fn->lift
 
-/fn->lift/ handles the problem of free variables. Free
+=fn->lift= handles the problem of free variables. Free
 variables passed to a nested function must be captured in a closure so
 they can be referenced at runtime. The closure conversion
 transformation modifies function definitions as necessary to create new
@@ -841,8 +839,8 @@ closures.
     (fn [n] (+ x n)))
 #+end_src
 
-in the above snippet /x/ is a free variable, when the function
-/make-adder/ returns, it needs to have a way of referencing that
+in the above snippet =x= is a free variable, when the function
+=make-adder= returns, it needs to have a way of referencing that
 variable when it is used. The way Ferret handles this is that, every
 function will pass its arguments to inner functions (if any) it
 contains.
@@ -861,8 +859,8 @@ Above form will be converted to,
 #+end_src
 
 What this means is, define a functor named =G__3154= that holds a
-reference to /x/, and another functor =G__1334= that has no
-state. When we create an instance of =G__1333= we pass /x/ to its
+reference to =x=, and another functor =G__1334= that has no
+state. When we create an instance of =G__1333= we pass =x= to its
 constructor. Since every thing is already converted to fns this
 mechanism allows variables to be referenced down the line and solves
 the free variable problem.
@@ -941,7 +939,7 @@ into legal ones.
 #+end_src
 
 *** Optimizations
-**** Inline Global Functions
+**** Inline Functions
 
 This optimization trades memory for performance. When a global
 variable pointing to a function is defined, memory for that function
@@ -953,7 +951,7 @@ called a new function object is created used and released. If
 performance is more important than memory usage this optimization can
 be disabled using compiler option =--global-functions=.
 
-This pass removes all globals variables unless the /fn/ defined is a
+This pass removes all globals variables unless the =fn= defined is a
 closure. In which case it is left as a global variable and the class
 implementation is prepended with the global name for readability.
 
@@ -988,7 +986,7 @@ implementation is prepended with the global name for readability.
                                   (fn [_] (identity name))))
               inline-fns fn-table)))
 
-  (defn inline-global-fns [options form]
+  (defn fn->inline [options form]
     (if (:global-functions options)
       form
       (let [pure-fn-defs (->> (select-def-fn form)
@@ -1012,10 +1010,10 @@ present in second form.
 
 In order to keep the generated C++ code compact only the functions used
 will be present in the generated source file. Which means if you don't
-use /println/ anywhere in the code it won't be defined in the final
+use =println= anywhere in the code it won't be defined in the final
 C++ file, but if you use it, it and everything it uses will be
-defined, in the case of /println/ it will pull /apply/, /print/ and
-/newline/ with it.
+defined, in the case of =println= it will pull =apply=, =print= and
+=newline= with it.
 
 #+name: core-compiler-tree-shaking
 #+begin_src clojure
@@ -1032,7 +1030,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
                            (map #(vector (second %) %))
                            (into {}))
            header-non-shakeable (parser/drop header shakeable?)
-           form-expanded (expand-macros-all (concat header-non-shakeable form))
+           form-expanded (expand-macros (concat header-non-shakeable form))
            fns (atom #{})
            _ (shake-concat form-expanded header-fns fns header-non-shakeable)
            header-shaked (parser/drop header (fn [f]
@@ -1045,7 +1043,7 @@ defined, in the case of /println/ it will pull /apply/, /print/ and
                           (if-let [f (built-in %)]
                             (when (not (@fns %))
                               (swap! fns conj %)
-                              (shake-concat (expand-macros-all (concat non-shakeable f))
+                              (shake-concat (expand-macros (concat non-shakeable f))
                                             built-in fns non-shakeable))) %))))
 #+end_src
 

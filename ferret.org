@@ -640,7 +640,7 @@ modules names. So =helper-a= defined in module =util.db= becomes
       (when (not (empty? violations))
         (doseq [v violations]
           (warn "non-public-access =>" v))
-        (exit-failure))
+        (io/exit-failure))
       (shake-concat modules form)))
 
   (defn import-modules-all [form options]
@@ -663,7 +663,7 @@ modules and concatenate the required runtime from [[Core]].
          (shake-concat (read-clojure-file "ferret/runtime.clj"))
          ;; tag form with the build info
          (cons `(~'native-define ~(try
-                                    (let [version (read-file-from-url "build.info")]
+                                    (let [version (io/read-file-from-url "build.info")]
                                       (str "// ferret-lisp build:" version))
                                     (catch Exception e
                                       (str "// ferret-lisp")))))))
@@ -724,7 +724,8 @@ form.
       (create-ns temp-ns)
       (binding [*ns* (the-ns temp-ns)]
         (refer 'clojure.core :exclude (concat macro-symbols ['fn 'def]))
-        (use '[ferret.core :only [symbol-conversion exit-failure]])
+        (use '[ferret.io :only [exit-failure]])
+        (use '[ferret.core :only [symbol-conversion]])
         (use '[ferret.parser :only [new-fir-fn]])
         
         (doseq [m (concat core-macros form-macros)]
@@ -791,7 +792,7 @@ after transformation becomes,
     (when (odd? (count bindings))
       (warn
        (str "let requires an even number of forms in binding vector => " bindings))
-      (exit-failure)))
+      (io/exit-failure)))
 
   (defn let->fn [form]
     (-> form
@@ -1128,6 +1129,33 @@ to inherit from a Ferret Object.
 
 *** Parser
 
+Ferret programs are read using the Clojure reader via =read-string=,
+
+#+name: core-file-io
+#+begin_src clojure :tangle no
+  (defn read-clojure-file [f]
+    (let [ns (gensym)
+          ns-str (str ns)]
+      (create-ns ns)
+      (binding [*ns* (the-ns ns)]
+        (refer 'clojure.core)
+        (-> (read-string (str \( (io/read-file f) \)))
+            (parser/transform
+             symbol?
+             #(if (= (namespace %) ns-str)
+                (-> % name symbol)
+                %))
+            ;;replace clojure.core/fn with fn
+            ;;replace clojure.core/while with while
+            (parser/transform
+             (fn [x]
+               (and (parser/form? 'quote x)
+                    (or (= 'clojure.core/fn    (second x))
+                        (= 'clojure.core/defn  (second x))
+                        (= 'clojure.core/while (second x)))))
+             (fn [[_ s]] `'~(-> s name symbol)))))))
+#+end_src
+
 Each transformation happens by walking over the program form. Forms
 are selected using =form?= function.
 
@@ -1246,92 +1274,6 @@ already defined variable names.
          `(fn* ~args ~@body)))))
 #+end_src
 
-*** File I/O
-
-#+name: core-file-io
-#+begin_src clojure :tangle no
-  (defn os-name []
-    (let [os (-> (System/getProperty "os.name") .toLowerCase)]
-      (cond (.contains os "win")      :windows
-            (.contains os "mac")      :mac
-            (or (.contains os "nix")
-                (.contains os "nux")
-                (.contains os "aix")) :unix
-                (.contains os "sunos")    :solaris)))
-
-  (defn exit-failure []
-    (System/exit 1))
-
-  (defn exit-success []
-    (System/exit 0))
-
-  (defn read-file-from-url [f]
-    (with-open [in (.getResourceAsStream (ClassLoader/getSystemClassLoader) f)
-                rdr (BufferedReader. (InputStreamReader. in))]
-      (apply str (interpose \newline (line-seq rdr)))))
-
-  (defn read-file [f & [options]]
-    (try
-      (read-file-from-url f)
-      (catch Exception e-url
-        (try
-          (if (nil? options)
-            (FileUtils/readFileToString (file f))
-            (FileUtils/readFileToString (file (str (:path options) f))))
-          (catch Exception e-path
-            (warn "error reading =>" f)
-            (exit-failure))))))
-
-  (defn read-clojure-file [f]
-    (let [ns (gensym)
-          ns-str (str ns)]
-      (create-ns ns)
-      (binding [*ns* (the-ns ns)]
-        (refer 'clojure.core)
-        (-> (read-string (str \( (read-file f) \)))
-            (parser/transform
-             symbol?
-             #(if (= (namespace %) ns-str)
-                (-> % name symbol)
-                %))
-            ;;replace clojure.core/fn with fn
-            ;;replace clojure.core/while with while
-            (parser/transform
-             (fn [x]
-               (and (parser/form? 'quote x)
-                    (or (= 'clojure.core/fn    (second x))
-                        (= 'clojure.core/defn  (second x))
-                        (= 'clojure.core/while (second x)))))
-             (fn [[_ s]] `'~(-> s name symbol)))))))
-
-  (defn write-to-file [f s]
-    (FileUtils/writeStringToFile (file f) (.trim s)))
-
-  (defn escape-string [s]
-    (org.apache.commons.lang.StringEscapeUtils/escapeJava s))
-
-  (defn file-path [file]
-    (let [path (str (org.apache.commons.io.FilenameUtils/getPrefix file)
-                    (org.apache.commons.io.FilenameUtils/getPath file))]
-      (if (empty? path)
-        "./"
-        path)))
-
-  (def default-cpp-extension "cpp")
-
-  (defn file-extension [f]
-    (org.apache.commons.io.FilenameUtils/getExtension f))
-
-  (defn file-base-name [f]
-    (org.apache.commons.io.FilenameUtils/getBaseName f))
-
-  (defn file-exists [f]
-    (.exists (file f)))
-
-  (defn make-file [p n e]
-    (file (str p n "." e)))
-#+end_src
-
 ** Code Generation
 
 The compiler's code generation phase takes a single pass over the
@@ -1386,7 +1328,7 @@ namespace.)
 
   (defmethod emit nil [_ form _]
     (warn "unsopported form =>" form)
-    (exit-failure))
+    (io/exit-failure))
 
   (defn emit-ast
     [options ast state]
@@ -1450,7 +1392,7 @@ C++ skeleton.
   (defmethod emit :symbol [_ form state] (str form))
 
   (defmethod emit :string [_ form state]
-    (str "obj<string>(\"" (escape-string form) "\",(number_t)" (count form) ")"))
+    (str "obj<string>(\"" (io/escape-string form) "\",(number_t)" (count form) ")"))
 
   (defmethod emit :boolean [_ form state]
     (if (true? form)
@@ -1482,7 +1424,7 @@ C++ skeleton.
       (apply str "(" cond " ? " t " : " f ")")))
 
   (defn defobject [name f options]
-    (let [def (read-file (first f) options)]
+    (let [def (io/read-file (first f) options)]
       (render-template
        "#ifndef FERRET_OBJECT_$guard$
         #define FERRET_OBJECT_$guard$
@@ -1714,7 +1656,7 @@ is supported.
           native-headers (->> native-headers flatten (into #{}))
           file-ns        (-> options :base-name escape-cpp-symbol)
           main           (render-template
-                          (read-file "ferret/main.cpp")
+                          (io/read-file "ferret/main.cpp")
                           :file       file-ns)]
       (render-template
        "
@@ -1776,12 +1718,12 @@ is supported.
           $ferret_main$"
        :file                 file-ns
        :native_defines       native-defines
-       :ferret_h             (read-file "ferret/runtime.h")
+       :ferret_h             (io/read-file "ferret/runtime.h")
        :native_headers       native-headers
        :objects              objects
        :symbols              symbol-table
        :native_declarations  native-declarations
-       :ferret_cpp           (read-file "ferret/runtime.cpp")
+       :ferret_cpp           (io/read-file "ferret/runtime.cpp")
        :lambda_classes       (lambda-definitions lambdas)
        :lambda_bodies        (lambda-implementations lambdas)
        :body                 (filter #(not (empty? %)) body)
@@ -1798,7 +1740,7 @@ is supported.
     (defn compile-options [& [options]]
       (merge {:compiler "g++"
               :compiler-options ["-std=c++11"]
-              :source-extension default-cpp-extension
+              :source-extension io/extension-cpp
               :base-name "solution"
               :binary-file "solution"}
              options))
@@ -1856,13 +1798,13 @@ is supported.
               output           (if (args :output)
                                  (args :output)
                                  input)
-              output-path      (file-path output)
+              output-path      (io/file-path output)
               output-extension (if (args :output) 
-                                 (file-extension (args :output))
-                                 default-cpp-extension)
-              base-name        (file-base-name output)
-              input-path       (file-path input)
-              output-file      (make-file output-path base-name output-extension)
+                                 (io/file-extension (args :output))
+                                 io/extension-cpp)
+              base-name        (io/file-base-name output)
+              input-path       (io/file-path input)
+              output-file      (io/make-file output-path base-name output-extension)
               binary-file      (if (args :binary) 
                                  (args :binary)
                                  base-name)
@@ -1897,7 +1839,7 @@ is supported.
       (let [file-name (cpp-file-name options)
             source    (emit-source form options)
             program   (program-template source options)]
-        (write-to-file file-name program)
+        (io/write-to-file file-name program)
         (info "compiled" "=>" file-name)
         true))
   #+end_src
@@ -1927,7 +1869,7 @@ is supported.
       (if (:command options)
         (flatten ["/usr/bin/env" "sh" "-c" (:command options)])
         (let [[cxx cxx-options] (cxx-compiler options)
-              source-files  (map #(let [extension (file-extension %)]
+              source-files  (map #(let [extension (io/file-extension %)]
                                     [(cond (= extension "c") ["-x" "c"]
                                            (= extension "c++") ["-x" "c++"]
                                            :default "")
@@ -1952,11 +1894,11 @@ is supported.
                     (catch Exception e
                       (warn (str "error executing C++ compiler."))
                       (warn (str "" (.getMessage e)))
-                      (exit-failure)))]
+                      (io/exit-failure)))]
           (if (not= 0 (:exit ret))
             (do (warn "build error")
                 (warn (:err ret))
-                (exit-failure)))
+                (io/exit-failure)))
           true)))
   #+end_src
 
@@ -1973,7 +1915,7 @@ is supported.
                          (catch Exception e nil))]
          (if source
            (do (info "formatting code")
-               (write-to-file file (:out source))))))
+               (io/write-to-file file (:out source))))))
 
      (defn build-solution [spec-fn]
        (let [{:keys [input-file compile-program format-code path]} (spec-fn)]
@@ -2019,18 +1961,18 @@ is supported.
 
            (when help
              (try
-               (let [version (read-file "build.info")]
+               (let [version (io/read-file "build.info")]
                  (print "ferret-lisp build:" version))
                (catch Exception e
                  (print "ferret-lisp")))
              (println )
              (println )
              (println (:summary args))
-             (exit-success))
+             (io/exit-success))
 
-           (when (not (file-exists input))
+           (when (not (io/file-exists input))
              (warn "no input file")
-             (exit-failure))
+             (io/exit-failure))
 
            (let [specs (build-specs input args)]
              (if (not watch-input)
@@ -2041,7 +1983,7 @@ is supported.
                                      (fn [_] (build-solution specs))))
                    @(promise)))
              (shutdown-agents))
-           (exit-success))
+           (io/exit-success))
          (catch Exception e
            (stacktrace/print-stack-trace e 10))))
    #+end_src
@@ -2056,9 +1998,9 @@ is supported.
                          (format
                            [^java.util.logging.LogRecord record]
                            (let [level (-> record .getLevel .toString clojure.string/lower-case)
-                                 level (if (or (= :unix (os-name))
-                                               (= :mac (os-name))
-                                               (= :solaris (os-name)))
+                                 level (if (or (= :unix (io/os-name))
+                                               (= :mac (io/os-name))
+                                               (= :solaris (io/os-name)))
                                          (if (= level "warning")
                                            (color/red level)
                                            (color/green level))
@@ -2074,6 +2016,72 @@ is supported.
                   (.addHandler log-handler)
                   (.setLevel   java.util.logging.Level/INFO)))
   #+end_src
+
+** I/O
+
+Common I/O operations.
+
+#+name: core-main-io
+#+begin_src clojure :tangle no
+  (def extension-cpp "cpp")
+
+  (defn os-name []
+    (let [os (-> (System/getProperty "os.name") .toLowerCase)]
+      (cond (.contains os "win")      :windows
+            (.contains os "mac")      :mac
+            (or (.contains os "nix")
+                (.contains os "nux")
+                (.contains os "aix")) :unix
+            (.contains os "sunos")    :solaris)))
+
+  (defn exit-failure []
+    (System/exit 1))
+
+  (defn exit-success []
+    (System/exit 0))
+
+  (defn read-file-from-url [f]
+    (with-open [in (.getResourceAsStream (ClassLoader/getSystemClassLoader) f)
+                rdr (BufferedReader. (InputStreamReader. in))]
+      (apply str (interpose \newline (line-seq rdr)))))
+
+  (defn read-file [f & [options]]
+    (try
+      (read-file-from-url f)
+      (catch Exception e-url
+        (try
+          (if (nil? options)
+            (FileUtils/readFileToString (file f))
+            (FileUtils/readFileToString (file (str (:path options) f))))
+          (catch Exception e-path
+            (warn "error reading =>" f)
+            (exit-failure))))))
+
+  (defn write-to-file [f s]
+    (FileUtils/writeStringToFile (file f) (.trim s)))
+
+  (defn escape-string [s]
+    (org.apache.commons.lang.StringEscapeUtils/escapeJava s))
+
+  (defn file-path [file]
+    (let [path (str (org.apache.commons.io.FilenameUtils/getPrefix file)
+                    (org.apache.commons.io.FilenameUtils/getPath file))]
+      (if (empty? path)
+        "./"
+        path)))
+
+  (defn file-extension [f]
+    (org.apache.commons.io.FilenameUtils/getExtension f))
+
+  (defn file-base-name [f]
+    (org.apache.commons.io.FilenameUtils/getBaseName f))
+
+  (defn file-exists [f]
+    (.exists (file f)))
+
+  (defn make-file [p n e]
+    (file (str p n "." e)))
+#+end_src
 
 * Runtime
 
@@ -8944,7 +8952,8 @@ Create some dummy libs under /test/modules/,
     (:refer-clojure :exclude [compile])
     (:gen-class)
     (:use [clojure.java.io])
-    (:require [ferret.parser :as parser]
+    (:require [ferret.io :as io]
+              [ferret.parser :as parser]
               [clojure.set :as set]
               [flatland.ordered.map :as ordered-map]
               [fast-zip.core :as zip]
@@ -8956,10 +8965,7 @@ Create some dummy libs under /test/modules/,
               [clojure.term.colors :as color])
     (:use [ferret [template :only [render-template]]]
           [clojure.java.shell]
-          [clojure.java.io]
-          [clojure.tools [logging :only [warn info]]])
-    (:import (org.apache.commons.io FileUtils)
-             (java.io BufferedReader InputStreamReader)))
+          [clojure.tools [logging :only [warn info]]]))
 
   <<core-compiler-helpers>>
   <<core-file-io>>
@@ -8978,10 +8984,24 @@ Create some dummy libs under /test/modules/,
   (ns ferret.parser
     (:refer-clojure :exclude [drop peek])
     (:gen-class)
-    (:require [fast-zip.core :as zip]
+    (:require [ferret.io :as io]
+              [fast-zip.core :as zip]
               [clojure.walk :as walk]))
 
   <<core-compiler-parser>>
+#+end_src 
+
+*** ferret/io.clj
+
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/src/ferret/io.clj
+  (ns ferret.io
+    (:gen-class)
+    (:use [clojure.java.io]
+          [clojure.tools [logging :only [warn info]]])
+    (:import (org.apache.commons.io FileUtils)
+             (java.io BufferedReader InputStreamReader)))
+
+  <<core-main-io>>
 #+end_src 
 
 *** ferret/template.clj

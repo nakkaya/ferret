@@ -770,24 +770,29 @@ after transformation becomes,
 
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
+  (defn let-closure [bindings body]
+    (if (empty? bindings)
+      `((~'fir-let-fn () ~@body))
+      (apply
+       (fn close [[arg val] & more]
+         (if (empty? more)
+           `((~'fir-let-fn [~arg] ~@body) ~val)
+           `((~'fir-let-fn [~arg] ~(apply close more)) ~val)))
+       (partition 2 bindings))))
+
+  (defn let-assert [bindings body]
+    (when (odd? (count bindings))
+      (warn
+       (str "let requires an even number of forms in binding vector => " bindings))
+      (exit-failure)))
+
   (defn let->fn [form]
     (-> form
 
         (morph-form (form? 'let*)
                     (fn [[_ bindings & body]]
-                      (when (odd? (count bindings))
-                        (warn
-                         (str "let requires an even number of forms in binding vector => " bindings))
-                        (exit-failure))
-                      
-                      (if (empty? bindings)
-                        `((~'fir-let-fn () ~@body))
-                        (apply
-                         (fn close [[arg val] & more]
-                           (if (empty? more)
-                             `((~'fir-let-fn [~arg] ~@body) ~val)
-                             `((~'fir-let-fn [~arg] ~(apply close more)) ~val)))
-                         (partition 2 bindings)))))
+                      (let-assert bindings body)
+                      (let-closure bindings body)))
 
         (morph-form (form? 'fir-let-fn)
                     (fn [[_ args & body]]

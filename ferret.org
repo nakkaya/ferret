@@ -422,6 +422,10 @@ Write the image,
 
 ** Building From Sources
 
+All source code for the project is kept in a single =org-mode= file
+named =ferret.org=. =emacs= is used to extract the sources and
+documentation.
+
 #+BEGIN_HTML
   <img src="https://img.shields.io/github/last-commit/nakkaya/ferret.svg" style="float: left; padding-right: 0.5cm;">
   <img src="https://img.shields.io/github/issues/nakkaya/ferret.svg" style="margin-left: 0;">
@@ -435,7 +439,7 @@ Dependencies,
 
  - make
  - Java
- - Emacs (24.5)
+ - Emacs (>= 24.5)
  - Leiningen
 
 Assuming all of the above is in your path just run,
@@ -444,10 +448,10 @@ Assuming all of the above is in your path just run,
   make
 #+END_EXAMPLE
 
-This will extract the source from this file to *src/* directory and
-build the *jar* and *executable* distributions to *bin/*
-directory. *Makefile* assumes it is running on a **NIX* based system
-if not, open this file using *emacs* and run,
+This will extract the source from =ferret.org= file to =src/= directory and
+build the =jar= and =executable= distributions to =bin/=
+directory. =Makefile= assumes it is running on a =*NIX= based system
+if not, open =ferret.org= file using =emacs= and run,
 
 #+BEGIN_EXAMPLE
   M-x org-babel-tangle

@@ -65,12 +65,19 @@ Platform independent builds (requires JVM),
 Supported package managers,
 
    - Debian/Ubuntu
-     - Add repository - =echo "deb [trusted=yes] https://ferret-lang.org/debian-repo ferret-lisp main" >> /etc/apt/sources.list=
-     - Install Ferret - =apt-get install ferret-lisp=
-   - Clojars
-     - Latest SHA: call_git-sha()
-     - Dependency: =[ferret "0.3.0-SHA"]=
-     - URL: https://clojars.org/ferret
+
+#+begin_src sh :noweb yes :tangle no
+  echo "deb [trusted=yes]\
+   https://ferret-lang.org/debian-repo ferret-lisp main" >> /etc/apt/sources.list
+  apt-get update
+  apt-get install ferret-lisp
+#+end_src 
+
+   - Clojars - https://clojars.org/ferret
+
+#+begin_src clojure :noweb yes :tangle no
+  [ferret "<<ferret-version()>>"]
+#+end_src 
 
 ** A glimpse of Ferret
 
@@ -668,7 +675,7 @@ modules and concatenate the required runtime from [[Core]].
          ;; tag form with the build info
          (cons `(~'native-define ~(try
                                     (let [version (io/read-file-from-url "build.info")]
-                                      (str "// ferret-lisp build:" version))
+                                      (str "// ferret-lisp" version))
                                     (catch Exception e
                                       (str "// ferret-lisp")))))))
 #+end_src
@@ -1964,7 +1971,7 @@ is supported.
            (when help
              (try
                (let [version (io/read-file "build.info")]
-                 (print "ferret-lisp build:" version))
+                 (print "ferret-lisp" version))
                (catch Exception e
                  (print "ferret-lisp")))
              (println )
@@ -8902,15 +8909,15 @@ Create some dummy libs under /test/modules/,
 
 * Files                                                            :noexport:
 
-#+name: git-sha
+#+name: ferret-version
 #+begin_src sh :exports results noweb: yes
-  echo "`git rev-parse --short HEAD`"
+  echo "`git describe --abbrev=0 --tags`-`git rev-parse --short HEAD`"
 #+end_src 
 
 ** project.clj
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/project.clj
-  (defproject ferret "0.3.0-<<git-sha()>>"
+  (defproject ferret "<<ferret-version()>>"
     :description "Ferret is a lisp implementation designed to be used in real time embedded control systems."
     :url "https://ferret-lang.org/"
     :license {:name "BSD 2-Clause"
@@ -8937,8 +8944,7 @@ Create some dummy libs under /test/modules/,
 
     :test-paths ["test/compiler/"]
     :filespecs [{:type :bytes :path "build.info"
-                 :bytes ~(:out (clojure.java.shell/sh
-                                "git" "rev-parse" "--short" "HEAD"))}]
+                 :bytes ~(.getBytes "<<ferret-version()>>")}]
     
     :main ferret.core
     :aot [ferret.core]

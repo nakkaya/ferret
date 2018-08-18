@@ -765,7 +765,7 @@ So following form,
 after transformation becomes,
 
 #+begin_src clojure :tangle no
-  ((fn [a__1331] ((fn [b__1332] (+ a__1331 b__1332)) 2)) 1)
+  ((fn* [a__1548] ((fn* [b__1549] (+ a__1548 b__1549)) 2)) 1)
 #+end_src
 
 #+name: core-compiler-transformations

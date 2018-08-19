@@ -2775,15 +2775,15 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 #+begin_src clojure :tangle no
   (defobject d-list "ferret/obj/d_list_o.h")
 
-  (defn new-d-list-aux []
-    "__result = obj<d_list>();")
+  (defn new-d-list-aux [keys vals]
+    "__result = obj<d_list>(keys, vals);")
 
   (defmacro new-d-list [& args]
-    `(-> (new-d-list-aux)
-         ~@(map (fn [v]
-                  (let [[k v] v]
-                    (list 'assoc k v)))
-                (partition 2 args))))
+    (let [kvs (partition 2 args)
+          keys (map first kvs)
+          vals (map second kvs)]
+      `(new-d-list-aux
+        (list ~@keys) (list ~@vals))))
 
   (defn assoc [m k v]
     "__result = m.cast<map_t>()->assoc(k,v);")
@@ -6656,7 +6656,7 @@ DSL,
         (println "On"))))
 #+end_src
 
-Each transition takes a list of /fn/ /state/ pairs first function that
+Each transition takes a list of =fn=, =state= pairs first function that
 returns true, returns the next state.
 
 #+name: runtime-clojure-core
@@ -8272,8 +8272,8 @@ Static code analysis (cppcheck) options,
           mr {:a 1 :b 2}
           mn {1 2 3 4}]
 
-      (is (= (list 1 0)                    (keys m)))
-      (is (= (list (list 1 2) (list 0 1))  (vals m)))
+      (is (= (list 0 1)                    (keys m)))
+      (is (= (list (list 0 1) (list 1 2))  (vals m)))
       (is (= (list 1 2)                    (m 1)))
       (is (= m                             m))
       (is (= (list 0)                      (keys (dissoc m 1))))

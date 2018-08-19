@@ -695,7 +695,7 @@ key/value pairs enclosed in braces: ={:a 1 :b 2}=.
          (fn [f] (cons 'deref (rest f))))
         (parser/transform
          map?
-         (fn [x] (cons 'new-d-list (-> x seq flatten))))))
+         (fn [x] (cons 'fir-new-map (-> x seq flatten))))))
 #+end_src
 
 Prepare form =f= for macro expansion,
@@ -1251,7 +1251,7 @@ already defined variable names.
   (let [valid-symbol?  (fn [s] (and (symbol? s)
                                    (not= s '&)
                                    (not= s '_)
-                                   (not= s 'new-d-list)))]
+                                   (not= s 'fir-new-map)))]
     (defn fn-make-unique [args body]
       (if (string?  (->> body
                          (filter #(not (form? 'native-declare %)))
@@ -1267,7 +1267,7 @@ already defined variable names.
                                         unique-args)
                             (apply hash-map))
               body      (transform body #(replace? %) #(replace? %))
-              replace?  (merge replace? {'new-d-list 'fir-destructure-associative})
+              replace?  (merge replace? {'fir-new-map 'fir-destructure-associative})
               args      (transform args #(replace? %) #(replace? %))]
           [args body]))))
 
@@ -1330,6 +1330,7 @@ namespace.)
                          (parser/form? 'native_define f)   'native_define
                          (parser/form? 'if f)              'if
                          (parser/form? 'def f)             'def
+                         (parser/form? 'fir_new_map f)     'fir_new_map
                          (symbol? f)                :symbol
                          (keyword? f)               :keyword
                          (number? f)                :number
@@ -1420,6 +1421,18 @@ C++ skeleton.
   (defmethod emit :char [_ form state] (str "obj<number>((number_t)" (int form) ")"))
 
   (defmethod emit :number [_ form state] (str "obj<number>((real_t)" (double form) ")"))
+
+  (defmethod emit 'fir_new_map [options [_ & kvs] state]
+    (let [kvs (partition 2 kvs)
+          keys (->> (map first kvs)
+                    (map #(emit options % state))
+                    (interpose \,))
+          vals (->> (map second kvs)
+                    (map #(emit options % state))
+                    (interpose \,))]
+      (str "obj<map_t>("
+           "runtime::list(" (apply str keys) "),"
+           "runtime::list(" (apply str vals) "))")))
 #+end_src
 
 *** Special Forms
@@ -2902,6 +2915,12 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       return obj<d_list>(runtime::cons(runtime::rest(keys),runtime::rest(values)));
     }
   };
+
+  template<>
+  inline var obj<d_list>(var keys, var vals) {
+    void * storage = FERRET_ALLOCATOR::allocate<d_list>();
+    return var(new(storage) d_list(runtime::cons(keys,vals)));
+  }
 
   #if !defined(FERRET_MAP_TYPE)
     typedef d_list map_t;
@@ -8259,8 +8278,8 @@ Static code analysis (cppcheck) options,
       (is (= m                             m))
       (is (= (list 0)                      (keys (dissoc m 1))))
       (is (= mr                            mr))
-      (is (= (list :b :a)                  (keys mr)))
-      (is (= (list 2  1)                   (vals mr)))
+      (is (= (list :a :b)                  (keys mr)))
+      (is (= (list 1  2)                   (vals mr)))
       (is (= 1                             (:a mr)))
       (is (= 1                             (get mr :a 10)))
       (is (= 10                            (get mr :c 10)))

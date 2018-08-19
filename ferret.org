@@ -962,56 +962,38 @@ called a new function object is created used and released. If
 performance is more important than memory usage this optimization can
 be disabled using compiler option =--global-functions=.
 
-This pass removes all globals variables unless the =fn= defined is a
-closure. In which case it is left as a global variable and the class
-implementation is prepended with the global name for readability.
-
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
-  (defn select-def-fn [form]
-    (->> (parser/peek form (parser/form? 'def))
-         (filter (fn [[_ name val]]
-                   (and (seq? val)
-                        (= 'fir-fn-heap (first val)))))))
-
-  (defn inline-global-fns-pure [form fn-defs fn-table]
-    (let [pure-fn-table  (apply hash-map (flatten fn-table))
-          def-fn? (fn [f]
-                    (and (parser/form? 'def f)
-                         (pure-fn-table (second f))
-                         (parser/form? 'fir-fn-heap (->> f (drop 2) first))))
-          invoke  #(if-let [imp (pure-fn-table %)]
-                     (list 'fir-fn-heap imp)
-                     %)
-          
-          no-def-fn    (reduce (fn[h v] (parser/drop h def-fn?)) form fn-defs)
-          inline-fns   (reduce (fn[h [name gensym]]
-                                 (parser/transform h
-                                                   #(or (parser/form? name %)
-                                                        (parser/form? 'def %))
-                                                   (fn [f] (map invoke f))))
-                               no-def-fn fn-table)]
-      (reduce (fn[h [name gensym]]
-                (parser/transform h #(and (symbol? %)
-                                          (= % gensym))
-                                  (fn [_] (identity name))))
-              inline-fns fn-table)))
+  (defn inline-defn? [f]
+    (and (parser/form? 'def f)
+         (parser/form? 'fir-fn-heap
+                       (->> f (drop 2) first))))
 
   (defn fn->inline [options form]
     (if (:global-functions options)
       form
-      (let [pure-fn-defs (->> (select-def-fn form)
-                              (filter #(= 2 (-> % last count))))
-            pure-fn-table (map (fn [[_ name [_ gensym]]] [name gensym]) pure-fn-defs)
-            form (inline-global-fns-pure form pure-fn-defs pure-fn-table)
-            closure-fn-defs (->> (select-def-fn form)
-                                 (filter #(not= 2 (-> % last count))))
-            closure-fn-table (map (fn [[_ name [_ gensym]]] [name gensym]) closure-fn-defs)]
+      (let [defns      (->> (parser/peek form inline-defn?)
+                            (filter #(= 2 (-> % last count))))
+            fn-table   (map (fn [[_ name [_ gensym]]] [name gensym]) defns)
+            impl-table (apply hash-map (flatten fn-table))
+            defn?      (fn [f]
+                         (and (inline-defn? f)
+                              (impl-table (second f))))
+            invoke     #(if-let [imp (impl-table %)]
+                          (list 'fir-fn-heap imp)
+                          %)
+            no-defn    (reduce (fn[h v] (parser/drop h defn?)) form defns)
+            inlined    (reduce (fn[h [name gensym]]
+                                 (parser/transform h
+                                                   #(or (parser/form? name %)
+                                                        (parser/form? 'def %))
+                                                   (fn [f] (map invoke f))))
+                               no-defn fn-table)]
         (reduce (fn[h [name gensym]]
                   (parser/transform h #(and (symbol? %)
                                             (= % gensym))
-                                    (fn [_] (parser/new-symbol name "_" gensym))))
-                form closure-fn-table))))
+                                    (fn [_] (identity name))))
+                inlined fn-table))))
 #+end_src
 
 **** Tree Shaking
@@ -1181,6 +1163,11 @@ are selected using =form?= function.
     ([s f]
      (and (seq? f)
           (= (first f) s))))
+#+end_src
+
+#+name: core-compiler-parser
+#+begin_src clojure :tangle no
+
 #+end_src
 
 During each pass we iterate over the nodes in the form using one of

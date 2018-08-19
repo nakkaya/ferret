@@ -1248,7 +1248,10 @@ already defined variable names.
     (let [parts (map #(.replace (str %) "." "_") parts)]
       (symbol (apply str parts))))
 
-  (let [valid-symbol?  (fn [s] (and (symbol? s) (not= s '&) (not= s '_)))]
+  (let [valid-symbol?  (fn [s] (and (symbol? s)
+                                   (not= s '&)
+                                   (not= s '_)
+                                   (not= s 'new-d-list)))]
     (defn fn-make-unique [args body]
       (if (string?  (->> body
                          (filter #(not (form? 'native-declare %)))
@@ -1264,6 +1267,7 @@ already defined variable names.
                                         unique-args)
                             (apply hash-map))
               body      (transform body #(replace? %) #(replace? %))
+              replace?  (merge replace? {'new-d-list 'fir-destructure-associative})
               args      (transform args #(replace? %) #(replace? %))]
           [args body]))))
 

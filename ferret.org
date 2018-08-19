@@ -903,6 +903,16 @@ the free variable problem.
         (let [name (if (symbol? (second sig)) (second sig) nil)
               sig  (if name (drop 2 sig) (rest sig))
               [args & body] sig
+              ;; transform named recursion in body
+              body (if name
+                     (parser/transform
+                      body
+                      (parser/form? name)
+                      (fn [[_ & args]]
+                        (cons
+                         (apply list 'fir-fn-heap name env)
+                         args)))
+                     body)
               body (fn->lift body fns (concat args env))
               env  (->> body
                         flatten
@@ -1260,13 +1270,16 @@ already defined variable names.
   (defn new-fir-fn
     ([& {:keys [name args body escape] :or {escape  true
                                             args    []}}]
-     (let [name        (if name
+     (let [name-unique (if name
                          (new-symbol name (gensym "__")))
            [args body] (if escape
                          (fn-make-unique args body)
-                         [args body])]
-       (if name
-         `(fn* ~name ~args ~@body)
+                         [args body])
+           body        (if name-unique
+                         (transform body #(= % name) (fn [_] name-unique))
+                         body)]
+       (if name-unique
+         `(fn* ~name-unique ~args ~@body)
          `(fn* ~args ~@body)))))
 #+end_src
 
@@ -7756,6 +7769,12 @@ Static code analysis (cppcheck) options,
     (defn let-over-lambda [] x))
 
   (is (= 42 (let-over-lambda)))
+
+  (is (= (list 5 6 7 8 9)
+         ((fn recursive-range [x y]
+            (if (< x y)
+              (cons x (recursive-range (inc x) y))))
+          5 10)))
 #+end_src
 
 *** Destructuring
@@ -8697,7 +8716,6 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Compiler
 
-  - *fn* - Named anonymous functions.
   - *Maps* - Implement destructuring.
   - *Escape Analysis* - Escape known language structures. Certain
     forms generate functions that never escape. These can be generated on
@@ -8821,6 +8839,7 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *fn* - Named anonymous functions.
   - *Metadata* - Nodes in program tree should retain metadata during
     transformations.
   - *defn-* - Private Functions.

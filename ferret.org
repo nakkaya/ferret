@@ -675,7 +675,7 @@ modules and concatenate the required runtime from [[Core]].
          ;; tag form with the build info
          (cons `(~'native-define ~(try
                                     (let [version (io/read-file-from-url "build.info")]
-                                      (str "// ferret-lisp" version))
+                                      (str "// ferret-lisp " version))
                                     (catch Exception e
                                       (str "// ferret-lisp")))))))
 #+end_src

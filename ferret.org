@@ -1513,7 +1513,7 @@ is supported.
 
   (defn destructure-get [name parent key]
     (str "const var " name " = "
-         parent ".cast<d_list>()->val_at(" (emit nil key nil) ");"))
+         parent ".cast<d_list>()->val_at(runtime::list(" (emit nil key nil) "));"))
 
   (defn new-fn-arg [name parent pos]
     (str "const var " name " = " (destructure-nth parent pos)))
@@ -1529,9 +1529,16 @@ is supported.
   (defn destructure-sequential [args parent]
     (reduce
      (fn [h [pos name]]
-       (let [name (cond (symbol? name) (new-fn-arg name parent pos)
-                        (map?    name) (destructure-associative name parent pos)
-                        (coll?   name) (destructure-arguments name (destructure-nth parent pos)))]
+       (let [name (cond
+                    (symbol? name)
+                    (new-fn-arg name parent pos)
+                    
+                    (parser/form? 'fir_destructure_associative name)
+                    (let [[_ & args ] name]
+                      (destructure-associative (apply hash-map args) parent pos))
+                    
+                    (coll?   name)
+                    (destructure-arguments name (destructure-nth parent pos)))]
          (conj h name))) [] args))
 
   (defn destructure-var-args [name parent pos]
@@ -7808,11 +7815,15 @@ Static code analysis (cppcheck) options,
   (defn destructure-test-7 [a b & [c d]]
     (list c d))
 
+  (defn destructure-test-8 [{a :a} b {c :c}]
+    (list a b c))
+
   (deftest destructuring-test
     (is (= 3                   (count (destructure-test-1 (list 1 2 3)))))
     (is (= 2                   (destructure-test-2 (list 1 (list 2) 3))))
     (is (= 3                   (destructure-test-3 (list 1 (list 2 3) 3))))
     (is (= (list (list 1 2 3)) (destructure-test-4 (list 1 2 3))))
+    (is (= (list 1 2 3)        (destructure-test-8 {:a 1} 2 {:c 3})))
 
     (let [a (list 1 2 3 4)
           [b c & r] a]
@@ -8720,7 +8731,6 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Compiler
 
-  - *Maps* - Implement destructuring.
   - *Escape Analysis* - Escape known language structures. Certain
     forms generate functions that never escape. These can be generated on
     the stack.
@@ -8843,6 +8853,7 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Maps* - Implement destructuring.
   - *fn* - Named anonymous functions.
   - *Metadata* - Nodes in program tree should retain metadata during
     transformations.

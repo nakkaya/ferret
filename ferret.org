@@ -1513,7 +1513,7 @@ is supported.
 
   (defn destructure-get [name parent key]
     (str "const var " name " = "
-         parent ".cast<d_list>()->val_at(runtime::list(" (emit nil key nil) "));"))
+         parent ".cast<map_t>()->val_at(runtime::list(" (emit nil key nil) "));"))
 
   (defn new-fn-arg [name parent pos]
     (str "const var " name " = " (destructure-nth parent pos)))
@@ -2773,19 +2773,19 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
                 (partition 2 args))))
 
   (defn assoc [m k v]
-    "__result = m.cast<d_list>()->assoc(k,v);")
+    "__result = m.cast<map_t>()->assoc(k,v);")
 
   (defn dissoc [m k]
-    "__result = m.cast<d_list>()->dissoc(k);")
+    "__result = m.cast<map_t>()->dissoc(k);")
 
   (defn get [m & args]
-    "__result = m.cast<d_list>()->val_at(args);")
+    "__result = m.cast<map_t>()->val_at(args);")
 
   (defn vals [m]
-    "__result = m.cast<d_list>()->vals();")
+    "__result = m.cast<map_t>()->vals();")
 
   (defn keys [m]
-    "__result = m.cast<d_list>()->keys();")
+    "__result = m.cast<map_t>()->keys();")
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/d_list_o.h
@@ -2902,6 +2902,11 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       return obj<d_list>(runtime::cons(runtime::rest(keys),runtime::rest(values)));
     }
   };
+
+  #if !defined(FERRET_MAP_TYPE)
+    typedef d_list map_t;
+  #endif
+
 #+end_src
 
 **** Keyword
@@ -2956,7 +2961,7 @@ the keyword as =number_t=.
       var map_args = runtime::cons(var((object*)this), runtime::rest(args));
 
       if (map.is_type(runtime::type::d_list)){
-        return map.cast<d_list>()->val_at(map_args);
+        return map.cast<map_t>()->val_at(map_args);
       }
 
       return nil();

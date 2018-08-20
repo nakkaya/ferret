@@ -8810,6 +8810,7 @@ Create some dummy libs under /test/modules/,
       - https://github.com/mtrebi/memory-allocators
       - [[https://www.gamedev.net/articles/programming/general-and-gameplay-programming/c-custom-memory-allocation-r3010/][C++: Custom memory allocation]]
       - [[http://brnz.org/hbr/?p=1735][A little bit of floating point in a memory allocator — Part 1: Background]]
+      - https://www.sqlite.org/malloc.html
     - Ability to run functions on different Memory Pools.
       - Improved data locality and safety.
       - Optionally disable reference counting to improve performance since
@@ -8842,6 +8843,9 @@ Create some dummy libs under /test/modules/,
     - https://github.com/mikaelpatel/Arduino-Scheduler/tree/d09521f7dc1447ddaea09e32413cf6e96e9e6816
     - http://dotat.at/cgi/git/picoro.git/tree
   - *Unbounded Precision Integers*
+    - [[https://rushter.com/blog/python-integer-implementation/][Python internals: Arbitrary-precision integer implementation]]
+    - https://github.com/kokke/tiny-bignum-c
+    - https://gist.github.com/nvurgaft/0344b2aa4704219d07005e4d8b1d88a2
     - [[http://www.more-magic.net/posts/numeric-tower-part-2.html][CHICKEN's numeric tower: part 2]]
     - [[https://web.archive.org/web/20101208222557/http://www.mactech.com/articles/mactech/Vol.08/08.03/BigNums/index.html][Arbitrarily Large Bignums]]
     - From p.11: PICOBIT: A Compact Scheme System for Microcontrollers

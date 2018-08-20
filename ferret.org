@@ -9366,7 +9366,7 @@ Create some dummy libs under /test/modules/,
 
   # Setup Tangle Requirements
 
-  RUN apt-get install wget make git emacs24-nox openjdk-7-jre-headless -y
+  RUN apt-get install wget make git emacs24-nox openjdk-8-jre-headless -y
 
   RUN wget https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein
   RUN chmod +x lein

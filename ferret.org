@@ -8768,62 +8768,68 @@ Create some dummy libs under /test/modules/,
 * Roadmap
 ** Compiler
 
-  - *Escape Analysis* - Escape known language structures. Certain
-    forms generate functions that never escape. These can be generated on
-    the stack.
-  - *Escape Analysis* for other types. Currently escape analysis is
-    only used for functions.    
-    - [[https://news.ycombinator.com/item?id=12158191][Static Analysis]]
-  - *Improved Hardware Support* - Support for 3rd party machine
-    architectures.
-  - *Pre/Post conditions* for functions.
-    - By default print error and abort. 
-    - Let user define a callback function.
+  - *fn*
+    - Pre/Post conditions for functions.
+      - By default print error and abort. 
+      - Let user define a callback function.
+    - Documentation String
+  - *Escape Analysis* 
+    - Tag if an object escapes via metadata
+    - Emit stack object types for escaped variables.
+    - Certain forms generate functions that never escape. These can be
+      generated on the stack.
+    - Extend escape analysis for other types. Currently escape
+      analysis is only used for functions.    
+    - Since Ferret does whole-program compilation. Implement
+      optimizations from Stalin Scheme compiler.
+      - https://github.com/barak/stalin
+      - https://news.ycombinator.com/item?id=8214343
+      - https://justindomke.wordpress.com/2009/02/23/the-stalin-compiler/
   - *Multimethods*
+  - *Hardware Support* 
+     - Support for 3rd party machine architectures.
+     - =defnative= calls in =ferret.core= are arch dependent.
+
+** Data Structures
+
+  - *atomic* 
+    - Implement add-watch
+      - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/ARef.java
+      - https://clojuredocs.org/clojure.core/add-watch
+      - https://stackoverflow.com/questions/13371123/how-do-refs-notify-its-watches-in-clojure
+      - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/Atom.java
+    - Current implementation uses =std::mutex= for
+      synchronization. Clojure uses =AtomicReference=, =std::atomic= 
+      provides same behaviour.
+      - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/Atom.java
+      - http://www.cplusplus.com/reference/atomic/
+  - *Memory Pool* 
+    - Allow chainable allocators. i.e Use system
+      allocator until OOM then switch to pool allocator or vice versa.
+      - [[https://github.com/FelixPetriconi/AllocatorBuilder][Allocator Builder]]
+      - https://github.com/mtrebi/memory-allocators
+      - [[https://www.gamedev.net/articles/programming/general-and-gameplay-programming/c-custom-memory-allocation-r3010/][C++: Custom memory allocation]]
+      - [[http://brnz.org/hbr/?p=1735][A little bit of floating point in a memory allocator — Part 1: Background]]
+    - Ability to run functions on different Memory Pools.
+      - Improved data locality and safety.
+      - Optionally disable reference counting to improve performance since
+        whole pool can be garbage collected when done.
+      - Stalin also does very good lifetime analysis to reduce the
+        amount of garbage needing collection. i.e. it will compute good
+        places in the stack to create a heap, then objects that are
+        determined to be born and die within that sub-stack are
+        allocated from that heap. When the stack unwinds past that
+        point, the entire local heap can be released in one fell swoop.
+  - C++ implementations of Clojure's persistent data structures. 
+    - https://github.com/mninja/persistent-data-structures
+    - [[https://news.ycombinator.com/item?id=13049843][Immer: immutable and persistent data structures for C++]]
+    - [[https://www.reddit.com/r/cpp/comments/8utg8u/postmodern_immutable_vector_now_boost_licensed/][Postmodern Immutable Vector]]
   - *Finger Trees* - As basis for other functional data structures
     i.e. Set, Vector
     - http://www.staff.city.ac.uk/~ross/papers/FingerTree.html
     - https://github.com/clojure/data.finger-tree/tree/4262f5899a6932b5ab48705c523a15328f902ff6
     - https://www.youtube.com/watch?v=UXdr_K0Lwg4
-  - Since Ferret does whole-program compilation. Implement
-    optimizations from Stalin Scheme compiler.
-    - https://github.com/barak/stalin
-    - https://news.ycombinator.com/item?id=8214343
-    - https://justindomke.wordpress.com/2009/02/23/the-stalin-compiler/
-
-** Data Structures
-
-  - *atomic* - Implement add-watch
-    - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/ARef.java
-    - https://clojuredocs.org/clojure.core/add-watch
-    - https://stackoverflow.com/questions/13371123/how-do-refs-notify-its-watches-in-clojure
-    - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/Atom.java
-  - *Memory Pool* - Allow chainable allocators. i.e Use system
-    allocator until OOM then switch to pool allocator or vice versa.
-    - [[https://github.com/FelixPetriconi/AllocatorBuilder][Allocator Builder]]
-    - https://github.com/mtrebi/memory-allocators
-    - [[https://www.gamedev.net/articles/programming/general-and-gameplay-programming/c-custom-memory-allocation-r3010/][C++: Custom memory allocation]]
-    - [[http://brnz.org/hbr/?p=1735][A little bit of floating point in a memory allocator — Part 1: Background]]
-  - *Memory Pool* - Ability to run functions on different Memory Pools.
-    - Improved data locality and safety.
-    - Optionally disable reference counting to improve performance since
-      whole pool can be garbage collected when done.
-    - Stalin also does very good lifetime analysis to reduce the
-      amount of garbage needing collection. i.e. it will compute good
-      places in the stack to create a heap, then objects that are
-      determined to be born and die within that sub-stack are
-      allocated from that heap. When the stack unwinds past that
-      point, the entire local heap can be released in one fell swoop.
-  - *atomic* - Current implementation uses =std::mutex= for
-    synchronization. Clojure uses =AtomicReference=, =std::atomic=
-    provides same behaviour.
-    - https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/Atom.java
-    - http://www.cplusplus.com/reference/atomic/
-  - C++ implementations of Clojure's persistent data structures. 
-    - https://github.com/mninja/persistent-data-structures
-    - [[https://news.ycombinator.com/item?id=13049843][Immer: immutable and persistent data structures for C++]]
-    - [[https://www.reddit.com/r/cpp/comments/8utg8u/postmodern_immutable_vector_now_boost_licensed/][Postmodern Immutable Vector]]
-  - *Implement Channel*
+  - *Channels*
     - https://www.reddit.com/r/cpp/comments/6p3zch/diy_channels/
   - *Co-Operative Multitasking* - For Embedded Systems.
     - http://soda.swedish-ict.se/2372/1/SICS-T--2005-05--SE.pdf
@@ -8858,6 +8864,7 @@ Create some dummy libs under /test/modules/,
        bits, and encoded directly in the object.
 
 ** Libraries
+
   - [[https://github.com/nakkaya/ferret-teensy-flight-sim][ferret-teensy-flight-sim]] - Use `obj::value`.
   - [[https://github.com/whoshuu/cpr][cpr]] - C++ Requests: Curl for People
   - [[https://github.com/cesanta/mongoose/blob/master/examples/mqtt_client/mqtt_client.c][mongoose mqtt]] - Mongoose MQTT Client/Server

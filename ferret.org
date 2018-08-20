@@ -529,9 +529,9 @@ maintain.
          (symbol-conversion)))
 #+end_src
 
-*** Runtime
+*** Modules
 
-Import all modules in the given form. Supported =require= forms,
+Supported =require= forms for importing modules,
 
 #+BEGIN_SRC clojure :tangle no
   (require 'package.io)
@@ -550,6 +550,39 @@ outside the namespace can be defined using the following form,
 
   (defn ^{:private true} helper-fn [] 42)
 #+END_SRC
+
+If a file named =deps.clj= is found on the same path as the input
+file. Modules listed in it can be downloaded using =--deps= CLI
+argument.
+
+#+BEGIN_SRC clojure :tangle no
+  ;;deps.clj
+  (git :url    "https://github.com/nakkaya/ferret-opencv.git")
+
+  (git :url    "https://github.com/nakkaya/ferret-mosquitto.git"
+       :commit "8c8c0890194a0b98130a3d4d78b71c99b833b12a")
+#+END_SRC
+
+#+name: core-compiler-checkout-deps
+#+begin_src clojure :tangle no
+  (defn checkout-deps [path]
+    (when (io/file-exists (str path "/deps.clj"))
+      (let [deps (-> (read-clojure-file "deps.clj")
+                     (parser/peek (parser/form? 'git)))
+            deps (map (fn [[_ & kvs]] (apply hash-map kvs)) deps)]
+        (doseq [{url :url commit :commit} deps]
+          (let [folder (str path (jgit-util/name-from-uri url))]
+            (info "dep =>" url)
+            (when (io/file-exists folder)
+              (org.apache.commons.io.FileUtils/deleteDirectory
+               (java.io.File. folder)))
+            (let [repo (jgit/git-clone-full
+                        url (org.apache.commons.io.FilenameUtils/normalize folder))]
+              (jgit/git-checkout (:repo repo)
+                                 (if commit
+                                   commit
+                                   "master"))))))))
+#+end_src
 
 Compiler will look for a file under current working directory called,
 =package/io.clj= all expression in the that file will be added to the
@@ -1975,6 +2008,7 @@ is supported.
         ["-o" "--output FILE"        "Output C++ File"]
         ["-b" "--binary FILE"        "Output Binary File"]
         ["-c" "--compile"            "Compile to Binary"]
+        [nil  "--deps"               "Checkout Input Dependencies"]
         ["-w" "--watch-input"        "Automatically Recompile Input File on Change"]
         [nil  "--release"            "Compile in Release Mode. Strip Debug Information"]
         [nil  "--disable-formatting" "Disables Output File Formatting Using clang-format"]
@@ -1990,7 +2024,7 @@ is supported.
      (defn -main [& args]
        (try
          (let [args (parse-opts args program-options)
-               {:keys [help input watch-input]} (:options args)]
+               {:keys [help input deps watch-input]} (:options args)]
 
            (when help
              (try
@@ -2008,6 +2042,14 @@ is supported.
              (io/exit-failure))
 
            (let [specs (build-specs input args)]
+
+             (when deps
+               (try
+                 (checkout-deps (:path (specs)))
+                 (catch Exception e
+                   (io/exit-failure)))
+               (io/exit-success))
+             
              (if (not watch-input)
                (build-solution specs)
                (do (watcher/watcher [input]
@@ -2020,35 +2062,6 @@ is supported.
          (catch Exception e
            (stacktrace/print-stack-trace e 10))))
    #+end_src
-
-*** Logging
-
-  #+name: core-compiler-logging
-  #+begin_src clojure
-    (.reset (java.util.logging.LogManager/getLogManager))
-
-    (def log-formatter (proxy [java.util.logging.Formatter] []
-                         (format
-                           [^java.util.logging.LogRecord record]
-                           (let [level (-> record .getLevel .toString clojure.string/lower-case)
-                                 level (if (or (= :unix (io/os-name))
-                                               (= :mac (io/os-name))
-                                               (= :solaris (io/os-name)))
-                                         (if (= level "warning")
-                                           (color/red level)
-                                           (color/green level))
-                                         level)
-                                 now (.getTime (java.util.Calendar/getInstance))
-                                 frmtr (java.text.SimpleDateFormat. "HH:mm:ss")]
-                             (str (.format frmtr now) " " level " " (.getMessage record) "\n")))))
-
-    (def log-handler (doto (java.util.logging.ConsoleHandler.)
-                       (.setFormatter log-formatter)))
-
-    (def logger (doto (java.util.logging.Logger/getLogger "")
-                  (.addHandler log-handler)
-                  (.setLevel   java.util.logging.Level/INFO)))
-  #+end_src
 
 ** I/O
 
@@ -8761,12 +8774,6 @@ Create some dummy libs under /test/modules/,
   - *Escape Analysis* for other types. Currently escape analysis is
     only used for functions.    
     - [[https://news.ycombinator.com/item?id=12158191][Static Analysis]]
-  - *defproject* - Combine *configure-* macros under one macro.
-  - *Improved Library Support*
-    - Something along the lines of [[https://clojure.org/news/2018/01/05/git-deps][Git Deps for Clojure]].
-    - automatically pull other ferret projects
-    - https://www.reddit.com/r/cpp/comments/3d1vjq/is_there_a_c_package_manager_if_not_how_do_you/ct2s6oy/
-    - https://stackoverflow.com/questions/38657064/package-management-for-c
   - *Improved Hardware Support* - Support for 3rd party machine
     architectures.
   - *Pre/Post conditions* for functions.
@@ -8877,6 +8884,11 @@ Create some dummy libs under /test/modules/,
 ** The Rearview
 *** Core
 
+  - *Improved Library Support*
+    - Something along the lines of [[https://clojure.org/news/2018/01/05/git-deps][Git Deps for Clojure]].
+    - automatically pull other ferret projects
+    - https://www.reddit.com/r/cpp/comments/3d1vjq/is_there_a_c_package_manager_if_not_how_do_you/ct2s6oy/
+    - https://stackoverflow.com/questions/38657064/package-management-for-c
   - *Maps* - Implement destructuring.
   - *fn* - Named anonymous functions.
   - *Metadata* - Nodes in program tree should retain metadata during
@@ -8971,13 +8983,14 @@ Create some dummy libs under /test/modules/,
     :dependencies [[org.clojure/clojure "1.9.0"]
                    [org.clojure/tools.cli "0.3.7"]
                    [org.clojure/tools.logging "0.4.1"]
+                   [org.slf4j/slf4j-simple "1.7.25"]
                    [fast-zip "0.7.0"]
+                   [clj-jgit "0.8.10"]
                    [org.bituf/clj-stringtemplate "0.2"]
                    [org.clojars.amit/commons-io "1.4.0"]
                    [commons-lang "2.5"]
                    [org.flatland/ordered "1.5.6"]
-                   [watchtower "0.1.1"]
-                   [clojure-term-colors "0.1.0"]]
+                   [watchtower "0.1.1"]]
 
     :deploy-repositories [["releases"  {:sign-releases false :url "https://clojars.org/repo"
                                         :username :env
@@ -9013,21 +9026,27 @@ Create some dummy libs under /test/modules/,
               [clojure.walk :as walk]
               [clojure.stacktrace :as stacktrace]
               [clojure.pprint :as pprint]
+              [clj-jgit.util :as jgit-util]
+              [clj-jgit.porcelain :as jgit]
               [clojure.tools.cli :refer [parse-opts]]
-              [watchtower.core :as watcher]
-              [clojure.term.colors :as color])
+              [watchtower.core :as watcher])
     (:use [ferret [template :only [render-template]]]
           [clojure.java.shell]
           [clojure.tools [logging :only [warn info]]]))
 
+  (System/setProperty "org.slf4j.simpleLogger.showLogName" "false")
+  (System/setProperty "org.slf4j.simpleLogger.showDateTime" "true")
+  (System/setProperty "org.slf4j.simpleLogger.dateTimeFormat" "HH:mm:ss")
+  (System/setProperty "org.slf4j.simpleLogger.showThreadName" "false")
+
   <<core-compiler-helpers>>
   <<core-file-io>>
-  <<core-compiler-logging>>
   <<core-compiler-macro-expansion>>
   <<core-compiler-tree-shaking>>
   <<core-compiler-escape-analysis>>
   <<core-compiler-transformations>>
   <<core-compiler-emitter>>
+  <<core-compiler-checkout-deps>>
   <<core-compiler-main>>
 #+end_src 
 

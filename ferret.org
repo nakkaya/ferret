@@ -1364,14 +1364,16 @@ namespace.)
                          (parser/form? 'if f)              'if
                          (parser/form? 'def f)             'def
                          (parser/form? 'fir_new_map f)     'fir_new_map
-                         (symbol? f)                :symbol
-                         (keyword? f)               :keyword
-                         (number? f)                :number
-                         (nil? f)                   :nil
-                         (char? f)                  :char
-                         (string? f)                :string
-                         (or (true? f) (false? f))  :boolean
-                         (seq? f)                   :invoke-fn)))
+                         (symbol? f)                 :symbol
+                         (keyword? f)                :keyword
+                         (number? f)                 :number
+                         (nil? f)                    :nil
+                         (char? f)                   :char
+                         (string? f)                 :string
+                         (instance?
+                          java.util.regex.Pattern f) :regex-pattern
+                         (or (true? f) (false? f))   :boolean
+                         (seq? f)                    :invoke-fn)))
 
   (defmethod emit nil [_ form _]
     (warn "unsopported form =>" form)
@@ -1466,6 +1468,12 @@ C++ skeleton.
       (str "obj<map_t>("
            "runtime::list(" (apply str keys) "),"
            "runtime::list(" (apply str vals) "))")))
+
+  (defmethod emit :regex-pattern [options regex state]
+    (emit options
+          (org.apache.commons.lang.StringEscapeUtils/unescapeJava
+           (str regex))
+          state))
 #+end_src
 
 *** Special Forms

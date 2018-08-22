@@ -1059,9 +1059,7 @@ defined, in the case of =println= it will pull =apply=, =print= and
                         (or (parser/form? 'defn f)
                             (parser/form? 'defnative f)))
            header-symbols (->> (parser/peek header seq?)
-                               flatten
-                               (filter symbol?)
-                               (into #{}))
+                               (parser/symbol-set))
            header-fns (->> (parser/peek header shakeable?)
                            (map #(vector (second %) %))
                            (into {}))
@@ -1208,9 +1206,44 @@ are selected using =form?= function.
           (= (first f) s))))
 #+end_src
 
+Returns the set of symbols used in the form.
+
 #+name: core-compiler-parser
 #+begin_src clojure :tangle no
+  (defn symbol-set [form]
+    (->> form flatten (filter symbol?) (into #{})))
+#+end_src
 
+Splits a function form into compnents.
+
+#+name: core-compiler-parser
+#+begin_src clojure :tangle no
+  (defn split-fn [sig]
+    (let [name (if (symbol? (second sig)) (second sig) nil)
+          sig  (if name (clojure.core/drop 2 sig) (rest sig))
+          [args & body] sig]
+      [name args body]))
+#+end_src
+
+Predicate for checking if function body is a FFI call or not.
+
+#+name: core-compiler-parser
+#+begin_src clojure :tangle no
+  (defn ffi-fn? [body]
+    (->> (map string? body)
+         (every? true?)))
+#+end_src
+
+Predicate for checking if a symbol in =fn= arguments is a valid symbol
+or not.
+
+#+name: core-compiler-parser
+#+begin_src clojure :tangle no
+  (defn fn-arg-symbol? [s]
+    (and (symbol? s)
+         (not= s '&)
+         (not= s '_)
+         (not= s 'fir-new-map)))
 #+end_src
 
 During each pass we iterate over the nodes in the form using one of
@@ -1281,28 +1314,24 @@ already defined variable names.
     (let [parts (map #(.replace (str %) "." "_") parts)]
       (symbol (apply str parts))))
 
-  (let [valid-symbol?  (fn [s] (and (symbol? s)
-                                   (not= s '&)
-                                   (not= s '_)
-                                   (not= s 'fir-new-map)))]
-    (defn fn-make-unique [args body]
-      (if (string?  (->> body
-                         (filter #(not (form? 'native-declare %)))
-                         first))
-        [args body]
-        (let [unique-args (->> args
-                               flatten
-                               (filter valid-symbol?)
-                               (map #(new-symbol % (gensym "__"))))
-              replace? (->> (interleave (->> args
-                                             flatten
-                                             (filter valid-symbol?))
-                                        unique-args)
-                            (apply hash-map))
-              body      (transform body #(replace? %) #(replace? %))
-              replace?  (merge replace? {'fir-new-map 'fir-destructure-associative})
-              args      (transform args #(replace? %) #(replace? %))]
-          [args body]))))
+  (defn fn-make-unique [args body]
+    (if (string?  (->> body
+                       (filter #(not (form? 'native-declare %)))
+                       first))
+      [args body]
+      (let [unique-args (->> args
+                             flatten
+                             (filter fn-arg-symbol?)
+                             (map #(new-symbol % (gensym "__"))))
+            replace? (->> (interleave (->> args
+                                           flatten
+                                           (filter fn-arg-symbol?))
+                                      unique-args)
+                          (apply hash-map))
+            body      (transform body #(replace? %) #(replace? %))
+            replace?  (merge replace? {'fir-new-map 'fir-destructure-associative})
+            args      (transform args #(replace? %) #(replace? %))]
+        [args body])))
 
   (defn new-fir-fn
     ([& {:keys [name args body escape] :or {escape  true
@@ -1644,8 +1673,7 @@ is supported.
                       (parser/form? 'fir_defn_arity (first body))
                       (emit options (first body) state)
                       ;; ffi call
-                      (->> (map string? body)
-                           (every? true?))
+                      (parser/ffi-fn? body)
                       (let [buffer (StringBuilder.)]
                         (doseq [b body]
                           (.append buffer b))

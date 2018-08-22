@@ -933,9 +933,7 @@ the free variable problem.
       form
       (parser/form? 'fn*)
       (fn [sig]
-        (let [name (if (symbol? (second sig)) (second sig) nil)
-              sig  (if name (drop 2 sig) (rest sig))
-              [args & body] sig
+        (let [[name args body] (parser/split-fn sig)
               ;; transform named recursion in body
               body (if name
                      (parser/transform
@@ -947,13 +945,20 @@ the free variable problem.
                          args)))
                      body)
               body (fn->lift body fns (concat args env))
-              env  (->> body
-                        flatten
-                        (filter symbol?)
-                        (into #{})
-                        (set/intersection
+              symbols (parser/symbol-set body)
+              env  (->> (set/intersection
+                         symbols
                          (into #{} (flatten env)))
-                        (into ()))]
+                        (into ()))
+              args (if (parser/ffi-fn?
+                        (filter #(not (parser/form? 'native-declare %)) body))
+                     args
+                     (reduce (fn[h v]
+                               (if (or (not (parser/fn-arg-symbol? v))
+                                       (symbols v))
+                                 (conj h v)
+                                 (conj h '_)))
+                             [] args))]
           (if-let [n (fn-defined? fns env args body)]
             n
             (define-fn fns env name args body)))))))
@@ -7512,6 +7517,13 @@ Static code analysis (cppcheck) options,
           prg-c (fn->lift
                  '((fn* inner-a [a]
                         ((fn* inner-b [b]
+                              ((fn* inner-c [c] (+ b c))
+                               3))
+                         2))
+                   1))
+          prg-d (fn->lift
+                 '((fn* inner-a [a]
+                        ((fn* inner-b [b]
                               ((fn* inner-c [c] (+ b))
                                3))
                          2))
@@ -7526,9 +7538,11 @@ Static code analysis (cppcheck) options,
       (is (= 1 (->> (fn [f] (= '(fir-defn-heap inner-b () [c] c) f))
                     (parser/peek prg-b)
                     count)))
-
-      (is (= 1 (->> (fn [f] (= '(fir-defn-heap inner-c (b) [c] (+ b)) f))
+      (is (= 1 (->> (fn [f] (= '(fir-defn-heap inner-c (b) [c] (+ b c)) f))
                     (parser/peek prg-c)
+                    count)))
+      (is (= 1 (->> (fn [f] (= '(fir-defn-heap inner-c (b) [_] (+ b)) f))
+                    (parser/peek prg-d)
                     count)))))
 #+end_src
 

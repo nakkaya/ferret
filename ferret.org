@@ -5104,7 +5104,7 @@ Reads the next line from default I/O stream.
         ("memory")
         "::std::shared_ptr<FILE> pipe(popen(string::to<std::string>(cmd).c_str(), \"r\"), pclose);
          if (!pipe) 
-            __result = nil();
+           return nil();
          char buffer[128];
          ::std::string result = \"\";
          while (!feof(pipe.get()))

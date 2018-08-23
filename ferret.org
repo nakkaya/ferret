@@ -244,15 +244,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 * Overview
 
-Ferret is a functional, lazy language. It is heavily inspired by
-Clojure. Functions / Macros that are present in both Ferret and
-Clojure should mimic their Clojure counter parts. If they don't it is
-considered a bug. (or not possible to implement with the current
-implementation.)
+Ferret is a functional, lazy language designed to be used in real time
+embedded control systems. It is heavily inspired by Clojure both
+syntactically and semantically.  Functions / Macros that are present
+in both Ferret and Clojure should mimic their Clojure counter
+parts. If they don't it is considered a bug. (or not possible to
+implement with the current implementation.)
 
 This document is not intended to be a full lisp tutorial. It is a
 specification of the subset of lisp implemented by Ferret, and the
-particular workings of the [[*Runtime][Runtime]] and [[*Core][Core]] library.
+particular workings of the [[*Runtime][Runtime]] and [[*Core][Core]] library. Any getting
+started guide for Clojure should get you upto speed on Ferret.
 
 ** Documentation Structure
 

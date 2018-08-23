@@ -252,7 +252,7 @@ implementation.)
 
 This document is not intended to be a full lisp tutorial. It is a
 specification of the subset of lisp implemented by Ferret, and the
-particular workings of the [[Runtime]] and [[Core][standard library]].
+particular workings of the [[*Runtime][Runtime]] and [[*Core][Core]] library.
 
 ** Documentation Structure
 
@@ -264,16 +264,16 @@ expressed clearly but they are grounded in the actual source code.
 The compiler and the C++ runtime needed is split into three sections.
 
  - [[Compiler]]
- - [[Runtime]]
- - [[Core]]
+ - [[*Runtime][Runtime]]
+ - [[*Core][Core]]
 
-*[[Compiler]]* section contains the actual compiler written in Clojure. It
+[[Compiler]] section contains the actual compiler written in Clojure. It
 takes the Ferret code and converts it to a Intermediate
 representation by taking the Ferret form and running it [[Compilation][through some
 transformations]]. This IR is then run through [[Code Generation]] module to
-create C++ code. *[[Runtime]]* contains the C++ runtime needed to support
-Ferret such as [[Object System]], [[Memory Pool][ Memory Pooling]], [[Reference Counting][Garbage Collection]]. It
-is written in a mixture of C++ and Ferret DSL. *[[Core]]* is the standard
+create C++ code. [[*Runtime][Runtime]] contains the C++ runtime needed to support
+Ferret such as [[Object System]], [[Memory Pool][Memory Pooling]], [[Reference Counting][Garbage Collection]]. It
+is written in a mixture of C++ and Ferret DSL. [[*Core][Core]] is the standard
 library of Ferret, provides a ton of general-purpose functionality for
 writing robust, maintainable embedded applications.
 
@@ -2180,34 +2180,9 @@ Common I/O operations.
 
 * Runtime
 
-Runtime needed on the C++ side to support [[Core]]. [[Object System][Object system]],
-[[Reference Counting][garbage collection]],[[Memory Pool][memory pooling]] and host specific initialization
-code. (ie. printing on different embedded systems.)
+Runtime needed to support [[*Core][Core]]. [[Object System][Object system]], [[*Memory%20Management][Memory Management]] etc.
 
 ** Object System
-
-All Ferret objects derive from a [[Base]] class.
-
-Built in objects,
-
- - [[Pointer]]
- - [[Number]]
- - [[Keyword]] 
- - [[Sequence]]
- - [[Lazy Sequence]]
- - [[D-List]]
- - [[String]]
- - [[Boolean]]
- - [[Atom]]
- - [[Future]]
-
-Built in interfaces,
-
- - [[Lambda]] - Provides *invoke* for callable objects.
- - [[Seekable]] - Provides *first*, *rest*, *cons* for [[Seekable]]
-   containers.
- - [[Deref]]
-
 *** Base
 
 All our types are derived from the base Object type. Which is a
@@ -2243,8 +2218,8 @@ All our types are derived from the base Object type. Which is a
   typedef object_i<FERRET_RC_POLICY> object;
 #+end_src
 
-A /var/ holds a pointer to an object, everything is passed around as
-/vars/ it is responsible for incrementing/decrementing the reference
+A =var= holds a pointer to an object, everything is passed around as
+=vars= it is responsible for incrementing/decrementing the reference
 count, when it reaches zero it will automatically free the object.
 
 #+name: runtime-native-object
@@ -2554,7 +2529,7 @@ modern C++ libraries that use smart pointers for memory management.
 The number type represents real (double-precision floating-point)
 numbers. Ferret has no integer type. On systems without hardware
 support for floating point Ferret programs can be configured to use
-fixed point numbers. (See [[Math]] runtime.)
+fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
@@ -4145,57 +4120,7 @@ counting policies.
   #endif
 #+end_src 
 
-** Concurrency
-
-Low level concurrency abstractions.
-
-*** Mutex
-
-Locking abstractions for various platforms. They are disabled when
-running single threaded or on an embedded platform. (=FERRET_STD_LIB=
-not defined.)
-
-#+name: runtime-native-hardware-concurrency
-#+begin_src c++ :tangle no
-  namespace ferret {
-  #if defined(FERRET_DISABLE_MULTI_THREADING)
-    class mutex {
-    public:
-      void lock()   {} 
-      void unlock() {} 
-    };
-  #else
-    #if defined(FERRET_STD_LIB)
-      class mutex {
-        ::std::mutex m;
-      public:
-        void lock()   { m.lock();   } 
-        void unlock() { m.unlock(); }
-      };
-    #endif
-
-    #if defined(FERRET_HARDWARE_ARDUINO)
-      class mutex {
-      public:
-        void lock()   { noInterrupts(); } 
-        void unlock() { interrupts();   }
-      };
-    #endif
-  #endif
-  }
-
-  namespace ferret {
-    class lock_guard{
-      mutex & _ref;
-    public:
-      explicit lock_guard(const lock_guard &) = delete;
-      explicit lock_guard(mutex & mutex) : _ref(mutex) { _ref.lock(); };
-      ~lock_guard() { _ref.unlock(); }
-    };
-  }
-#+end_src
-
-** Math
+** Numeric Tower
 
 In the interest of simplicity Ferret supports only one type of number:
 floating point numbers. By default these are double precision floating
@@ -4549,45 +4474,55 @@ provides its own containers that are portable across architectures.
   };
 #+end_src
 
-** Configuration
+** Concurrency
 
-Ferret defaults to running in safe mode, which means 
+Low level concurrency abstractions.
 
-  - Multi threading is disabled.
-  - Console output is disabled.
+*** Mutex
 
-Safe mode only requires a C++11 compiler, no third party library is
-required including the C++ standard library. Following options can be
-configured using /#define/ directives, or using /native-define/ or
-/configure-runtime!/ from program code. Unless these options are
-overridden in source file, they are auto configured during compilation
-on supported platforms. (i.e Multi threading will be enabled on
-Linux or Mac OS X.) On unsupported platforms Ferret defaults to
-running in safe mode.
+Locking abstractions for various platforms. They are disabled when
+running single threaded or on an embedded platform. (=FERRET_STD_LIB=
+not defined.)
 
-#+BEGIN_EXAMPLE
-  (configure-runtime! FERRET_DISABLE_STD_OUT true)
-#+END_EXAMPLE
+#+name: runtime-native-hardware-concurrency
+#+begin_src c++ :tangle no
+  namespace ferret {
+  #if defined(FERRET_DISABLE_MULTI_THREADING)
+    class mutex {
+    public:
+      void lock()   {} 
+      void unlock() {} 
+    };
+  #else
+    #if defined(FERRET_STD_LIB)
+      class mutex {
+        ::std::mutex m;
+      public:
+        void lock()   { m.lock();   } 
+        void unlock() { m.unlock(); }
+      };
+    #endif
 
-#+BEGIN_EXAMPLE
-  |------------------------------------+--------------+----------------------------------------------------------|
-  | Define                             | Defult Value | Description                                              |
-  |------------------------------------+--------------+----------------------------------------------------------|
-  | FERRET_SAFE_MODE                   | false        | Force Safe Mode.                                         |
-  | FERRET_DISABLE_CLI_ARGS            | false        | Disable command line arguments.                          |
-  | FERRET_DISABLE_STD_OUT             | false        | Disables output stream. (Reduces code size.)             |
-  | FERRET_DISABLE_MULTI_THREADING     | false        | Disable atomic reference counting.                       |
-  | FERRET_DISABLE_STD_MAIN            | false        | Disables auto execution of program::main()               |
-  | FERRET_DISABLE_RC                  | Not Defined  | Disable reference counting. (When using third party GCs) |
-  | FERRET_RC_TYPE                     | unsigned int | Type to use to hold the object reference count.          |
-  | FERRET_PROGRAM_MAIN                | Not Defined  | A function to execute after program::main()              |
-  | FERRET_UART_RATE                   | 9600         | Set default UART rate.                                   |
-  | FERRET_HARDWARE_ARDUINO_UART_PORT  | Serial       | Set default UART port.                                   |
-  | FERRET_NUMBER_TYPE                 | int          | Default number_t type.                                   |
-  | FERRET_REAL_TYPE                   | double       | Default real_t type.                                     |
-  | FERRET_REAL_EPSILON                | 0.00001      | Least significant digit representable.                   |
-  |------------------------------------+--------------+----------------------------------------------------------|
-#+END_EXAMPLE
+    #if defined(FERRET_HARDWARE_ARDUINO)
+      class mutex {
+      public:
+        void lock()   { noInterrupts(); } 
+        void unlock() { interrupts();   }
+      };
+    #endif
+  #endif
+  }
+
+  namespace ferret {
+    class lock_guard{
+      mutex & _ref;
+    public:
+      explicit lock_guard(const lock_guard &) = delete;
+      explicit lock_guard(mutex & mutex) : _ref(mutex) { _ref.lock(); };
+      ~lock_guard() { _ref.unlock(); }
+    };
+  }
+#+end_src
 
 ** Initialization
 *** Detect Hardware
@@ -4838,6 +4773,46 @@ procedure.
     }
   #endif
 #+end_src
+
+** Configuration
+
+Ferret defaults to running in safe mode, which means 
+
+  - Multi threading is disabled.
+  - Console output is disabled.
+
+Safe mode only requires a C++11 compiler, no third party library is
+required including the C++ standard library. Following options can be
+configured using =#define= directives, or using =native-define= or
+=configure-runtime!= from program code. Unless these options are
+overridden in source file, they are auto configured during compilation
+on supported platforms. (i.e Multi threading will be enabled on
+Linux or Mac OS X.) On unsupported platforms Ferret defaults to
+running in safe mode.
+
+#+BEGIN_EXAMPLE
+  (configure-runtime! FERRET_DISABLE_STD_OUT true)
+#+END_EXAMPLE
+
+#+BEGIN_EXAMPLE
+  |------------------------------------+--------------+----------------------------------------------------------|
+  | Define                             | Defult Value | Description                                              |
+  |------------------------------------+--------------+----------------------------------------------------------|
+  | FERRET_SAFE_MODE                   | false        | Force Safe Mode.                                         |
+  | FERRET_DISABLE_CLI_ARGS            | false        | Disable command line arguments.                          |
+  | FERRET_DISABLE_STD_OUT             | false        | Disables output stream. (Reduces code size.)             |
+  | FERRET_DISABLE_MULTI_THREADING     | false        | Disable atomic reference counting.                       |
+  | FERRET_DISABLE_STD_MAIN            | false        | Disables auto execution of program::main()               |
+  | FERRET_DISABLE_RC                  | Not Defined  | Disable reference counting. (When using third party GCs) |
+  | FERRET_RC_TYPE                     | unsigned int | Type to use to hold the object reference count.          |
+  | FERRET_PROGRAM_MAIN                | Not Defined  | A function to execute after program::main()              |
+  | FERRET_UART_RATE                   | 9600         | Set default UART rate.                                   |
+  | FERRET_HARDWARE_ARDUINO_UART_PORT  | Serial       | Set default UART port.                                   |
+  | FERRET_NUMBER_TYPE                 | int          | Default number_t type.                                   |
+  | FERRET_REAL_TYPE                   | double       | Default real_t type.                                     |
+  | FERRET_REAL_EPSILON                | 0.00001      | Least significant digit representable.                   |
+  |------------------------------------+--------------+----------------------------------------------------------|
+#+END_EXAMPLE
 
 ** Accessing C,C++ Libraries
 
@@ -8979,7 +8954,6 @@ Create some dummy libs under /test/modules/,
     - http://elinux.org/RPi_GPIO_Code_Samples
 
 ** The Rearview
-*** Core
 
   - *Improved Library Support*
     - Something along the lines of [[https://clojure.org/news/2018/01/05/git-deps][Git Deps for Clojure]].
@@ -9053,13 +9027,6 @@ Create some dummy libs under /test/modules/,
   - *Lazy Sequence* - Should cache the result of *rest* and return it
     on subsequent calls.
   - *assert* - https://clojuredocs.org/clojure.core/assert
-
-*** Libraries
-
-  - JSON Encode/Decode
-    - [[https://github.com/nakkaya/ferret-boost]]
-  - HTTP & WebSocket Client
-    - https://github.com/nakkaya/ferret-websocket
 
 * Files                                                            :noexport:
 

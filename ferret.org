@@ -4836,9 +4836,12 @@ procedure.
 
 ** Accessing C,C++ Libraries
 
+Ferret provides the ability to embed C++ language source code within a
+Ferret program. A Ferret function can contain a short program written
+in C++ language, which is executed whenever this funtion is executed.
 Ferret's FFI is modeled after Gambit scheme. Whereas Gambit scheme
 lets you embed C into Scheme, Ferret lets you embed C or C++ into
-Clojure.
+lisp.
 
 Native headers can be imported using,
 
@@ -4852,7 +4855,7 @@ Top level statements can be declared using,
   (native-declare "int i = 0;")
 #+end_src
 
-Ferret objects can be created using the /obj/ function. If a function
+Ferret objects can be created using the =obj= function. If a function
 only contains a string such as, 
 
 #+begin_src clojure
@@ -4867,15 +4870,15 @@ code. You can then use it like any other ferret function.
     (print 1))
 #+end_src
 
-Another option is to use the *cxx* macro,
+Another option is to use the =cxx= macro,
 
 #+begin_src clojure
   (def dac-0 (cxx "__result =  obj<number>(DAC0);"))
 #+end_src
 
 Ferret objects can be converted to/from their native counter parts,
-i.e a Ferret sequence can be converted to /std::vector/ to be sorted
-by /std::sort/ using a Ferret function,
+i.e a Ferret sequence can be converted to =std::vector= to be sorted
+by =std::sort= using a Ferret function,
 
 #+name: ffi-test-helper
 #+begin_src clojure
@@ -4914,8 +4917,8 @@ by /std::sort/ using a Ferret function,
   ;; false
 #+end_src
 
-In addition to *defn* form there is also a *defnative* form which
-allows you to define different function bodies for different *#define*
+In addition to =defn= form there is also a =defnative= form which
+allows you to define different function bodies for different =#define=
 directives,
 
 #+name: runtime-clojure-core
@@ -4926,8 +4929,8 @@ directives,
 #+end_src
 
 This function when compiled on a system that defines =GNU_GCC= will
-return the result of *getchar* as a *number* , on ANY other system it
-will return *nil*. You can have multiple *on* blocks per *defnative*,
+return the result of =getchar= as a =number= , on ANY other system it
+will return =nil=. You can have multiple =on= blocks per =defnative=,
 
 #+name: runtime-clojure-core
 #+begin_src clojure
@@ -4963,37 +4966,21 @@ are immutable you can freely call Ferret code from C++,
 * Core
 
 The standard library of Ferret, provides a ton of general-purpose
-functionality for writing robust, maintainable embedded applications.
+functionality for writing robust, maintainable embedded
+applications.
 
-#+name: runtime-clojure-sequence
+** Functions
+
+See [[Accessing C,C++ Libraries]] for information on how to use Ferret
+with external libraries.
+
+Define a =fn=,
+
 #+begin_src clojure :tangle no
-  (defn first [x]
-    "__result = runtime::first(x);")
-
-  (defn second [x]
-    "__result = runtime::first(runtime::rest(x));")
-
-  (defn nil? [x] "__result = obj<boolean>(x.is_nil())")
+  (fn [a] a)
 #+end_src
 
-Ferret provides the ability to embed C++ language source code within a
-Ferret program. A Ferret function can contain a short program written
-in C++ language, which is executed whenever this funtion is executed.
-Which is how most of the primitive functions are implemented such as
-the /first/ function above, once primitives are in place rest can be
-defined in pure Ferret lisp,
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defn println [& more]
-    (when more
-      (apply print more))
-    (newline))
-#+end_src
-
-As for macros, normal Clojure rules apply since they are expended using
-Clojure.
-
+Define a =fn= and bind =name= to it,
 
 #+name: runtime-clojure-fn-macros
 #+begin_src clojure :tangle no
@@ -5001,17 +4988,8 @@ Clojure.
     `(def ~name (fn ~@body)))
 #+end_src
 
-** Functions
-
-Multi arity functions are handled by the /fn/ macro. There are two
-ways to define a function. For single arity functions it accepts the
-following form,
-
-#+begin_src clojure :tangle no
-  (fn [a] a)
-#+end_src
-
-For multi arity functions it expects the following form,
+Define a multi-arity function that counts the number of its arguments
+and then dispatches on the number of arguments to each implementation.
 
 #+begin_src clojure :tangle no
   (fn
@@ -5020,10 +4998,6 @@ For multi arity functions it expects the following form,
     ([a b & c] 3)
     ([a b [c d] & e] 4))
 #+end_src
-
-A multi arity function is a function that counts the number of its
-arguments and then dispatches on the number of arguments to each
-implementation.
 
 #+name: runtime-clojure-fn-macros
 #+begin_src clojure :tangle no
@@ -5090,6 +5064,15 @@ A simple macro for calling inline C++,
 #+end_src
 
 *** println
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn println [& more]
+    (when more
+      (apply print more))
+    (newline))
+#+end_src
+
 *** get-char
 *** read-line
 
@@ -5677,6 +5660,12 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+end_src
 
 ** Logical Operators
+*** nil?
+
+#+name: runtime-clojure-logical-operators
+#+begin_src clojure :tangle no
+  (defn nil? [x] "__result = obj<boolean>(x.is_nil())")
+#+end_src
 *** =
 
 #+name: runtime-clojure-logical-operators
@@ -5812,6 +5801,22 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+end_src
 
 ** Sequence
+*** first
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
+  (defn first [x]
+    "__result = runtime::first(x);")
+#+end_src
+
+*** second
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
+  (defn second [x]
+    "__result = runtime::first(runtime::rest(x));")
+#+end_src
+
 *** map
 
 #+name: runtime-clojure-core

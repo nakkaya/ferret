@@ -1372,26 +1372,20 @@ the program code is amalgamated in to a single source file which
 allows the generated code to be compiled as a single translation
 unit.This allows many compilers to do optimization's that would not be
 possible if the files were compiled separately. Code generation is
-done by running /emit/ on the final intermediate representation.
+done by running =emit= on the final intermediate representation.
 
-Generated C++ code has the following structure, (All Ferret code is
-defined within *ferret* namespace, all Ferret macros starts with
-*FERRET_*, all user defined functions are defined in file name
-namespace.)
+#+begin_src clojure :tangle no
+  (emit options '(list 1 2 3) (ref {}))
+  ;;"run(list,obj<number>(1),obj<number>(2),obj<number>(3))"
 
- - Detect Hardware
- - Include files
- - Ferret Header (src/ferret/runtime.h)
- - Ferret Native Runtime Prototypes (runtime::first, runtime::rest
-   etc.)
- - Native Declarations
- - Object Definitions
- - Symbol Definitions
- - Native Runtime Implementations
- - Lambda Prototypes
- - Lambda Implementations
- - Ferret Main
- - Hardware Dependent Main Functions
+  (emit options '(+ 1 2) (ref {}))
+  ;;"run(+,obj<number>(1),obj<number>(2))"
+
+  (emit options '(if (< a b)
+                   b a)
+                (ref {}))
+  ;;"((<,b,a) ? a : b)"
+#+end_src
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no  
@@ -1417,42 +1411,19 @@ namespace.)
                          (instance?
                           java.util.regex.Pattern f) :regex-pattern
                          (or (true? f) (false? f))   :boolean
-                         (seq? f)                    :invoke-fn)))
+                         (seq? f)                    :invoke-fn
+                         :default                    :unsupported-form)))
 
-  (defmethod emit nil [_ form _]
+  (defmethod emit :unsupported-form [_ form _]
     (warn "unsopported form =>" form)
     (io/exit-failure))
 
-  (defn emit-ast
-    [options ast state]
-    (reduce (fn[h v]
-              (conj h (emit options v state)))
-            [] ast))
+  (defn emit-ast [options ast state]
+    (reduce (fn[h v] (conj h (emit options v state))) [] ast))
 #+end_src
 
-Without preprocessing following forms,
-
-#+begin_src clojure :tangle no
-  (emit options '(list 1 2 3) (ref {}))
-
-  (emit options '(+ 1 2) (ref {}))
-
-  (emit options '(if (< a b)
-                   b a)
-                (ref {}))
-#+end_src
-
-would evaluate to,
-
-#+begin_example
-  "run(list,obj<number>(1),obj<number>(2),obj<number>(3))"
-  "run(+,obj<number>(1),obj<number>(2))"
-  "((<,b,a) ? a : b)"
-#+end_example
-
-So the actual compilation will just map emit to all forms passed and
-/string-template/ will handle the job of putting them into an empty
-C++ skeleton.
+Code generation for a Ferret program is done by running =emit= on all
+nodes of the program AST.
 
 #+name: core-compiler-helpers
 #+begin_src clojure :tangle no
@@ -1764,6 +1735,25 @@ is supported.
 #+end_src
 
 *** Program
+
+Generated C++ code has the following structure, (All Ferret code is
+defined within =ferret= namespace, all Ferret macros starts with
+=FERRET_=, all user defined functions are defined in file name
+namespace.)
+
+ - Detect Hardware
+ - Include files
+ - Ferret Header (src/ferret/runtime.h)
+ - Ferret Native Runtime Prototypes (runtime::first, runtime::rest
+   etc.)
+ - Native Declarations
+ - Object Definitions
+ - Symbol Definitions
+ - Native Runtime Implementations
+ - Lambda Prototypes
+ - Lambda Implementations
+ - Ferret Main
+ - Hardware Dependent Main Functions
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no :noweb yes

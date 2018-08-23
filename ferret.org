@@ -2354,6 +2354,11 @@ new *var* containing a pointer to an [[Object System][Object]]. *nil* is represe
   }
 #+end_src
 
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn identity [x] x)
+#+end_src
+
 *** Objects
 **** Boolean
 
@@ -4969,703 +4974,43 @@ The standard library of Ferret, provides a ton of general-purpose
 functionality for writing robust, maintainable embedded
 applications.
 
-** Functions
+** Logic
+*** true?
 
-See [[Accessing C,C++ Libraries]] for information on how to use Ferret
-with external libraries.
-
-Define a =fn=,
-
+#+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
-  (fn [a] a)
+  (defn true? [x]
+    "if (x)
+       return cached::true_t;
+     __result = cached::false_t;")
 #+end_src
 
-Define a =fn= and bind =name= to it,
+*** false?
 
-#+name: runtime-clojure-fn-macros
+#+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
-  (defmacro defn [name & body]
-    `(def ~name (fn ~@body)))
+  (defn false? [x]
+    "if (!x)
+       return cached::true_t;
+     __result = cached::false_t;")
 #+end_src
 
-Define a multi-arity function that counts the number of its arguments
-and then dispatches on the number of arguments to each implementation.
-
-#+begin_src clojure :tangle no
-  (fn
-    ([a] 1)
-    ([a b] 2)
-    ([a b & c] 3)
-    ([a b [c d] & e] 4))
-#+end_src
-
-#+name: runtime-clojure-fn-macros
-#+begin_src clojure :tangle no
-  (defmacro fn [& sig]
-    (let [name (if (symbol? (first sig)) (first sig) nil)
-          body (if name (rest sig) sig)]
-      (if (vector? (first body))
-        (let [[args & body] body]
-          (new-fir-fn :name name :args args :body body))
-        ;; handle multi arity function
-        (let [fns   (map (fn* [body]
-                              (let [[args & body] body]
-                                (new-fir-fn :args args :body body)))
-                         body)
-              arity (->> (map first body)
-                         (map (fn* [args] (filter #(not (= % '&)) args)))
-                         (map #(count %)))
-              fns   (->> (interleave arity fns)
-                         (partition 2)
-                         (sort-by first))
-              fns   (if (->> fns last second second      ;; last arity arguments
-                             (take-last 2) first (= '&)) ;; check &
-                      (let [switch        (drop-last 1 fns)
-                            [[_ default]] (take-last 1 fns)]
-                        `(fir-defn-arity ~switch ~default))
-                      `(fir-defn-arity ~fns))]
-          (new-fir-fn :escape false :name name :body [fns])))))
-#+end_src
-
-A simple macro for calling inline C++,
-
-#+name: runtime-clojure-fn-macros
-#+begin_src clojure :tangle no
-  (defmacro cxx [& body]
-    (let [body (apply str body)]
-      `((fn [] ~body))))
-#+end_src
-
-** I/O
-*** print
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defnative print [& more]
-    (on "!defined(FERRET_DISABLE_STD_OUT)"
-        "if (more.is_nil())
-           return nil();
-         var f = runtime::first(more);
-         f.stream_console();
-         var r = runtime::rest(more);
-         for(auto const& it : runtime::range(r)){
-          runtime::print(\" \");
-          it.stream_console();
-         }"))
-#+end_src
-
-*** newline
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defnative newline []
-    (on "!defined(FERRET_DISABLE_STD_OUT)"
-        "runtime::print(\"\\n\");"))
-#+end_src
-
-*** println
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defn println [& more]
-    (when more
-      (apply print more))
-    (newline))
-#+end_src
-
-*** get-char
-*** read-line
-
-Reads the next line from default I/O stream.
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defn read-line []
-    "char buf[FERRET_IO_STREAM_SIZE] = {0};
-     runtime::read_line(buf, FERRET_IO_STREAM_SIZE);
-     return obj<string>(buf);")
-#+end_src
-
-*** sh
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defnative sh [cmd]
-    (on "defined FERRET_STD_LIB"
-        ("memory")
-        "::std::shared_ptr<FILE> pipe(popen(string::to<std::string>(cmd).c_str(), \"r\"), pclose);
-         if (!pipe) 
-           return nil();
-         char buffer[128];
-         ::std::string result = \"\";
-         while (!feof(pipe.get()))
-          if (fgets(buffer, 128, pipe.get()) != NULL)
-           result += buffer;
-         __result = obj<string>(result);"))
-#+end_src
-
-*** system-exit
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defn system-exit [code]
-    "::std::exit(number::to<number_t>(code));")
-#+end_src
-
-*** system-abort
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defn system-abort [code]
-    "::std::abort();")
-#+end_src
-
-*** byte-stream-encoder/decoder
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defn byte-stream-encoder [write]
-    (fn [bytes]
-      (let [size (count bytes)
-            CS   (reduce bit-xor size bytes)]
-        (write 0X06)
-        (write 0X85)
-        (write size)
-        (doseq [b bytes] 
-          (write b))
-        (write CS))))
-#+end_src
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defn byte-stream-header-ready [read in-waiting]
-    (and (>= (in-waiting) 3) (= (read) 0X06) (= (read) 0X85)))
-
-  (defn byte-stream-payload-ready [size in-waiting]
-    (>= (in-waiting) (inc @size)))
-
-  (defn byte-stream-decoder-goto [] true)
-
-  (defn byte-stream-handle-payload [read s handler]
-    "number_t size = number::to<number_t>(s);
-     number_t cs_calculated = size;
-     var payload_rev;
-
-     for(number_t i = 0 ; i < size; i++){
-       var v = run(read);
-       cs_calculated ^= number::to<number_t>(v);
-       payload_rev = runtime::cons(v,payload_rev);
-     }
-
-     number_t cs_read = number::to<number_t>(run(read));
-
-     if (cs_calculated == cs_read){
-       var payload;
-
-       for(auto const& i : runtime::range(payload_rev))
-         payload = runtime::cons(i,payload);
-       
-       run(handler,payload);
-     }")
-
-  (defn byte-stream-decoder [read in-waiting handler]
-    (let [size (atom nil)]
-      (state-machine 
-       (states
-        (sync-header)
-        (read-size        (reset! size (read)))
-        (wait-payload)
-        (handle-payload   (byte-stream-handle-payload read @size handler)))
-       (transitions
-        (sync-header     #(byte-stream-header-ready read in-waiting)      read-size)
-        (read-size       byte-stream-decoder-goto                         wait-payload)
-        (wait-payload    #(byte-stream-payload-ready size in-waiting)     handle-payload)
-        (handle-payload  byte-stream-decoder-goto                         sync-header)))))
-#+end_src
-
-*** multicast-socket
-
-The multicast datagram socket class is useful for sending and
-receiving IP multicast packets. A MulticastSocket is a (UDP)
-datagram socket, with additional capabilities for joining "groups" of
-other multicast hosts on the internet.
-
-A multicast group is specified by a class D IP address and by a
-standard UDP port number. Class D IP addresses are in the range
-224.0.0.0 to 239.255.255.255, inclusive. The address 224.0.0.0 is
-reserved and should not be used.
-
-One would join a multicast group by first creating a =multicast-socket=
-with the desired IP and port. When one sends a message to a multicast
-group, all subscribing recipients to that host and port receive the
-message. When a socket subscribes to a multicast group/port, it
-receives datagrams sent by other hosts to the group/port, as do all
-other members of the group and port.
-
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core/net/multicast.clj
-  (require '[ferret.net.multicast :as multicast])
-
-  (def sender   (multicast/socket "224.5.23.2" 10005))
-  (def receiver (multicast/socket "224.5.23.2" 10005))
-
-  (def data-out (list 1 2 3 4 5))
-
-  (assert (multicast/send sender data-out))
-  (assert (multicast/pending? receiver))
-
-  (def data-in (multicast/recv receiver))
-
-  (assert (= data-in data-out))
-#+end_src
-
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/src/ferret/net/multicast.clj
-  (native-header "fcntl.h"
-                 "unistd.h"
-                 "arpa/inet.h"
-                 "netdb.h"
-                 "netinet/in.h"
-                 "sys/poll.h"
-                 "sys/socket.h"
-                 "sys/types.h"
-                 "string.h")
-
-  (defobject multicast-socket "ferret/net/multicast_o.h")
-
-  (defn socket [ip port]
-    "__result = obj<multicast_socket>(ip,port);")
-
-  (defn pending? [con]
-    "__result = obj<boolean>(con.cast<multicast_socket>()->have_pending_data());")
-
-  (defn send [con data]
-    "datagram_t buffer;
-     number_t idx = 0; 
-
-     for(auto const& b : runtime::range(data))
-      buffer[idx++] = (byte)number::to<number_t>(b);
-    
-     __result = obj<boolean>(con.cast<multicast_socket>()->send(buffer,idx));")
-
-  (defn byte [conn idx]
-    "__result = obj<number>(conn.cast<multicast_socket>()->data()[number::to<number_t>(idx)]);")
-
-  (defn data-seq
-    ([conn size]
-     (data-seq conn 0 size))
-    ([conn curr size]
-     (if (< curr size)
-       (cons (byte conn curr)
-             (lazy-seq (data-seq conn (inc curr) size))))))
-
-  (defn read [conn]
-    "__result = obj<number>(conn.cast<multicast_socket>()->recv());")
-
-  (defn recv [conn]
-    (data-seq conn (read conn)))
-#+end_src
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/net/multicast_o.h
-  namespace multicast_aux {
-    class address{
-      sockaddr addr;
-      socklen_t addr_len;
-   
-    public:
-      address(){
-        memset(&addr, 0, sizeof(addr));
-        addr_len = 0;
-      }
-    
-      address(const char *hostname, unsigned short port){
-        set_host(hostname, port);
-      }
-    
-      address(const address &src){ copy(src); }
-    
-      ~address() { reset(); }
-   
-      bool set_host(const char *hostname, unsigned short port);
-      void set_any(unsigned short port = 0);
-   
-      bool operator==(const address &a) const{
-        return addr_len == a.addr_len && memcmp(&addr, &a.addr, addr_len) == 0;
-      }
-    
-      void copy(const address &src){
-        memcpy(&addr, &src.addr, src.addr_len);
-        addr_len = src.addr_len;
-      }
-    
-      void reset(){
-        memset(&addr, 0, sizeof(addr));
-        addr_len = 0;
-      }
-    
-      void clear(){
-        reset();
-      }
-   
-      in_addr_t get_in_addr() const;
-   
-      friend class udp;
-    };
-
-    const size_t max_data_gram_size = 65507;
-
-    class udp{
-      ferret::array<ferret::byte, max_data_gram_size> buf;
-      int fd;
-   
-    public:
-      unsigned sent_packets;
-      size_t sent_bytes;
-      unsigned recv_packets;
-      size_t recv_bytes;
-   
-    public:
-      udp() : fd(-1) { close(); }
-      ~udp(){ close(); }
-   
-      bool open(const char *server_host, unsigned short port, bool blocking);
-      bool add_multicast(const address &multiaddr, const address &interface);
-      void close();
-      bool is_open() const{ return fd >= 0; }
-   
-      bool send(const void *data, size_t length, const address &dest);
-      ssize_t recv(address &src);
-   
-      bool wait(int timeout_ms = -1) const;
-      bool have_pending_data() const;
-   
-      const ferret::byte* data() const{ return buf.data; }
-    };
-   
-    bool address::set_host(const char *hostname, unsigned short port){
-      addrinfo *res = nullptr;
-      getaddrinfo(hostname, nullptr, nullptr, &res);
-      if (res == nullptr) {
-        return false;
-      }
-   
-      memset(&addr, 0, sizeof(addr));
-      addr_len = res->ai_addrlen;
-      memcpy(&addr, res->ai_addr, addr_len);
-      freeaddrinfo(res);
-   
-      // set port for internet sockets
-      sockaddr_in *sockname = reinterpret_cast<sockaddr_in *>(&addr);
-      if (sockname->sin_family == AF_INET) {
-        sockname->sin_port = htons(port);
-      }
-      else {
-        // TODO: any way to set port in general?
-      }
-   
-      return true;
-    }
-   
-    void address::set_any(unsigned short port){
-      memset(&addr, 0, sizeof(addr));
-      sockaddr_in *s = reinterpret_cast<sockaddr_in *>(&addr);
-      s->sin_addr.s_addr = htonl(INADDR_ANY);
-      s->sin_port = htons(port);
-      addr_len = sizeof(sockaddr_in);
-    }
-   
-    in_addr_t address::get_in_addr() const{
-      const sockaddr_in *s = reinterpret_cast<const sockaddr_in *>(&addr);
-      return s->sin_addr.s_addr;
-    }
-   
-    bool udp::open(const char *server_host, unsigned short port, bool blocking){
-      // open the socket
-      if (fd >= 0) {
-        ::close(fd);
-      }
-      fd = socket(PF_INET, SOCK_DGRAM, 0);
-   
-      // set socket as non-blocking
-      int flags = fcntl(fd, F_GETFL, 0);
-      if (flags < 0) {
-        flags = 0;
-      }
-      fcntl(fd, F_SETFL, flags | (blocking ? 0 : O_NONBLOCK));
-   
-      int reuse = 1;
-      if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&reuse), sizeof(reuse)) != 0) {
-        fprintf(stderr, "ERROR WHEN SETTING SO_REUSEADDR ON udp SOCKET\n");
-        fflush(stderr);
-      }
-   
-      int yes = 1;
-      // allow packets to be received on this host
-      if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, reinterpret_cast<const char *>(&yes), sizeof(yes)) != 0) {
-        fprintf(stderr, "ERROR WHEN SETTING IP_MULTICAST_LOOP ON udp SOCKET\n");
-        fflush(stderr);
-      }
-   
-      // bind socket to port if nonzero
-      if (port != 0) {
-        sockaddr_in sockname;
-        sockname.sin_family = AF_INET;
-        sockname.sin_addr.s_addr = htonl(INADDR_ANY);
-        sockname.sin_port = htons(port);
-        bind(fd, reinterpret_cast<struct sockaddr *>(&sockname), sizeof(sockname));
-      }
-   
-      // add udp multicast groups
-      address multiaddr, interface;
-      multiaddr.set_host(server_host, port);
-      interface.set_any();
-   
-      return add_multicast(multiaddr, interface);
-    }
-   
-    bool udp::add_multicast(const address &multiaddr, const address &interface){
-      struct ip_mreq imreq;
-      imreq.imr_multiaddr.s_addr = multiaddr.get_in_addr();
-      imreq.imr_interface.s_addr = interface.get_in_addr();
-   
-      int ret = setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imreq, sizeof(imreq));
-   
-      return ret == 0;
-    }
-   
-    void udp::close(){
-      if (fd >= 0) {
-        ::close(fd);
-      }
-      fd = -1;
-   
-      sent_packets = 0;
-      sent_bytes = 0;
-      recv_packets = 0;
-      recv_bytes = 0;
-    }
-   
-    bool udp::send(const void *data, size_t length, const address &dest){
-      ssize_t len = sendto(fd, data, length, 0, &dest.addr, dest.addr_len);
-      
-      if (len > 0) {
-        sent_packets++;
-        sent_bytes += (size_t)len;
-      }
-   
-      return (len >= 0 && (size_t)len == length);
-    }
-   
-    ssize_t udp::recv(address &src){
-      src.addr_len = sizeof(src.addr);
-      ssize_t len = recvfrom(fd, buf.data, max_data_gram_size, 0, &src.addr, &src.addr_len);
-   
-      if (len > 0) {
-        recv_packets++;
-        recv_bytes += (size_t)len;
-      }
-   
-      return len;
-    }
-   
-    bool udp::have_pending_data() const{
-      return wait(0);
-    }
-   
-    bool udp::wait(int timeout_ms) const{
-      static const bool debug = false;
-      static bool pendingData = false;
-      pollfd pfd;
-      pfd.fd = fd;
-      pfd.events = POLLIN;
-      pfd.revents = 0;
-   
-      bool success = (poll(&pfd, 1, timeout_ms) > 0);
-   
-      if (!success) {
-        // Poll now claims that there is no pending data.
-        // What did have_pending_data get from Poll most recently?
-        if (debug) {
-          printf("wait failed, have_pending_data=%s\n", (pendingData ? "true" : "false"));
-        }
-      }
-      pendingData = success;
-      return success;
-    }
-  }
-
-  typedef ferret::array<ferret::byte, multicast_aux::max_data_gram_size> datagram_t;
-
-  class multicast_socket final : public object {
-    std::string ip;
-    unsigned short port;
-    multicast_aux::udp net;
-    
-  public:
-
-    size_t type() const final { return runtime::type::multicast_socket; }
-
-    bool equals(var const &) const final {
-      return false;
-    }
-
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const final {
-      runtime::print("multicast_socket<");
-      runtime::print(ip);
-      runtime::print(" ");
-      runtime::print(port);
-      runtime::print(">");
-    }
-  #endif
-
-    explicit multicast_socket(var i, var p) :
-      ip(string::to<std::string>(i)),
-      port((unsigned short)number::to<number_t>(p)) {
-      net.open(ip.c_str(), port,true);
-    }
-
-    bool have_pending_data() const {
-      return net.have_pending_data();
-    }
-
-    bool send(datagram_t & data, number_t size) {
-      multicast_aux::address dest_addr(ip.c_str(), port);
-      return net.send(data.data, (size_t)size, dest_addr);
-    }
-
-    number_t recv(){
-      multicast_aux::address src_addr(ip.c_str(), port);
-      return (number_t)net.recv(src_addr);
-    }
-
-    const byte* data() const{ return net.data(); }
-  };
-#+end_src
-
-*** slurp
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defnative slurp [f]
-    (on "defined FERRET_STD_LIB"
-        ("fstream")
-        "std::ifstream ifs(string::to<std::string>(f).c_str(),
-                           std::ios::in | std::ios::binary | std::ios::ate);
-   
-         if (!ifs.good())
-           return nil();
-   
-         std::ifstream::pos_type file_size = ifs.tellg();
-         ifs.seekg(0, std::ios::beg);
-
-         std::vector<char> bytes(file_size);
-         ifs.read(bytes.data(), file_size);
-         __result = obj<string>(std::string(bytes.data(), file_size));"))
-#+end_src
-
-** Looping
-*** doseq
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defmacro doseq [binding & body]
-    `(_doseq_ ~(second binding)
-              (fn [~(first binding)] ~@body)))
-
-  (defn _doseq_ [seq f] "for(auto const& it : runtime::range(seq)) run(f,it);")
-#+end_src
-
-*** dotimes
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defmacro dotimes [binding & body]
-    `(_dotimes_ ~(second binding)
-                (fn [~(first binding)] ~@body)))
-
-  (defn _dotimes_ [t f] "for(number_t i = 0; i < number::to<number_t>(t); i++) run(f,obj<number>(i));")
-#+end_src
-
-** Conditionals
-*** when
-
-#+name: runtime-clojure-conditional-operators
-#+begin_src clojure :tangle no
-  (defmacro when [test & body]
-    `(if ~test (do ~@body)))
-#+end_src
-
-*** cond
-
-#+name: runtime-clojure-conditional-operators
-#+begin_src clojure :tangle no
-  (defmacro cond [& clauses]
-    (when clauses
-      `(if ~(first clauses)
-         ~(if (next clauses)
-            (second clauses)
-            (throw (IllegalArgumentException.
-                    "cond requires an even number of forms")))
-         (cond ~@(next (next clauses))))))
-#+end_src
-
-*** while
-
-#+name: runtime-clojure-conditional-operators
-#+begin_src clojure :tangle no
-  (defn _while_ [pred fn]
-    "while(run(pred))
-       run(fn);")
-
-  (defmacro while [test & body]
-    `(_while_ (fn [] ~test) (fn [] ~@body)))
-#+end_src
-
-*** forever
-
-#+name: runtime-clojure-conditional-operators
-#+begin_src clojure :tangle no
-  (defmacro forever [& body]
-    `(while true ~@body))
-#+end_src
-
-*** if-let
-
-#+name: runtime-clojure-conditional-operators
-#+begin_src clojure :tangle no
-  (defmacro if-let
-    ([bindings then]
-     `(if-let ~bindings ~then nil))
-    ([bindings then else & oldform]
-     (let [form (bindings 0) tst (bindings 1)]
-       `(let* [temp# ~tst]
-          (if temp#
-            (let* [~form temp#]
-              ~then)
-            ~else)))))
-#+end_src
-
-*** when-let
-
-When test is true, evaluates body with binding-form bound to the value of test.
-
-#+name: runtime-clojure-conditional-operators
-#+begin_src clojure :tangle no
-  (defmacro when-let
-    [bindings & body]
-    (let [form (bindings 0) tst (bindings 1)]
-      `(let* [temp# ~tst]
-         (when temp#
-           (let* [~form temp#]
-             ~@body)))))
-#+end_src
-
-** Logical Operators
 *** nil?
 
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
   (defn nil? [x] "__result = obj<boolean>(x.is_nil())")
 #+end_src
+*** not
+
+#+name: runtime-clojure-logical-operators
+#+begin_src clojure :tangle no
+  (defn not [x]
+    "if (x)
+       return cached::false_t;
+     __result = cached::true_t;")
+#+end_src
+
 *** =
 
 #+name: runtime-clojure-logical-operators
@@ -5770,37 +5115,138 @@ When test is true, evaluates body with binding-form bound to the value of test.
      `(if ~x ~x (or ~@next))))
 #+end_src
 
-*** not
+** Flow
+*** when
 
-#+name: runtime-clojure-logical-operators
+#+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
-  (defn not [x]
-    "if (x)
-       return cached::false_t;
-     __result = cached::true_t;")
+  (defmacro when [test & body]
+    `(if ~test (do ~@body)))
 #+end_src
 
-*** true?
+*** cond
 
-#+name: runtime-clojure-logical-operators
+#+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
-  (defn true? [x]
-    "if (x)
-       return cached::true_t;
-     __result = cached::false_t;")
+  (defmacro cond [& clauses]
+    (when clauses
+      `(if ~(first clauses)
+         ~(if (next clauses)
+            (second clauses)
+            (throw (IllegalArgumentException.
+                    "cond requires an even number of forms")))
+         (cond ~@(next (next clauses))))))
 #+end_src
 
-*** false?
+*** while
 
-#+name: runtime-clojure-logical-operators
+#+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
-  (defn false? [x]
-    "if (!x)
-       return cached::true_t;
-     __result = cached::false_t;")
+  (defn _while_ [pred fn]
+    "while(run(pred))
+       run(fn);")
+
+  (defmacro while [test & body]
+    `(_while_ (fn [] ~test) (fn [] ~@body)))
 #+end_src
 
-** Sequence
+*** forever
+
+#+name: runtime-clojure-conditional-operators
+#+begin_src clojure :tangle no
+  (defmacro forever [& body]
+    `(while true ~@body))
+#+end_src
+
+*** if-let
+
+#+name: runtime-clojure-conditional-operators
+#+begin_src clojure :tangle no
+  (defmacro if-let
+    ([bindings then]
+     `(if-let ~bindings ~then nil))
+    ([bindings then else & oldform]
+     (let [form (bindings 0) tst (bindings 1)]
+       `(let* [temp# ~tst]
+          (if temp#
+            (let* [~form temp#]
+              ~then)
+            ~else)))))
+#+end_src
+
+*** when-let
+
+When test is true, evaluates body with binding-form bound to the value of test.
+
+#+name: runtime-clojure-conditional-operators
+#+begin_src clojure :tangle no
+  (defmacro when-let
+    [bindings & body]
+    (let [form (bindings 0) tst (bindings 1)]
+      `(let* [temp# ~tst]
+         (when temp#
+           (let* [~form temp#]
+             ~@body)))))
+#+end_src
+
+** Iteration
+*** doseq
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defmacro doseq [binding & body]
+    `(_doseq_ ~(second binding)
+              (fn [~(first binding)] ~@body)))
+
+  (defn _doseq_ [seq f] "for(auto const& it : runtime::range(seq)) run(f,it);")
+#+end_src
+
+*** dotimes
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defmacro dotimes [binding & body]
+    `(_dotimes_ ~(second binding)
+                (fn [~(first binding)] ~@body)))
+
+  (defn _dotimes_ [t f] "for(number_t i = 0; i < number::to<number_t>(t); i++) run(f,obj<number>(i));")
+#+end_src
+
+** Sequential
+*** list
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
+  (defn list [& xs] "if (xs.is_nil())
+                       __result = runtime::list();
+                     else
+                       __result = xs;")
+#+end_src
+
+*** list?
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
+  (defn list? [x] "__result = obj<boolean>(x.is_type(runtime::type::sequence));")
+#+end_src
+
+*** empty?
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
+  (defn empty? [x]
+    (if (nil? x)
+      true
+      (= (list ) x)))
+#+end_src
+
+*** cons
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
+  (defn cons [x seq] "__result = runtime::cons(x, seq);")
+#+end_src
+
 *** first
 
 #+name: runtime-clojure-sequence
@@ -5815,6 +5261,34 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+begin_src clojure :tangle no
   (defn second [x]
     "__result = runtime::first(runtime::rest(x));")
+#+end_src
+
+*** rest
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
+  (defn rest [x] "var r = runtime::rest(x);
+                  if (r.is_nil())
+                    return runtime::list();
+                  else 
+                    __result = r;")
+#+end_src
+
+*** nth
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
+  (defn nth [coll index] "__result = runtime::nth(coll,number::to<number_t>(index));")
+#+end_src
+
+*** nthrest
+
+Returns the nth rest of coll, coll when n is 0.
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
+  (defn nthrest [coll n]
+    "__result = runtime::nthrest(coll,number::to<number_t>(n));")
 #+end_src
 
 *** map
@@ -5832,6 +5306,23 @@ When test is true, evaluates body with binding-form bound to the value of test.
                  (not (empty? s2)))
         (cons (f (first s1) (first s2))
               (map f (rest s1) (rest s2)))))))
+#+end_src
+
+*** reduce
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
+  (defn reduce
+    ([f [sf & sr]]
+     "var acc = run(f, runtime::first(sr), sf);
+      var r = runtime::rest(sr);
+      for (auto const& i : runtime::range(r))
+       acc = run(f, acc, i);
+      __result = acc;")
+    ([f acc coll]
+     "__result = acc;
+      for (auto const& i : runtime::range(coll))
+       __result = run(f, __result, i);"))
 #+end_src
 
 *** range
@@ -5893,85 +5384,6 @@ When test is true, evaluates body with binding-form bound to the value of test.
      (if (not (empty? x))
        (cons (first x) (lazy-seq (concat (rest x) y)))
        (concat y))))
-#+end_src
-
-*** reduce
-
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
-  (defn reduce
-    ([f [sf & sr]]
-     "var acc = run(f, runtime::first(sr), sf);
-      var r = runtime::rest(sr);
-      for (auto const& i : runtime::range(r))
-       acc = run(f, acc, i);
-      __result = acc;")
-    ([f acc coll]
-     "__result = acc;
-      for (auto const& i : runtime::range(coll))
-       __result = run(f, __result, i);"))
-#+end_src
-
-*** list
-
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
-  (defn list [& xs] "if (xs.is_nil())
-                       __result = runtime::list();
-                     else
-                       __result = xs;")
-#+end_src
-
-*** list?
-
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
-  (defn list? [x] "__result = obj<boolean>(x.is_type(runtime::type::sequence));")
-#+end_src
-
-*** empty?
-
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
-  (defn empty? [x]
-    (if (nil? x)
-      true
-      (= (list ) x)))
-#+end_src
-
-*** rest
-
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
-  (defn rest [x] "var r = runtime::rest(x);
-                  if (r.is_nil())
-                    return runtime::list();
-                  else 
-                    __result = r;")
-#+end_src
-
-*** nth
-
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
-  (defn nth [coll index] "__result = runtime::nth(coll,number::to<number_t>(index));")
-#+end_src
-
-*** nthrest
-
-Returns the nth rest of coll, coll when n is 0.
-
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
-  (defn nthrest [coll n]
-    "__result = runtime::nthrest(coll,number::to<number_t>(n));")
-#+end_src
-
-*** cons
-
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
-  (defn cons [x seq] "__result = runtime::cons(x, seq);")
 #+end_src
 
 *** apply
@@ -6414,6 +5826,39 @@ angle measured in radians.
     "__result = obj<number>((real_t) (number::to<real_t>(x) * 1_pi / 180.0) );")
 #+end_src
 
+*** rand
+
+Returns a random floating point number between 0 (inclusive) and n
+(default 1) (exclusive).
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defnative rand-aux []
+    (on "defined FERRET_STD_LIB"
+        ("random")
+        "::std::random_device ferret_random_device;
+         ::std::mt19937_64 ferret_random_generator(ferret_random_device());
+         ::std::uniform_real_distribution<ferret::real_t> ferret_random_distribution(0.0,1.0);"
+        "__result = obj<number>(ferret_random_distribution(ferret_random_generator));"))
+
+  (defn rand
+    ([]
+     (rand-aux))
+    ([x]
+     (* x (rand-aux))))
+#+end_src
+
+*** rand-int
+
+Returns a random integer between 0 (inclusive) and n (exclusive).
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn rand-int
+    [x]
+    (floor (rand x)))
+#+end_src
+
 ** Timing
 *** millis
 
@@ -6599,45 +6044,114 @@ function *f* to run in milliseconds,
         `(fn-throttler-aux-non-blocking (new-elapsed-micros) ~f ~rate))))
 #+end_src
 
-** Misc
-*** rand
+** Functions
+*** fn
 
-Returns a random floating point number between 0 (inclusive) and n
-(default 1) (exclusive).
+Define a =fn=,
 
-#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defnative rand-aux []
-    (on "defined FERRET_STD_LIB"
-        ("random")
-        "::std::random_device ferret_random_device;
-         ::std::mt19937_64 ferret_random_generator(ferret_random_device());
-         ::std::uniform_real_distribution<ferret::real_t> ferret_random_distribution(0.0,1.0);"
-        "__result = obj<number>(ferret_random_distribution(ferret_random_generator));"))
-
-  (defn rand
-    ([]
-     (rand-aux))
-    ([x]
-     (* x (rand-aux))))
+  (fn [a] a)
 #+end_src
 
-*** rand-int
+Define a =fn= and bind =name= to it,
 
-Returns a random integer between 0 (inclusive) and n (exclusive).
-
-#+name: runtime-clojure-core
+#+name: runtime-clojure-fn-macros
 #+begin_src clojure :tangle no
-  (defn rand-int
-    [x]
-    (floor (rand x)))
+  (defmacro defn [name & body]
+    `(def ~name (fn ~@body)))
 #+end_src
 
-*** identity
+Define a multi-arity function that counts the number of its arguments
+and then dispatches on the number of arguments to each implementation.
 
-#+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn identity [x] x)
+  (fn
+    ([a] 1)
+    ([a b] 2)
+    ([a b & c] 3)
+    ([a b [c d] & e] 4))
+#+end_src
+
+Functions may also define a variable number of arguments - this is
+known as a "variadic" function. The variable arguments must occur at
+the end of the argument list. They will be collected in a sequence for
+use by the function.
+
+The beginning of the variable arguments is marked with =&=
+
+#+begin_src clojure :tangle no
+  (defn hello [greeting & who]
+    (println greeting who))
+#+end_src
+
+See [[Accessing C,C++ Libraries]] for information on how to use Ferret
+with external libraries.
+
+#+name: runtime-clojure-fn-macros
+#+begin_src clojure :tangle no
+  (defmacro fn [& sig]
+    (let [name (if (symbol? (first sig)) (first sig) nil)
+          body (if name (rest sig) sig)]
+      (if (vector? (first body))
+        (let [[args & body] body]
+          (new-fir-fn :name name :args args :body body))
+        ;; handle multi arity function
+        (let [fns   (map (fn* [body]
+                              (let [[args & body] body]
+                                (new-fir-fn :args args :body body)))
+                         body)
+              arity (->> (map first body)
+                         (map (fn* [args] (filter #(not (= % '&)) args)))
+                         (map #(count %)))
+              fns   (->> (interleave arity fns)
+                         (partition 2)
+                         (sort-by first))
+              fns   (if (->> fns last second second      ;; last arity arguments
+                             (take-last 2) first (= '&)) ;; check &
+                      (let [switch        (drop-last 1 fns)
+                            [[_ default]] (take-last 1 fns)]
+                        `(fir-defn-arity ~switch ~default))
+                      `(fir-defn-arity ~fns))]
+          (new-fir-fn :escape false :name name :body [fns])))))
+#+end_src
+
+A simple macro for calling inline C++,
+
+#+name: runtime-clojure-fn-macros
+#+begin_src clojure :tangle no
+  (defmacro cxx [& body]
+    (let [body (apply str body)]
+      `((fn [] ~body))))
+#+end_src
+
+*** defnative
+
+Allows a function to be defined for multiple platforms see [[Accessing C,C++ Libraries]] for
+examples.
+
+#+name: runtime-clojure-fn-macros
+#+begin_src clojure :tangle no
+  (defmacro defnative [name args & form]
+    (let [includes (->> (filter #(seq? (nth % 2)) form)
+                        (map #(cons (nth % 1) (apply list (nth % 2))))
+                        (map (fn [form]
+                               (let [[guard & headers] form]
+                                 (str "\n#if " guard " \n"
+                                      (apply str (map #(str "#include \"" % "\"\n") headers))
+                                      "#endif\n"))))
+                        (map #(list 'native-declare %)))
+          body (->> (map #(vector (second %) (last %)) form)
+                    (map #(str "\n#if " (first %) " \n"
+                               (second %)
+                               "\n#endif\n"))
+                    (apply str))
+          pre-ample (->> (map #(vector (second %) (drop-last (drop 3 %))) form)
+                         (remove #(empty? (second %)))
+                         (map #(str "\n#if " (first %) " \n"
+                                    (apply str (map (fn [line] (str line "\n")) (second %)))
+                                    "\n#endif\n"))
+                         (map #(list 'native-declare %)))]
+      `(def ~name (fn ~args ~@includes ~@pre-ample  ~body))))
 #+end_src
 
 *** ->
@@ -6698,6 +6212,580 @@ are evaluated in order.  Returns x.
                     `(~f ~gx)))
                 forms)
          ~gx)))
+#+end_src
+
+** I/O
+*** print
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defnative print [& more]
+    (on "!defined(FERRET_DISABLE_STD_OUT)"
+        "if (more.is_nil())
+           return nil();
+         var f = runtime::first(more);
+         f.stream_console();
+         var r = runtime::rest(more);
+         for(auto const& it : runtime::range(r)){
+          runtime::print(\" \");
+          it.stream_console();
+         }"))
+#+end_src
+
+*** newline
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defnative newline []
+    (on "!defined(FERRET_DISABLE_STD_OUT)"
+        "runtime::print(\"\\n\");"))
+#+end_src
+
+*** println
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn println [& more]
+    (when more
+      (apply print more))
+    (newline))
+#+end_src
+
+*** get-char
+*** read-line
+
+Reads the next line from default I/O stream.
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn read-line []
+    "char buf[FERRET_IO_STREAM_SIZE] = {0};
+     runtime::read_line(buf, FERRET_IO_STREAM_SIZE);
+     return obj<string>(buf);")
+#+end_src
+
+*** slurp
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defnative slurp [f]
+    (on "defined FERRET_STD_LIB"
+        ("fstream")
+        "std::ifstream ifs(string::to<std::string>(f).c_str(),
+                           std::ios::in | std::ios::binary | std::ios::ate);
+   
+         if (!ifs.good())
+           return nil();
+   
+         std::ifstream::pos_type file_size = ifs.tellg();
+         ifs.seekg(0, std::ios::beg);
+
+         std::vector<char> bytes(file_size);
+         ifs.read(bytes.data(), file_size);
+         __result = obj<string>(std::string(bytes.data(), file_size));"))
+#+end_src
+
+*** sh
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defnative sh [cmd]
+    (on "defined FERRET_STD_LIB"
+        ("memory")
+        "::std::shared_ptr<FILE> pipe(popen(string::to<std::string>(cmd).c_str(), \"r\"), pclose);
+         if (!pipe) 
+           return nil();
+         char buffer[128];
+         ::std::string result = \"\";
+         while (!feof(pipe.get()))
+          if (fgets(buffer, 128, pipe.get()) != NULL)
+           result += buffer;
+         __result = obj<string>(result);"))
+#+end_src
+
+*** lock-memory
+
+Wraps mlockall - locks the address space of process.
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defnative lock-memory []
+    (on "defined FERRET_STD_LIB"
+        ("sys/mman.h")
+        "mlockall(MCL_CURRENT | MCL_FUTURE);"))
+#+end_src
+
+*** pr-object-sizes
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn pr-object-sizes []
+    (println "Object Sizes")
+    (println "\tvar:\t\t\t" (cxx "__result = obj<number>(sizeof(var));"))
+    (println "\tobject:\t\t\t" (cxx "__result = obj<number>(sizeof(object));"))
+    (println "\tpointer:\t\t" (cxx "__result = obj<number>(sizeof(pointer));"))
+    (println "\tnumber:\t\t\t" (cxx "__result = obj<number>(sizeof(number));"))
+    (println "\tkeyword:\t\t" (cxx "__result = obj<number>(sizeof(keyword));"))
+    (println "\tempty_sequence:\t\t" (cxx "__result = obj<number>(sizeof(empty_sequence));"))
+    (println "\tsequence:\t\t" (cxx "__result = obj<number>(sizeof(sequence));"))
+    (println "\tlazy_sequence:\t\t" (cxx "__result = obj<number>(sizeof(lazy_sequence));"))
+    (println "\tstring:\t\t\t" (cxx "__result = obj<number>(sizeof(string));"))
+    (println "\tboolean:\t\t" (cxx "__result = obj<number>(sizeof(boolean));"))
+    (println "\tlambda_i:\t\t" (cxx "__result = obj<number>(sizeof(lambda_i));"))
+    (println "\tatom:\t\t\t" (cxx "__result = obj<number>(sizeof(atomic));"))
+    (println "\telapsed_micros:\t\t" (cxx "__result = obj<number>(sizeof(elapsed_micros));"))
+    (println "\tpid_controller<real_t>:\t"
+             (cxx "__result = obj<number>(sizeof(pid_controller<real_t>));")))
+#+end_src
+
+*** memory-pool-free-space
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defnative memory-pool-free-space []
+    (on "defined FERRET_MEMORY_POOL_SIZE"
+        "size_t acc = 0;
+         for(size_t i = 0; i < FERRET_MEMORY_POOL_PAGE_COUNT; i++)
+           if(memory::allocator::program_memory.used.get(i) == false)
+             acc++;
+         __result = obj<number>((acc*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
+#+end_src
+
+*** system-exit
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn system-exit [code]
+    "::std::exit(number::to<number_t>(code));")
+#+end_src
+
+*** system-abort
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn system-abort [code]
+    "::std::abort();")
+#+end_src
+
+*** byte-stream-encoder/decoder
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn byte-stream-encoder [write]
+    (fn [bytes]
+      (let [size (count bytes)
+            CS   (reduce bit-xor size bytes)]
+        (write 0X06)
+        (write 0X85)
+        (write size)
+        (doseq [b bytes] 
+          (write b))
+        (write CS))))
+#+end_src
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn byte-stream-header-ready [read in-waiting]
+    (and (>= (in-waiting) 3) (= (read) 0X06) (= (read) 0X85)))
+
+  (defn byte-stream-payload-ready [size in-waiting]
+    (>= (in-waiting) (inc @size)))
+
+  (defn byte-stream-decoder-goto [] true)
+
+  (defn byte-stream-handle-payload [read s handler]
+    "number_t size = number::to<number_t>(s);
+     number_t cs_calculated = size;
+     var payload_rev;
+
+     for(number_t i = 0 ; i < size; i++){
+       var v = run(read);
+       cs_calculated ^= number::to<number_t>(v);
+       payload_rev = runtime::cons(v,payload_rev);
+     }
+
+     number_t cs_read = number::to<number_t>(run(read));
+
+     if (cs_calculated == cs_read){
+       var payload;
+
+       for(auto const& i : runtime::range(payload_rev))
+         payload = runtime::cons(i,payload);
+       
+       run(handler,payload);
+     }")
+
+  (defn byte-stream-decoder [read in-waiting handler]
+    (let [size (atom nil)]
+      (state-machine 
+       (states
+        (sync-header)
+        (read-size        (reset! size (read)))
+        (wait-payload)
+        (handle-payload   (byte-stream-handle-payload read @size handler)))
+       (transitions
+        (sync-header     #(byte-stream-header-ready read in-waiting)      read-size)
+        (read-size       byte-stream-decoder-goto                         wait-payload)
+        (wait-payload    #(byte-stream-payload-ready size in-waiting)     handle-payload)
+        (handle-payload  byte-stream-decoder-goto                         sync-header)))))
+#+end_src
+
+*** multicast-socket
+
+The multicast datagram socket class is useful for sending and
+receiving IP multicast packets. A MulticastSocket is a (UDP)
+datagram socket, with additional capabilities for joining "groups" of
+other multicast hosts on the internet.
+
+A multicast group is specified by a class D IP address and by a
+standard UDP port number. Class D IP addresses are in the range
+224.0.0.0 to 239.255.255.255, inclusive. The address 224.0.0.0 is
+reserved and should not be used.
+
+One would join a multicast group by first creating a =multicast-socket=
+with the desired IP and port. When one sends a message to a multicast
+group, all subscribing recipients to that host and port receive the
+message. When a socket subscribes to a multicast group/port, it
+receives datagrams sent by other hosts to the group/port, as do all
+other members of the group and port.
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core/net/multicast.clj
+  (require '[ferret.net.multicast :as multicast])
+
+  (def sender   (multicast/socket "224.5.23.2" 10005))
+  (def receiver (multicast/socket "224.5.23.2" 10005))
+
+  (def data-out (list 1 2 3 4 5))
+
+  (assert (multicast/send sender data-out))
+  (assert (multicast/pending? receiver))
+
+  (def data-in (multicast/recv receiver))
+
+  (assert (= data-in data-out))
+#+end_src
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/src/ferret/net/multicast.clj
+  (native-header "fcntl.h"
+                 "unistd.h"
+                 "arpa/inet.h"
+                 "netdb.h"
+                 "netinet/in.h"
+                 "sys/poll.h"
+                 "sys/socket.h"
+                 "sys/types.h"
+                 "string.h")
+
+  (defobject multicast-socket "ferret/net/multicast_o.h")
+
+  (defn socket [ip port]
+    "__result = obj<multicast_socket>(ip,port);")
+
+  (defn pending? [con]
+    "__result = obj<boolean>(con.cast<multicast_socket>()->have_pending_data());")
+
+  (defn send [con data]
+    "datagram_t buffer;
+     number_t idx = 0; 
+
+     for(auto const& b : runtime::range(data))
+      buffer[idx++] = (byte)number::to<number_t>(b);
+    
+     __result = obj<boolean>(con.cast<multicast_socket>()->send(buffer,idx));")
+
+  (defn byte [conn idx]
+    "__result = obj<number>(conn.cast<multicast_socket>()->data()[number::to<number_t>(idx)]);")
+
+  (defn data-seq
+    ([conn size]
+     (data-seq conn 0 size))
+    ([conn curr size]
+     (if (< curr size)
+       (cons (byte conn curr)
+             (lazy-seq (data-seq conn (inc curr) size))))))
+
+  (defn read [conn]
+    "__result = obj<number>(conn.cast<multicast_socket>()->recv());")
+
+  (defn recv [conn]
+    (data-seq conn (read conn)))
+#+end_src
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/net/multicast_o.h
+  namespace multicast_aux {
+    class address{
+      sockaddr addr;
+      socklen_t addr_len;
+   
+    public:
+      address(){
+        memset(&addr, 0, sizeof(addr));
+        addr_len = 0;
+      }
+    
+      address(const char *hostname, unsigned short port){
+        set_host(hostname, port);
+      }
+    
+      address(const address &src){ copy(src); }
+    
+      ~address() { reset(); }
+   
+      bool set_host(const char *hostname, unsigned short port);
+      void set_any(unsigned short port = 0);
+   
+      bool operator==(const address &a) const{
+        return addr_len == a.addr_len && memcmp(&addr, &a.addr, addr_len) == 0;
+      }
+    
+      void copy(const address &src){
+        memcpy(&addr, &src.addr, src.addr_len);
+        addr_len = src.addr_len;
+      }
+    
+      void reset(){
+        memset(&addr, 0, sizeof(addr));
+        addr_len = 0;
+      }
+    
+      void clear(){
+        reset();
+      }
+   
+      in_addr_t get_in_addr() const;
+   
+      friend class udp;
+    };
+
+    const size_t max_data_gram_size = 65507;
+
+    class udp{
+      ferret::array<ferret::byte, max_data_gram_size> buf;
+      int fd;
+   
+    public:
+      unsigned sent_packets;
+      size_t sent_bytes;
+      unsigned recv_packets;
+      size_t recv_bytes;
+   
+    public:
+      udp() : fd(-1) { close(); }
+      ~udp(){ close(); }
+   
+      bool open(const char *server_host, unsigned short port, bool blocking);
+      bool add_multicast(const address &multiaddr, const address &interface);
+      void close();
+      bool is_open() const{ return fd >= 0; }
+   
+      bool send(const void *data, size_t length, const address &dest);
+      ssize_t recv(address &src);
+   
+      bool wait(int timeout_ms = -1) const;
+      bool have_pending_data() const;
+   
+      const ferret::byte* data() const{ return buf.data; }
+    };
+   
+    bool address::set_host(const char *hostname, unsigned short port){
+      addrinfo *res = nullptr;
+      getaddrinfo(hostname, nullptr, nullptr, &res);
+      if (res == nullptr) {
+        return false;
+      }
+   
+      memset(&addr, 0, sizeof(addr));
+      addr_len = res->ai_addrlen;
+      memcpy(&addr, res->ai_addr, addr_len);
+      freeaddrinfo(res);
+   
+      // set port for internet sockets
+      sockaddr_in *sockname = reinterpret_cast<sockaddr_in *>(&addr);
+      if (sockname->sin_family == AF_INET) {
+        sockname->sin_port = htons(port);
+      }
+      else {
+        // TODO: any way to set port in general?
+      }
+   
+      return true;
+    }
+   
+    void address::set_any(unsigned short port){
+      memset(&addr, 0, sizeof(addr));
+      sockaddr_in *s = reinterpret_cast<sockaddr_in *>(&addr);
+      s->sin_addr.s_addr = htonl(INADDR_ANY);
+      s->sin_port = htons(port);
+      addr_len = sizeof(sockaddr_in);
+    }
+   
+    in_addr_t address::get_in_addr() const{
+      const sockaddr_in *s = reinterpret_cast<const sockaddr_in *>(&addr);
+      return s->sin_addr.s_addr;
+    }
+   
+    bool udp::open(const char *server_host, unsigned short port, bool blocking){
+      // open the socket
+      if (fd >= 0) {
+        ::close(fd);
+      }
+      fd = socket(PF_INET, SOCK_DGRAM, 0);
+   
+      // set socket as non-blocking
+      int flags = fcntl(fd, F_GETFL, 0);
+      if (flags < 0) {
+        flags = 0;
+      }
+      fcntl(fd, F_SETFL, flags | (blocking ? 0 : O_NONBLOCK));
+   
+      int reuse = 1;
+      if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&reuse), sizeof(reuse)) != 0) {
+        fprintf(stderr, "ERROR WHEN SETTING SO_REUSEADDR ON udp SOCKET\n");
+        fflush(stderr);
+      }
+   
+      int yes = 1;
+      // allow packets to be received on this host
+      if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, reinterpret_cast<const char *>(&yes), sizeof(yes)) != 0) {
+        fprintf(stderr, "ERROR WHEN SETTING IP_MULTICAST_LOOP ON udp SOCKET\n");
+        fflush(stderr);
+      }
+   
+      // bind socket to port if nonzero
+      if (port != 0) {
+        sockaddr_in sockname;
+        sockname.sin_family = AF_INET;
+        sockname.sin_addr.s_addr = htonl(INADDR_ANY);
+        sockname.sin_port = htons(port);
+        bind(fd, reinterpret_cast<struct sockaddr *>(&sockname), sizeof(sockname));
+      }
+   
+      // add udp multicast groups
+      address multiaddr, interface;
+      multiaddr.set_host(server_host, port);
+      interface.set_any();
+   
+      return add_multicast(multiaddr, interface);
+    }
+   
+    bool udp::add_multicast(const address &multiaddr, const address &interface){
+      struct ip_mreq imreq;
+      imreq.imr_multiaddr.s_addr = multiaddr.get_in_addr();
+      imreq.imr_interface.s_addr = interface.get_in_addr();
+   
+      int ret = setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imreq, sizeof(imreq));
+   
+      return ret == 0;
+    }
+   
+    void udp::close(){
+      if (fd >= 0) {
+        ::close(fd);
+      }
+      fd = -1;
+   
+      sent_packets = 0;
+      sent_bytes = 0;
+      recv_packets = 0;
+      recv_bytes = 0;
+    }
+   
+    bool udp::send(const void *data, size_t length, const address &dest){
+      ssize_t len = sendto(fd, data, length, 0, &dest.addr, dest.addr_len);
+      
+      if (len > 0) {
+        sent_packets++;
+        sent_bytes += (size_t)len;
+      }
+   
+      return (len >= 0 && (size_t)len == length);
+    }
+   
+    ssize_t udp::recv(address &src){
+      src.addr_len = sizeof(src.addr);
+      ssize_t len = recvfrom(fd, buf.data, max_data_gram_size, 0, &src.addr, &src.addr_len);
+   
+      if (len > 0) {
+        recv_packets++;
+        recv_bytes += (size_t)len;
+      }
+   
+      return len;
+    }
+   
+    bool udp::have_pending_data() const{
+      return wait(0);
+    }
+   
+    bool udp::wait(int timeout_ms) const{
+      static const bool debug = false;
+      static bool pendingData = false;
+      pollfd pfd;
+      pfd.fd = fd;
+      pfd.events = POLLIN;
+      pfd.revents = 0;
+   
+      bool success = (poll(&pfd, 1, timeout_ms) > 0);
+   
+      if (!success) {
+        // Poll now claims that there is no pending data.
+        // What did have_pending_data get from Poll most recently?
+        if (debug) {
+          printf("wait failed, have_pending_data=%s\n", (pendingData ? "true" : "false"));
+        }
+      }
+      pendingData = success;
+      return success;
+    }
+  }
+
+  typedef ferret::array<ferret::byte, multicast_aux::max_data_gram_size> datagram_t;
+
+  class multicast_socket final : public object {
+    std::string ip;
+    unsigned short port;
+    multicast_aux::udp net;
+    
+  public:
+
+    size_t type() const final { return runtime::type::multicast_socket; }
+
+    bool equals(var const &) const final {
+      return false;
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    void stream_console() const final {
+      runtime::print("multicast_socket<");
+      runtime::print(ip);
+      runtime::print(" ");
+      runtime::print(port);
+      runtime::print(">");
+    }
+  #endif
+
+    explicit multicast_socket(var i, var p) :
+      ip(string::to<std::string>(i)),
+      port((unsigned short)number::to<number_t>(p)) {
+      net.open(ip.c_str(), port,true);
+    }
+
+    bool have_pending_data() const {
+      return net.have_pending_data();
+    }
+
+    bool send(datagram_t & data, number_t size) {
+      multicast_aux::address dest_addr(ip.c_str(), port);
+      return net.send(data.data, (size_t)size, dest_addr);
+    }
+
+    number_t recv(){
+      multicast_aux::address src_addr(ip.c_str(), port);
+      return (number_t)net.recv(src_addr);
+    }
+
+    const byte* data() const{ return net.data(); }
+  };
 #+end_src
 
 ** Control
@@ -7274,85 +7362,6 @@ information.
     (if (bound? #'fir-unit-tests)
       `(do ~@(map #(list %) @fir-unit-tests) (system-exit 0))
       `(do (system-exit 0))))
-#+end_src
-
-** Native
-*** defnative
-
-Allows a function to be defined for multiple platforms see [[Accessing C,C++ Libraries]] for
-examples.
-
-#+name: runtime-clojure-fn-macros
-#+begin_src clojure :tangle no
-  (defmacro defnative [name args & form]
-    (let [includes (->> (filter #(seq? (nth % 2)) form)
-                        (map #(cons (nth % 1) (apply list (nth % 2))))
-                        (map (fn [form]
-                               (let [[guard & headers] form]
-                                 (str "\n#if " guard " \n"
-                                      (apply str (map #(str "#include \"" % "\"\n") headers))
-                                      "#endif\n"))))
-                        (map #(list 'native-declare %)))
-          body (->> (map #(vector (second %) (last %)) form)
-                    (map #(str "\n#if " (first %) " \n"
-                               (second %)
-                               "\n#endif\n"))
-                    (apply str))
-          pre-ample (->> (map #(vector (second %) (drop-last (drop 3 %))) form)
-                         (remove #(empty? (second %)))
-                         (map #(str "\n#if " (first %) " \n"
-                                    (apply str (map (fn [line] (str line "\n")) (second %)))
-                                    "\n#endif\n"))
-                         (map #(list 'native-declare %)))]
-      `(def ~name (fn ~args ~@includes ~@pre-ample  ~body))))
-#+end_src
-
-*** pr-object-sizes
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defn pr-object-sizes []
-    (println "Object Sizes")
-    (println "\tvar:\t\t\t" (cxx "__result = obj<number>(sizeof(var));"))
-    (println "\tobject:\t\t\t" (cxx "__result = obj<number>(sizeof(object));"))
-    (println "\tpointer:\t\t" (cxx "__result = obj<number>(sizeof(pointer));"))
-    (println "\tnumber:\t\t\t" (cxx "__result = obj<number>(sizeof(number));"))
-    (println "\tkeyword:\t\t" (cxx "__result = obj<number>(sizeof(keyword));"))
-    (println "\tempty_sequence:\t\t" (cxx "__result = obj<number>(sizeof(empty_sequence));"))
-    (println "\tsequence:\t\t" (cxx "__result = obj<number>(sizeof(sequence));"))
-    (println "\tlazy_sequence:\t\t" (cxx "__result = obj<number>(sizeof(lazy_sequence));"))
-    (println "\tstring:\t\t\t" (cxx "__result = obj<number>(sizeof(string));"))
-    (println "\tboolean:\t\t" (cxx "__result = obj<number>(sizeof(boolean));"))
-    (println "\tlambda_i:\t\t" (cxx "__result = obj<number>(sizeof(lambda_i));"))
-    (println "\tatom:\t\t\t" (cxx "__result = obj<number>(sizeof(atomic));"))
-    (println "\telapsed_micros:\t\t" (cxx "__result = obj<number>(sizeof(elapsed_micros));"))
-    (println "\tpid_controller<real_t>:\t"
-             (cxx "__result = obj<number>(sizeof(pid_controller<real_t>));")))
-#+end_src
-
-*** memory-pool-free-space
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defnative memory-pool-free-space []
-    (on "defined FERRET_MEMORY_POOL_SIZE"
-        "size_t acc = 0;
-         for(size_t i = 0; i < FERRET_MEMORY_POOL_PAGE_COUNT; i++)
-           if(memory::allocator::program_memory.used.get(i) == false)
-             acc++;
-         __result = obj<number>((acc*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
-#+end_src
-
-*** lock-memory
-
-Wraps mlockall - locks the address space of process.
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defnative lock-memory []
-    (on "defined FERRET_STD_LIB"
-        ("sys/mman.h")
-        "mlockall(MCL_CURRENT | MCL_FUTURE);"))
 #+end_src
 
 ** Compiler

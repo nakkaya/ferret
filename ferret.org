@@ -1009,12 +1009,19 @@ program. In order to keep the memory usage low Ferret will replace all
 functions calls with new function objects. So every time a function is
 called a new function object is created used and released. If
 performance is more important than memory usage this optimization can
-be disabled using compiler option =--global-functions=.
+be disabled using compiler option =--global-functions=. This
+optimization can be turned of on a per =def= basis by setting the
+metadata of the object to =:volatile= =true=,
+
+#+BEGIN_SRC clojure :tangle no
+  (defn ^{:volatile true} no-inline [] 42)
+#+END_SRC
 
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn inline-defn? [f]
     (and (parser/form? 'def f)
+         (-> f second meta :volatile not)
          (parser/form? 'fir-fn-heap
                        (->> f (drop 2) first))))
 
@@ -7499,11 +7506,11 @@ Static code analysis (cppcheck) options,
                                 '((range 10)))))))
 #+end_src
 
-*** Lambda Lifting
+*** Function Transforms
 
 #+name: clojure-unit-tests
 #+begin_src clojure :tangle no
-  (deftest lambda-lifting
+  (deftest test-fn->lift
     (let [prg-a (compile '((defn one-plus-one []
                              (+ 1 1))
 
@@ -7544,6 +7551,21 @@ Static code analysis (cppcheck) options,
                     count)))
       (is (= 1 (->> (fn [f] (= '(fir-defn-heap inner-c (b) [_] (+ b)) f))
                     (parser/peek prg-d)
+                    count)))))
+#+end_src
+
+#+name: clojure-unit-tests
+#+begin_src clojure :tangle no
+  (deftest test-fn->inline
+    (let [prg-a (compile '((defn  fn-inline [x] x)
+                           (defn ^{:volatile true} fn-no-inline [y] y)
+                           (fn-inline 42)
+                           (fn-no-inline 42)) {})]
+      (is (= 1 (->> (fn [f] (= '(fn_no_inline 42) f))
+                    (parser/peek prg-a)
+                    count)))
+      (is (= 1 (->> (fn [f] (= '((fir_fn_stack fn_inline) 42) f))
+                    (parser/peek prg-a)
                     count)))))
 #+end_src
 

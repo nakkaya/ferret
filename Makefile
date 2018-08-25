@@ -12,7 +12,20 @@ clean:
 
 # tangle compiler generate src/ directory
 src/: ferret.org
-	emacs -nw -Q --batch --eval "(progn (require 'org) (setq org-babel-use-quick-and-dirty-noweb-expansion t) (require 'ob) (setq org-confirm-babel-evaluate nil) (org-babel-do-load-languages 'org-babel-load-languages '((sh . t))) (find-file \"ferret.org\") (org-babel-tangle))"
+	emacs -nw -Q --batch --eval \
+	"(progn                                                     \
+           (require 'org)                                           \
+           (require 'ob)                                            \
+           (setq org-babel-use-quick-and-dirty-noweb-expansion t)   \
+           (setq org-confirm-babel-evaluate nil)                    \
+	   (when (locate-library \"ob-sh\")                         \
+            (org-babel-do-load-languages                            \
+              'org-babel-load-languages '((sh . t))))               \
+	   (when (locate-library \"ob-shell\")                      \
+            (org-babel-do-load-languages                            \
+              'org-babel-load-languages '((shell . t))))            \
+           (find-file \"ferret.org\")                               \
+           (org-babel-tangle))"
 
 repl: src/
 	cd src/ && lein repl

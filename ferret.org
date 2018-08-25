@@ -9378,7 +9378,15 @@ Create some dummy libs under /test/modules/,
    (setq org-export-with-section-numbers nil)
    (setq org-babel-use-quick-and-dirty-noweb-expansion t)
    (setq org-confirm-babel-evaluate nil)
-   (org-babel-do-load-languages 'org-babel-load-languages '((sh . t))) 
+
+   ;; for org-mode 8.x
+   (when (locate-library "ob-sh")
+     (org-babel-do-load-languages
+      'org-babel-load-languages '((sh . t))))
+   ;; for org-mode 9.x
+   (when (locate-library "ob-shell")
+     (org-babel-do-load-languages
+      'org-babel-load-languages '((shell . t))))
    
    (set-face-foreground 'font-lock-string-face "#990000")
    (set-face-foreground 'font-lock-keyword-face "#ff5f00")

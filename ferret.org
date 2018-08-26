@@ -699,7 +699,7 @@ modules names. So =helper-a= defined in module =util.db= becomes
 #+end_src
 
 Generates the required runtime for the form by importing the required
-modules and concatenate the required runtime from [[Core]].
+modules and concatenate the required runtime from [[*Core][Core]].
 
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
@@ -2299,14 +2299,14 @@ count, when it reaches zero it will automatically free the object.
   inline seekable_i* var::cast<seekable_i>() const { return obj->cast_seekable_i(); }
 #+end_src
 
-All object allocations are done using *obj* function. It will return a
-new *var* containing a pointer to an [[Object System][Object]]. *nil* is represented as a
-*var* pointing to *nullptr*.
+All object allocations are done using =obj= function. It will return a
+new =var= containing a pointer to an [[Object System][Object]]. =nil= is represented as a
+=var= pointing to =nullptr=.
 
-#+BEGIN_EXAMPLE
+#+begin_src c++ :tangle no
   var two = obj<number>(2);
   var some_nil = nil();
-#+END_EXAMPLE
+#+end_src
 
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
@@ -2395,9 +2395,9 @@ traditional boolean values.
   }
 #+end_src
 
-**** Pointer
+**** Pointer / Value
 
-A /pointer/ object keeps a reference to a C++ pointer.
+A =pointer= object keeps a reference to a C++ pointer.
 
 #+begin_src c++
   var num = obj<pointer>(new int(42));
@@ -2443,7 +2443,7 @@ A /pointer/ object keeps a reference to a C++ pointer.
   };
 #+end_src
 
-A /value/ object keeps a native object. Useful when working with
+A =value= object keeps a native object. Useful when working with
 modern C++ libraries that use smart pointers for memory management.
 
 #+name: value-test-helpers
@@ -3132,7 +3132,7 @@ Atoms provide a way to manage shared, synchronous, independent state.
 The intended use of atom is to hold one of Ferret’s immutable data
 structures.  You create an atom with =atom=, and can access its state
 with =deref/@=.  To change the value of an atom, you can use =swap!=
-or =reset!= .  Changes to atoms are always free of race conditions.
+or =reset!=. Changes to atoms are always free of race conditions.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
@@ -3175,7 +3175,7 @@ or =reset!= .  Changes to atoms are always free of race conditions.
 #+end_src
 
 
-Operations on /atoms/
+Operations on =atoms=
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
@@ -3193,8 +3193,8 @@ Operations on /atoms/
 
 Takes a body of expressions and yields a future object that will
 invoke the body in another thread, and will cache the result and
-return it on all subsequent calls to deref/@. If the computation has
-not yet finished, calls to deref/@ will block.
+return it on all subsequent calls to =deref=. If the computation has
+not yet finished, calls to =deref= will block.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
@@ -3285,7 +3285,7 @@ thread to =future=,
 **** Delay
 
 Takes a body of expressions and yields a Delay object that will invoke
-the body only the first time it is forced (with force or deref/@),
+the body only the first time it is forced (with =force= or =deref=),
 and will cache the result and return it on all subsequent force
 calls.
 
@@ -3547,9 +3547,9 @@ Implementations for the C++ Seekable API,
 
 **** Lambda
 
-Every lambda object implements the /lambda_i/ interface. All lambdas are
-executed via /invoke/ method that takes a sequence of vars as argument
-or /nil()/ if there are non, this allows us to execute them in a
+Every lambda object implements the =lambda_i= interface. All lambdas are
+executed via =invoke= method that takes a sequence of vars as argument
+or =nil()= if there are non, this allows us to execute them in a
 uniform fashion.
 
 #+name: runtime-clojure-interfaces
@@ -7384,11 +7384,11 @@ the rest of the code, even in a different module.
   (run-all-tests)
 #+end_src
 
-This creates functions named /life-test/, which can be called like any
-other function.  Therefore, tests can be grouped and composed, in a
-style similar to the test framework in Peter Seibel's "Practical
-Common Lisp" Finally all tests in the current program can be run using
-the [[deftest][run-all-tests]].
+This will create a function named =life-test=, which can be called
+like any other function.  Therefore, tests can be grouped and
+composed, in a style similar to the test framework in Peter Seibel's
+"Practical Common Lisp" Finally all tests in the current program can
+be run using the [[deftest][run-all-tests]].
 
 ** Continuous Integration
 
@@ -7405,12 +7405,6 @@ using =clojure.test= framework by compiling forms using Ferret then
 comparing the their runtime output to their expected output. All
 generated code is statically checked using =cppcheck= and tested
 against memory leaks and undefined behavior.
-
-Tests are grouped into 4 categories. *Compiler tests* test the inner
-workings of the compiler, *native tests* tests the inner workings of
-the Ferret lisp runtime, *core tests* tests the behavior of complete
-Ferret programs and finally *embedded tests* are used to verify
-code compiles on various embedded systems.
 
 Build options,
 
@@ -7879,8 +7873,6 @@ Static code analysis (cppcheck) options,
           5 10)))
 #+end_src
 
-*** Destructuring
-
 #+name: ferret-unit-tests
 #+begin_src clojure :tangle no
   (defn destructure-test-1 [[a b c]]
@@ -7962,8 +7954,6 @@ Static code analysis (cppcheck) options,
       (is (= nil g))))
 #+end_src
 
-*** FFI
-
 #+name: ferret-unit-tests
 #+begin_src clojure :tangle no
   (native-declare "ferret::number_t i = 0;")
@@ -7994,33 +7984,20 @@ Static code analysis (cppcheck) options,
     (is (= (list 3 2 1) (my-sort < (list 1 3 2)))))
 #+end_src
 
-*** Conditionals
-
 #+name: ferret-unit-tests
-#+begin_src clojure
-  (deftest conditionals-test
-    (is (= 2     (if 1 2)))
-    (is (= 1     (if (zero? 0) 1 -1)))
-    (is (= -1    (if (zero? 1) 1 -1)))
-    (is (= 2     (when true 2)))
-    (is (= 2     (if nil 1 2)))
-    (is (= nil   (if-let [a nil] a)))
-    (is (= 5     (if-let [a 5] a)))
-    (is (= 2     (if-let [[_ a] (list 1 2)] a)))
-    (is (= nil   (when-let [a nil] a)))
-    (is (= 5     (when-let [a 5] a)))
-    (is (= 2     (when-let [[_ a] (list 1 2)] a)))
-
-    (is (= 1     (when (< 2 3) 1)))
-    (is (= true  (let [a 1] (and (> a 0) (< a 10)))))
-    (is (= false (let [a 11] (and (> a 0) (< a 10)))))
-    (is (= true  (and true  (identity true))))
-    (is (= false (and true  (identity false))))
-    (is (= true  (or  true  (identity false))))
-    (is (= false (or  false (identity false)))))
+#+begin_src clojure :tangle no
+  (deftest doto-test
+    (let [st (atom )
+          add (fn [s v]
+                (swap! s conj v))]
+      (doto st
+        (add 1)
+        (add 2)
+        (add 3))
+      (is (= (list 3 2 1) @st))))
 #+end_src
 
-*** Logical Operators
+*** Logic
 
 #+name: ferret-unit-tests
 #+begin_src clojure
@@ -8082,6 +8059,234 @@ Static code analysis (cppcheck) options,
     (is (= true  (zero? (- 1 1))))
     (is (= true  (zero? (- 1.2 1.2))))
     (is (= true  (zero? (+ 1.2 -1.2)))))
+#+end_src
+
+*** Flow
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+  (deftest conditionals-test
+    (is (= 2     (if 1 2)))
+    (is (= 1     (if (zero? 0) 1 -1)))
+    (is (= -1    (if (zero? 1) 1 -1)))
+    (is (= 2     (when true 2)))
+    (is (= 2     (if nil 1 2)))
+    (is (= nil   (if-let [a nil] a)))
+    (is (= 5     (if-let [a 5] a)))
+    (is (= 2     (if-let [[_ a] (list 1 2)] a)))
+    (is (= nil   (when-let [a nil] a)))
+    (is (= 5     (when-let [a 5] a)))
+    (is (= 2     (when-let [[_ a] (list 1 2)] a)))
+
+    (is (= 1     (when (< 2 3) 1)))
+    (is (= true  (let [a 1] (and (> a 0) (< a 10)))))
+    (is (= false (let [a 11] (and (> a 0) (< a 10)))))
+    (is (= true  (and true  (identity true))))
+    (is (= false (and true  (identity false))))
+    (is (= true  (or  true  (identity false))))
+    (is (= false (or  false (identity false)))))
+#+end_src
+
+*** Sequential
+
+#+name: ferret-unit-tests
+#+begin_src clojure :tangle no
+  (deftest sequence-test
+    (is (= true  (= (list ) (list ))))
+    (is (= 0     (count (list ))))
+    (is (nil?    (first (rest (rest (list))))))
+    (is (= false (= (list )       (list 1 2 3))))
+    (is (= false (= (list )       (list nil))))
+    (is (= false (= (list 1 2 3)  (list 1 2))))
+    (is (= false (= (list 1 2)    (list 1 2 3))))
+    (is (= true  (= (list 1 2 3)  (list 1 2 3))))
+    (is (= false (= (list 1 2 3)  (list 1 2 4))))
+    (is (= false (= (list 1 1 3)  (list 1 2 3))))
+
+    (is (= (list )            (rest (list ))))
+    (is (= (list 1)           (cons 1 nil)))
+    (is (= (list nil)         (cons nil nil)))
+    (is (= 1                  (first (list 1 2 3 4))))
+    (is (= 2                  (second (list 1 2 3 4))))
+    (is (= (list 2 3 4)       (rest (list 1 2 3 4))))
+    (is (= (list 3 4)         (rest (rest (list 1 2 3 4)))))
+    (is (= (list 3 3 4)       (cons 3 (rest (rest (list 1 2 3 4))))))
+    (is (= 3                  (first (cons 3 (rest (rest (list 1 2 3 4)))))))
+    (is (= 4                  (count (list 1 2 3 4))))
+    (is (= (list 4 3 2 1 1 2) (conj (list 1 2) 1 2 3 4)))
+    (is (= (list 4 3 2 1)     (conj nil 1 2 3 4)))
+    (is (= 21                 (reduce + (list 1 2 3 4 5 6))))
+    (is (= 21                 (apply + (list 1 2 3 4 5 6))))
+
+    (is (= 1   (nth (list 1 2 3) 0)))
+    (is (= 2   (nth (list 1 2 3) 1)))
+    (is (= 3   (nth (list 1 2 3) 2)))
+    (is (= nil (nth (list 1 2 3) 10)))
+    (is (= nil (nth (list 1 2 3) -10)))
+
+    (is (= (list 0 1 2 3 4 5 6 7 8 9)  (nthrest (range 10) 0)))
+    (is (= (list )                     (nthrest (range 10) 20)))
+    (is (= (list 5 6 7 8 9)            (nthrest (range 10) 5)))
+    
+    (is (= (list 1 2 3 4) (drop 0 (list 1 2 3 4))))
+    (is (= (list 2 3 4)   (drop 1 (list 1 2 3 4))))
+    (is (= (list 3 4)     (drop 2 (list 1 2 3 4))))
+    (is (= (list )        (drop 4 (list 1 2 3 4))))
+    (is (= (list )        (drop 5 (list 1 2 3 4))))
+
+    (is (= (list 6 5 4 3 2 1) (reverse (list 1 2 3 4 5 6))))
+    (is (= (list 6 5 4 3 2)   (reduce (fn [h v] (conj h (inc v))) (list) (list 1 2 3 4 5))))
+    (is (= (list 4 3 2 1 0)   (reduce (fn [h v] (conj h (dec v))) (list) (list 1 2 3 4 5))))
+
+    
+    (is (= 1 (first (repeatedly 3 (fn [] 1)))))
+    (is (= 3 (count (repeatedly 3 (fn [] 1)))))
+    (is (= 2 (->> (repeatedly 3 (fn [] 1)) (map inc) first)))
+    (is (= 2 (->> (repeatedly (fn [] 1)) (take 3) (map inc) reverse first)))
+    
+    (is (= 2 (count (filter true? (list true false true false)))))
+    (is (= 2 (count (filter false? (list true false true false)))))
+    (is (= 3 (count (filter false? (list true false true false false)))))
+    (is (= 2 (count (filter (fn [x] (not (false? x))) (list true false true false false)))))
+
+    (let [sum (cxx "var alist = runtime::list(obj<number>(1),obj<number>(2),obj<number>(3));
+                    number_t sum = 0;
+                    for(auto const& it : runtime::range(alist)){
+                      sum += number::to<number_t>(it);
+                    }
+                    __result = obj<number>(sum);")]
+      (is (= 6 sum))))
+#+end_src
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+  (defn lazy-countdown [n]
+    (if (>= n 0)
+      (cons n (lazy-seq (lazy-countdown (- n 1))))))
+
+  (defn ints-from [n]
+    (cons n (lazy-seq (ints-from (inc n)))))
+
+  (defn fib-seq
+    ([]
+     (fib-seq 0 1))
+    ([a b]
+     (lazy-seq
+      (cons b (fib-seq b (+ a b))))))
+
+  (deftest lazy-seq-test
+    (is (= false (= (range 10) (range 15))))
+    (is (= false (= (range 15) (range 10))))
+    (is (= true  (= (range 10) (range 10))))
+    (is (= 10    (first (ints-from 10))))
+    (is (= 11    (first (rest (ints-from 10)))))
+    (is (= 12    (first (rest (rest (ints-from 10))))))
+    (is (= 10    (first (lazy-countdown 10))))
+    (is (= 9     (first (rest (lazy-countdown 10)))))
+    (is (= 8     (first (rest (rest (lazy-countdown 10))))))
+    (is (= 11    (count (lazy-countdown 10))))
+
+    (is (= 2   (first (map inc (list 1 2 3)))))
+    (is (= 0   (first (map dec (list 1 2 3)))))
+    (is (= 4   (first (map (fn [x] (+ 3 x)) (list 1 2 3)))))
+    (is (= 3   (count (map inc (list 1 2 3)))))
+    (is (= (list (list 1 4) (list 2 5))   (map (fn [a b] (list a b)) (list 1 2) (list 4 5))))
+    (is (= 10  (apply + (range 5))))
+    (is (= 5   (count (range 5))))
+    (is (= 2   (first (take 2 (map inc (list 1 2 3))))))
+    (is (= 3   (first (rest (take 2 (map inc (list 1 2 3)))))))
+    (is (= 3   (count (take 20 (map inc (list 1 2 3))))))
+    (is (= 1   (first (concat (list 1 2 3) (list 4 5 6)))))
+    (is (= 4   (first (drop 3 (concat (list 1 2 3) (list 4 5 6))))))
+    (is (= 21  (reduce + (concat (list 1 2 3) (list 4 5 6)))))
+
+    (is (= (list 1 2)            (cons 1 (cons 2 (lazy-seq )))))
+    (is (= (list -2 -1)          (take-while neg? (list -2 -1 0 1 2 3))))
+    (is (= (list -2 -1 0 1 2)    (take-while #(< % 3) (list -2 -1 0 1 2 3))))
+    (is (= (list -2 -1 0 1 2 3)  (take-while #(<= % 3) (list -2 -1 0 1 2 3))))
+    (is (= (list -2 -1 0 1 2 3)  (take-while #(<= % 4) (list -2 -1 0 1 2 3))))
+    
+    (is (empty? (concat)))
+    
+    (= (list 1 1 2 3 5) (take 5 (fib-seq)))
+    (= 12 (apply + (take 5 (fib-seq))))
+
+    (is (= false (every? false? (list true false))))
+    (is (= true  (every? false? (list false false))))
+    
+    (is (= (list 1 3 2 4) (interleave (list 1 2) (list 3 4))))
+    (is (= (list 1 3)     (interleave (list 1 2) (list 3))))
+    
+    (is (= (list (list 0 1 2 3) (list 4 5 6 7))                              (partition 4 (range 10))))
+    (is (= (list (list 0 1 2 3) (list 4 5 6 7))                              (partition 4 (range 8))))
+    (is (= (list (list 0 1 2 3) (list 6 7 8 9) (list 12 13 14 15))           (partition 4 6 (range 20))))
+    (is (= (list (list 0 1 2) (list 6 7 8) (list 12 13 14) (list 18 19 42))  (partition 3 6 (list 42) (range 20))))
+    (is (= (list (list 0 1 2 3) (list 6 7 8 9) (list 12 13 14 15) (list 18 19 42 43)) (partition 4 6 (list 42 43 44 45) (range 20)))))
+#+end_src
+
+*** Associative
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+  (deftest d-list-test
+    (let [m (new-d-list 0 (list 0 1)
+                        1 (list 1 2))
+          mr {:a 1 :b 2}
+          mn {1 2 3 4}]
+
+      (is (= (list 0 1)                    (keys m)))
+      (is (= (list (list 0 1) (list 1 2))  (vals m)))
+      (is (= (list 1 2)                    (m 1)))
+      (is (= m                             m))
+      (is (= (list 0)                      (keys (dissoc m 1))))
+      (is (= mr                            mr))
+      (is (= (list :a :b)                  (keys mr)))
+      (is (= (list 1  2)                   (vals mr)))
+      (is (= 1                             (:a mr)))
+      (is (= 1                             (get mr :a 10)))
+      (is (= 10                            (get mr :c 10)))
+      (is (= 1                             (mr :a)))
+      (is (= 1                             (mr :a 10)))
+      (is (= 10                            (mr :c 10)))
+      (is (= 1                             (:a mr)))
+      (is (= 1                             (:a mr 10)))
+      (is (= 10                            (:c mr 10)))
+      (is (= 6                             (->> mn
+                                                (map second)
+                                                (apply +))))))
+#+end_src
+
+*** Concurrency
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core/concurrency.clj
+  (deftest atom-test
+    (let [a (atom nil)
+          b (atom nil)]
+      (is (= nil          (deref a)))
+      (is (= 1            @(atom 1)))
+      (is (= 1            (do (reset! a 1) (deref a))))
+      (is (= 2            (do (swap! a inc) (deref a))))
+      (is (= (list 1 2 3) (do (reset! a (list 1 2 3)) (deref a))))
+      (is (= 6            (do (swap! a (fn [l] (reduce + l))) (deref a))))
+      (is (= true         (= a a)))
+      (is (= false        (= a b)))
+      (is (= false        (= a 3.14)))))
+
+  (deftest future-test
+    (is (= 42    @(future (+ 41 1))))
+    (is (= 42    @(future (sleep 100) (+ 40 2))))
+    (is (= false  (future-done? (future (sleep 100) :false))))
+    (is (= true   (let [f (future :true)]
+                    (deref f)
+                    (future-done? f))))
+    (is (= 42    @(thread #(+ 41 1)))))
+
+  (deftest delay-test
+    (let [d (delay   (+ 1 1))]
+      (is (= true    (delay? d)))
+      (is (= 2       @d))
+      (is (= 2       @d))
+      (is (= 42      (force (delay 42))))))    
 #+end_src
 
 *** Math
@@ -8190,272 +8395,82 @@ Static code analysis (cppcheck) options,
       (is (= 2 b))))
 #+end_src
 
-*** Sequence
+*** Timing
 
 #+name: ferret-unit-tests
 #+begin_src clojure :tangle no
-  (deftest sequence-test
-    (is (= true  (= (list ) (list ))))
-    (is (= 0     (count (list ))))
-    (is (nil?    (first (rest (rest (list))))))
-    (is (= false (= (list )       (list 1 2 3))))
-    (is (= false (= (list )       (list nil))))
-    (is (= false (= (list 1 2 3)  (list 1 2))))
-    (is (= false (= (list 1 2)    (list 1 2 3))))
-    (is (= true  (= (list 1 2 3)  (list 1 2 3))))
-    (is (= false (= (list 1 2 3)  (list 1 2 4))))
-    (is (= false (= (list 1 1 3)  (list 1 2 3))))
+  (deftest timing-test
+    (let [now (millis)]
+      (sleep 150)
+      (is (>= (- (millis) now) 100)))
+    (is (>= (time-fn (fn [] (sleep 150) (+ 1 1))) 100))
+    (is (>= (benchmark (fn [] (sleep 20) (+ 1 1)) 10) 10)))
 
-    (is (= (list )            (rest (list ))))
-    (is (= (list 1)           (cons 1 nil)))
-    (is (= (list nil)         (cons nil nil)))
-    (is (= 1                  (first (list 1 2 3 4))))
-    (is (= 2                  (second (list 1 2 3 4))))
-    (is (= (list 2 3 4)       (rest (list 1 2 3 4))))
-    (is (= (list 3 4)         (rest (rest (list 1 2 3 4)))))
-    (is (= (list 3 3 4)       (cons 3 (rest (rest (list 1 2 3 4))))))
-    (is (= 3                  (first (cons 3 (rest (rest (list 1 2 3 4)))))))
-    (is (= 4                  (count (list 1 2 3 4))))
-    (is (= (list 4 3 2 1 1 2) (conj (list 1 2) 1 2 3 4)))
-    (is (= (list 4 3 2 1)     (conj nil 1 2 3 4)))
-    (is (= 21                 (reduce + (list 1 2 3 4 5 6))))
-    (is (= 21                 (apply + (list 1 2 3 4 5 6))))
+  (defn ping [] true)
 
-    (is (= 1   (nth (list 1 2 3) 0)))
-    (is (= 2   (nth (list 1 2 3) 1)))
-    (is (= 3   (nth (list 1 2 3) 2)))
-    (is (= nil (nth (list 1 2 3) 10)))
-    (is (= nil (nth (list 1 2 3) -10)))
+  (deftest fn-throttler-test
+    (let [throttled-ping (fn-throttler ping 1 :second :blocking)
+          begin (millis)]
+      (throttled-ping)
+      (throttled-ping)
+      (throttled-ping)
+      (is (> (- (millis) begin) 2000))
+      (is (throttled-ping)))
 
-    (is (= (list 0 1 2 3 4 5 6 7 8 9)  (nthrest (range 10) 0)))
-    (is (= (list )                     (nthrest (range 10) 20)))
-    (is (= (list 5 6 7 8 9)            (nthrest (range 10) 5)))
-    
-    (is (= (list 1 2 3 4) (drop 0 (list 1 2 3 4))))
-    (is (= (list 2 3 4)   (drop 1 (list 1 2 3 4))))
-    (is (= (list 3 4)     (drop 2 (list 1 2 3 4))))
-    (is (= (list )        (drop 4 (list 1 2 3 4))))
-    (is (= (list )        (drop 5 (list 1 2 3 4))))
 
-    (is (= (list 6 5 4 3 2 1) (reverse (list 1 2 3 4 5 6))))
-    (is (= (list 6 5 4 3 2)   (reduce (fn [h v] (conj h (inc v))) (list) (list 1 2 3 4 5))))
-    (is (= (list 4 3 2 1 0)   (reduce (fn [h v] (conj h (dec v))) (list) (list 1 2 3 4 5))))
-
-    
-    (is (= 1 (first (repeatedly 3 (fn [] 1)))))
-    (is (= 3 (count (repeatedly 3 (fn [] 1)))))
-    (is (= 2 (->> (repeatedly 3 (fn [] 1)) (map inc) first)))
-    (is (= 2 (->> (repeatedly (fn [] 1)) (take 3) (map inc) reverse first)))
-    
-    (is (= 2 (count (filter true? (list true false true false)))))
-    (is (= 2 (count (filter false? (list true false true false)))))
-    (is (= 3 (count (filter false? (list true false true false false)))))
-    (is (= 2 (count (filter (fn [x] (not (false? x))) (list true false true false false)))))
-
-    (let [sum (cxx "var alist = runtime::list(obj<number>(1),obj<number>(2),obj<number>(3));
-                    number_t sum = 0;
-                    for(auto const& it : runtime::range(alist)){
-                      sum += number::to<number_t>(it);
-                    }
-                    __result = obj<number>(sum);")]
-      (is (= 6 sum))))
+    (let [throttled-ping (fn-throttler ping 1 :second :non-blocking)
+          begin (millis)]
+      (throttled-ping)
+      (throttled-ping)
+      (throttled-ping)
+      (is (nil? (throttled-ping)))
+      (is (< (- (millis) begin) 1000))))
 #+end_src
 
-*** Lazy Sequence
+*** I/O
 
 #+name: ferret-unit-tests
-#+begin_src clojure
-  (defn lazy-countdown [n]
-    (if (>= n 0)
-      (cons n (lazy-seq (lazy-countdown (- n 1))))))
+#+begin_src clojure :tangle no
+  (def byte-stream-state (atom nil))
 
-  (defn ints-from [n]
-    (cons n (lazy-seq (ints-from (inc n)))))
+  (defn byte-sample-read-stream [buf]
+    (let [buffer (atom buf)]
+      (list
+       (fn []
+         (let [f (first (deref buffer))]
+           (swap! buffer rest)
+           f))
+       (fn []
+         (count (deref buffer)))
+       (fn [vals]
+         (reset! byte-stream-state vals)))))
 
-  (defn fib-seq
-    ([]
-     (fib-seq 0 1))
-    ([a b]
-     (lazy-seq
-      (cons b (fib-seq b (+ a b))))))
+  (defn byte-sample-write-stream []
+    (let [buffer (atom (list))]
+      (list
+       (fn [v]
+         (swap! buffer conj v))
+       (fn []
+         (reverse (deref buffer))))))
 
-  (deftest lazy-seq-test
-    (is (= false (= (range 10) (range 15))))
-    (is (= false (= (range 15) (range 10))))
-    (is (= true  (= (range 10) (range 10))))
-    (is (= 10    (first (ints-from 10))))
-    (is (= 11    (first (rest (ints-from 10)))))
-    (is (= 12    (first (rest (rest (ints-from 10))))))
-    (is (= 10    (first (lazy-countdown 10))))
-    (is (= 9     (first (rest (lazy-countdown 10)))))
-    (is (= 8     (first (rest (rest (lazy-countdown 10))))))
-    (is (= 11    (count (lazy-countdown 10))))
+  (deftest byte-stream-test
+    (let [[writer get-buffer] (byte-sample-write-stream)
+          encoder (byte-stream-encoder writer)
+          data (list (list 1 2 3 4)
+                     (list 5 6 7 8))]
+      (doseq [d data] 
+        (encoder d))
 
-    (is (= 2   (first (map inc (list 1 2 3)))))
-    (is (= 0   (first (map dec (list 1 2 3)))))
-    (is (= 4   (first (map (fn [x] (+ 3 x)) (list 1 2 3)))))
-    (is (= 3   (count (map inc (list 1 2 3)))))
-    (is (= (list (list 1 4) (list 2 5))   (map (fn [a b] (list a b)) (list 1 2) (list 4 5))))
-    (is (= 10  (apply + (range 5))))
-    (is (= 5   (count (range 5))))
-    (is (= 2   (first (take 2 (map inc (list 1 2 3))))))
-    (is (= 3   (first (rest (take 2 (map inc (list 1 2 3)))))))
-    (is (= 3   (count (take 20 (map inc (list 1 2 3))))))
-    (is (= 1   (first (concat (list 1 2 3) (list 4 5 6)))))
-    (is (= 4   (first (drop 3 (concat (list 1 2 3) (list 4 5 6))))))
-    (is (= 21  (reduce + (concat (list 1 2 3) (list 4 5 6)))))
-
-    (is (= (list 1 2)            (cons 1 (cons 2 (lazy-seq )))))
-    (is (= (list -2 -1)          (take-while neg? (list -2 -1 0 1 2 3))))
-    (is (= (list -2 -1 0 1 2)    (take-while #(< % 3) (list -2 -1 0 1 2 3))))
-    (is (= (list -2 -1 0 1 2 3)  (take-while #(<= % 3) (list -2 -1 0 1 2 3))))
-    (is (= (list -2 -1 0 1 2 3)  (take-while #(<= % 4) (list -2 -1 0 1 2 3))))
-    
-    (is (empty? (concat)))
-    
-    (= (list 1 1 2 3 5) (take 5 (fib-seq)))
-    (= 12 (apply + (take 5 (fib-seq))))
-
-    (is (= false (every? false? (list true false))))
-    (is (= true  (every? false? (list false false))))
-    
-    (is (= (list 1 3 2 4) (interleave (list 1 2) (list 3 4))))
-    (is (= (list 1 3)     (interleave (list 1 2) (list 3))))
-    
-    (is (= (list (list 0 1 2 3) (list 4 5 6 7))                              (partition 4 (range 10))))
-    (is (= (list (list 0 1 2 3) (list 4 5 6 7))                              (partition 4 (range 8))))
-    (is (= (list (list 0 1 2 3) (list 6 7 8 9) (list 12 13 14 15))           (partition 4 6 (range 20))))
-    (is (= (list (list 0 1 2) (list 6 7 8) (list 12 13 14) (list 18 19 42))  (partition 3 6 (list 42) (range 20))))
-    (is (= (list (list 0 1 2 3) (list 6 7 8 9) (list 12 13 14 15) (list 18 19 42 43)) (partition 4 6 (list 42 43 44 45) (range 20)))))
-#+end_src
-
-*** Associative Containers
-
-#+name: ferret-unit-tests
-#+begin_src clojure
-  (deftest d-list-test
-    (let [m (new-d-list 0 (list 0 1)
-                        1 (list 1 2))
-          mr {:a 1 :b 2}
-          mn {1 2 3 4}]
-
-      (is (= (list 0 1)                    (keys m)))
-      (is (= (list (list 0 1) (list 1 2))  (vals m)))
-      (is (= (list 1 2)                    (m 1)))
-      (is (= m                             m))
-      (is (= (list 0)                      (keys (dissoc m 1))))
-      (is (= mr                            mr))
-      (is (= (list :a :b)                  (keys mr)))
-      (is (= (list 1  2)                   (vals mr)))
-      (is (= 1                             (:a mr)))
-      (is (= 1                             (get mr :a 10)))
-      (is (= 10                            (get mr :c 10)))
-      (is (= 1                             (mr :a)))
-      (is (= 1                             (mr :a 10)))
-      (is (= 10                            (mr :c 10)))
-      (is (= 1                             (:a mr)))
-      (is (= 1                             (:a mr 10)))
-      (is (= 10                            (:c mr 10)))
-      (is (= 6                             (->> mn
-                                                (map second)
-                                                (apply +))))))
-#+end_src
-
-*** Pointer
-
-#+name: ferret-unit-tests
-#+begin_src clojure
-  (deftest pointer-test
-    (let [a-ptr (cxx "__result = obj<pointer>(nullptr);")
-          b-ptr (cxx "__result = obj<pointer>(new int);")
-          gc    (fn [p] "delete pointer::to_pointer<int>(p);")]
-      (is (= true  (= a-ptr a-ptr)))
-      (is (= false (= a-ptr b-ptr)))
-      (is (= true  (= b-ptr b-ptr)))
-      (gc b-ptr)))
-
-  (deftest value-test
-    (let [obj-42 (make-data 42)
-          obj-24 (make-data 24)
-          val-42 (get-data obj-42)
-          val-24 (get-data obj-24)]
-      (is (=    obj-42 obj-42))
-      (is (not= obj-42 obj-24))
-      (is (=    val-42 42))
-      (is (=    val-24 24))
-      (is (=    25     (do (inc-data obj-24) 
-                           (get-data obj-24))))))
-#+end_src
-
-*** Keyword
-
-#+name: ferret-unit-tests
-#+begin_src clojure
-  (deftest keyword-test
-    (is (= true  (= :test  :test)))
-    (is (= false (= :test  :other_test)))
-    (is (= true  (= :space (cxx "__result = obj<keyword>(\":space\")")))))
-#+end_src
-
-*** String
-
-#+name: ferret-unit-tests
-#+begin_src clojure
-  (deftest string-test
-    (let [s1       "Some String"
-          s1-added "ASome String"
-          s2       "Other String"
-          s1-ret   (fn [] "__result = obj<string>(\"Some String\");")
-          s1-eq    (fn [s] "__result = obj<boolean>((string::to<std::string>(s) == \"Some String\"))")
-          s2       "Ali Topu At"
-          s3       (fn [] "std::string s = \"Some String\";
-                          __result = obj<string>(s);")]
-      (is (= s2 (new-string "Ali Topu At")))
-      (is (= false (= s1 s2)))
-      (is (= true  (= s1 s1)))
-      (is (= true  (= s1 (s3))))
-      (is (= false (= s1 3.14)))
-      (is (= true  (= s1 (s1-ret))))
-      (is (= true  (s1-eq s1)))
-      (is (= 99 \c))
-      (is (= \S (first s1)))
-      (is (= s1-added (cons 65 s1)))
-      (is (= s1 (rest (cons 65 s1))))))
-#+end_src
-
-*** Concurrency
-
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core/concurrency.clj
-  (deftest atom-test
-    (let [a (atom nil)
-          b (atom nil)]
-      (is (= nil          (deref a)))
-      (is (= 1            @(atom 1)))
-      (is (= 1            (do (reset! a 1) (deref a))))
-      (is (= 2            (do (swap! a inc) (deref a))))
-      (is (= (list 1 2 3) (do (reset! a (list 1 2 3)) (deref a))))
-      (is (= 6            (do (swap! a (fn [l] (reduce + l))) (deref a))))
-      (is (= true         (= a a)))
-      (is (= false        (= a b)))
-      (is (= false        (= a 3.14)))))
-
-  (deftest future-test
-    (is (= 42    @(future (+ 41 1))))
-    (is (= 42    @(future (sleep 100) (+ 40 2))))
-    (is (= false  (future-done? (future (sleep 100) :false))))
-    (is (= true   (let [f (future :true)]
-                    (deref f)
-                    (future-done? f))))
-    (is (= 42    @(thread #(+ 41 1)))))
-
-  (deftest delay-test
-    (let [d (delay   (+ 1 1))]
-      (is (= true    (delay? d)))
-      (is (= 2       @d))
-      (is (= 2       @d))
-      (is (= 42      (force (delay 42))))))    
-#+end_src
-
+      (let [[read in-waiting handler] (byte-sample-read-stream (get-buffer))
+            decoder (byte-stream-decoder read in-waiting handler)]
+        (dotimes [i 4]
+          (decoder))
+        (is (= (list 1 2 3 4) @byte-stream-state))
+        (dotimes [i 4]
+          (decoder))
+        (is (= (list 5 6 7 8) @byte-stream-state)))))
+ #+end_src
+ 
 *** Control
 
 #+name: ferret-unit-tests
@@ -8601,98 +8616,69 @@ Static code analysis (cppcheck) options,
         (machine))))
 #+end_src
 
-*** Timing
+*** Pointer
 
 #+name: ferret-unit-tests
-#+begin_src clojure :tangle no
-  (deftest timing-test
-    (let [now (millis)]
-      (sleep 150)
-      (is (>= (- (millis) now) 100)))
-    (is (>= (time-fn (fn [] (sleep 150) (+ 1 1))) 100))
-    (is (>= (benchmark (fn [] (sleep 20) (+ 1 1)) 10) 10)))
+#+begin_src clojure
+  (deftest pointer-test
+    (let [a-ptr (cxx "__result = obj<pointer>(nullptr);")
+          b-ptr (cxx "__result = obj<pointer>(new int);")
+          gc    (fn [p] "delete pointer::to_pointer<int>(p);")]
+      (is (= true  (= a-ptr a-ptr)))
+      (is (= false (= a-ptr b-ptr)))
+      (is (= true  (= b-ptr b-ptr)))
+      (gc b-ptr)))
 
-  (defn ping [] true)
-
-  (deftest fn-throttler-test
-    (let [throttled-ping (fn-throttler ping 1 :second :blocking)
-          begin (millis)]
-      (throttled-ping)
-      (throttled-ping)
-      (throttled-ping)
-      (is (> (- (millis) begin) 2000))
-      (is (throttled-ping)))
-
-
-    (let [throttled-ping (fn-throttler ping 1 :second :non-blocking)
-          begin (millis)]
-      (throttled-ping)
-      (throttled-ping)
-      (throttled-ping)
-      (is (nil? (throttled-ping)))
-      (is (< (- (millis) begin) 1000))))
+  (deftest value-test
+    (let [obj-42 (make-data 42)
+          obj-24 (make-data 24)
+          val-42 (get-data obj-42)
+          val-24 (get-data obj-24)]
+      (is (=    obj-42 obj-42))
+      (is (not= obj-42 obj-24))
+      (is (=    val-42 42))
+      (is (=    val-24 24))
+      (is (=    25     (do (inc-data obj-24) 
+                           (get-data obj-24))))))
 #+end_src
 
-*** Byte Stream
+*** Keyword
 
 #+name: ferret-unit-tests
-#+begin_src clojure :tangle no
-  (def byte-stream-state (atom nil))
-
-  (defn byte-sample-read-stream [buf]
-    (let [buffer (atom buf)]
-      (list
-       (fn []
-         (let [f (first (deref buffer))]
-           (swap! buffer rest)
-           f))
-       (fn []
-         (count (deref buffer)))
-       (fn [vals]
-         (reset! byte-stream-state vals)))))
-
-  (defn byte-sample-write-stream []
-    (let [buffer (atom (list))]
-      (list
-       (fn [v]
-         (swap! buffer conj v))
-       (fn []
-         (reverse (deref buffer))))))
-
-  (deftest byte-stream-test
-    (let [[writer get-buffer] (byte-sample-write-stream)
-          encoder (byte-stream-encoder writer)
-          data (list (list 1 2 3 4)
-                     (list 5 6 7 8))]
-      (doseq [d data] 
-        (encoder d))
-
-      (let [[read in-waiting handler] (byte-sample-read-stream (get-buffer))
-            decoder (byte-stream-decoder read in-waiting handler)]
-        (dotimes [i 4]
-          (decoder))
-        (is (= (list 1 2 3 4) @byte-stream-state))
-        (dotimes [i 4]
-          (decoder))
-        (is (= (list 5 6 7 8) @byte-stream-state)))))
- #+end_src
- 
-*** Misc
-
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
-  (deftest doto-test
-    (let [st (atom )
-          add (fn [s v]
-                (swap! s conj v))]
-      (doto st
-        (add 1)
-        (add 2)
-        (add 3))
-      (is (= (list 3 2 1) @st))))
+#+begin_src clojure
+  (deftest keyword-test
+    (is (= true  (= :test  :test)))
+    (is (= false (= :test  :other_test)))
+    (is (= true  (= :space (cxx "__result = obj<keyword>(\":space\")")))))
 #+end_src
 
-*** Module System
+*** String
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+  (deftest string-test
+    (let [s1       "Some String"
+          s1-added "ASome String"
+          s2       "Other String"
+          s1-ret   (fn [] "__result = obj<string>(\"Some String\");")
+          s1-eq    (fn [s] "__result = obj<boolean>((string::to<std::string>(s) == \"Some String\"))")
+          s2       "Ali Topu At"
+          s3       (fn [] "std::string s = \"Some String\";
+                          __result = obj<string>(s);")]
+      (is (= s2 (new-string "Ali Topu At")))
+      (is (= false (= s1 s2)))
+      (is (= true  (= s1 s1)))
+      (is (= true  (= s1 (s3))))
+      (is (= false (= s1 3.14)))
+      (is (= true  (= s1 (s1-ret))))
+      (is (= true  (s1-eq s1)))
+      (is (= 99 \c))
+      (is (= \S (first s1)))
+      (is (= s1-added (cons 65 s1)))
+      (is (= s1 (rest (cons 65 s1))))))
+#+end_src
+
+*** Modules
 
 Run import tests. 
 

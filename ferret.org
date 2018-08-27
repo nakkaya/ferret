@@ -2828,7 +2828,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     var data;
 
     number_t val_index(ref k) const {
-      var keys = runtime::first(data);
+      ref keys = runtime::first(data);
 
       for(auto const& i : runtime::range_indexed(keys))
         if ( i.value == k )
@@ -2855,13 +2855,11 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     explicit d_list(ref l) : data(l) { }
 
     var assoc(ref k, ref v) const {
-      var keys = runtime::first(data);
-      var values = runtime::rest(data);
+      ref keys = runtime::first(data);
+      ref values = runtime::rest(data);
 
-      values = runtime::cons(v,values);
-      keys   = runtime::cons(k,keys);
-      
-      return obj<d_list>(runtime::cons(keys,values));
+      return obj<d_list>(runtime::cons(runtime::cons(k,keys),
+                                       runtime::cons(v,values)));
     }
 
     var dissoc(ref k) const {
@@ -2870,8 +2868,8 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       if ( idx == -1 )
         return obj<d_list>(data);
 
-      var keys = runtime::first(data);
-      var values = runtime::rest(data);
+      ref keys = runtime::first(data);
+      ref values = runtime::rest(data);
 
       var new_keys;
       for(auto const& i : runtime::range_indexed(keys))
@@ -2887,8 +2885,8 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     }
     
     var val_at(ref args) const {
-      var key = runtime::first(args);
-      var not_found = runtime::first(runtime::rest(args));
+      ref key = runtime::first(args);
+      ref not_found = runtime::first(runtime::rest(args));
 
       var values = runtime::rest(data);
       number_t idx = val_index(key);
@@ -2921,14 +2919,14 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     }
     
     var first() const final {
-      var keys = runtime::first(data);
-      var values = runtime::rest(data);
+      ref keys = runtime::first(data);
+      ref values = runtime::rest(data);
       return runtime::list(runtime::first(keys),runtime::first(values));
     }
     
     var rest() const final {
-      var keys = runtime::first(data);
-      var values = runtime::rest(data);
+      ref keys = runtime::first(data);
+      ref values = runtime::rest(data);
 
       if(runtime::rest(keys) == runtime::list())
         return runtime::list();
@@ -2997,8 +2995,8 @@ the keyword as =number_t=.
     }
 
     var invoke(ref args) const {
-      var map = runtime::first(args);
-      var map_args = runtime::cons(var((object*)this), runtime::rest(args));
+      ref map = runtime::first(args);
+      ref map_args = runtime::cons(var((object*)this), runtime::rest(args));
 
       if (map.is_type(runtime::type::d_list)){
         return map.cast<map_t>()->val_at(map_args);
@@ -5201,7 +5199,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn rest [x] "var r = runtime::rest(x);
+  (defn rest [x] "ref r = runtime::rest(x);
                   if (r.is_nil())
                     return runtime::list();
                   else 
@@ -5249,8 +5247,7 @@ Returns the nth rest of coll, coll when n is 0.
   (defn reduce
     ([f [sf & sr]]
      "var acc = run(f, runtime::first(sr), sf);
-      var r = runtime::rest(sr);
-      for (ref i : runtime::range(r))
+      for (ref i : runtime::range(runtime::rest(sr)))
        acc = run(f, acc, i);
       __result = acc;")
     ([f acc coll]
@@ -5653,7 +5650,7 @@ Combine a list of bytes to a number.
     "number_t res = 0;
      for(size_t i = 0; i < sizeof(number_t); i++){
       size_t idx = (sizeof(number_t) - i - 1);
-      var obj = runtime::nth(s,(number_t)idx);
+      ref obj = runtime::nth(s,(number_t)idx);
       number_t val = number::to<number_t>(obj);
       res |= val << (i * 8);
      }
@@ -6157,9 +6154,9 @@ are evaluated in order.  Returns x.
     (on "!defined(FERRET_DISABLE_STD_OUT)"
         "if (more.is_nil())
            return nil();
-         var f = runtime::first(more);
+         ref f = runtime::first(more);
          f.stream_console();
-         var r = runtime::rest(more);
+         ref r = runtime::rest(more);
          for(ref it : runtime::range(r)){
           runtime::print(\" \");
           it.stream_console();
@@ -6333,7 +6330,7 @@ Wraps mlockall - locks the address space of process.
      var payload_rev;
 
      for(number_t i = 0 ; i < size; i++){
-       var v = run(read);
+       ref v = run(read);
        cs_calculated ^= number::to<number_t>(v);
        payload_rev = runtime::cons(v,payload_rev);
      }
@@ -6698,7 +6695,7 @@ other members of the group and port.
     }
   #endif
 
-    explicit multicast_socket(var i, var p) :
+    explicit multicast_socket(ref i, ref p) :
       ip(string::to<std::string>(i)),
       port((unsigned short)number::to<number_t>(p)) {
       net.open(ip.c_str(), port,true);

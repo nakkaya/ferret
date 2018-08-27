@@ -1581,14 +1581,14 @@ is supported.
     (str "runtime::first(" (destructure-nth-rest parent pos) ")"))
 
   (defn destructure-get [name parent key]
-    (str "const var " name " = "
+    (str "ref " name " = "
          parent ".cast<map_t>()->val_at(runtime::list(" (emit nil key nil) "));"))
 
   (defn new-fn-arg [name parent pos]
-    (str "const var " name " = " (destructure-nth parent pos)))
+    (str "ref " name " = " (destructure-nth parent pos)))
 
   (defn new-fn-var-arg [name parent pos]
-    (str "const var " name " = " (destructure-nth-rest parent pos)))
+    (str "ref " name " = " (destructure-nth-rest parent pos)))
 
   (defn destructure-associative [name parent pos]
     (let [tmp-name (gensym)]

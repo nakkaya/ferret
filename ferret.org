@@ -1712,18 +1712,18 @@ is supported.
           $fn.env:{const var $it$;} ;separator=\"\n\"$
         public:
           $if(fn.env)$
-            explicit $fn.name$ ($fn.env:{var const & $it$} ;separator=\",\"$) :
+            explicit $fn.name$ ($fn.env:{ref $it$} ;separator=\",\"$) :
               $fn.env:{$it$($it$)} ;separator=\",\"$ { }
           $endif$
 
-          var invoke (var const & _args_) const $if(!fn.stack)$ final $endif$ ;
+          var invoke (ref _args_) const $if(!fn.stack)$ final $endif$ ;
         };};separator=\"\n\n\"$"
      :fns fns))
 
   (defn lambda-implementations [fns]
     (render-template
      "$fns: {fn|
-        inline var $fn.name$::invoke (var const & _args_) const {
+        inline var $fn.name$::invoke (ref _args_) const {
           (void)(_args_);
           $fn.vars:{$it$;} ;separator=\"\n\"$
      
@@ -2185,6 +2185,7 @@ All our types are derived from the base Object type. Which is a
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
   class var;
+  typedef var const & ref;
   class seekable_i;
 
   template <typename rc>
@@ -2199,7 +2200,7 @@ All our types are derived from the base Object type. Which is a
     virtual void stream_console() const = 0;
   #endif
     
-    virtual bool equals(var const & o) const = 0;
+    virtual bool equals(ref) const = 0;
 
     virtual seekable_i* cast_seekable_i() { return nullptr; }
 
@@ -2220,7 +2221,7 @@ count, when it reaches zero it will automatically free the object.
   public:
     explicit var(object* o = nullptr) : obj(o) { inc_ref(); }
 
-    var(const var& o) : obj(o.obj) { inc_ref(); }
+    var(ref o) : obj(o.obj) { inc_ref(); }
     var(var&& o) : obj(o.obj) { o.obj = nullptr; }
       
     ~var() { dec_ref(); }
@@ -2234,7 +2235,7 @@ count, when it reaches zero it will automatically free the object.
       return *this;
     }
     
-    var& operator= (const var& other){
+    var& operator= (ref other){
       if (obj != other.obj){
         dec_ref();
         obj = other.obj;
@@ -2243,11 +2244,11 @@ count, when it reaches zero it will automatically free the object.
       return *this;
     }
 
-    bool equals (var const & rhs) const;
+    bool equals (ref) const;
 
-    bool operator==(const var& other) const { return equals(other); }
+    bool operator==(ref other) const { return equals(other); }
 
-    bool operator!=(const var& other) const { return !equals(other); }
+    bool operator!=(ref other) const { return !equals(other); }
     
     operator bool() const;
 
@@ -2344,7 +2345,7 @@ traditional boolean values.
 
     size_t type() const final { return runtime::type::boolean; }
 
-    bool equals(var const & o) const final {
+    bool equals(ref o) const final {
       return (value == o.cast<boolean>()->container());
     }
 
@@ -2378,7 +2379,7 @@ traditional boolean values.
       return true;
   }
 
-  bool var::equals (var const & other) const {
+  bool var::equals (ref other) const {
     if ( ( is_nil() && !other.is_nil()) ||
          (!is_nil() &&  other.is_nil()))
       return false;
@@ -2417,7 +2418,7 @@ A =pointer= object keeps a reference to a C++ pointer.
 
     size_t type() const final { return runtime::type::pointer; }
 
-    bool equals(var const & o) const final {
+    bool equals(ref o) const final {
       return (_payload == o.cast<pointer>()->payload());
     }
 
@@ -2434,10 +2435,10 @@ A =pointer= object keeps a reference to a C++ pointer.
     void* payload() const {
       return _payload;
     }
-    template<typename T> static T* to_pointer(var const & v){
+    template<typename T> static T* to_pointer(ref v){
       return ((T *) v.cast<pointer>()->payload());
     }
-    template<typename T> static T& to_reference(var const & v){
+    template<typename T> static T& to_reference(ref v){
       return (*(pointer::to_pointer<T>(v)));
     }
   };
@@ -2482,7 +2483,7 @@ modern C++ libraries that use smart pointers for memory management.
 
     size_t type() const final { return runtime::type::value; }
 
-    bool equals(var const & o) const final {
+    bool equals(ref o) const final {
       return (this == o.get());
     }
 
@@ -2502,7 +2503,7 @@ modern C++ libraries that use smart pointers for memory management.
       return _value;
     }
     
-    static T to_value(var const & v){
+    static T to_value(ref v){
       return v.cast<value<T>>()->to_value();
     }
 
@@ -2510,7 +2511,7 @@ modern C++ libraries that use smart pointers for memory management.
       return _value;
     }
     
-    static T & to_reference(var const & v) {
+    static T & to_reference(ref v) {
       return v.cast<value<T>>()->to_reference();
     }  
   };
@@ -2536,7 +2537,7 @@ fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
 
     size_t type() const final { return runtime::type::number; }
 
-    bool equals(var const & o) const final {
+    bool equals(ref o) const final {
       if (runtime::abs(_word - o.cast<number>()->word()) < real_epsilon)
         return true;
       else
@@ -2559,32 +2560,32 @@ fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
       T::unimplemented_function;
     }
     
-    var add(var const & v) const {
+    var add(ref v) const {
       return obj<number>(_word + v.cast<number>()->word());
     }
-    var sub(var const & v) const {
+    var sub(ref v) const {
       return obj<number>(_word - v.cast<number>()->word());
     }
-    var mul(var const & v) const {
+    var mul(ref v) const {
       return obj<number>(_word * v.cast<number>()->word());
     }
-    var div(var const & v) const {
+    var div(ref v) const {
       return obj<number>(_word / v.cast<number>()->word());
     }
-    var is_smaller(var const & v) const {
+    var is_smaller(ref v) const {
       return obj<boolean>(_word < v.cast<number>()->word());
     }
-    var is_smaller_equal(var const & v) const {
+    var is_smaller_equal(ref v) const {
       return obj<boolean>(_word <= v.cast<number>()->word());
     }
-    var is_bigger(var const & v) const {
+    var is_bigger(ref v) const {
       return obj<boolean>(_word > v.cast<number>()->word());
     }
-    var is_bigger_equal(var const & v) const {
+    var is_bigger_equal(ref v) const {
       return obj<boolean>(_word >= v.cast<number>()->word());
     }
     
-    template<typename T> static T to(var const & v){
+    template<typename T> static T to(ref v){
       return (T)v.cast<number>()->word();
     }
   };
@@ -2607,7 +2608,7 @@ directly. count is O(n). conj puts the item at the front of the list.
 
     size_t type() const final { return runtime::type::empty_sequence; }
 
-    bool equals(var const & ) const final {
+    bool equals(ref) const final {
       return true;
     }
 
@@ -2631,7 +2632,7 @@ directly. count is O(n). conj puts the item at the front of the list.
 
     size_t type() const final { return runtime::type::sequence; }
 
-    bool equals(var const & o) const final {
+    bool equals(ref o) const final {
       return seekable_i::equals(var((object*)this), o);
     }
 
@@ -2639,7 +2640,7 @@ directly. count is O(n). conj puts the item at the front of the list.
     void stream_console() const final {
       runtime::print("(");
       data.stream_console();
-      for(auto const& i : runtime::range(next)){
+      for(ref i : runtime::range(next)){
         runtime::print(" ");
         i.stream_console();
       }
@@ -2647,11 +2648,11 @@ directly. count is O(n). conj puts the item at the front of the list.
     }
   #endif
 
-    explicit sequence(var const & d = nil(), var const & n = nil()) : next(n), data(d) {} 
+    explicit sequence(ref d = nil(), ref n = nil()) : next(n), data(d) {} 
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
-    var cons(var const & x) final {
+    var cons(ref x) final {
       return obj<sequence>(x, var(this));
     }
     var first() const final {
@@ -2661,7 +2662,7 @@ directly. count is O(n). conj puts the item at the front of the list.
       return next;
     }
     template <typename T>
-    static T to(var const & ){
+    static T to(ref){
       T::unimplemented_function;
     }
     template <typename T>
@@ -2674,12 +2675,12 @@ directly. count is O(n). conj puts the item at the front of the list.
     inline var list() { 
       return cached::empty_sequence;
     }
-    inline var list(var const & v) { 
+    inline var list(ref v) { 
       return obj<sequence>(v,cached::empty_sequence);
     }
                       
     template <typename... Args>
-    inline var list(var const & first, Args const & ... args) { 
+    inline var list(ref first, Args const & ... args) { 
       return obj<sequence>(first, list(args...));
     }
   }
@@ -2687,16 +2688,16 @@ directly. count is O(n). conj puts the item at the front of the list.
   #ifdef FERRET_STD_LIB
   typedef ::std::vector<var>  std_vector;
 
-  template <> std_vector sequence::to(var const & v) { 
+  template <> std_vector sequence::to(ref v) { 
     std_vector ret;
-    for(auto const& it : runtime::range(v))
+    for(ref it : runtime::range(v))
       ret.push_back(it);
     return ret;
   }
 
   template <> var sequence::from(std_vector v) { 
     var ret;
-    for(auto const& it : v)
+    for(ref it : v)
       ret = runtime::cons(it,ret);
     return ret;
   }
@@ -2730,7 +2731,7 @@ sequence is iterated.
       return head;
     }
 
-    bool equals(var const & o) const final {
+    bool equals(ref o) const final {
       return seekable_i::equals(var((object*)this), o);
     }
 
@@ -2738,7 +2739,7 @@ sequence is iterated.
     void stream_console() const final {
       runtime::print("(");
       sval().stream_console();
-      for(auto const& i : runtime::range(rest())){
+      for(ref i : runtime::range(rest())){
         runtime::print(" ");
         i.stream_console();
       }
@@ -2746,12 +2747,12 @@ sequence is iterated.
     }
   #endif
 
-    explicit lazy_sequence(var const & t) : thunk(t) {} 
-    explicit lazy_sequence(var const & h, var const & t) : thunk(t), head(h) {} 
+    explicit lazy_sequence(ref t) : thunk(t) {} 
+    explicit lazy_sequence(ref h, ref t) : thunk(t), head(h) {} 
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
-    var cons(var const & x) final {
+    var cons(ref x) final {
       if (!head.is_nil())
         return obj<sequence>(x, obj<lazy_sequence>(head,thunk));
 
@@ -2826,10 +2827,10 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 
     var data;
 
-    number_t val_index(var const & k) const {
+    number_t val_index(ref k) const {
       var keys = runtime::first(data);
 
-      for(auto i : runtime::range_indexed(keys))
+      for(auto const& i : runtime::range_indexed(keys))
         if ( i.value == k )
           return i.index;
 
@@ -2840,7 +2841,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 
     size_t type() const final { return runtime::type::d_list; }
 
-    bool equals(var const & o) const final {
+    bool equals(ref o) const final {
       return (this == o.get());
     }
 
@@ -2851,9 +2852,9 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
   #endif
 
     explicit d_list() : data(runtime::list(runtime::list())) { }
-    explicit d_list(var const & l) : data(l) { }
+    explicit d_list(ref l) : data(l) { }
 
-    var assoc(var const & k, var const & v) const {
+    var assoc(ref k, ref v) const {
       var keys = runtime::first(data);
       var values = runtime::rest(data);
 
@@ -2863,7 +2864,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       return obj<d_list>(runtime::cons(keys,values));
     }
 
-    var dissoc(var const & k) const {
+    var dissoc(ref k) const {
       number_t idx = val_index(k);
       
       if ( idx == -1 )
@@ -2873,19 +2874,19 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       var values = runtime::rest(data);
 
       var new_keys;
-      for(auto i : runtime::range_indexed(keys))
+      for(auto const& i : runtime::range_indexed(keys))
         if ( i.index != idx)
           new_keys = runtime::cons(i.value, new_keys);
 
       var new_values;
-      for(auto i : runtime::range_indexed(values))
+      for(auto const& i : runtime::range_indexed(values))
         if ( i.index != idx)
           new_values = runtime::cons(i.value, new_values);
       
       return obj<d_list>(runtime::cons(new_keys,new_values));
     }
     
-    var val_at(var const & args) const {
+    var val_at(ref args) const {
       var key = runtime::first(args);
       var not_found = runtime::first(runtime::rest(args));
 
@@ -2906,7 +2907,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       return runtime::first(values);
     }
 
-    var invoke(var const & args) const final {
+    var invoke(ref args) const final {
       return val_at(args);
     }
 
@@ -2915,7 +2916,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 
     virtual seekable_i* cast_seekable_i() { return this; }
     
-    var cons(var const & v) final {
+    var cons(ref v) final {
       return runtime::list(v,data);
     }
     
@@ -2976,7 +2977,7 @@ the keyword as =number_t=.
 
     size_t type() const final { return runtime::type::keyword; }
 
-    bool equals(var const & o) const final {
+    bool equals(ref o) const final {
       return (_word == o.cast<keyword>()->word());
     }
 
@@ -2995,7 +2996,7 @@ the keyword as =number_t=.
       return _word;
     }
 
-    var invoke(var const & args) const {
+    var invoke(ref args) const {
       var map = runtime::first(args);
       var map_args = runtime::cons(var((object*)this), runtime::rest(args));
 
@@ -3045,20 +3046,20 @@ interpreted as FFI calls.
 
     size_t type() const final { return runtime::type::string; }
 
-    bool equals(var const & other) const final {
+    bool equals(ref other) const final {
       return (container() == other.cast<string>()->container());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      for(auto const& it : runtime::range(data))
+      for(ref it : runtime::range(data))
         runtime::print(number::to<char>(it));
     }
   #endif
 
     explicit string() : data(nullptr) {} 
 
-    explicit string(var const & s) : data(s) {}
+    explicit string(ref s) : data(s) {}
 
     explicit string(const char * str) {
       int length = 0;
@@ -3074,7 +3075,7 @@ interpreted as FFI calls.
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
-    var cons(var const & x) final {
+    var cons(ref x) final {
       return obj<string>(runtime::cons(x,data));
     }
 
@@ -3090,7 +3091,7 @@ interpreted as FFI calls.
     }
 
     template <typename T>
-    static T to(var const & ){
+    static T to(ref){
       T::unimplemented_function;
     }
 
@@ -3103,9 +3104,9 @@ interpreted as FFI calls.
     return var(new(storage) string(s.c_str(), (number_t)s.size()));
   }
 
-  template <> ::std::string string::to(var const & v) { 
+  template <> ::std::string string::to(ref v) { 
     ::std::stringstream ss;
-    for(auto const& it : runtime::range(v.cast<string>()->container()))
+    for(ref it : runtime::range(v.cast<string>()->container()))
       ss << number::to<char>(it);
     return ss.str();
   }
@@ -3134,7 +3135,7 @@ or =reset!=. Changes to atoms are always free of race conditions.
 
     size_t type() const final { return runtime::type::atomic; }
 
-    bool equals(var const & o) const final {
+    bool equals(ref o) const final {
       return (this == o.cast<atomic>());
     }
 
@@ -3146,9 +3147,9 @@ or =reset!=. Changes to atoms are always free of race conditions.
     }
   #endif
 
-    explicit atomic(var const & d) : data(d) {} 
+    explicit atomic(ref d) : data(d) {} 
 
-    var swap(var const & f,var const & args){
+    var swap(ref f, ref args){
       lock_guard guard(lock);
       data = f.cast<lambda_i>()->invoke(runtime::cons(data, args));
       return data;
@@ -3227,13 +3228,13 @@ thread to =future=,
     
     public:
 
-    explicit async(var const & f) :
+    explicit async(ref f) :
       value(nil()), fn(f), cached(false),
       task(std::async(std::launch::async, [this](){ return exec(); })){ inc_ref(); }
 
     size_t type() const final { return runtime::type::async; }
 
-    bool equals(var const & o) const final {
+    bool equals(ref o) const final {
       return (this == o.cast<async>());
     }
 
@@ -3301,7 +3302,7 @@ calls.
 
     size_t type() const final { return runtime::type::delayed; }
 
-    bool equals(var const & o) const final {
+    bool equals(ref o) const final {
       return (this == o.cast<delayed>());
     }
 
@@ -3311,7 +3312,7 @@ calls.
     }
   #endif
 
-    explicit delayed(var const & f) : fn(f) {} 
+    explicit delayed(ref f) : fn(f) {} 
     
     var deref() {
       lock_guard guard(lock);
@@ -3344,7 +3345,7 @@ to iterate seekable containers.
   class seekable_i {
   public:
 
-    virtual var cons(var const & x) = 0;
+    virtual var cons(ref x) = 0;
     virtual var first() const = 0;
     virtual var rest() const = 0;
 
@@ -3352,8 +3353,8 @@ to iterate seekable containers.
 
       for(;;lhs = runtime::rest(lhs), rhs = runtime::rest(rhs)){
 
-        var const & lf = runtime::first(lhs);
-        var const & rf = runtime::first(rhs);
+        ref lf = runtime::first(lhs);
+        ref rf = runtime::first(rhs);
 
         if (lf.is_nil() && rf.is_nil())
           return true;
@@ -3370,18 +3371,18 @@ C++ API for the interface,
 #+name: runtime-native-prototypes
 #+begin_src c++ :tangle no
   namespace runtime {
-    var list(var const & v);
-    var list(var const & v);
+    var list(ref v);
+    var list(ref v);
     template <typename... Args>
-    var list(var const & first, Args const & ... args);
+    var list(ref first, Args const & ... args);
 
-    var first(var const & coll);
-    var rest(var const & coll);
-    var cons(var const & x, var const & seq);
-    var nth(var const & seq, number_t index);
-    var nthrest(var const & seq, number_t index);
-    size_t count(var const & seq);
-    bool is_seqable(var const & seq);
+    var first(ref coll);
+    var rest(ref coll);
+    var cons(ref x, ref seq);
+    var nth(ref seq, number_t index);
+    var nthrest(ref seq, number_t index);
+    size_t count(ref seq);
+    bool is_seqable(ref seq);
   }
 #+end_src
 
@@ -3393,7 +3394,7 @@ for example usage.
     struct range{
       var p;
 
-      explicit range(var const & v) : p(v) { }
+      explicit range(ref v) : p(v) { }
       inline range begin() const { return range(p); }
       inline range end()   const { return range(cached::empty_sequence); }
 
@@ -3419,14 +3420,14 @@ for example usage.
       number_t index;
       var value;
 
-      explicit range_indexed_pair(number_t i = 0, var const & v = nil()) : index(i) , value(v) { }
+      explicit range_indexed_pair(number_t i = 0, ref v = nil()) : index(i) , value(v) { }
     };
     
     struct range_indexed{
       var p;
       number_t index;
 
-      explicit range_indexed(var const & v) : p(v) , index(0) { }
+      explicit range_indexed(ref v) : p(v) , index(0) { }
       inline range_indexed begin() const { return range_indexed(p); }
       inline range_indexed end()   const { return range_indexed(cached::empty_sequence); }
 
@@ -3452,14 +3453,14 @@ Implementations for the C++ Seekable API,
 #+name: runtime-native-implementations
 #+begin_src c++ :tangle no
   namespace runtime{
-    var first(var const & coll){
+    var first(ref coll){
       if (coll.is_nil() || coll.is_type(runtime::type::empty_sequence))
         return nil();
       else
         return coll.cast<seekable_i>()->first();
     }
 
-    var rest(var const & coll){
+    var rest(ref coll){
       if (coll.is_nil())
         return runtime::list();
       if (coll.is_type(runtime::type::empty_sequence))
@@ -3467,14 +3468,14 @@ Implementations for the C++ Seekable API,
       return coll.cast<seekable_i>()->rest();
     }
 
-    var cons(var const & x, var const & coll){
+    var cons(ref x, ref coll){
       if (coll.is_nil() || coll == runtime::list())
         return runtime::list(x);
 
       return coll.cast<seekable_i>()->cons(x);
     }
 
-    var nth(var const & seq, number_t index){
+    var nth(ref seq, number_t index){
       for(auto const& i : range_indexed(seq))
         if (index == i.index)
           return i.value;
@@ -3482,7 +3483,7 @@ Implementations for the C++ Seekable API,
       return nil();
     }
 
-    var nthrest(var const & seq, number_t index){
+    var nthrest(ref seq, number_t index){
       var ret = seq;
       for(number_t i = 0; i < index; i++)
         ret = runtime::rest(ret);
@@ -3493,16 +3494,16 @@ Implementations for the C++ Seekable API,
       return ret;
     }
     
-    size_t count(var const & seq){
+    size_t count(ref seq){
       size_t acc = 0;
-      for(auto const& v : runtime::range(seq)){
+      for(ref v : runtime::range(seq)){
         (void)v;
         acc++;
       }
       return acc;
     }
 
-    bool is_seqable(var const & seq){
+    bool is_seqable(ref seq){
       if(seq.cast<seekable_i>())
         return true;
       else
@@ -3526,11 +3527,11 @@ uniform fashion.
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lambda_i.h
   class lambda_i : public object {
    public:
-    virtual var invoke(var const & args) const = 0;
+    virtual var invoke(ref args) const = 0;
 
     size_t type() const { return runtime::type::lambda_i; }
 
-    bool equals(var const & o) const {
+    bool equals(ref o) const {
       return (this == o.get());
     }
 
@@ -3553,7 +3554,7 @@ Function invocation,
   inline var run(T const & fn);
 
   template<>
-  inline var run(var const &);
+  inline var run(ref);
 #+end_src
 
 #+name: runtime-native-implementations
@@ -3569,12 +3570,12 @@ Function invocation,
   }
 
   template<>
-  inline var run(var const & fn) {
+  inline var run(ref fn) {
     return fn.cast<lambda_i>()->invoke(nil());
   }
 
   template<typename... Args>
-  inline var run(var const & fn, Args const & ... args) {
+  inline var run(ref fn, Args const & ... args) {
     return fn.cast<lambda_i>()->invoke(runtime::list(args...));
   }
 #+end_src
@@ -4888,7 +4889,7 @@ are immutable you can freely call Ferret code from C++,
   var alist = runtime::list(obj<number>(1),obj<number>(2),obj<number>(3));
 
   int sum = 0;
-  for(auto const& it : runtime::range(alist)){
+  for(ref it : runtime::range(alist)){
     sum += number::to<int>(it);
    }
 
@@ -4950,7 +4951,7 @@ applications.
 #+begin_src clojure :tangle no
   (defn = [& args]
     "var curr = runtime::first(args);
-     for(auto const& it : runtime::range(runtime::rest(args))){
+     for(ref it : runtime::range(runtime::rest(args))){
       if (curr != it)
         return cached::false_t;
       curr = it;
@@ -5131,7 +5132,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     `(_doseq_ ~(second binding)
               (fn [~(first binding)] ~@body)))
 
-  (defn _doseq_ [seq f] "for(auto const& it : runtime::range(seq)) run(f,it);")
+  (defn _doseq_ [seq f] "for(ref it : runtime::range(seq)) run(f,it);")
 #+end_src
 
 *** dotimes
@@ -5249,12 +5250,12 @@ Returns the nth rest of coll, coll when n is 0.
     ([f [sf & sr]]
      "var acc = run(f, runtime::first(sr), sf);
       var r = runtime::rest(sr);
-      for (auto const& i : runtime::range(r))
+      for (ref i : runtime::range(r))
        acc = run(f, acc, i);
       __result = acc;")
     ([f acc coll]
      "__result = acc;
-      for (auto const& i : runtime::range(coll))
+      for (ref i : runtime::range(coll))
        __result = run(f, __result, i);"))
 #+end_src
 
@@ -5394,7 +5395,7 @@ false.
 #+name: runtime-clojure-core
 #+begin_src clojure
   (defn every? [pred coll]
-    "for(auto const& i : runtime::range(coll)){
+    "for(ref i : runtime::range(coll)){
        if (!run(pred, i))
         return cached::false_t;
      }
@@ -5891,7 +5892,7 @@ Port of Teensy elapsedMicros API,
     
     size_t type() const { return runtime::type::elapsed_micros; }
 
-    bool equals(var const & o) const {
+    bool equals(ref o) const {
       return (this == o.cast<elapsed_micros>());
     }
 
@@ -6159,7 +6160,7 @@ are evaluated in order.  Returns x.
          var f = runtime::first(more);
          f.stream_console();
          var r = runtime::rest(more);
-         for(auto const& it : runtime::range(r)){
+         for(ref it : runtime::range(r)){
           runtime::print(\" \");
           it.stream_console();
          }"))
@@ -6342,7 +6343,7 @@ Wraps mlockall - locks the address space of process.
      if (cs_calculated == cs_read){
        var payload;
 
-       for(auto const& i : runtime::range(payload_rev))
+       for(ref i : runtime::range(payload_rev))
          payload = runtime::cons(i,payload);
        
        run(handler,payload);
@@ -6421,7 +6422,7 @@ other members of the group and port.
     "datagram_t buffer;
      number_t idx = 0; 
 
-     for(auto const& b : runtime::range(data))
+     for(ref b : runtime::range(data))
       buffer[idx++] = (byte)number::to<number_t>(b);
     
      __result = obj<boolean>(con.cast<multicast_socket>()->send(buffer,idx));")
@@ -6683,7 +6684,7 @@ other members of the group and port.
 
     size_t type() const final { return runtime::type::multicast_socket; }
 
-    bool equals(var const &) const final {
+    bool equals(ref) const final {
       return false;
     }
 
@@ -6853,10 +6854,10 @@ Ported from,
     mutable T input;
   public:
 
-    pid_controller(var const & kp, var const & ki, var const & kd,
-                   var const & inMin, var const & inMax, var const & outMin, var const & outMax,
-                   var const & cont,
-                   var const & sp){
+    pid_controller(ref kp, ref ki, ref kd,
+                   ref inMin, ref inMax, ref outMin, ref outMax,
+                   ref cont,
+                   ref sp){
       p = number::to<T>(kp);
       i = number::to<T>(ki);
       d = number::to<T>(kd);
@@ -6882,7 +6883,7 @@ Ported from,
 
     size_t type() const { return runtime::type::pid_controller; }
 
-    bool equals(var const & o) const {
+    bool equals(ref o) const {
       return (this == o.cast<pid_controller>());
     }
 
@@ -6892,7 +6893,7 @@ Ported from,
     }
   #endif
 
-    var update(var const & in) const {
+    var update(ref in) const {
       input = number::to<T>(in);
 
       // Calculate the error signal
@@ -6934,7 +6935,7 @@ Ported from,
       return obj<number>(result);
     }
     
-    void set_setpoint(var const & p) const {
+    void set_setpoint(ref p) const {
       T sp = number::to<T>(p);
       if (maximum_input > minimum_input) {
         if (sp > maximum_input) {
@@ -6949,7 +6950,7 @@ Ported from,
       }
     }
 
-    var invoke(var const & args) const {
+    var invoke(ref args) const {
       if (!setpoint_fn.is_nil())
         set_setpoint(run(setpoint_fn));
       return update(runtime::first(args));
@@ -6999,13 +7000,13 @@ moving average of the last K samples by setting the value of alpha to
     mutable T avrg;
   public:
 
-    explicit moving_average_filter(var const & a) : avrg(0) {
+    explicit moving_average_filter(ref a) : avrg(0) {
       alpha = number::to<T>(a);
     }
 
     size_t type() const { return runtime::type::moving_average_filter; }
 
-    bool equals(var const & o) const {
+    bool equals(ref o) const {
       return (this == o.cast<moving_average_filter>());
     }
 
@@ -7019,7 +7020,7 @@ moving average of the last K samples by setting the value of alpha to
     }
   #endif
 
-    var invoke(var const & args) const {
+    var invoke(ref args) const {
       T data = number::to<T>(runtime::first(args));
       avrg = ((alpha * data) + ((1. - alpha) * avrg));
       return obj<number>(avrg);
@@ -8117,7 +8118,7 @@ Static code analysis (cppcheck) options,
 
     (let [sum (cxx "var alist = runtime::list(obj<number>(1),obj<number>(2),obj<number>(3));
                     number_t sum = 0;
-                    for(auto const& it : runtime::range(alist)){
+                    for(ref it : runtime::range(alist)){
                       sum += number::to<number_t>(it);
                     }
                     __result = obj<number>(sum);")]

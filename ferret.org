@@ -953,15 +953,16 @@ the free variable problem.
                          symbols
                          (into #{} (flatten env)))
                         (into ()))
+
               args (if (parser/ffi-fn?
                         (filter #(not (parser/form? 'native-declare %)) body))
                      args
-                     (reduce (fn[h v]
-                               (if (or (not (parser/fn-arg-symbol? v))
-                                       (symbols v))
-                                 (conj h v)
-                                 (conj h '_)))
-                             [] args))]
+                     (parser/transform args
+                                       symbol?
+                                       (fn [v]
+                                         (if (or (not (parser/fn-arg-symbol? v))
+                                                 (symbols v))
+                                           v '_))))]
           (if-let [n (fn-defined? fns env args body)]
             n
             (define-fn fns env name args body)))))))
@@ -1245,8 +1246,10 @@ Predicate for checking if function body is a FFI call or not.
 #+name: core-compiler-parser
 #+begin_src clojure :tangle no
   (defn ffi-fn? [body]
-    (->> (map string? body)
-         (every? true?)))
+    (and (not (nil? body))
+         (not (empty? body))
+         (->> (map string? body)
+              (every? true?))))
 #+end_src
 
 Predicate for checking if a symbol in =fn= arguments is a valid symbol
@@ -1258,7 +1261,7 @@ or not.
     (and (symbol? s)
          (not= s '&)
          (not= s '_)
-         (not= s 'fir-new-map)))
+         (not= s 'fir-destructure-associative)))
 #+end_src
 
 During each pass we iterate over the nodes in the form using one of

@@ -131,7 +131,7 @@ docs:   src/
 	mkdir -p docs/
 	mv ferret-manual.html docs/
 	rm clojure-mode-extra-font-locking.el
-release: clean test-release clojars deb-repo docs
+release: clean test-release deb-repo docs clojars
 	mkdir -p release/builds/
 	mv bin/ferret* release/builds/
 	cp release/builds/ferret.jar release/builds/ferret-`git rev-parse --short HEAD`.jar

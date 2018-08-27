@@ -2632,14 +2632,7 @@ directly. count is O(n). conj puts the item at the front of the list.
     size_t type() const final { return runtime::type::sequence; }
 
     bool equals(var const & o) const final {
-      if(first() != runtime::first(o))
-        return false;
-      
-      for(auto const& it : runtime::range_pair(rest(),runtime::rest(o)))
-        if (it.first != it.second)
-          return false;
-
-      return true;
+      return seekable_i::equals(var((object*)this), o);
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -2682,7 +2675,7 @@ directly. count is O(n). conj puts the item at the front of the list.
       return cached::empty_sequence;
     }
     inline var list(var const & v) { 
-      return obj<sequence>(v,nil());
+      return obj<sequence>(v,cached::empty_sequence);
     }
                       
     template <typename... Args>
@@ -2738,14 +2731,7 @@ sequence is iterated.
     }
 
     bool equals(var const & o) const final {
-      if(sval() != runtime::first(o))
-        return false;
-      
-      for(auto const& it : runtime::range_pair(rest(),runtime::rest(o)))
-        if (it.first != it.second)
-          return false;
-
-      return true;
+      return seekable_i::equals(var((object*)this), o);
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -2943,7 +2929,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       var keys = runtime::first(data);
       var values = runtime::rest(data);
 
-      if(runtime::rest(keys) == nil())
+      if(runtime::rest(keys) == runtime::list())
         return runtime::list();
       
       return obj<d_list>(runtime::cons(runtime::rest(keys),runtime::rest(values)));
@@ -3361,6 +3347,21 @@ to iterate seekable containers.
     virtual var cons(var const & x) = 0;
     virtual var first() const = 0;
     virtual var rest() const = 0;
+
+    static bool equals(var lhs, var rhs) {
+
+      for(;;lhs = runtime::rest(lhs), rhs = runtime::rest(rhs)){
+
+        var const & lf = runtime::first(lhs);
+        var const & rf = runtime::first(rhs);
+
+        if (lf.is_nil() && rf.is_nil())
+          return true;
+        
+        if (lf != rf)
+          return false;
+      }
+    }
   };
 #+end_src
 
@@ -3441,41 +3442,6 @@ for example usage.
 
       inline range_indexed_pair operator*(){
         return range_indexed_pair(index, runtime::first(p));
-      }
-    };
-  }
-#+end_src
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
-  namespace runtime {
-    struct range_pair_pair{
-      var first;
-      var second;
-
-      explicit range_pair_pair(var const & a = nil(), var const & b = nil()) : first(a) , second(b) { }
-    };
-      
-    struct range_pair{
-      var first;
-      var second;
-
-      explicit range_pair(var const & a = nil(), var const & b = nil()) : first(a) , second(b) { }
-      
-      inline range_pair begin() const { return range_pair(first, second); }
-      inline range_pair end()   const { return range_pair(cached::empty_sequence,cached::empty_sequence); }
-
-      inline bool operator!=(const range_pair& other){
-        return (first != other.first) && (second != other.second);
-      }
-
-      inline const range_pair& operator++(){
-        first = runtime::rest(first);
-        second = runtime::rest(second);
-        return *this;
-      }
-
-      inline range_pair_pair operator*(){
-        return range_pair_pair(runtime::first(first), runtime::first(second));
       }
     };
   }

@@ -9213,13 +9213,16 @@ Create some dummy libs under /test/modules/,
 
   <<runtime-native-hardware-concurrency>>
 
+  namespace ferret{
+    // Fixed Point Real
+    <<runtime-native-fixed-point-real>>
+  }
+
   // Number Configuration
   <<runtime-native-number-config-macros>>
 
   namespace ferret{
     <<runtime-native-math>>
-    // Fixed Point Real
-    <<runtime-native-fixed-point-real>>
     <<runtime-native-euclidean-vector>>
     // Containers
     <<runtime-native-containers>>

@@ -1606,8 +1606,13 @@ is supported.
                     (new-fn-arg name parent pos)
                     
                     (parser/form? 'fir_destructure_associative name)
-                    (let [[_ & args ] name]
-                      (destructure-associative (apply hash-map args) parent pos))
+                    (let [[_ & args ] name
+                          args (->> args
+                                    (partition 2)
+                                    (remove #(= (first %) '_))
+                                    flatten
+                                    (apply hash-map))]
+                      (destructure-associative args parent pos))
                     
                     (coll?   name)
                     (destructure-arguments name (destructure-nth parent pos)))]

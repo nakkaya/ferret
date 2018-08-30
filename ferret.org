@@ -8787,6 +8787,9 @@ Create some dummy libs under /test/modules/,
       - By default print error and abort. 
       - Let user define a callback function.
     - Documentation String
+  - *apply* - Behaves differently. =(apply + 1 2 '(3 4))=   equivalent
+    to =(apply + '(1 2 3 4))= in Clojure, =(apply + '(1 2 (3 4)))=  in
+    Ferret.
   - *Escape Analysis* 
     - Tag if an object escapes via metadata
     - Emit stack object types for escaped variables.
@@ -8800,11 +8803,17 @@ Create some dummy libs under /test/modules/,
       - https://news.ycombinator.com/item?id=8214343
       - https://justindomke.wordpress.com/2009/02/23/the-stalin-compiler/
   - *Multimethods*
-  - *Hardware Support* 
-     - Support for 3rd party machine architectures.
+  - *Hardware Support* - On an unknown arch Ferret will run in safe
+    mode. See [[Hardware / Operating System Support]].
+     - Support for user supplied machine architectures.
      - =defnative= calls in =ferret.core= are arch dependent.
        - Aggregate =on= sections from multiple modules.
        - Autogenerate combined =defnative=.
+     - Runtime contains arch specific =ifdefs=
+     - =arch.clj= similar to =deps.clj= where platform specific calls
+       can be loaded from a file.
+     - Or user tags functions via metadata that provides overrides for
+       arch specific core functions.
 
 ** Data Structures
 

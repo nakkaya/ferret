@@ -8792,6 +8792,9 @@ Create some dummy libs under /test/modules/,
   - *apply* - Behaves differently. =(apply + 1 2 '(3 4))=   equivalent
     to =(apply + '(1 2 3 4))= in Clojure, =(apply + '(1 2 (3 4)))=  in
     Ferret.
+  - *deps.clj*
+    - Support private git repositories. (HTTPS / SSH)
+    - Recursively resolve dependencies of dependencies.
   - *Escape Analysis* 
     - Tag if an object escapes via metadata
     - Emit stack object types for escaped variables.

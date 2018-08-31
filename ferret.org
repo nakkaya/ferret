@@ -200,8 +200,10 @@ calling malloc/free at runtime.
 
 *** Wrappers
 
- - [[https://github.com/nakkaya/ferret-mosquitto][ferret-mosquitto]] - Ferret bindings for Mosquitto MQTT Client
- - [[https://github.com/nakkaya/ferret-opencv][ferret-opencv]] - Ferret bindings for OpenCV
+ - [[https://github.com/nakkaya/ferret-L6470-AutoDriver][ferret-L6470-AutoDriver]] - Bindings for SparkFun AutoDriver -
+   Stepper Motor Driver.
+ - [[https://github.com/nakkaya/ferret-mosquitto][ferret-mosquitto]] - Ferret bindings for Mosquitto MQTT Client.
+ - [[https://github.com/nakkaya/ferret-opencv][ferret-opencv]] - Ferret bindings for OpenCV.
  - [[https://github.com/nakkaya/ferret-genann][ferret-genann]] - Ferret bindings for [[https://codeplea.com/genann][genann]] - simple neural
    network library in ANSI C.
  - [[https://github.com/nakkaya/ferret-teensy-flight-sim][ferret-teensy-flight-sim]] - Wrapper for Teensy flight sim controls.

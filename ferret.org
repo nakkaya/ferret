@@ -2474,10 +2474,10 @@ modern C++ libraries that use smart pointers for memory management.
                    };")
 
   (defn make-data [x]
-    "__result = obj<value<data>>(number::to<int>(x))")
+    "return obj<value<data>>(number::to<int>(x))")
 
   (defn get-data [x]
-    "__result = obj<number>((number_t) value<data>::to_value(x).content());")
+    "return obj<number>((number_t) value<data>::to_value(x).content());")
 
   (defn inc-data [x]
     "data & d = value<data>::to_reference(x);
@@ -2787,7 +2787,7 @@ sequence is iterated.
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defn new-lazy-seq [f]
-    "__result = obj<lazy_sequence>(f);")
+    "return obj<lazy_sequence>(f);")
 
   (defmacro lazy-seq [& body]
     `(new-lazy-seq (fn [] ~@body)))
@@ -2811,7 +2811,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
   (defobject d-list "ferret/obj/d_list_o.h")
 
   (defn new-d-list-aux [keys vals]
-    "__result = obj<d_list>(keys, vals);")
+    "return obj<d_list>(keys, vals);")
 
   (defmacro new-d-list [& args]
     (let [kvs (partition 2 args)
@@ -2821,19 +2821,19 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
         (list ~@keys) (list ~@vals))))
 
   (defn assoc [m k v]
-    "__result = m.cast<map_t>()->assoc(k,v);")
+    "return m.cast<map_t>()->assoc(k,v);")
 
   (defn dissoc [m k]
-    "__result = m.cast<map_t>()->dissoc(k);")
+    "return m.cast<map_t>()->dissoc(k);")
 
   (defn get [m & args]
-    "__result = m.cast<map_t>()->val_at(args);")
+    "return m.cast<map_t>()->val_at(args);")
 
   (defn vals [m]
-    "__result = m.cast<map_t>()->vals();")
+    "return m.cast<map_t>()->vals();")
 
   (defn keys [m]
-    "__result = m.cast<map_t>()->keys();")
+    "return m.cast<map_t>()->keys();")
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/d_list_o.h
@@ -3042,7 +3042,7 @@ interpreted as FFI calls.
 #+begin_src clojure :tangle no
   (defmacro new-string [& ss]
     (let [s (apply str ss)]
-      `((fn [] ~(str "__result = obj<string>(\"" s "\");")))))
+      `((fn [] ~(str "return obj<string>(\"" s "\");")))))
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/string_o.h
@@ -3179,10 +3179,10 @@ Operations on =atoms=
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defn atom [x]
-    "__result = obj<atomic>(x)")
+    "return obj<atomic>(x)")
 
   (defn swap! [a f & args]
-    "__result = a.cast<atomic>()->swap(f,args);")
+    "return a.cast<atomic>()->swap(f,args);")
 
   (defn reset! [a newval]
     (swap! a (fn [old curr] curr) newval))
@@ -3202,9 +3202,9 @@ not yet finished, calls to =deref= will block.
   (defmacro future [& body]
     `(_future_ (fn [] ~@body)))
 
-  (defn _future_ [f] "__result = obj<async>(f);")
+  (defn _future_ [f] "return obj<async>(f);")
 
-  (defn future-done? [f] "__result = obj<boolean>(f.cast<async>()->is_ready());")
+  (defn future-done? [f] "return obj<boolean>(f.cast<async>()->is_ready());")
 #+end_src
 
 Divert *depricated* thread macro which runs the given lambda in a
@@ -3213,7 +3213,7 @@ thread to =future=,
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn thread [f]
-    "__result = obj<async>(f);")
+    "return obj<async>(f);")
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/async_o.h
@@ -3293,13 +3293,13 @@ calls.
   (defobject delayed "ferret/obj/delayed_o.h")
 
   (defn _delay_ [f]
-    "__result = obj<delayed>(f)")
+    "return obj<delayed>(f)")
 
   (defmacro delay [& body]
     `(_delay_ (fn [] ~@body)))
 
   (defn delay? [d]
-    "__result = obj<boolean>(d.is_type(runtime::type::delayed));")
+    "return obj<boolean>(d.is_type(runtime::type::delayed));")
 
   (defn force [d] @d)
 #+end_src
@@ -3612,7 +3612,7 @@ Operations on =deref_i=
 #+name: runtime-clojure-interfaces
 #+begin_src clojure :tangle no
   (defn deref [a]
-    "__result = a.cast<deref_i>()->deref();")
+    "return a.cast<deref_i>()->deref();")
 #+end_src
 
 ** Memory Management
@@ -4876,7 +4876,7 @@ directives,
 #+begin_src clojure
   (defnative get-char []
     (on "defined FERRET_STD_LIB"
-        "__result = obj<number>(getchar());"))
+        "return obj<number>(getchar());"))
 #+end_src
 
 This function when compiled on a system that defines =GNU_GCC= will
@@ -4928,7 +4928,7 @@ applications.
   (defn true? [x]
     "if (x)
        return cached::true_t;
-     __result = cached::false_t;")
+     return cached::false_t;")
 #+end_src
 
 *** false?
@@ -4938,14 +4938,14 @@ applications.
   (defn false? [x]
     "if (!x)
        return cached::true_t;
-     __result = cached::false_t;")
+     return cached::false_t;")
 #+end_src
 
 *** nil?
 
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
-  (defn nil? [x] "__result = obj<boolean>(x.is_nil())")
+  (defn nil? [x] "return obj<boolean>(x.is_nil())")
 #+end_src
 *** not
 
@@ -4954,7 +4954,7 @@ applications.
   (defn not [x]
     "if (x)
        return cached::false_t;
-     __result = cached::true_t;")
+     return cached::true_t;")
 #+end_src
 
 *** =
@@ -4968,7 +4968,7 @@ applications.
         return cached::false_t;
       curr = it;
      }
-     __result = cached::true_t;")
+     return cached::true_t;")
 #+end_src
 
 *** not=
@@ -4987,7 +4987,7 @@ applications.
     ([] true)
     ([x] true)
     ([a b]
-     "__result = a.cast<number>()->is_smaller(b);")
+     "return a.cast<number>()->is_smaller(b);")
     ([a b & more]
      (if (< a b)
        (apply < (cons b more))
@@ -5002,7 +5002,7 @@ applications.
     ([] true)
     ([x] true)
     ([a b]
-     "__result = a.cast<number>()->is_bigger(b);")
+     "return a.cast<number>()->is_bigger(b);")
     ([a b & more]
      (if (> a b)
        (apply > (cons b more))
@@ -5017,7 +5017,7 @@ applications.
     ([] true)
     ([x] true)
     ([a b]
-     "__result = a.cast<number>()->is_bigger_equal(b);")
+     "return a.cast<number>()->is_bigger_equal(b);")
     ([a b & more]
      (if (>= a b)
        (apply >= (cons b more))
@@ -5032,7 +5032,7 @@ applications.
     ([] true)
     ([x] true)
     ([a b]
-     "__result = a.cast<number>()->is_smaller_equal(b);")
+     "return a.cast<number>()->is_smaller_equal(b);")
     ([a b & more]
      (if (<= a b)
        (apply <= (cons b more))
@@ -5164,16 +5164,16 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn list [& xs] "if (xs.is_nil())
-                       __result = runtime::list();
+                       return runtime::list();
                      else
-                       __result = xs;")
+                       return xs;")
 #+end_src
 
 *** list?
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn list? [x] "__result = obj<boolean>(x.is_type(runtime::type::sequence));")
+  (defn list? [x] "return obj<boolean>(x.is_type(runtime::type::sequence));")
 #+end_src
 
 *** empty?
@@ -5190,7 +5190,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn cons [x seq] "__result = runtime::cons(x, seq);")
+  (defn cons [x seq] "return runtime::cons(x, seq);")
 #+end_src
 
 *** first
@@ -5198,7 +5198,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn first [x]
-    "__result = runtime::first(x);")
+    "return runtime::first(x);")
 #+end_src
 
 *** second
@@ -5206,7 +5206,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn second [x]
-    "__result = runtime::first(runtime::rest(x));")
+    "return runtime::first(runtime::rest(x));")
 #+end_src
 
 *** rest
@@ -5217,14 +5217,14 @@ When test is true, evaluates body with binding-form bound to the value of test.
                   if (r.is_nil())
                     return runtime::list();
                   else 
-                    __result = r;")
+                    return r;")
 #+end_src
 
 *** nth
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn nth [coll index] "__result = runtime::nth(coll,number::to<number_t>(index));")
+  (defn nth [coll index] "return runtime::nth(coll,number::to<number_t>(index));")
 #+end_src
 
 *** nthrest
@@ -5234,7 +5234,7 @@ Returns the nth rest of coll, coll when n is 0.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn nthrest [coll n]
-    "__result = runtime::nthrest(coll,number::to<number_t>(n));")
+    "return runtime::nthrest(coll,number::to<number_t>(n));")
 #+end_src
 
 *** map
@@ -5263,7 +5263,7 @@ Returns the nth rest of coll, coll when n is 0.
      "var acc = run(f, runtime::first(sr), sf);
       for (ref i : runtime::range(runtime::rest(sr)))
        acc = run(f, acc, i);
-      __result = acc;")
+      return acc;")
     ([f acc coll]
      "__result = acc;
       for (ref i : runtime::range(coll))
@@ -5335,7 +5335,7 @@ Returns the nth rest of coll, coll when n is 0.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn apply [f args] "__result = f.cast<lambda_i>()->invoke(args);")
+  (defn apply [f args] "return f.cast<lambda_i>()->invoke(args);")
 #+end_src
 
 *** conj
@@ -5410,7 +5410,7 @@ false.
        if (!run(pred, i))
         return cached::false_t;
      }
-     __result = cached::true_t;")
+     return cached::true_t;")
 #+end_src
 
 *** interleave
@@ -5461,7 +5461,7 @@ Returns a lazy seq of the first item in each coll, then the second etc.
     ([] 0)
     ([x] x)
     ([h v]
-     "__result = h.cast<number>()->add(v);")
+     "return h.cast<number>()->add(v);")
     ([x y & more]
      (reduce + (+ x y) more)))
 #+end_src
@@ -5474,7 +5474,7 @@ Returns a lazy seq of the first item in each coll, then the second etc.
     ([x]
      (* -1 x))
     ([h v]
-     "__result = h.cast<number>()->sub(v);")
+     "return h.cast<number>()->sub(v);")
     ([x y & more]
      (reduce - (- x y) more)))
 #+end_src
@@ -5487,7 +5487,7 @@ Returns a lazy seq of the first item in each coll, then the second etc.
     ([] 1)
     ([x] x)
     ([h v]
-     "__result = h.cast<number>()->mul(v);")
+     "return h.cast<number>()->mul(v);")
     ([x y & more]
      (reduce * (* x y) more)))
 #+end_src
@@ -5500,7 +5500,7 @@ Returns a lazy seq of the first item in each coll, then the second etc.
     ([x]
      (apply / (list 1 x)))
     ([h v]
-     "__result = h.cast<number>()->div(v);")
+     "return h.cast<number>()->div(v);")
     ([x y & more]
      (reduce / (/ x y) more)))
 #+end_src
@@ -5558,7 +5558,7 @@ Returns a lazy seq of the first item in each coll, then the second etc.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn rem [num div]
-    "__result = obj<number>((number::to<number_t>(num) % number::to<number_t>(div)));")
+    "return obj<number>((number::to<number_t>(num) % number::to<number_t>(div)));")
 #+end_src
 
 *** mod
@@ -5576,7 +5576,7 @@ Returns a lazy seq of the first item in each coll, then the second etc.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn floor [x] "__result = obj<number>(number::to<number_t>(x));")
+  (defn floor [x] "return obj<number>(number::to<number_t>(x));")
 #+end_src
 
 *** scale
@@ -5602,42 +5602,42 @@ Returns a lazy seq of the first item in each coll, then the second etc.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-and [x y] "__result = obj<number>((number::to<number_t>(x) & number::to<number_t>(y)));")
+  (defn bit-and [x y] "return obj<number>((number::to<number_t>(x) & number::to<number_t>(y)));")
 #+end_src
 
 *** bit-not
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-not [x] "__result = obj<number>(~number::to<number_t>(x));")
+  (defn bit-not [x] "return obj<number>(~number::to<number_t>(x));")
 #+end_src
 
 *** bit-or
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-or [x y] "__result = obj<number>((number::to<number_t>(x) | number::to<number_t>(y) ));")
+  (defn bit-or [x y] "return obj<number>((number::to<number_t>(x) | number::to<number_t>(y) ));")
 #+end_src
 
 *** bit-xor
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-xor [x y] "__result = obj<number>((number::to<number_t>(x) ^ number::to<number_t>(y) ));")
+  (defn bit-xor [x y] "return obj<number>((number::to<number_t>(x) ^ number::to<number_t>(y) ));")
 #+end_src
 
 *** bit-shift-left
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-shift-left [x n] "__result = obj<number>((number::to<number_t>(x) << number::to<number_t>(n) ));")
+  (defn bit-shift-left [x n] "return obj<number>((number::to<number_t>(x) << number::to<number_t>(n) ));")
 #+end_src
 
 *** bit-shift-right
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-shift-right [x n] "__result = obj<number>((number::to<number_t>(x) >> number::to<number_t>(n) ));")
+  (defn bit-shift-right [x n] "return obj<number>((number::to<number_t>(x) >> number::to<number_t>(n) ));")
 #+end_src
 
 *** number-split
@@ -5668,7 +5668,7 @@ Combine a list of bytes to a number.
       number_t val = number::to<number_t>(obj);
       res |= val << (i * 8);
      }
-     __result = obj<number>(res);")
+     return obj<number>(res);")
 #+end_src
 
 *** sqrt
@@ -5678,7 +5678,7 @@ Square root.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn sqrt [s]
-    "__result = obj<number>((real_t)::sqrt(number::to<real_t>(s)));")
+    "return obj<number>((real_t)::sqrt(number::to<real_t>(s)));")
 #+end_src
 
 *** pow
@@ -5688,7 +5688,7 @@ Returns base raised to the power exponent:
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn pow [b e]
-    "__result = obj<number>((real_t)::pow(number::to<real_t>(b), number::to<real_t>(e)));")
+    "return obj<number>((real_t)::pow(number::to<real_t>(b), number::to<real_t>(e)));")
 #+end_src
 
 *** cos
@@ -5698,7 +5698,7 @@ Returns the cosine of an angle of x radians.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn cos [s]
-    "__result = obj<number>((real_t)::cos(number::to<real_t>(s)));")
+    "return obj<number>((real_t)::cos(number::to<real_t>(s)));")
 #+end_src
 
 *** sin
@@ -5708,7 +5708,7 @@ Returns the sine of an angle of x radians.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn sin [s]
-    "__result = obj<number>((real_t)::sin(number::to<real_t>(s)));")
+    "return obj<number>((real_t)::sin(number::to<real_t>(s)));")
 #+end_src
 
 *** asin
@@ -5718,7 +5718,7 @@ Returns the sine of an angle of x radians.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn asin [x]
-    "__result = obj<number>((real_t)::asin(number::to<real_t>(x)));")
+    "return obj<number>((real_t)::asin(number::to<real_t>(x)));")
 #+end_src
 
 *** atan2
@@ -5728,7 +5728,7 @@ Returns the principal value of the arc tangent of y/x, expressed in radians.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn atan2 [x y]
-    "__result = obj<number>((real_t)::atan2(number::to<real_t>(x),number::to<real_t>(y)));")
+    "return obj<number>((real_t)::atan2(number::to<real_t>(x),number::to<real_t>(y)));")
 #+end_src
 
 *** log / log10
@@ -5738,7 +5738,7 @@ Returns the natural logarithm of x.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn log [x]
-    "__result = obj<number>((real_t)::log(number::to<real_t>(x)));")
+    "return obj<number>((real_t)::log(number::to<real_t>(x)));")
 #+end_src
 
 Returns the natural logarithm of x.
@@ -5746,7 +5746,7 @@ Returns the natural logarithm of x.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn log10 [x]
-    "__result = obj<number>((real_t)::log10(number::to<real_t>(x)));")
+    "return obj<number>((real_t)::log10(number::to<real_t>(x)));")
 #+end_src
 
 *** to-degrees
@@ -5757,7 +5757,7 @@ angle measured in degrees.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn to-degrees [x]
-    "__result = obj<number>((real_t) (number::to<real_t>(x) * 180.0 / 1_pi) );")
+    "return obj<number>((real_t) (number::to<real_t>(x) * 180.0 / 1_pi) );")
 #+end_src
 
 *** to-radians
@@ -5768,7 +5768,7 @@ angle measured in radians.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn to-radians [x]
-    "__result = obj<number>((real_t) (number::to<real_t>(x) * 1_pi / 180.0) );")
+    "return obj<number>((real_t) (number::to<real_t>(x) * 1_pi / 180.0) );")
 #+end_src
 
 *** rand
@@ -5784,7 +5784,7 @@ Returns a random floating point number between 0 (inclusive) and n
         "::std::random_device ferret_random_device;
          ::std::mt19937_64 ferret_random_generator(ferret_random_device());
          ::std::uniform_real_distribution<ferret::real_t> ferret_random_distribution(0.0,1.0);"
-        "__result = obj<number>(ferret_random_distribution(ferret_random_generator));"))
+        "return obj<number>(ferret_random_distribution(ferret_random_generator));"))
 
   (defn rand
     ([]
@@ -5816,9 +5816,9 @@ Return current time in milliseconds,
         "auto now = ::std::chrono::system_clock::now();
          auto epoch = now.time_since_epoch();
          auto time = ::std::chrono::duration_cast<::std::chrono::milliseconds>(epoch).count();
-         __result = obj<number>(time);")
+         return obj<number>(time);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "__result = obj<number>(::millis());"))
+        "return obj<number>(::millis());"))
 #+end_src
 
 *** micros
@@ -5832,9 +5832,9 @@ Return current time in microseconds,
         "auto now = ::std::chrono::high_resolution_clock::now();
          auto epoch = now.time_since_epoch();
          auto time = ::std::chrono::duration_cast<::std::chrono::microseconds>(epoch).count();
-         __result = obj<number>(time);")
+         return obj<number>(time);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "__result = obj<number>(::micros());"))
+        "return obj<number>(::micros());"))
 #+end_src
 
 *** sleep
@@ -5864,13 +5864,13 @@ Port of Teensy elapsedMicros API,
   (defobject elapsed_micros "ferret/obj/elapsed_micros_o.h")
 
   (defn new-elapsed-micros []
-    "__result = obj<elapsed_micros>();")
+    "return obj<elapsed_micros>();")
 
   (defn elapsed-micros? [t r]
-    "__result = obj<boolean>(t.cast<elapsed_micros>()->is_elapsed(number::to<real_t>(r)));")
+    "return obj<boolean>(t.cast<elapsed_micros>()->is_elapsed(number::to<real_t>(r)));")
 
   (defn elapsed-micros-now [t]
-    "__result = obj<number>(t.cast<elapsed_micros>()->elapsed());")
+    "return obj<number>(t.cast<elapsed_micros>()->elapsed());")
 
   (defn elapsed-micros-reset [t]
     "t.cast<elapsed_micros>()->reset()")
@@ -6228,7 +6228,7 @@ Reads the next line from default I/O stream.
 
          std::vector<char> bytes(file_size);
          ifs.read(bytes.data(), file_size);
-         __result = obj<string>(std::string(bytes.data(), file_size));"))
+         return obj<string>(std::string(bytes.data(), file_size));"))
 #+end_src
 
 *** sh
@@ -6246,7 +6246,7 @@ Reads the next line from default I/O stream.
          while (!feof(pipe.get()))
           if (fgets(buffer, 128, pipe.get()) != NULL)
            result += buffer;
-         __result = obj<string>(result);"))
+         return obj<string>(result);"))
 #+end_src
 
 *** lock-memory
@@ -6267,21 +6267,21 @@ Wraps mlockall - locks the address space of process.
 #+begin_src clojure :tangle no
   (defn pr-object-sizes []
     (println "Object Sizes")
-    (println "\tvar:\t\t\t" (cxx "__result = obj<number>(sizeof(var));"))
-    (println "\tobject:\t\t\t" (cxx "__result = obj<number>(sizeof(object));"))
-    (println "\tpointer:\t\t" (cxx "__result = obj<number>(sizeof(pointer));"))
-    (println "\tnumber:\t\t\t" (cxx "__result = obj<number>(sizeof(number));"))
-    (println "\tkeyword:\t\t" (cxx "__result = obj<number>(sizeof(keyword));"))
-    (println "\tempty_sequence:\t\t" (cxx "__result = obj<number>(sizeof(empty_sequence));"))
-    (println "\tsequence:\t\t" (cxx "__result = obj<number>(sizeof(sequence));"))
-    (println "\tlazy_sequence:\t\t" (cxx "__result = obj<number>(sizeof(lazy_sequence));"))
-    (println "\tstring:\t\t\t" (cxx "__result = obj<number>(sizeof(string));"))
-    (println "\tboolean:\t\t" (cxx "__result = obj<number>(sizeof(boolean));"))
-    (println "\tlambda_i:\t\t" (cxx "__result = obj<number>(sizeof(lambda_i));"))
-    (println "\tatom:\t\t\t" (cxx "__result = obj<number>(sizeof(atomic));"))
-    (println "\telapsed_micros:\t\t" (cxx "__result = obj<number>(sizeof(elapsed_micros));"))
+    (println "\tvar:\t\t\t" (cxx "return obj<number>(sizeof(var));"))
+    (println "\tobject:\t\t\t" (cxx "return obj<number>(sizeof(object));"))
+    (println "\tpointer:\t\t" (cxx "return obj<number>(sizeof(pointer));"))
+    (println "\tnumber:\t\t\t" (cxx "return obj<number>(sizeof(number));"))
+    (println "\tkeyword:\t\t" (cxx "return obj<number>(sizeof(keyword));"))
+    (println "\tempty_sequence:\t\t" (cxx "return obj<number>(sizeof(empty_sequence));"))
+    (println "\tsequence:\t\t" (cxx "return obj<number>(sizeof(sequence));"))
+    (println "\tlazy_sequence:\t\t" (cxx "return obj<number>(sizeof(lazy_sequence));"))
+    (println "\tstring:\t\t\t" (cxx "return obj<number>(sizeof(string));"))
+    (println "\tboolean:\t\t" (cxx "return obj<number>(sizeof(boolean));"))
+    (println "\tlambda_i:\t\t" (cxx "return obj<number>(sizeof(lambda_i));"))
+    (println "\tatom:\t\t\t" (cxx "return obj<number>(sizeof(atomic));"))
+    (println "\telapsed_micros:\t\t" (cxx "return obj<number>(sizeof(elapsed_micros));"))
     (println "\tpid_controller<real_t>:\t"
-             (cxx "__result = obj<number>(sizeof(pid_controller<real_t>));")))
+             (cxx "return obj<number>(sizeof(pid_controller<real_t>));")))
 #+end_src
 
 *** memory-pool-free-space
@@ -6294,7 +6294,7 @@ Wraps mlockall - locks the address space of process.
          for(size_t i = 0; i < FERRET_MEMORY_POOL_PAGE_COUNT; i++)
            if(memory::allocator::program_memory.used.get(i) == false)
              acc++;
-         __result = obj<number>((acc*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
+         return obj<number>((acc*sizeof(FERRET_MEMORY_POOL_PAGE_TYPE)));"))
 #+end_src
 
 *** system-exit
@@ -6425,10 +6425,10 @@ other members of the group and port.
   (defobject multicast-socket "ferret/net/multicast_o.h")
 
   (defn socket [ip port]
-    "__result = obj<multicast_socket>(ip,port);")
+    "return obj<multicast_socket>(ip,port);")
 
   (defn pending? [con]
-    "__result = obj<boolean>(con.cast<multicast_socket>()->have_pending_data());")
+    "return obj<boolean>(con.cast<multicast_socket>()->have_pending_data());")
 
   (defn send [con data]
     "datagram_t buffer;
@@ -6437,10 +6437,10 @@ other members of the group and port.
      for(ref b : runtime::range(data))
       buffer[idx++] = (byte)number::to<number_t>(b);
     
-     __result = obj<boolean>(con.cast<multicast_socket>()->send(buffer,idx));")
+     return obj<boolean>(con.cast<multicast_socket>()->send(buffer,idx));")
 
   (defn byte [conn idx]
-    "__result = obj<number>(conn.cast<multicast_socket>()->data()[number::to<number_t>(idx)]);")
+    "return obj<number>(conn.cast<multicast_socket>()->data()[number::to<number_t>(idx)]);")
 
   (defn data-seq
     ([conn size]
@@ -6451,7 +6451,7 @@ other members of the group and port.
              (lazy-seq (data-seq conn (inc curr) size))))))
 
   (defn read [conn]
-    "__result = obj<number>(conn.cast<multicast_socket>()->recv());")
+    "return obj<number>(conn.cast<multicast_socket>()->recv());")
 
   (defn recv [conn]
     (data-seq conn (read conn)))
@@ -6979,7 +6979,7 @@ Ported from,
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn new-pid-controller [kp ki kd i-min i-max o-min o-max cont sp]
-    "__result = obj<pid_controller<real_t>>(kp, ki, kd, i_min, i_max, o_min, o_max, cont, sp);")
+    "return obj<pid_controller<real_t>>(kp, ki, kd, i_min, i_max, o_min, o_max, cont, sp);")
 
   (defmacro pid-controller [& options]
     (let [defaults {:kp 0 :ki 0 :kd 0 :set-point 0 :bounds [-1 1 -1 1] :continuous false}
@@ -7002,7 +7002,7 @@ moving average of the last K samples by setting the value of alpha to
   (defobject moving_average_filter "ferret/obj/moving_average_filter_o.h")
 
   (defn new-moving-average-filter [a]
-    "__result = obj<moving_average_filter<real_t>>(a);")
+    "return obj<moving_average_filter<real_t>>(a);")
 #+end_src
 
 #+begin_src c++ :mkdirp yes :tangle src/src/ferret/obj/moving_average_filter_o.h
@@ -7075,7 +7075,7 @@ Reads the value from a specified digital pin, either HIGH or LOW.
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defnative digital-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "__result = obj<number>(::digitalRead(number::to<number_t>(pin)));"))
+        "return obj<number>(::digitalRead(number::to<number_t>(pin)));"))
 #+end_src
 
 *** analog-write
@@ -7095,7 +7095,7 @@ Reads the value from the specified analog pin.
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defnative analog-read [pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "__result = obj<number>((number_t)::analogRead(number::to<number_t>(pin)));"))
+        "return obj<number>((number_t)::analogRead(number::to<number_t>(pin)));"))
 #+end_src
 
 *** analog-write-resolution
@@ -7230,7 +7230,7 @@ Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation
                        :mode-1 "SPI_MODE1"
                        :mode-2 "SPI_MODE2"
                        :mode-3 "SPI_MODE3")]
-      `(cxx ~(str "__result = obj<value<SPISettings>>(" speed "," data-order "," data-mode ");"))))
+      `(cxx ~(str "return obj<value<SPISettings>>(" speed "," data-order "," data-mode ");"))))
 #+end_src
 
 **** Transaction
@@ -7245,7 +7245,7 @@ Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation
     `(with-spi-aux ~conf (fn [] ~@body)))
 
   (defn spi-write [val]
-    "__result = obj<number>(SPI.transfer(number::to<int>(val)));")
+    "return obj<number>(SPI.transfer(number::to<int>(val)));")
 #+end_src
 
 ** Testing
@@ -7941,10 +7941,10 @@ Static code analysis (cppcheck) options,
     "__result =  obj<number>(i++);")
 
   (deftest ffi-test
-    (is (= true  ((fn [a b] "__result = obj<boolean>((a == b))") (list 1 2) (list 1 2))))
-    (is (= false ((fn [a b] "__result = obj<boolean>((a != b))") (list 1 2) (list 1 2))))
-    (is (= true  ((fn [a b] "__result = obj<boolean>((a != b))") (list 1 2) 1)))
-    (is (= false ((fn [a b] "__result = obj<boolean>((a == b))") 1          (list 1 2))))
+    (is (= true  ((fn [a b] "return obj<boolean>((a == b))") (list 1 2) (list 1 2))))
+    (is (= false ((fn [a b] "return obj<boolean>((a != b))") (list 1 2) (list 1 2))))
+    (is (= true  ((fn [a b] "return obj<boolean>((a != b))") (list 1 2) 1)))
+    (is (= false ((fn [a b] "return obj<boolean>((a == b))") 1          (list 1 2))))
 
     (is (= 0 (inc-int)))
     (is (= 1 (inc-int)))
@@ -8602,8 +8602,8 @@ Static code analysis (cppcheck) options,
 #+name: ferret-unit-tests
 #+begin_src clojure
   (deftest pointer-test
-    (let [a-ptr (cxx "__result = obj<pointer>(nullptr);")
-          b-ptr (cxx "__result = obj<pointer>(new int);")
+    (let [a-ptr (cxx "return obj<pointer>(nullptr);")
+          b-ptr (cxx "return obj<pointer>(new int);")
           gc    (fn [p] "delete pointer::to_pointer<int>(p);")]
       (is (= true  (= a-ptr a-ptr)))
       (is (= false (= a-ptr b-ptr)))
@@ -8630,7 +8630,7 @@ Static code analysis (cppcheck) options,
   (deftest keyword-test
     (is (= true  (= :test  :test)))
     (is (= false (= :test  :other_test)))
-    (is (= true  (= :space (cxx "__result = obj<keyword>(\":space\")")))))
+    (is (= true  (= :space (cxx "return obj<keyword>(\":space\")")))))
 #+end_src
 
 *** String
@@ -8641,11 +8641,11 @@ Static code analysis (cppcheck) options,
     (let [s1       "Some String"
           s1-added "ASome String"
           s2       "Other String"
-          s1-ret   (fn [] "__result = obj<string>(\"Some String\");")
-          s1-eq    (fn [s] "__result = obj<boolean>((string::to<std::string>(s) == \"Some String\"))")
+          s1-ret   (fn [] "return obj<string>(\"Some String\");")
+          s1-eq    (fn [s] "return obj<boolean>((string::to<std::string>(s) == \"Some String\"))")
           s2       "Ali Topu At"
           s3       (fn [] "std::string s = \"Some String\";
-                          __result = obj<string>(s);")]
+                          return obj<string>(s);")]
       (is (= s2 (new-string "Ali Topu At")))
       (is (= false (= s1 s2)))
       (is (= true  (= s1 s1)))
@@ -8690,8 +8690,8 @@ Run import tests.
     (is (= 11  ((modules.module-b/eleven-fn))))
     (is (= 1   (modules.module-a/helper-c)))
     (is (= 42  (modules.module-b/macro-call)))
-    (is (= 25  (cxx " __result = obj<number>(dummy_native_fn());")))
-    (is (= 2   (cxx "__result = obj<number>((number_t)std::sqrt(4));"))))
+    (is (= 25  (cxx " return obj<number>(dummy_native_fn());")))
+    (is (= 2   (cxx "return obj<number>((number_t)std::sqrt(4));"))))
 
   (run-all-tests)
 #+end_src
@@ -8758,7 +8758,7 @@ Create some dummy libs under /test/modules/,
   (defnative native-single-argument [x]
     (on "defined FERRET_STD_LIB"
         ("utility") ;; dummy include
-        "__result = obj<number>(number::to<int>(x));"))
+        "return obj<number>(number::to<int>(x));"))
 
   (defnative macro-aux []
     (on "defined FERRET_STD_LIB"

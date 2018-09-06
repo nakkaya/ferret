@@ -1676,9 +1676,11 @@ is supported.
                         (doseq [b body]
                           (.append buffer b))
                         (let [body (.toString buffer)]
-                          (if (.contains body "__result")
-                            ["var __result" body "return __result"]
-                            [body "return nil()"])))
+                          (cond (.contains body "__result")
+                                ["var __result" body "return __result"]
+                                (.contains body "return")
+                                [body]
+                                :default [body "return nil()"])))
                       ;; s-expression
                       :default (return
                                 (emit-ast options body state)))
@@ -6172,7 +6174,8 @@ are evaluated in order.  Returns x.
          for(ref it : runtime::range(r)){
           runtime::print(\" \");
           it.stream_console();
-         }"))
+         }
+         return nil();"))
 #+end_src
 
 *** newline

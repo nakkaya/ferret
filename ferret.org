@@ -4881,7 +4881,8 @@ directives,
 
 This function when compiled on a system that defines =GNU_GCC= will
 return the result of =getchar= as a =number= , on ANY other system it
-will return =nil=. You can have multiple =on= blocks per =defnative=,
+will produce a compiler error. You can have multiple =on= blocks per
+=defnative=,
 
 #+name: runtime-clojure-core
 #+begin_src clojure
@@ -6085,11 +6086,20 @@ examples.
                                       (apply str (map #(str "#include \"" % "\"\n") headers))
                                       "#endif\n"))))
                         (map #(list 'native-declare %)))
+          enabled (-> (symbol-conversion name)
+                      (str "_enabled")
+                      .toUpperCase)
           body (->> (map #(vector (second %) (last %)) form)
                     (map #(str "\n#if " (first %) " \n"
+                               "#define " enabled "\n"
                                (second %)
                                "\n#endif\n"))
                     (apply str))
+          body (str body
+                    "\n#if !defined " enabled " \n"
+                    "# error " (symbol-conversion name)
+                    " Not Supported on This Platform \n"
+                    "#endif\n")
           pre-ample (->> (map #(vector (second %) (drop-last (drop 3 %))) form)
                          (remove #(empty? (second %)))
                          (map #(str "\n#if " (first %) " \n"

@@ -1662,12 +1662,14 @@ is supported.
 
   (defn emit-lambda [options name env args body state]
     (let [native-declarations (filter (parser/form? 'native_declare) body)
+          return (fn [b] (conj (pop b) (str "return " (last b))))
           body (filter #(not (parser/form? 'native_declare %)) body)
           body (cond  (empty? body)
-                      ["nil()"]
+                      ["return nil()"]
                       ;; multi arity dispacth
                       (parser/form? 'fir_defn_arity (first body))
-                      (emit options (first body) state)
+                      (return
+                       (emit options (first body) state))
                       ;; ffi call
                       (parser/ffi-fn? body)
                       (let [buffer (StringBuilder.)]
@@ -1675,10 +1677,11 @@ is supported.
                           (.append buffer b))
                         (let [body (.toString buffer)]
                           (if (.contains body "__result")
-                            ["var __result" body "__result"]
-                            [body "nil()"])))
+                            ["var __result" body "return __result"]
+                            [body "return nil()"])))
                       ;; s-expression
-                      :default (emit-ast options body state))
+                      :default (return
+                                (emit-ast options body state)))
           env  (norm-fn-env env)
           vars (destructure-arguments args)]
       (doseq [dec native-declarations] 
@@ -1737,8 +1740,7 @@ is supported.
           (void)(_args_);
           $fn.vars:{$it$;} ;separator=\"\n\"$
      
-          $trunc(fn.body):{$it$;} ;separator=\"\n\"$
-          return $last(fn.body):{$it$;} ;separator=\"\n\"$
+          $fn.body:{$it$;} ;separator=\"\n\"$
         }
        };separator=\"\n\n\"$"
      :fns fns))

@@ -7128,6 +7128,18 @@ Sets the size (in bits) of the value returned by *analog-read*.
         "::analogReadResolution(number::to<number_t>(bit));"))
 #+end_src
 
+*** random
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
+  (defnative random-seed [pin]
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "randomSeed(analogRead(number::to<number_t>(pin)));"))
+
+  (defnative random [x]
+    (on "defined FERRET_HARDWARE_ARDUINO"
+        "return obj<number>(random(number::to<number_t>(x)));"))
+#+end_src
+
 *** tone/noTone
 
 Generates a square wave of the specified frequency (and 50% duty

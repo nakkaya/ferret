@@ -267,11 +267,11 @@ expressed clearly but they are grounded in the actual source code.
 
 The compiler and the C++ runtime needed is split into three sections.
 
- - [[Compiler]]
+ - [[*Compiler][Compiler]]
  - [[*Runtime][Runtime]]
  - [[*Core][Core]]
 
-[[Compiler]] section contains the actual compiler written in Clojure. It
+[[*Compiler][Compiler]] section contains the actual compiler written in Clojure. It
 takes the Ferret code and converts it to a Intermediate
 representation by taking the Ferret form and running it [[Compilation][through some
 transformations]]. This IR is then run through [[Code Generation]] module to

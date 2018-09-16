@@ -5316,6 +5316,27 @@ Returns the nth rest of coll, coll when n is 0.
       coll))
 #+end_src
 
+*** drop-while
+
+Returns a lazy sequence of the items in coll starting from the
+first item for which (pred item) returns logical false.
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn drop-while-aux [p c]
+    "__result = c;
+     while(run(p,__result))
+       __result = runtime::rest(__result);")
+
+  (defn drop-while [pred coll]
+    (lazy-seq
+     (drop-while-aux
+         (fn [c]
+           (and (not (empty? c))
+                (pred (first c))))
+       coll)))
+#+end_src
+
 *** concat
 
 #+name: runtime-clojure-core
@@ -8134,6 +8155,10 @@ Static code analysis (cppcheck) options,
     (is (= (list 3 4)     (drop 2 (list 1 2 3 4))))
     (is (= (list )        (drop 4 (list 1 2 3 4))))
     (is (= (list )        (drop 5 (list 1 2 3 4))))
+
+    (let [my-list (list 1 2 3 4 5 6)]
+      (is (= (list 3 4 5 6) (drop-while #(> 3 %) my-list)))
+      (is (= (list 4 5 6)   (drop-while #(>= 3 %) my-list))))
 
     (is (= (list 6 5 4 3 2 1) (reverse (list 1 2 3 4 5 6))))
     (is (= (list 6 5 4 3 2)   (reduce (fn [h v] (conj h (inc v))) (list) (list 1 2 3 4 5))))

@@ -92,6 +92,7 @@ CORE_TESTS = src/test/core/module.clj                     \
              src/test/core/allocator_api.clj              \
              src/test/core/core.clj                       \
              src/test/core/net/multicast.clj              \
+             src/test/core/io/serial.clj                  \
              src/test/core/concurrency.clj
 
 EMBEDDED_TESTS = src/test/embedded/blink/blink.clj              \

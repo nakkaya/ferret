@@ -6765,6 +6765,167 @@ other members of the group and port.
   };
 #+end_src
 
+*** serial-port
+
+=ferret.io.serial= includes functions for creating and manipulating
+serial ports in a portable manner. For example, a serial port may be
+opened in RAW mode at boud rate (assumes 8 data bits, no parity, one
+stop bit) using,
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core/io/serial.clj
+  (require '[ferret.io.serial :as serial])
+
+  (def dev (serial/open "/dev/ttyArduino"))
+#+end_src
+
+Once opened, port is ready for =read=/=write=.
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core/io/serial.clj
+  (when (not dev)
+    (system-exit 0))
+
+  (sleep 2500)
+
+  (let [data-out (list \4 \2 \newline)]
+    (doseq [byte data-out]
+      (serial/write dev byte))
+
+    (sleep 100)
+    
+    (let [data-in (repeatedly 3 #(serial/read dev))]
+      (assert (= data-in data-out))))
+#+end_src
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/src/ferret/io/serial.clj
+  (native-header "termios.h"
+                 "fcntl.h"
+                 "unistd.h")
+
+  (defn open-aux [port speed v-min v-time]
+    "struct termios toptions;
+     int fd;
+
+     fd = open(string::to<std::string>(port).c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
+
+     if (fd == -1){
+       return nil();
+      }else{
+
+       if (tcgetattr(fd, &toptions) < 0) {
+         return nil();
+       }else{
+
+       speed_t rate = B9600;
+    
+       switch (number::to<number_t>(speed)) {
+           case 9600:
+               rate = B9600;
+               break;
+           case 19200:
+               rate = B19200;
+               break;
+           case 38400:
+               rate = B38400;
+               break;
+           case 57600:
+               rate = B57600;
+               break;
+           case 115200:
+               rate = B115200;
+               break;
+           case 230400:
+               rate = B230400;
+               break;
+           case 460800:
+               rate = B460800;
+               break;
+           case 500000:
+               rate = B500000;
+               break;
+           case 576000:
+               rate = B576000;
+               break;
+           case 921600:
+               rate = B921600;
+               break;
+           case 1000000:
+               rate = B1000000;
+               break;
+           case 1152000:
+               rate = B1152000;
+               break;
+           case 1500000:
+               rate = B1500000;
+               break;
+           case 2000000:
+               rate = B2000000;
+               break;
+           case 2500000:
+               rate = B2500000;
+               break;
+           case 3000000:
+               rate = B3000000;
+               break;
+           case 3500000:
+               rate = B3500000;
+               break;
+           case 4000000:
+               rate = B4000000;
+               break;
+           default: 
+               return nil();
+        }
+
+        cfsetispeed(&toptions, rate);
+        cfsetospeed(&toptions, rate);
+
+        // 8N1
+        toptions.c_cflag &= (tcflag_t)~PARENB;
+        toptions.c_cflag &= (tcflag_t)~CSTOPB;
+        toptions.c_cflag &= (tcflag_t)~CSIZE;
+        toptions.c_cflag |= (tcflag_t)CS8;
+        // no flow control
+        toptions.c_cflag &= (tcflag_t)~CRTSCTS;
+
+        toptions.c_cflag |= (tcflag_t)CREAD | CLOCAL;  // turn on READ & ignore ctrl lines
+        toptions.c_iflag &= (tcflag_t)~(IXON | IXOFF | IXANY); // turn off s/w flow ctrl
+
+        toptions.c_lflag &= (tcflag_t)~(ICANON | ECHO | ECHOE | ISIG); // make raw
+        toptions.c_oflag &= (tcflag_t)~OPOST; // make raw
+
+        toptions.c_cc[VMIN]  = (cc_t)number::to<number_t>(v_min);
+        toptions.c_cc[VTIME] = (cc_t)number::to<number_t>(v_time);
+
+        if( tcsetattr(fd, TCSANOW, &toptions) < 0) {
+         return nil();
+        }else
+          return obj<number>(fd);
+      }
+     }")
+
+  (defn open
+    ([port]
+     (open-aux port 9600 0 20))
+    ([port speed]
+     (open-aux port speed 0 20))
+    ([port speed v-min v-time]
+     (open-aux port speed v-min v-time)))
+
+
+  (defn write [port byte]
+    "char b[1] = {number::to<char>(byte)};
+     write(number::to<number_t>(port), b, 1);")
+
+  (defn read [port]
+    "char b[1] = {0};
+     ssize_t bytes_read = read(number::to<number_t>(port), b, 1);
+     
+     if (bytes_read == -1)
+       return nil();
+     else
+       return obj<number>(b[0]);")
+#+end_src
+
 ** Control
 *** State Machines
 

@@ -6799,7 +6799,8 @@ Once opened, port is ready for =read=/=write=.
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/src/ferret/io/serial.clj
   (native-header "termios.h"
                  "fcntl.h"
-                 "unistd.h")
+                 "unistd.h"
+                 "sys/ioctl.h")
 
   (defn open-aux [port speed v-min v-time]
     "struct termios toptions;
@@ -6915,6 +6916,13 @@ Once opened, port is ready for =read=/=write=.
   (defn write [port byte]
     "char b[1] = {number::to<char>(byte)};
      write(number::to<number_t>(port), b, 1);")
+
+  (defn available [port]
+    "int bytes_ready;
+     int op = ioctl(number::to<number_t>(port), FIONREAD, &bytes_ready);
+     if (op == -1)
+       return nil();
+     return obj<number>(bytes_ready);")
 
   (defn read [port]
     "char b[1] = {0};

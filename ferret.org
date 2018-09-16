@@ -2738,13 +2738,6 @@ sequence is iterated.
 
     size_t type() const final { return runtime::type::lazy_sequence; }
 
-    var sval() const {
-      if (head.is_nil())
-        return runtime::first(run(thunk));
-      
-      return head;
-    }
-
     bool equals(ref o) const final {
       return seekable_i::equals(var((object*)this), o);
     }
@@ -2752,7 +2745,7 @@ sequence is iterated.
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
       runtime::print("(");
-      sval().stream_console();
+      first().stream_console();
       for(ref i : runtime::range(rest())){
         runtime::print(" ");
         i.stream_console();
@@ -2772,9 +2765,14 @@ sequence is iterated.
 
       return obj<lazy_sequence>(x,thunk);
     }
+
     var first() const final {
-      return sval();
+      if (head.is_nil())
+        return runtime::first(run(thunk));
+        
+      return head;
     }
+    
     var rest() const final {
       if (head.is_nil())
         return runtime::rest(run(thunk));

@@ -2764,7 +2764,7 @@ sequence is iterated.
       if (head.is_nil())
         return obj<lazy_sequence>(x,thunk);
 
-      return obj<sequence>(x, obj<lazy_sequence>(head,thunk)); 
+      return obj<sequence>(x, var((object*)this));
     }
 
     var first() final {

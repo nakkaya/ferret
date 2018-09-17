@@ -5258,11 +5258,8 @@ Returns the nth rest of coll, coll when n is 0.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn reduce
-    ([f [sf & sr]]
-     "var acc = run(f, runtime::first(sr), sf);
-      for (ref i : runtime::range(runtime::rest(sr)))
-       acc = run(f, acc, i);
-      return acc;")
+    ([f xs]
+     (reduce f (first xs) (rest xs)))
     ([f acc coll]
      "__result = acc;
       for (ref i : runtime::range(coll))

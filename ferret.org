@@ -2760,10 +2760,10 @@ sequence is iterated.
     virtual seekable_i* cast_seekable_i() { return this; }
 
     var cons(ref x) final {
-      if (!head.is_nil())
-        return obj<sequence>(x, obj<lazy_sequence>(head,thunk));
+      if (head.is_nil())
+        return obj<lazy_sequence>(x,thunk);
 
-      return obj<lazy_sequence>(x,thunk);
+      return obj<sequence>(x, obj<lazy_sequence>(head,thunk)); 
     }
 
     var first() const final {
@@ -8415,6 +8415,17 @@ Static code analysis (cppcheck) options,
     (is (= (list (list 0 1 2 3) (list 6 7 8 9) (list 12 13 14 15))           (partition 4 6 (range 20))))
     (is (= (list (list 0 1 2) (list 6 7 8) (list 12 13 14) (list 18 19 42))  (partition 3 6 (list 42) (range 20))))
     (is (= (list (list 0 1 2 3) (list 6 7 8 9) (list 12 13 14 15) (list 18 19 42 43)) (partition 4 6 (list 42 43 44 45) (range 20)))))
+
+  (let [acc (atom (list))]
+    
+    (defn thunk-acc [begin]
+      (cons begin
+            (lazy-seq
+             (swap! acc conj begin)
+             (thunk-acc (inc begin)))))
+
+    (let [seq (reverse (take 5 (thunk-acc 0)))]
+      (is (= seq @acc))))
 #+end_src
 
 *** Associative

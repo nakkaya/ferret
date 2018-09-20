@@ -2732,8 +2732,11 @@ sequence is iterated.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lazy_sequence_o.h
   class lazy_sequence final : public object, public seekable_i {
-    const var thunk;
-    const var head;
+    mutex lock;
+    var thunk;
+    var data;
+    var seq;
+
   public:
 
     size_t type() const final { return runtime::type::lazy_sequence; }
@@ -2756,29 +2759,38 @@ sequence is iterated.
   #endif
 
     explicit lazy_sequence(ref t) : thunk(t) {} 
-    explicit lazy_sequence(ref h, ref t) : thunk(t), head(h) {} 
+    explicit lazy_sequence(ref d, ref t) : thunk(t), data(d) {} 
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
     var cons(ref x) final {
-      if (head.is_nil())
+      lock_guard guard(lock);
+
+      if (data.is_nil())
         return obj<lazy_sequence>(x,thunk);
 
       return obj<sequence>(x, var((object*)this));
     }
 
     var first() final {
-      if (head.is_nil())
-        return runtime::first(run(thunk));
-        
-      return head;
+      lock_guard guard(lock);
+
+      if (data.is_nil()){
+        seq = run(thunk);
+        data = runtime::first(seq);
+        seq = runtime::rest(seq);
+      }
+
+      return data;
     }
     
     var rest() final {
-      if (head.is_nil())
-        return runtime::rest(run(thunk));
+      lock_guard guard(lock);
+
+      if (seq.is_nil())
+        seq = run(thunk);
       
-      return run(thunk);
+      return seq;
     }
   };
 #+end_src
@@ -8424,8 +8436,10 @@ Static code analysis (cppcheck) options,
              (swap! acc conj begin)
              (thunk-acc (inc begin)))))
 
-    (let [seq (reverse (take 5 (thunk-acc 0)))]
-      (is (= seq @acc))))
+    (let [seq-a (reverse (take 5 (thunk-acc 0)))
+          seq-b (map identity seq-a)]
+      (is (= seq-a @acc))
+      (is (= seq-b @acc))))
 #+end_src
 
 *** Associative

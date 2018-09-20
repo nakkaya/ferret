@@ -3095,10 +3095,12 @@ interpreted as FFI calls.
     }
 
     var rest() final {
-      if (!runtime::rest(data).is_nil())
-        return obj<string>(runtime::rest(data));
+      ref r = runtime::rest(data);
 
-      return cached::empty_sequence;
+      if (r != runtime::list())
+        return obj<string>(r);
+
+      return runtime::list();
     }
 
     template <typename T>
@@ -8879,7 +8881,8 @@ Static code analysis (cppcheck) options,
       (is (= 99 \c))
       (is (= \S (first s1)))
       (is (= s1-added (cons 65 s1)))
-      (is (= s1 (rest (cons 65 s1))))))
+      (is (= s1 (rest (cons 65 s1))))
+      (is (= 11 (count s1)))))
 #+end_src
 
 *** Modules

@@ -53,7 +53,7 @@ CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
 CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/src/ferret/
 
 define static_check
-    cppcheck --quiet --force --language=c++ --std=c++11 --template=gcc --enable=all --error-exitcode=1 $1 2> "$1.cppcheck"
+    cppcheck --quiet --inline-suppr --force --language=c++ --std=c++11 --template=gcc --enable=all --error-exitcode=1 $1 2> "$1.cppcheck"
 endef
 
 # only enable sanitizers when running in docker

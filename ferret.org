@@ -2711,8 +2711,9 @@ directly. count is O(n). conj puts the item at the front of the list.
 
   template <> var sequence::from(std_vector v) { 
     var ret;
-    for(ref it : v)
-      ret = runtime::cons(it,ret);
+    std::vector<var>::reverse_iterator rit;
+    for(rit = v.rbegin(); rit != v.rend(); rit++)
+      ret = runtime::cons(*rit,ret);
     return ret;
   }
   #endif

@@ -6407,7 +6407,7 @@ Wraps mlockall - locks the address space of process.
 
   (defn byte-stream-decoder [read in-waiting handler]
     (let [size (atom nil)]
-      (state-machine 
+      (fsm 
        (states
         (sync-header)
         (read-size        (reset! size (read)))
@@ -6955,7 +6955,7 @@ DSL,
 
 #+begin_src clojure :tangle no
   (def two-state-machine
-    (state-machine 
+    (fsm 
      (states
       (off :off)
       (on  :on))
@@ -6975,35 +6975,35 @@ returns true, returns the next state.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defmacro state-machine [[_ & states] [_ & transitions]]
-    (let [states (reduce (fn [h v]
-                           (let [[name & body] v]
-                             (conj h (keyword name) `(fn [] ~@body))))
-                         [] states)
-          transitions (->> transitions
-                           (map (fn [v]
-                                  (let [[state & conds] v
-                                        state (keyword state)
-                                        conds (->> (partition 2 conds)
-                                                   (reduce (fn [h v]
-                                                             (let [[check state] v
-                                                                   state (keyword state)]
-                                                               (conj h `(~check) state))) []))]
-                                    `(~state (fn [] (cond ~@conds true ~state))))))
-                           (reduce (fn [h v]
-                                     (let [[check transition] v]
-                                       (conj h check transition)))
-                                   []))]
-      
-      `((fn [state states transitions]
-          (fn []
-            (let [ret# ((states @state))]
-              (if-let [next# (transitions @state)]
-                (reset! state (next#)))
-              ret#)))
-        (atom ~(first states))
-        (new-d-list ~@states)
-        (new-d-list ~@transitions))))
+  (defmacro fsm [[_ & states] [_ & transitions]]
+    (let [states (->> (reduce (fn [h v]
+                                (let [[name & body] v]
+                                  (conj h name `(fn [] ~@body))))
+                              [] states)
+                      (apply flatland.ordered.map/ordered-map))
+          entry  (-> states keys first)
+          switch (->> (reduce (fn [h v]
+                                (let [[state & conds] v
+                                      conds (->> (partition 2 conds)
+                                                 (reduce (fn [h v]
+                                                           (let [[check state] v]
+                                                             (conj h `(~check) state))) []))]
+                                  (conj h
+                                        `(= ~state state)
+                                        `(cond ~@conds true ~state))))
+                              ['cond] transitions)
+                      (apply list))
+          next `(fn [state]
+                  (let* [next ~switch]
+                    (if next
+                      next state)))
+          exec `(fn []
+                  (let [ret @state]
+                    (swap! state ~next)
+                    (ret)))]
+      `((fn [~@(keys states)]
+          ((fn [state] ~exec) (atom ~entry)))
+        ~@(vals states))))
 #+end_src
 
 *** PID Control
@@ -8751,7 +8751,7 @@ Static code analysis (cppcheck) options,
 
   (deftest state-machine-test
     (let [state (atom 0)
-          machine (state-machine
+          machine (fsm
                    (states
                     (off (swap! state inc) :off)
                     (on  (swap! state inc) :on))
@@ -8768,7 +8768,7 @@ Static code analysis (cppcheck) options,
       (is (= 10 (deref state))))
 
     (let [state (atom 0)
-          machine (state-machine
+          machine (fsm
                    (states
                     (a (swap! state inc))
                     (b (swap! state inc))
@@ -8790,7 +8790,7 @@ Static code analysis (cppcheck) options,
       (is (= 10 (deref state))))
 
     (let [state (atom nil)
-          machine (state-machine
+          machine (fsm
                    (states
                     (a (swap! state conj 1))
                     (b (swap! state conj 2))
@@ -8809,7 +8809,7 @@ Static code analysis (cppcheck) options,
       (is (= (list 2 1) (deref state))))
 
     (let [value (atom 0)
-          machine (state-machine 
+          machine (fsm 
                    (states
                     (increment (swap! value inc))
                     (no-op ))
@@ -8823,7 +8823,7 @@ Static code analysis (cppcheck) options,
       (machine)
       (is (= 2 (deref value))))
 
-    (let [machine (state-machine
+    (let [machine (fsm
                    (states
                     (setup :setup)
                     (done  :done))

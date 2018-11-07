@@ -6975,6 +6975,15 @@ returns true, returns the next state.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
+  (defn fsm-cycle [state transitions jump]
+    "var state_fn = state.cast<atomic>()->deref();
+     var next = run(transitions, state_fn);
+     if (next.is_nil())
+      next = state_fn;
+
+     state.cast<atomic>()->swap(jump,runtime::list(next));
+     return run(state_fn);")
+
   (defmacro fsm [[_ & states] [_ & transitions]]
     (let [states (->> (reduce (fn [h v]
                                 (let [[name & body] v]
@@ -6982,27 +6991,24 @@ returns true, returns the next state.
                               [] states)
                       (apply flatland.ordered.map/ordered-map))
           entry  (-> states keys first)
-          switch (->> (reduce (fn [h v]
-                                (let [[state & conds] v
-                                      conds (->> (partition 2 conds)
-                                                 (reduce (fn [h v]
-                                                           (let [[check state] v]
-                                                             (conj h `(~check) state))) []))]
-                                  (conj h
-                                        `(= ~state state)
-                                        `(cond ~@conds true ~state))))
-                              ['cond] transitions)
-                      (apply list))
-          next `(fn [state]
-                  (let* [next ~switch]
-                    (if next
-                      next state)))
-          exec `(fn []
-                  (let [ret @state]
-                    (swap! state ~next)
-                    (ret)))]
+          switch (->> (reduce
+                       (fn [h v]
+                         (let [[state & conds] v
+                               conds (->> (partition 2 conds)
+                                          (reduce
+                                           (fn [h v]
+                                             (let [[check state] v]
+                                               (conj h `(~check) state))) []))]
+                           (conj h
+                                 `(= ~state from)
+                                 `(cond ~@conds true ~state))))
+                       ['cond] transitions)
+                      (apply list))]
       `((fn [~@(keys states)]
-          ((fn [state] ~exec) (atom ~entry)))
+          ((fn [state]
+             (fn []
+               (fsm-cycle state (fn [from] ~switch) (fn [_ next] next))))
+           (atom ~entry)))
         ~@(vals states))))
 #+end_src
 

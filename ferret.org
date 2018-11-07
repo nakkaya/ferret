@@ -6975,14 +6975,15 @@ returns true, returns the next state.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn fsm-cycle [state transitions jump]
+  (defn fsm-yield [env state transitions jump]
     "var state_fn = state.cast<atomic>()->deref();
-     var next = run(transitions, state_fn);
+     var next = run(transitions, env, state_fn);
      if (next.is_nil())
       next = state_fn;
 
      state.cast<atomic>()->swap(jump,runtime::list(next));
      return run(state_fn);")
+
 
   (defmacro fsm [[_ & states] [_ & transitions]]
     (let [states (->> (reduce (fn [h v]
@@ -6990,26 +6991,25 @@ returns true, returns the next state.
                                   (conj h name `(fn [] ~@body))))
                               [] states)
                       (apply flatland.ordered.map/ordered-map))
-          entry  (-> states keys first)
-          switch (->> (reduce
-                       (fn [h v]
-                         (let [[state & conds] v
-                               conds (->> (partition 2 conds)
-                                          (reduce
-                                           (fn [h v]
-                                             (let [[check state] v]
-                                               (conj h `(~check) state))) []))]
-                           (conj h
-                                 `(= ~state from)
-                                 `(cond ~@conds true ~state))))
-                       ['cond] transitions)
+          fsm-state (gensym)
+          switch (->> (reduce (fn [h v]
+                                (let [[state & conds] v
+                                      conds (->> (partition 2 conds)
+                                                 (reduce (fn [h v]
+                                                           (let [[check state] v]
+                                                             (conj h `(~check) state))) []))]
+                                  (conj h
+                                        `(= ~state ~fsm-state)
+                                        `(cond ~@conds true ~state))))
+                              ['cond] transitions)
                       (apply list))]
-      `((fn [~@(keys states)]
-          ((fn [state]
-             (fn []
-               (fsm-cycle state (fn [from] ~switch) (fn [_ next] next))))
-           (atom ~entry)))
-        ~@(vals states))))
+
+      `(let [env#   (list ~@(vals states))
+             state# (atom (first env#))]
+         (fn []
+           (fsm-yield env# state#
+                      (fn [[~@(keys states)] ~fsm-state] ~switch)
+                      (fn [_ next] next))))))
 #+end_src
 
 *** PID Control

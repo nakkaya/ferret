@@ -6980,18 +6980,52 @@ DSL,
 Each transition takes a list of =fn=, =state= pairs first function that
 returns true, returns the next state.
 
+#+begin_src c++ :mkdirp yes :tangle src/src/ferret/obj/fsm_o.h
+  class fsm final : public object {
+    mutex lock;
+    var env;
+    var state;
+    var transitions;
+  public:
+
+    fsm(ref e, ref t) : env(e), state(runtime::first(e)), transitions(t){ }
+
+    size_t type() const { return runtime::type::fsm; }
+
+    bool equals(ref o) const {
+      return (this == o.cast<fsm>());
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    void stream_console() const {
+      runtime::print("fsm");
+    }
+  #endif
+
+    var yield() {
+      lock_guard guard(lock);
+      var value = run(state);
+      var next = transitions.cast<lambda_i>()->invoke(runtime::list(env, state));
+
+      if (next.is_nil())
+        next = state;
+
+      state = next;
+      return value;
+    }
+    
+  };
+#+end_src
+
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn fsm-yield [env state transitions]
-    "var state_fn = state.cast<atomic>()->deref();
-     var next = run(transitions, env, state_fn);
+  (defobject fsm "ferret/obj/fsm_o.h")
 
-     if (next.is_nil())
-      next = state_fn;
+  (defn new-fsm [env transitions]
+    "return obj<fsm>(env, transitions)")
 
-     state.cast<atomic>()->reset(next);
-     return run(state_fn);")
-
+  (defn fsm-yield [f]
+    "return f.cast<fsm>()->yield();")
 
   (defmacro fsm [[_ & states] [_ & transitions]]
     (let [states (->> (reduce (fn [h v]
@@ -7012,11 +7046,10 @@ returns true, returns the next state.
                            (conj h `(= ~state ~fsm-state) table)))
                        ['cond] transitions)
                       (apply list))]
-
-      `(let [env#   (list ~@(vals states))
-             state# (atom (first env#))]
-         (fn []
-           (fsm-yield env# state# (fn [[~@(keys states)] ~fsm-state] ~switch))))))
+      `(let [fsm# (new-fsm (list ~@(vals states))
+                           (fn [[~@(keys states)] ~fsm-state]
+                             ~switch))]
+         (fn [] (fsm-yield fsm#)))))
 #+end_src
 
 *** PID Control

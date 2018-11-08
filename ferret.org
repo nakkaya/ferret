@@ -6982,13 +6982,14 @@ returns true, returns the next state.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn fsm-yield [env state transitions jump]
+  (defn fsm-yield [env state transitions]
     "var state_fn = state.cast<atomic>()->deref();
      var next = run(transitions, env, state_fn);
+
      if (next.is_nil())
       next = state_fn;
 
-     state.cast<atomic>()->swap(jump,runtime::list(next));
+     state.cast<atomic>()->reset(next);
      return run(state_fn);")
 
 
@@ -6999,24 +7000,23 @@ returns true, returns the next state.
                               [] states)
                       (apply flatland.ordered.map/ordered-map))
           fsm-state (gensym)
-          switch (->> (reduce (fn [h v]
-                                (let [[state & conds] v
-                                      conds (->> (partition 2 conds)
-                                                 (reduce (fn [h v]
-                                                           (let [[check state] v]
-                                                             (conj h `(~check) state))) []))]
-                                  (conj h
-                                        `(= ~state ~fsm-state)
-                                        `(cond ~@conds true ~state))))
-                              ['cond] transitions)
+          switch (->> (reduce
+                       (fn [h v]
+                         (let [[state & conds] v
+                               table (->> (partition 2 conds)
+                                          (reduce (fn [h v]
+                                                    (let [[check state] v]
+                                                      (conj h `(~check) state)))
+                                                  ['cond])
+                                          (apply list))]
+                           (conj h `(= ~state ~fsm-state) table)))
+                       ['cond] transitions)
                       (apply list))]
 
       `(let [env#   (list ~@(vals states))
              state# (atom (first env#))]
          (fn []
-           (fsm-yield env# state#
-                      (fn [[~@(keys states)] ~fsm-state] ~switch)
-                      (fn [_ next] next))))))
+           (fsm-yield env# state# (fn [[~@(keys states)] ~fsm-state] ~switch))))))
 #+end_src
 
 *** PID Control

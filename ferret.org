@@ -6981,7 +6981,7 @@ Each transition takes a list of =fn=, =state= pairs first function that
 returns true, returns the next state.
 
 #+begin_src c++ :mkdirp yes :tangle src/src/ferret/obj/fsm_o.h
-  class fsm final : public object {
+  class fsm final : public lambda_i {
     mutex lock;
     var env;
     var state;
@@ -7001,6 +7001,10 @@ returns true, returns the next state.
       runtime::print("fsm");
     }
   #endif
+
+    var invoke(ref) const {
+      return var((object*)this).cast<fsm>()->yield();
+    }
 
     var yield() {
       lock_guard guard(lock);
@@ -7024,9 +7028,6 @@ returns true, returns the next state.
   (defn new-fsm [env transitions]
     "return obj<fsm>(env, transitions)")
 
-  (defn fsm-yield [f]
-    "return f.cast<fsm>()->yield();")
-
   (defmacro fsm [[_ & states] [_ & transitions]]
     (let [states (->> (reduce (fn [h v]
                                 (let [[name & body] v]
@@ -7046,10 +7047,9 @@ returns true, returns the next state.
                            (conj h `(= ~state ~fsm-state) table)))
                        ['cond] transitions)
                       (apply list))]
-      `(let [fsm# (new-fsm (list ~@(vals states))
-                           (fn [[~@(keys states)] ~fsm-state]
-                             ~switch))]
-         (fn [] (fsm-yield fsm#)))))
+      `(new-fsm (list ~@(vals states))
+                (fn [[~@(keys states)] ~fsm-state]
+                  ~switch))))
 #+end_src
 
 *** PID Control

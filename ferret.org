@@ -3182,6 +3182,13 @@ or =reset!=. Changes to atoms are always free of race conditions.
       data = f.cast<lambda_i>()->invoke(runtime::cons(data, args));
       return data;
     }
+
+    var reset(ref newval){
+      lock_guard guard(lock);
+      data = newval;
+      return data;
+    }
+    
     var deref() {
       lock_guard guard(lock);
       return data;
@@ -3201,7 +3208,7 @@ Operations on =atoms=
     "return a.cast<atomic>()->swap(f,args);")
 
   (defn reset! [a newval]
-    (swap! a (fn [old curr] curr) newval))
+    "return a.cast<atomic>()->reset(newval);")
 #+end_src
 
 **** Future

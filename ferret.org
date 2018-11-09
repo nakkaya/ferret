@@ -6069,6 +6069,42 @@ and returns its value as a Ferret =number=.
      return obj<number>(value * factor);")
 #+end_src
 
+*** ntos
+
+Converts a Ferret =number= to a Ferret =string=,
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn ntos [v]
+    "real_t f = number::to<real_t>(v);
+     number_t n = (number_t)f;
+     number_t sign;
+
+     if ((sign = n) < 0){
+        n = -n;
+        f = -f;
+     }
+
+     var s;
+
+     f = (f - n) + 10;
+     for (int i = number_precision; i >= 1; i--){
+        char ch = ((number_t)(f * ::pow(10, i)) % 10) + '0';
+        s = runtime::cons(obj<number>(ch), s);
+     }
+
+     s = runtime::cons(obj<number>('.'), s);
+
+     do {
+       s = runtime::cons(obj<number>(n % 10 + '0'), s);
+      } while ((n /= 10) > 0);
+
+     if (sign < 0)
+       s = runtime::cons(obj<number>('-'), s);
+
+     return obj<string>(s);")
+#+end_src
+
 ** Functions
 *** fn
 
@@ -8992,6 +9028,14 @@ Static code analysis (cppcheck) options,
     (is (=  1234.1234 (ston  "1234.1234")))
     (is (= -1234.1234 (ston "-1234.1234")))
     (is (=  1234.1234 (ston  "1 2 3 4. 1 2 3 4 "))))
+ #+end_src
+
+#+name: ferret-unit-tests
+#+begin_src clojure :tangle no
+  (deftest ntos-test
+    (is (=  (ntos -12.34) "-12.3400"))
+    (is (=  (ntos  12.001) "12.0010"))
+    (is (=  (ntos  154.132341) "154.1323")))
  #+end_src
 
 *** Modules

@@ -6031,6 +6031,44 @@ function *f* to run in milliseconds,
         `(fn-throttler-aux-non-blocking (new-elapsed-micros) ~f ~rate))))
 #+end_src
 
+** String
+*** ston
+
+Parses the Ferret =string= =str=, interpreting its content as a number
+and returns its value as a Ferret =number=.
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+  (defn ston [str]
+    "var seq = str;
+     real_t factor = 1;
+     real_t value = 0;
+
+     if (number::to<char>(runtime::first(seq)) == '-'){
+       seq = runtime::rest(seq);
+       factor = -1;
+     }
+
+     bool point_passed = false;
+     for(ref i : runtime::range(seq)){
+       char ch = number::to<char>(i);
+
+       if (ch == '.'){
+         point_passed = true;
+         continue;
+       }
+
+       number_t d = ch - '0';
+       if (d >= 0 && d <= 9){
+         if (point_passed)
+           factor /= 10.0f;
+         value = value * 10.0f + (real_t)d;
+       }
+     }
+    
+     return obj<number>(value * factor);")
+#+end_src
+
 ** Functions
 *** fn
 
@@ -8947,6 +8985,14 @@ Static code analysis (cppcheck) options,
       (is (= s1 (rest (cons 65 s1))))
       (is (= 11 (count s1)))))
 #+end_src
+
+#+name: ferret-unit-tests
+#+begin_src clojure :tangle no
+  (deftest ston-test
+    (is (=  1234.1234 (ston  "1234.1234")))
+    (is (= -1234.1234 (ston "-1234.1234")))
+    (is (=  1234.1234 (ston  "1 2 3 4. 1 2 3 4 "))))
+ #+end_src
 
 *** Modules
 

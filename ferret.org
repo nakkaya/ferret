@@ -6089,7 +6089,7 @@ Converts a Ferret =number= to a Ferret =string=,
 
      f = (f - n) + 10;
      for (int i = number_precision; i >= 1; i--){
-        char ch = ((number_t)(f * ::pow(10, i)) % 10) + '0';
+        number_t ch = ((number_t)(f * ::pow(10, i)) % 10) + '0';
         s = runtime::cons(obj<number>(ch), s);
      }
 
@@ -9033,9 +9033,9 @@ Static code analysis (cppcheck) options,
 #+name: ferret-unit-tests
 #+begin_src clojure :tangle no
   (deftest ntos-test
-    (is (=  (ntos -12.34) "-12.3400"))
-    (is (=  (ntos  12.001) "12.0010"))
-    (is (=  (ntos  154.132341) "154.1323")))
+    (is (=  (ntos -12.34) (new-string "-12.3400")))
+    (is (=  (ntos  12.001) (new-string "12.0010")))
+    (is (=  (ntos  154.132341) (new-string "154.1323"))))
  #+end_src
 
 *** Modules

@@ -4405,7 +4405,7 @@ provides its own containers that are portable across architectures.
 
 #+name: runtime-native-containers
 #+begin_src c++ :tangle no
-  enum class byte : unsigned char { };
+  typedef uint8_t byte;
 #+end_src
 
 *** Array 
@@ -5682,35 +5682,68 @@ Returns a lazy seq of the first item in each coll, then the second etc.
   (defn bit-shift-right [x n] "return obj<number>((number::to<number_t>(x) >> number::to<number_t>(n) ));")
 #+end_src
 
-*** number-split
+*** encode-int16
 
 Split a number into bytes.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn number-split [n]
-    "number_t val = number::to<number_t>(n);
+  (defn encode-int16 [n] 
+    "int16_t val = number::to<int16_t>(n);
      byte *p = (byte*)&val;
      __result = runtime::list();
-     for(size_t i = 0; i < sizeof(number_t); i++)
+     for (int i = (sizeof(int16_t) -1); i >= 0; i--)
        __result = runtime::cons(obj<number>((number_t)p[i]),__result);")
 #+end_src
 
-*** number-combine
+*** decode-int16
 
 Combine a list of bytes to a number.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn number-combine [s]
-    "number_t res = 0;
-     for(size_t i = 0; i < sizeof(number_t); i++){
-      size_t idx = (sizeof(number_t) - i - 1);
-      ref obj = runtime::nth(s,(number_t)idx);
-      number_t val = number::to<number_t>(obj);
-      res |= val << (i * 8);
+  (defn decode-int16 [s]
+    "int16_t val = 0;
+     byte *p = (byte*)&val; 
+
+     for(auto const& i : runtime::range_indexed(s)){
+       p[i.index] = number::to<byte>(i.value);
      }
-     return obj<number>(res);")
+
+     return obj<number>(val);")
+#+end_src
+
+*** encode-float
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn encode-float [n] 
+    "static_assert(sizeof(float) == 4 * sizeof(byte), \"\");
+     float val = number::to<float>(n);
+     byte *p = (byte*)&val;
+     __result = runtime::list();
+     for (int i = (sizeof(float) -1); i >= 0; i--)
+       __result = runtime::cons(obj<number>(p[i]),__result);")
+#+end_src
+
+*** decode-float
+
+Combine a list of bytes to a number.
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn decode-float [s]
+    "union {
+      float f;
+      byte b[4];
+     } u;
+     static_assert(sizeof(float) == 4 * sizeof(byte), \"\");
+
+     for(auto const& i : runtime::range_indexed(s)){
+       u.b[i.index] = number::to<byte>(i.value);
+     }
+
+     return obj<number>(u.f);")
 #+end_src
 
 *** sqrt
@@ -8681,11 +8714,17 @@ Static code analysis (cppcheck) options,
     (is (= 0          (clamp 10 -10 0)))
     (is (= -10        (clamp -100 -10 0)))
 
-    (is (= 0          (number-combine (number-split 0))))
-    (is (= 512        (number-combine (number-split 512))))
-    (is (= 1024       (number-combine (number-split 1024))))
-    (is (= 2048       (number-combine (number-split 2048))))
-    (is (= 32000      (number-combine (number-split 32000))))
+    (is (= 0          (decode-int16 (encode-int16 0))))
+    (is (= 512        (decode-int16 (encode-int16 512))))
+    (is (= 1024       (decode-int16 (encode-int16 1024))))
+    (is (= 2048       (decode-int16 (encode-int16 2048))))
+    (is (= 32000      (decode-int16 (encode-int16 32000))))
+
+    (is (= 0          (decode-float (encode-float 0))))
+    (is (= 512        (decode-float (encode-float 512))))
+    (is (= 1024       (decode-float (encode-float 1024))))
+    (is (= 2048       (decode-float (encode-float 2048))))
+    (is (= 32000      (decode-float (encode-float 32000))))
 
     (is (= true       (not (nil? (rand)))))
     (is (= true       (not (nil? (rand 15)))))

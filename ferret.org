@@ -6495,8 +6495,6 @@ Wraps mlockall - locks the address space of process.
   (defn byte-stream-payload-ready [size in-waiting]
     (>= (in-waiting) (inc @size)))
 
-  (defn byte-stream-decoder-goto [] true)
-
   (defn byte-stream-handle-payload [read s handler]
     "number_t size = number::to<number_t>(s);
      number_t cs_calculated = size;
@@ -6529,9 +6527,9 @@ Wraps mlockall - locks the address space of process.
         (handle-payload   (byte-stream-handle-payload read @size handler)))
        (transitions
         (sync-header     #(byte-stream-header-ready read in-waiting)      read-size)
-        (read-size       byte-stream-decoder-goto                         wait-payload)
+        (read-size                                                        wait-payload)
         (wait-payload    #(byte-stream-payload-ready size in-waiting)     handle-payload)
-        (handle-payload  byte-stream-decoder-goto                         sync-header)))))
+        (handle-payload                                                   sync-header)))))
 #+end_src
 
 *** multicast-socket
@@ -7148,17 +7146,21 @@ returns true, returns the next state.
           switch (->> (reduce
                        (fn [h v]
                          (let [[state & conds] v
-                               table (->> (partition 2 conds)
-                                          (reduce (fn [h v]
-                                                    (let [[check state] v]
-                                                      (conj h `(~check) state)))
-                                                  ['cond])
-                                          (apply list))]
-                           (conj h `(= ~state ~fsm-state) table)))
+                               at-state `(= ~state ~fsm-state)
+                               jmp (if (= (count conds) 1)
+                                     (first conds)
+                                     (->> (reduce
+                                           (fn [h v]
+                                             (let [[check state] v]
+                                               (conj h `(~check) state)))
+                                           ['cond] (partition 2 conds))
+                                          (apply list)))]
+                           (conj h at-state jmp)))
                        ['cond] transitions)
                       (apply list))]
       `(new-fsm (list ~@(vals states))
-                (fn [[~@(keys states)] ~fsm-state]
+                (fn [[~@(keys states)]
+                    ~fsm-state]
                   ~switch))))
 #+end_src
 
@@ -8918,7 +8920,7 @@ Static code analysis (cppcheck) options,
                     (off (swap! state inc) :off)
                     (on  (swap! state inc) :on))
                    (transitions
-                    (off (fn [] true) on)
+                    (off             on)
                     (on  (fn [] true) off)))]
       
       (is (= :off (machine)))
@@ -8940,8 +8942,7 @@ Static code analysis (cppcheck) options,
                     (a
                      (fn [] false) no-op
                      (fn [] true)  b)
-                    (b
-                     (fn [] true)  c)
+                    (b c)
                     (c
                      (fn [] false) no-op
                      (fn [] false) no-op

@@ -7158,7 +7158,7 @@ returns true, returns the next state.
           switch (->> (reduce
                        (fn [h v]
                          (let [[state & conds] v
-                               at-state `(= ~state ~fsm-state)
+                               at-state `(identical? ~state ~fsm-state)
                                jmp (if (= (count conds) 1)
                                      (first conds)
                                      (->> (reduce

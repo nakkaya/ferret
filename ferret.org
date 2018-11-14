@@ -5003,6 +5003,18 @@ applications.
     `(not (= ~@test)))
 #+end_src
 
+*** identical?
+
+Tests if 2 arguments are the same object.
+
+#+name: runtime-clojure-logical-operators
+#+begin_src clojure :tangle no
+  (defn identical? [x y]
+    "if(x.get() == y.get())
+      return cached::true_t;
+     return cached::false_t;")
+#+end_src
+
 *** <
 
 #+name: runtime-clojure-logical-operators

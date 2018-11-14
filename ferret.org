@@ -2854,17 +2854,25 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 
     var data;
 
-    number_t val_index(ref k) const {
+    var dissoc_aux(ref k) const {
       ref keys = runtime::first(data);
+      var values = runtime::rest(data);
 
-      for(auto const& i : runtime::range_indexed(keys))
-        if ( i.value == k )
-          return i.index;
-
-      return -1;
+      var new_keys;
+      var new_values;
+      
+      for(auto const& i : runtime::range(keys)){
+        if ( i == k)
+          continue;
+        new_keys = runtime::cons(i, new_keys);
+        new_values = runtime::cons(runtime::first(values), new_values);
+        values = runtime::rest(values);
+      }
+        
+      return runtime::cons(new_keys,new_values);
     }
     
-  public:
+   public:
 
     size_t type() const final { return runtime::type::d_list; }
 
@@ -2880,56 +2888,39 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 
     explicit d_list() : data(runtime::list(runtime::list())) { }
     explicit d_list(ref l) : data(l) { }
-
+    
     var assoc(ref k, ref v) const {
-      ref keys = runtime::first(data);
-      ref values = runtime::rest(data);
+      ref map = dissoc_aux(k);
+      ref keys = runtime::first(map);
+      ref values = runtime::rest(map);
 
       return obj<d_list>(runtime::cons(runtime::cons(k,keys),
                                        runtime::cons(v,values)));
     }
 
     var dissoc(ref k) const {
-      number_t idx = val_index(k);
-      
-      if ( idx == -1 )
-        return obj<d_list>(data);
-
-      ref keys = runtime::first(data);
-      ref values = runtime::rest(data);
-
-      var new_keys;
-      for(auto const& i : runtime::range_indexed(keys))
-        if ( i.index != idx)
-          new_keys = runtime::cons(i.value, new_keys);
-
-      var new_values;
-      for(auto const& i : runtime::range_indexed(values))
-        if ( i.index != idx)
-          new_values = runtime::cons(i.value, new_values);
-      
-      return obj<d_list>(runtime::cons(new_keys,new_values));
+      return obj<d_list>(dissoc_aux(k));
     }
     
     var val_at(ref args) const {
       ref key = runtime::first(args);
       ref not_found = runtime::first(runtime::rest(args));
 
+      ref keys = runtime::first(data);
       var values = runtime::rest(data);
-      number_t idx = val_index(key);
 
-      if ( idx == -1 ){
-       if ( !not_found.is_nil() ){
-        return not_found;
-       }else{
-        return nil();  
-       }
-      }
+      for(auto const& i : runtime::range_indexed(keys)){
+        if (key == i.value)
+          return runtime::first(values);
 
-      for(number_t i = 0; i < idx; i++)
         values = runtime::rest(values);
+      }
       
-      return runtime::first(values);
+      if (!not_found.is_nil()){
+        return not_found;
+      }else{
+        return nil();  
+      }
     }
 
     var invoke(ref args) const final {
@@ -2969,7 +2960,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
   }
 
   #if !defined(FERRET_MAP_TYPE)
-    typedef d_list map_t;
+  typedef d_list map_t;
   #endif
 
 #+end_src

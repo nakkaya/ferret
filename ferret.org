@@ -7508,7 +7508,7 @@ Sets the size (in bits) of the value returned by *analog-read*.
 Bounce object can be used to reliably read push buttons or mechanical
 sensors which have contacts that "chatter" or "bounce".
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/embedded/bounce/bounce.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/embedded/bounce_pin/bounce_pin.clj
   (require '[ferret.arduino :as gpio])
 
   (def button (gpio/new-bounce 7 250))
@@ -7582,7 +7582,7 @@ sensors which have contacts that "chatter" or "bounce".
     }
   #endif
 
-    explicit bounce(var p, var t_db) :
+    explicit bounce(ref p, ref t_db) :
       fsm_state(&bounce::init),
       state(0),
       last_state(0),

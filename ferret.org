@@ -2909,8 +2909,8 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       ref keys = runtime::first(data);
       var values = runtime::rest(data);
 
-      for(auto const& i : runtime::range_indexed(keys)){
-        if (key == i.value)
+      for(auto const& i : runtime::range(keys)){
+        if (key == i)
           return runtime::first(values);
 
         values = runtime::rest(values);

@@ -97,6 +97,7 @@ CORE_TESTS = src/test/core/module.clj                     \
 
 EMBEDDED_TESTS = src/test/embedded/blink/blink.clj              \
 	         src/test/embedded/blink-multi/blink-multi.clj  \
+		 src/test/embedded/bounce/bounce.clj            \
 	         src/test/embedded/interrupt/interrupt.clj
 
 # assign tests to compilers

@@ -7503,6 +7503,103 @@ Sets the size (in bits) of the value returned by *analog-read*.
         "::analogReadResolution(number::to<number_t>(bit));"))
 #+end_src
 
+*** bounce
+
+Bounce object can be used to reliably read push buttons or mechanical
+sensors which have contacts that "chatter" or "bounce".
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/embedded/bounce/bounce.clj
+  (require '[ferret.arduino :as gpio])
+
+  (def button (gpio/new-bounce 7 250))
+
+  (while true
+    (when (pos? (button))
+      (println "Pressed!"))
+    (sleep 250))
+#+end_src
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
+  (defobject bounce "ferret/obj/arduino/bounce_o.h")
+
+  (defn new-bounce [x t-debounce]
+    "return obj<bounce>(x, t_debounce);")
+#+end_src
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/arduino/bounce_o.h
+  class bounce final : public lambda_i {
+    void (bounce::* fsm_state)();
+    byte state;
+    byte last_state;
+    unsigned long t_debounce;
+    unsigned long t_last_debounce;
+    byte pin;
+    
+    void debounce(){
+      int reading = digitalRead(pin);
+
+      // reset the debouncing timer
+      if (reading != last_state){
+        t_last_debounce = millis();
+        last_state = reading;
+      }
+      
+      if ((millis() - t_last_debounce) > t_debounce)
+        if (reading == LOW)
+          fsm_state = &bounce::off;
+        else
+          fsm_state = &bounce::on;
+    }
+    
+    void init(){
+      pinMode(pin, INPUT);
+      fsm_state = &bounce::debounce;
+    }
+
+    void on(){
+      state = 1;
+      fsm_state = &bounce::debounce;
+    }
+
+    void off(){
+      state = 0;
+      fsm_state = &bounce::debounce;
+    }
+
+   public:
+
+    size_t type() const final { return runtime::type::bounce; }
+
+    bool equals(ref o) const final {
+      return (this == o.get());
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    void stream_console() const final {
+      runtime::print("bounce<");
+      runtime::print(state);
+      runtime::print(">");
+    }
+  #endif
+
+    explicit bounce(var p, var t_db) :
+      fsm_state(&bounce::init),
+      state(0),
+      last_state(0),
+      t_debounce(number::to<int>(t_db)),
+      t_last_debounce(millis()),
+      pin(number::to<int>(p))
+      {}
+    
+    void step(){ (this->*fsm_state)(); }
+
+    var invoke(ref args) const {
+      var((object*)this).cast<bounce>()->step();
+      return obj<number>(state);
+    }
+  };
+#+end_src
+
 *** random
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj

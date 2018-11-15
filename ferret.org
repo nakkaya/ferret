@@ -5685,6 +5685,17 @@ Returns a lazy seq of the first item in each coll, then the second etc.
   (defn bit-shift-right [x n] "return obj<number>((number::to<number_t>(x) >> number::to<number_t>(n) ));")
 #+end_src
 
+*** bit-extract
+
+From =x= extract =k= bits starting from position =p=.
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn bit-extract [x p k]
+    "__result = obj<number>((number::to<number_t>(x) >> number::to<number_t>(p)) 
+                               & ((1 << number::to<number_t>(k)) - 1));")
+#+end_src
+
 *** encode-int16
 
 Split a number into bytes.
@@ -8750,6 +8761,14 @@ Static code analysis (cppcheck) options,
     (is (= 2          (bit-shift-right 4 1)))
     (is (= 1          (bit-shift-right 4 2)))
 
+    (is (= 1          (bit-extract 1781 0 2)))
+    (is (= 2          (bit-extract 1781 1 2)))
+    (is (= 245        (bit-extract 1781 0 8)))
+    (is (= 15         (bit-extract 1781 4 4)))
+    (is (= 111        (bit-extract 1781 4 8)))
+    (is (= 20         (bit-extract 500  0 5)))
+    (is (= 15         (bit-extract 500  5 6)))
+    
     (is (= 32         (sqrt 1024)))
     (is (= 2          (sqrt 4)))
     (is (= 8          (pow 2 3)))

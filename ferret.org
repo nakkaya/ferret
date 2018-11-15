@@ -1461,7 +1461,7 @@ nodes of the program AST.
   (defmethod emit :symbol [_ form state] (str form))
 
   (defmethod emit :string [_ form state]
-    (str "obj<string>(\"" (io/escape-string form) "\",(number_t)" (count form) ")"))
+    (str "obj<string>(\"" (io/escape-string form) "\"," (count form) ")"))
 
   (defmethod emit :boolean [_ form state]
     (if (true? form)
@@ -1473,9 +1473,9 @@ nodes of the program AST.
   (defmethod emit :keyword [_ form _]
     (str "obj<keyword>(" (reduce (fn[h v] (+ h (int v))) 0 (str form)) ")"))
 
-  (defmethod emit :char [_ form state] (str "obj<number>((number_t)" (int form) ")"))
+  (defmethod emit :char [_ form state] (str "obj<number>(" (int form) ")"))
 
-  (defmethod emit :number [_ form state] (str "obj<number>((real_t)" (double form) ")"))
+  (defmethod emit :number [_ form state] (str "obj<number>(" (double form) ")"))
 
   (defmethod emit 'fir_new_map [options [_ & kvs] state]
     (let [kvs (partition 2 kvs)

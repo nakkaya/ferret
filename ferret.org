@@ -7544,11 +7544,12 @@ sensors which have contacts that "chatter" or "bounce".
         last_state = reading;
       }
       
-      if ((millis() - t_last_debounce) > t_debounce)
+      if ((::millis() - t_last_debounce) > t_debounce){
         if (reading == LOW)
           fsm_state = &bounce::off;
         else
           fsm_state = &bounce::on;
+      }
     }
     
     void init(){

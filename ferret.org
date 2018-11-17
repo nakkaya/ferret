@@ -5910,6 +5910,20 @@ From =x= extract =k= bits starting from position =p=.
                                & ((1 << number::to<number_t>(k)) - 1));")
 #+end_src
 
+*** bit-override
+
+Override =len= bits in =dst= starting from =pos= using bits from =src=.
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+  (defn bit-override [dst src pos len]
+    "number_t mask = (((number_t)1 << number::to<number_t>(len)) - 1) 
+                          << number::to<number_t>(pos);
+     number_t num = (number::to<number_t>(dst) & ~mask) 
+                       | (number::to<number_t>(src) & mask);
+     return obj<number>(num);")
+#+end_src
+
 *** encode-int16
 
 Split a number into bytes.
@@ -9099,6 +9113,12 @@ Static code analysis (cppcheck) options,
     (is (= 111        (bit-extract 1781 4 8)))
     (is (= 20         (bit-extract 500  0 5)))
     (is (= 15         (bit-extract 500  5 6)))
+
+    (is (= 0xAC3A     (bit-override 0xAAAA 0x0C30 4 8)))
+    (is (= 0xBBCC     (bit-override 0xBBBB 0xAACC 0 8)))
+    (is (= 0xBACB     (bit-override 0xBBBB 0xAACC 4 8)))
+    (is (= 0xBBBB     (bit-override 0xAAAA 0xBBBB 0 16)))
+    
     
     (is (= 32         (sqrt 1024)))
     (is (= 2          (sqrt 4)))

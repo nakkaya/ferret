@@ -4231,14 +4231,17 @@ accuracy using 6 bits for fraction.
   template<> struct fixed_real_container<8>  { typedef int8_t  base_type;
                                                typedef int16_t next_type; };
   template<> struct fixed_real_container<16> { typedef int16_t base_type;
+                                               typedef int24_t next_type; };
+  template<> struct fixed_real_container<24> { typedef int24_t base_type;
                                                typedef int32_t next_type; };
   template<> struct fixed_real_container<32> { typedef int32_t base_type;
                                                typedef int64_t next_type; };
   template<> struct fixed_real_container<64> { typedef int64_t base_type;
                                                typedef int64_t next_type; };
 
+  #pragma pack(push, 1)
   template<int bits, int exp>
-  class fixed_real{
+  class fixed_real {
     typedef fixed_real fixed;
     typedef typename fixed_real_container<bits>::base_type base;
     typedef typename fixed_real_container<bits>::next_type next;
@@ -4301,6 +4304,7 @@ accuracy using 6 bits for fraction.
     }
   #endif
   };
+  #pragma pack(pop)
 #+end_src
 
 Euclidean geometry, See [[Euclidean Vector]] unit test for usage.
@@ -4390,16 +4394,205 @@ C++ containers used by the Ferret runtime. Most embedded systems does
 not provide standard containers such as =std::array= so Ferret
 provides its own containers that are portable across architectures.
 
-*** Byte
+*** byte
 
 =byte= is a collection of bits.
 
-#+name: runtime-native-containers
+#+name: runtime-native-type
 #+begin_src c++ :tangle no
   typedef uint8_t byte;
 #+end_src
 
-*** Array 
+*** int24_t
+
+#+name: runtime-native-type
+#+begin_src c++ :tangle no
+  #pragma pack(push, 1)
+  class int24_t {
+  protected:
+    byte word[3];
+  public:
+    int24_t(){ }
+
+    template<typename T>
+    explicit int24_t( T const & val ) {
+      ,*this   = (int)val;
+    }
+
+    int24_t( const int24_t& val ) {
+      ,*this   = val;
+    }
+
+    operator int() const {
+      if (word[2] & 0x80) { // Is this a negative?  Then we need to siingn extend.      
+        return (0xff << 24) | (word[2] << 16) | (word[1] << 8) | (word[0] << 0);
+      }else{
+        return (word[2] << 16) | (word[1] << 8) | (word[0] << 0);
+      }
+    }
+
+    int24_t& operator =( const int24_t& input ) {
+      word[0]   = input.word[0];
+      word[1]   = input.word[1];
+      word[2]   = input.word[2];
+
+      return *this;
+    }
+
+    int24_t& operator =( const int input ) {
+      word[0]   = ((byte*)&input)[0];
+      word[1]   = ((byte*)&input)[1];
+      word[2]   = ((byte*)&input)[2];
+
+      return *this;
+    }
+
+    int24_t operator +( const int24_t& val ) const {
+      return int24_t( (int)*this + (int)val );
+    }
+
+    int24_t operator -( const int24_t& val ) const {
+      return int24_t( (int)*this - (int)val );
+    }
+
+    int24_t operator *( const int24_t& val ) const {
+      return int24_t( (int)*this * (int)val );
+    }
+
+    int24_t operator /( const int24_t& val ) const {
+      return int24_t( (int)*this / (int)val );
+    }
+
+    int24_t operator +( const int val ) const {
+      return int24_t( (int)*this + val );
+    }
+
+    int24_t operator -( const int val ) const {
+      return int24_t( (int)*this - val );
+    }
+
+    int24_t operator *( const int val ) const {
+      return int24_t( (int)*this * val );
+    }
+
+    int24_t operator /( const int val ) const {
+      return int24_t( (int)*this / val );
+    }
+
+    int24_t& operator +=( const int24_t& val ) {
+      ,*this   = *this + val;
+      return *this;
+    }
+
+    int24_t& operator -=( const int24_t& val ) {
+      ,*this   = *this - val;
+      return *this;
+    }
+
+    int24_t& operator *=( const int24_t& val ) {
+      ,*this   = *this * val;
+      return *this;
+    }
+
+    int24_t& operator /=( const int24_t& val ) {
+      ,*this   = *this / val;
+      return *this;
+    }
+
+    int24_t& operator +=( const int val ) {
+      ,*this   = *this + val;
+      return *this;
+    }
+
+    int24_t& operator -=( const int val ) {
+      ,*this   = *this - val;
+      return *this;
+    }
+
+    int24_t& operator *=( const int val ) {
+      ,*this   = *this * val;
+      return *this;
+    }
+
+    int24_t& operator /=( const int val ) {
+      ,*this   = *this / val;
+      return *this;
+    }
+
+    int24_t operator >>( const int val ) const {
+      return int24_t( (int)*this >> val );
+    }
+
+    int24_t operator <<( const int val ) const {
+      return int24_t( (int)*this << val );
+    }
+
+    int24_t& operator >>=( const int val ) {
+      ,*this = *this >> val;
+      return *this;
+    }
+
+    int24_t& operator <<=( const int val ) {
+      ,*this = *this << val;
+      return *this;
+    }
+
+    int24_t operator -() {
+      return int24_t( -(int)*this );
+    }
+
+    bool operator ==( const int24_t& val ) const {
+      return (int)*this == (int)val;
+    }
+
+    bool operator !=( const int24_t& val ) const {
+      return (int)*this != (int)val;
+    }
+
+    bool operator >=( const int24_t& val ) const {
+      return (int)*this >= (int)val;
+    }
+
+    bool operator <=( const int24_t& val ) const {
+      return (int)*this <= (int)val;
+    }
+
+    bool operator >( const int24_t& val ) const {
+      return (int)*this > (int)val;
+    }
+
+    bool operator <( const int24_t& val ) const {
+      return (int)*this < (int)val;
+    }
+
+    bool operator ==( const int val ) const {
+      return (int)*this == val;
+    }
+
+    bool operator !=( const int val ) const {
+      return (int)*this != val;
+    }
+
+    bool operator >=( const int val ) const {
+      return (int)*this >= val;
+    }
+
+    bool operator <=( const int val ) const {
+      return (int)*this <= val;
+    }
+
+    bool operator >( const int val ) const {
+      return ((int)*this) > val;
+    }
+
+    bool operator <( const int val ) const {
+      return (int)*this < val;
+    }
+  };
+  #pragma pack(pop)
+#+end_src
+
+*** array_seq 
 
 =array= is a container that encapsulates fixed size arrays.
 
@@ -4427,7 +4620,7 @@ provides its own containers that are portable across architectures.
   };
 #+end_src
 
-*** Bitset
+*** bitset
 
 =bitset= represents a fixed-size sequence of N bits. 
 
@@ -4639,10 +4832,10 @@ Setup IO for general purpose OS,
       void init(){}
       
       template <typename T>
-      void print(const T t){ std::cout << t; }
+      void print(const T & t){ std::cout << t; }
 
       template <>
-      void print(const real_t n){
+      void print(const real_t & n){
         std::cout << std::fixed << std::setprecision(number_precision) << n;
       }
 
@@ -4662,10 +4855,10 @@ Setup IO for Arduino boards,
       void init(){ FERRET_HARDWARE_ARDUINO_UART_PORT.begin(FERRET_UART_RATE); }
 
       template <typename T>
-      void print(const T t){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(t); }
+      void print(const T & t){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(t); }
 
       template <>
-      void print(const real_t d){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(double(d)); }
+      void print(const real_t & d){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(double(d)); }
       
       template <>
       void print(void *p){
@@ -6022,7 +6215,7 @@ Port of Teensy elapsedMicros API,
     }
   #endif
 
-    inline var elapsed() const { return obj<number>(_elapsed()); }
+    inline var elapsed() const { return obj<number>((number_t)_elapsed()); }
     inline bool is_elapsed(real_t t) const { return (_elapsed() >= (unsigned long)t); }
   };
   #endif
@@ -8149,6 +8342,23 @@ Static code analysis (cppcheck) options,
   }
 #+end_src
 
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/test/core/fixed_num.clj
+  (configure-runtime! FERRET_REAL_TYPE    "ferret::fixed_real<24,0.00001_QN>"
+                      FERRET_REAL_EPSILON 0.0001)
+
+  (cxx "static_assert(sizeof(int24_t) == 3 * sizeof(byte), \"\");")
+  (cxx "static_assert(sizeof(int24_t) ==     sizeof(real_t), \"\");")
+
+  (deftest math
+    (is (=  3    (+  1.25   1.75)))
+    (is (=  0.5  (- -1.25  -1.75)))
+    (is (=  255  (+  254    1)))
+    (is (=  255  (+  253.4  1.6)))
+    (is (= -255  (- -254    1))))
+
+  (run-all-tests)
+#+end_src
+
 *** Euclidean Vector
 
 #+begin_src c++ :noweb yes :mkdirp yes :tangle src/test/native/euclidean_vector.cpp
@@ -9802,6 +10012,8 @@ Create some dummy libs under /test/modules/,
   <<runtime-native-hardware-concurrency>>
 
   namespace ferret{
+    //Ferret Types
+    <<runtime-native-type>>
     // Fixed Point Real
     <<runtime-native-fixed-point-real>>
   }

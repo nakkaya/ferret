@@ -4857,6 +4857,7 @@ Setup IO for Arduino boards,
       template <typename T>
       void print(const T t){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(t); }
 
+      // cppcheck-suppress passedByValue
       template <>
       void print(const real_t d){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(double(d)); }
       

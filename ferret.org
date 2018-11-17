@@ -7971,6 +7971,47 @@ Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation
     "return obj<number>(SPI.transfer(number::to<int>(val)));")
 #+end_src
 
+*** Watchdog Timer
+
+A watchdog timer is an electronic timer that is used to detect and
+recover from program malfunctions. During normal operation, the
+program regularly resets the watchdog timer to prevent it from
+elapsing, or "timing out".
+
+**** AVR
+
+#+begin_src clojure
+  (require '[ferret.arduino.avr :as avr])
+
+  ;; initialize 
+  (avr/wdt-enable 1000)
+
+  (while true
+    ;; do stuff
+    (avr/wdt-reset))
+#+end_src
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino/avr.clj
+  (defmacro wdt-enable [timer]
+    (let [timer (condp = timer
+                  15   "WDTO_15MS"
+                  30   "WDTO_30MS"
+                  60   "WDTO_60MS"
+                  120  "WDTO_120MS"
+                  250  "WDTO_250MS"
+                  500  "WDTO_500MS"
+                  1000 "WDTO_1S"
+                  2000 "WDTO_2S"
+                  4000 "WDTO_4S"
+                  8000 "WDTO_8S")]
+      `(cxx ~(str "wdt_enable(" timer ")"))))
+
+  (defnative wdt-reset []
+    (on "defined __AVR_ARCH__"
+        ("avr/wdt.h")
+        "wdt_reset();"))
+#+end_src
+
 ** Testing
 *** assert
 

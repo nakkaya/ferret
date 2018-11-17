@@ -4855,10 +4855,10 @@ Setup IO for Arduino boards,
       void init(){ FERRET_HARDWARE_ARDUINO_UART_PORT.begin(FERRET_UART_RATE); }
 
       template <typename T>
-      void print(const T & t){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(t); }
+      void print(const T t){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(t); }
 
       template <>
-      void print(const real_t & d){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(double(d)); }
+      void print(const real_t d){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(double(d)); }
       
       template <>
       void print(void *p){

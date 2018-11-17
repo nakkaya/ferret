@@ -8343,7 +8343,7 @@ Static code analysis (cppcheck) options,
 #+end_src
 
 #+begin_src clojure :noweb yes :mkdirp yes :tangle src/test/core/fixed_num.clj
-  (configure-runtime! FERRET_REAL_TYPE    "ferret::fixed_real<24,0.00001_QN>"
+  (configure-runtime! FERRET_REAL_TYPE    "ferret::fixed_real<24,16>"
                       FERRET_REAL_EPSILON 0.0001)
 
   (cxx "static_assert(sizeof(int24_t) == 3 * sizeof(byte), \"\");")

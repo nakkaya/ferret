@@ -4403,7 +4403,9 @@ provides its own containers that are portable across architectures.
   typedef uint8_t byte;
 #+end_src
 
-*** int24_t
+*** int24_ t
+
+24 bit *Little-endian* integer type.
 
 #+name: runtime-native-type
 #+begin_src c++ :tangle no
@@ -4424,7 +4426,7 @@ provides its own containers that are portable across architectures.
     }
 
     operator int() const {
-      if (word[2] & 0x80) { // Is this a negative?  Then we need to siingn extend.      
+      if (word[2] & 0x80) { // negative? - then sign extend.
         return (0xff << 24) | (word[2] << 16) | (word[1] << 8) | (word[0] << 0);
       }else{
         return (word[2] << 16) | (word[1] << 8) | (word[0] << 0);
@@ -4592,7 +4594,7 @@ provides its own containers that are portable across architectures.
   #pragma pack(pop)
 #+end_src
 
-*** array_seq 
+*** array_ seq 
 
 =array= is a container that encapsulates fixed size arrays.
 

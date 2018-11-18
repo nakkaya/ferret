@@ -6702,7 +6702,7 @@ Wraps mlockall - locks the address space of process.
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn system-exit [code]
-    "::std::exit(number::to<number_t>(code));")
+    "::exit(number::to<number_t>(code));")
 #+end_src
 
 *** system-abort
@@ -6710,7 +6710,7 @@ Wraps mlockall - locks the address space of process.
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn system-abort [code]
-    "::std::abort();")
+    "::abort();")
 #+end_src
 
 *** byte-stream-encoder/decoder

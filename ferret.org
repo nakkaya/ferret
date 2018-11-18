@@ -8139,8 +8139,8 @@ Each new commit is tested against a set of assertions.  Tests are run
 by the CI system for the following compilers/frameworks, 
 
  - GCC 5
- - Clang 4.0
- - Arduino 1.8.4
+ - Clang 7.0
+ - Arduino 1.8.7
 
 Most tests are done using the built in unit testing framework, but certain
 tests, those that target the workings of the compiler are easier to do
@@ -10262,9 +10262,9 @@ Create some dummy libs under /test/modules/,
   # Setup Test Requirements
 
   # arduino
-  RUN wget http://downloads.arduino.cc/arduino-1.8.4-linux64.tar.xz
-  RUN tar xf arduino-1.8.4-linux64.tar.xz
-  RUN mv arduino-1.8.4 /usr/local/share/arduino
+  RUN wget http://downloads.arduino.cc/arduino-1.8.7-linux64.tar.xz
+  RUN tar xf arduino-1.8.7-linux64.tar.xz
+  RUN mv arduino-1.8.7 /usr/local/share/arduino
   RUN ln -s /usr/local/share/arduino/arduino /usr/local/bin/arduino
 
   # x86
@@ -10274,8 +10274,8 @@ Create some dummy libs under /test/modules/,
   RUN apt-key add llvm-snapshot.gpg.key
   RUN apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial main"
   RUN apt-get update
-  RUN apt-get install clang-4.0 llvm-4.0 -y
-  RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-4.0 50
+  RUN apt-get install clang-6.0 llvm-6.0 -y
+  RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-6.0 50
 
   # Setup Platform Build Requirements
   RUN apt-get install zip reprepro -y

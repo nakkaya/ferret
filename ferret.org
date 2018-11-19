@@ -4418,18 +4418,25 @@ provides its own containers that are portable across architectures.
 
     template<typename T>
     explicit int24_t( T const & val ) {
-      ,*this   = (int)val;
+      ,*this   = (int32_t)val;
     }
 
     int24_t( const int24_t& val ) {
       ,*this   = val;
     }
 
-    operator int() const {
+    operator int32_t() const {
       if (word[2] & 0x80) { // negative? - then sign extend.
-        return (0xff << 24) | (word[2] << 16) | (word[1] << 8) | (word[0] << 0);
+        return
+          (int32_t)(((uint32_t)0xff    << 24) |
+                    ((uint32_t)word[2] << 16) |
+                    ((uint32_t)word[1] << 8)  |
+                    ((uint32_t)word[0] << 0));
       }else{
-        return (word[2] << 16) | (word[1] << 8) | (word[0] << 0);
+        return
+          (int32_t)(((uint32_t)word[2] << 16) |
+                    ((uint32_t)word[1] << 8)  |
+                    ((uint32_t)word[0] << 0));
       }
     }
 
@@ -4441,7 +4448,7 @@ provides its own containers that are portable across architectures.
       return *this;
     }
 
-    int24_t& operator =( const int input ) {
+    int24_t& operator =( const int32_t input ) {
       word[0]   = ((byte*)&input)[0];
       word[1]   = ((byte*)&input)[1];
       word[2]   = ((byte*)&input)[2];
@@ -4450,35 +4457,19 @@ provides its own containers that are portable across architectures.
     }
 
     int24_t operator +( const int24_t& val ) const {
-      return int24_t( (int)*this + (int)val );
+      return int24_t( (int32_t)*this + (int32_t)val );
     }
 
     int24_t operator -( const int24_t& val ) const {
-      return int24_t( (int)*this - (int)val );
+      return int24_t( (int32_t)*this - (int32_t)val );
     }
 
     int24_t operator *( const int24_t& val ) const {
-      return int24_t( (int)*this * (int)val );
+      return int24_t( (int32_t)*this * (int32_t)val );
     }
 
     int24_t operator /( const int24_t& val ) const {
-      return int24_t( (int)*this / (int)val );
-    }
-
-    int24_t operator +( const int val ) const {
-      return int24_t( (int)*this + val );
-    }
-
-    int24_t operator -( const int val ) const {
-      return int24_t( (int)*this - val );
-    }
-
-    int24_t operator *( const int val ) const {
-      return int24_t( (int)*this * val );
-    }
-
-    int24_t operator /( const int val ) const {
-      return int24_t( (int)*this / val );
+      return int24_t( (int32_t)*this / (int32_t)val );
     }
 
     int24_t& operator +=( const int24_t& val ) {
@@ -4501,94 +4492,32 @@ provides its own containers that are portable across architectures.
       return *this;
     }
 
-    int24_t& operator +=( const int val ) {
-      ,*this   = *this + val;
-      return *this;
-    }
-
-    int24_t& operator -=( const int val ) {
-      ,*this   = *this - val;
-      return *this;
-    }
-
-    int24_t& operator *=( const int val ) {
-      ,*this   = *this * val;
-      return *this;
-    }
-
-    int24_t& operator /=( const int val ) {
-      ,*this   = *this / val;
-      return *this;
-    }
-
-    int24_t operator >>( const int val ) const {
-      return int24_t( (int)*this >> val );
-    }
-
-    int24_t operator <<( const int val ) const {
-      return int24_t( (int)*this << val );
-    }
-
-    int24_t& operator >>=( const int val ) {
-      ,*this = *this >> val;
-      return *this;
-    }
-
-    int24_t& operator <<=( const int val ) {
-      ,*this = *this << val;
-      return *this;
-    }
-
     int24_t operator -() {
-      return int24_t( -(int)*this );
+      return int24_t( -(int32_t)*this );
     }
 
     bool operator ==( const int24_t& val ) const {
-      return (int)*this == (int)val;
+      return (int32_t)*this == (int32_t)val;
     }
 
     bool operator !=( const int24_t& val ) const {
-      return (int)*this != (int)val;
+      return (int32_t)*this != (int32_t)val;
     }
 
     bool operator >=( const int24_t& val ) const {
-      return (int)*this >= (int)val;
+      return (int32_t)*this >= (int32_t)val;
     }
 
     bool operator <=( const int24_t& val ) const {
-      return (int)*this <= (int)val;
+      return (int32_t)*this <= (int32_t)val;
     }
 
     bool operator >( const int24_t& val ) const {
-      return (int)*this > (int)val;
+      return (int32_t)*this > (int32_t)val;
     }
 
     bool operator <( const int24_t& val ) const {
-      return (int)*this < (int)val;
-    }
-
-    bool operator ==( const int val ) const {
-      return (int)*this == val;
-    }
-
-    bool operator !=( const int val ) const {
-      return (int)*this != val;
-    }
-
-    bool operator >=( const int val ) const {
-      return (int)*this >= val;
-    }
-
-    bool operator <=( const int val ) const {
-      return (int)*this <= val;
-    }
-
-    bool operator >( const int val ) const {
-      return ((int)*this) > val;
-    }
-
-    bool operator <( const int val ) const {
-      return (int)*this < val;
+      return (int32_t)*this < (int32_t)val;
     }
   };
   #pragma pack(pop)

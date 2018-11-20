@@ -5911,6 +5911,8 @@ Combine a list of bytes to a number.
      static_assert(sizeof(float) == 4 * sizeof(byte), \"\");
 
      for(auto const& i : runtime::range_indexed(s)){
+       if (i.index > 3)
+        break;
        u.b[i.index] = number::to<byte>(i.value);
      }
 
@@ -9059,6 +9061,8 @@ Static code analysis (cppcheck) options,
     (is (= 1024       (decode-float (encode-float 1024))))
     (is (= 2048       (decode-float (encode-float 2048))))
     (is (= 32000      (decode-float (encode-float 32000))))
+    (is (= 512        (decode-float (list 0 0 0 68 42))))
+    
 
     (is (= true       (not (nil? (rand)))))
     (is (= true       (not (nil? (rand 15)))))

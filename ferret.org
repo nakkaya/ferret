@@ -1794,13 +1794,10 @@ namespace.)
            $objects:{$it$} ;separator=\"\n\"$
           }
 
-          namespace $file$ { 
-           using namespace ferret;
-           typedef ferret::boolean boolean; 
-          }
-
           // Symbols
           namespace $file${
+           using namespace ferret;
+
            $symbols:{var $it$;} ;separator=\"\n\"$
           }
 
@@ -2380,8 +2377,8 @@ traditional boolean values.
   };
 
   namespace cached{
-    const var true_t = obj<ferret::boolean>(true);
-    const var false_t = obj<ferret::boolean>(false);
+    const var true_t = obj<::ferret::boolean>(true);
+    const var false_t = obj<::ferret::boolean>(false);
   }
 
   var::operator bool() const {
@@ -2634,7 +2631,7 @@ directly. count is O(n). conj puts the item at the front of the list.
   };
 
   namespace cached{
-    const var empty_sequence = obj<ferret::empty_sequence>();
+    const var empty_sequence = obj<::ferret::empty_sequence>();
   }
 #+end_src
 
@@ -4114,7 +4111,6 @@ support any real number type the system supports.
 
 #+name: runtime-native-number-config-macros
 #+begin_src c++ :tangle no
-  namespace ferret{
   #if !defined(FERRET_NUMBER_TYPE)
      #define FERRET_NUMBER_TYPE int
   #endif
@@ -4133,29 +4129,34 @@ support any real number type the system supports.
   #if !defined(FERRET_DISABLE_STD_OUT)
     const   size_t                       number_precision = 4;       // number Format String (fprinf)
   #endif
-  }
 #+end_src
 
 Math related string literals,
 
-#+name: runtime-native-number-config-macros
+#+name: runtime-native-number-literals
 #+begin_src c++ :tangle no
-  namespace ferret{
-    constexpr auto operator "" _pi(long double x) -> double {
-      return 3.14159265358979323846 * (double)x;
-    }
+  constexpr auto operator "" _MB( unsigned long long const x ) -> long {
+    return 1024L * 1024L * (long)x;
+  }
+    
+  constexpr auto operator "" _KB( unsigned long long const x ) -> long {
+    return 1024L * (long)x;
+  }
+    
+  constexpr auto operator "" _pi(long double x) -> double {
+    return 3.14159265358979323846 * (double)x;
+  }
 
-    constexpr auto operator "" _pi(unsigned long long int  x) -> double {
-      return 1.0_pi * (double)x;
-    }
+  constexpr auto operator "" _pi(unsigned long long int  x) -> double {
+    return 1.0_pi * (double)x;
+  }
 
-    constexpr auto operator "" _deg(long double x) -> double {
-      return (1.0_pi * (double)x) / 180;
-    }
+  constexpr auto operator "" _deg(long double x) -> double {
+    return (1.0_pi * (double)x) / 180;
+  }
 
-    constexpr auto operator "" _deg(unsigned long long int  x) -> double {
-      return 1.0_deg * (double)x;
-    }
+  constexpr auto operator "" _deg(unsigned long long int  x) -> double {
+    return 1.0_deg * (double)x;
   }
 #+end_src
 
@@ -4383,8 +4384,8 @@ Euclidean geometry, See [[Euclidean Vector]] unit test for usage.
   #endif
     };
 
-    typedef euclidean::vector<2, ferret::real_t> vector_2d;
-    typedef euclidean::vector<3, ferret::real_t> vector_3d;
+    typedef euclidean::vector<2, real_t> vector_2d;
+    typedef euclidean::vector<3, real_t> vector_3d;
   }
 #+end_src
 
@@ -4595,7 +4596,6 @@ not defined.)
 
 #+name: runtime-native-hardware-concurrency
 #+begin_src c++ :tangle no
-  namespace ferret {
   #if defined(FERRET_DISABLE_MULTI_THREADING)
     class mutex {
     public:
@@ -4620,17 +4620,14 @@ not defined.)
       };
     #endif
   #endif
-  }
 
-  namespace ferret {
-    class lock_guard{
-      mutex & _ref;
-    public:
-      explicit lock_guard(const lock_guard &) = delete;
-      explicit lock_guard(mutex & mutex) : _ref(mutex) { _ref.lock(); };
-      ~lock_guard() { _ref.unlock(); }
-    };
-  }
+  class lock_guard{
+    mutex & _ref;
+  public:
+    explicit lock_guard(const lock_guard &) = delete;
+    explicit lock_guard(mutex & mutex) : _ref(mutex) { _ref.lock(); };
+    ~lock_guard() { _ref.unlock(); }
+  };
 #+end_src
 
 ** Initialization
@@ -9997,32 +9994,25 @@ Create some dummy libs under /test/modules/,
 *** ferret/runtime.h
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/runtime.h
-  // Literals
-  namespace ferret{
-    constexpr auto operator "" _MB( unsigned long long const x ) -> long { return 1024L * 1024L * (long)x; }
-    constexpr auto operator "" _KB( unsigned long long const x ) -> long { return 1024L * (long)x; }
-  }
-
   // Detect Hardware
   <<runtime-native-hardware-setup>>
 
-  <<runtime-native-hardware-concurrency>>
-
   namespace ferret{
-    //Ferret Types
+    // Types
     <<runtime-native-type>>
-    // Fixed Point Real
-    <<runtime-native-fixed-point-real>>
-  }
-
-  // Number Configuration
-  <<runtime-native-number-config-macros>>
-
-  namespace ferret{
-    <<runtime-native-math>>
-    <<runtime-native-euclidean-vector>>
+    // Concurrency
+    <<runtime-native-hardware-concurrency>>
     // Containers
     <<runtime-native-containers>>
+  }
+
+  // Math
+  namespace ferret{
+    <<runtime-native-number-literals>>
+    <<runtime-native-fixed-point-real>>
+    <<runtime-native-number-config-macros>>
+    <<runtime-native-math>>
+    <<runtime-native-euclidean-vector>>
   }
 
   // Initialize Hardware

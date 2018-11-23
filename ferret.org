@@ -145,7 +145,7 @@ calling malloc/free at runtime.
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/embedded/blink-multi/blink-multi.clj
   (configure-runtime! FERRET_MEMORY_POOL_SIZE 512
-                      FERRET_MEMORY_POOL_PAGE_TYPE char)
+                      FERRET_MEMORY_POOL_PAGE_TYPE byte)
 
   (require '[ferret.arduino :as gpio])
 
@@ -1797,6 +1797,10 @@ namespace.)
           // Symbols
           namespace $file${
            using namespace ferret;
+
+           #if defined(ARDUINO)
+             typedef ferret::boolean boolean;
+           #endif
 
            $symbols:{var $it$;} ;separator=\"\n\"$
           }
@@ -3667,7 +3671,7 @@ Pool sizes can also be defined using user-defined suffixes.
 By default page size is =sizeof(size_t)=. This can be changed using,
 
 #+BEGIN_EXAMPLE
-  (configure-runtime! FERRET_MEMORY_POOL_PAGE_TYPE char)
+  (configure-runtime! FERRET_MEMORY_POOL_PAGE_TYPE byte)
 #+END_EXAMPLE
 
 Memory pooling is intended for embedded systems where calling
@@ -4668,7 +4672,7 @@ indicating platform.
 
       #if defined(__AVR__)
         # undef  FERRET_MEMORY_POOL_PAGE_TYPE
-        # define FERRET_MEMORY_POOL_PAGE_TYPE uint8_t
+        # define FERRET_MEMORY_POOL_PAGE_TYPE byte
       #endif
 
     #endif
@@ -4799,7 +4803,7 @@ Setup IO for Arduino boards,
       }
 
       void read_line(char *buff, size_t len){
-        uint8_t idx = 0;
+        byte idx = 0;
         char c;
         do{
           while (FERRET_HARDWARE_ARDUINO_UART_PORT.available() == 0);

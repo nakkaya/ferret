@@ -2471,7 +2471,7 @@ modern C++ libraries that use smart pointers for memory management.
                    };")
 
   (defn make-data [x]
-    "return obj<value<data>>(number::to<int>(x))")
+    "return obj<value<data>>(number::to<number_t>(x))")
 
   (defn get-data [x]
     "return obj<number>((number_t) value<data>::to_value(x).content());")
@@ -3067,7 +3067,7 @@ interpreted as FFI calls.
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
       for(ref it : runtime::range(data))
-        runtime::print(number::to<char>(it));
+        runtime::print(number::to<byte>(it));
     }
   #endif
 
@@ -3123,7 +3123,7 @@ interpreted as FFI calls.
   template <> ::std::string string::to(ref v) { 
     ::std::stringstream ss;
     for(ref it : runtime::range(v.cast<string>()->container()))
-      ss << number::to<char>(it);
+      ss << number::to<byte>(it);
     return ss.str();
   }
   #endif
@@ -5039,7 +5039,7 @@ are immutable you can freely call Ferret code from C++,
 
   int sum = 0;
   for(ref it : runtime::range(alist)){
-    sum += number::to<int>(it);
+    sum += number::to<number_t>(it);
    }
 
   ::std::cout << sum << ::std::endl;
@@ -6247,14 +6247,14 @@ and returns its value as a Ferret =number=.
      real_t factor = 1;
      real_t value = 0;
 
-     if (number::to<char>(runtime::first(seq)) == '-'){
+     if (number::to<byte>(runtime::first(seq)) == '-'){
        seq = runtime::rest(seq);
        factor = -1;
      }
 
      bool point_passed = false;
      for(ref i : runtime::range(seq)){
-       char ch = number::to<char>(i);
+       byte ch = number::to<byte>(i);
 
        if (ch == '.'){
          point_passed = true;
@@ -7208,8 +7208,8 @@ Once opened, port is ready for =read=/=write=.
      (open-aux port speed v-min v-time)))
 
 
-  (defn write [port byte]
-    "char b[1] = {number::to<char>(byte)};
+  (defn write [port data]
+    "byte b[1] = {number::to<byte>(data)};
      write(number::to<number_t>(port), b, 1);")
 
   (defn available [port]
@@ -7743,9 +7743,9 @@ sensors which have contacts that "chatter" or "bounce".
       fsm_state(&bounce::init),
       state(0),
       last_state(0),
-      t_debounce(number::to<int>(t_db)),
+      t_debounce(number::to<number_t>(t_db)),
       t_last_debounce(millis()),
-      pin(number::to<int>(p))
+      pin(number::to<number_t>(p))
       {}
     
     void step(){ (this->*fsm_state)(); }
@@ -7896,7 +7896,7 @@ Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation
     `(with-spi-aux ~conf (fn [] ~@body)))
 
   (defn spi-write [val]
-    "return obj<number>(SPI.transfer(number::to<int>(val)));")
+    "return obj<number>(SPI.transfer(number::to<number_t>(val)));")
 #+end_src
 
 *** Watchdog Timer
@@ -9524,11 +9524,11 @@ Create some dummy libs under /test/modules/,
   (defnative native-single-argument [x]
     (on "defined FERRET_STD_LIB"
         ("utility") ;; dummy include
-        "return obj<number>(number::to<int>(x));"))
+        "return obj<number>(number::to<number_t>(x));"))
 
   (defnative macro-aux []
     (on "defined FERRET_STD_LIB"
-        "__result = obj<number>((number_t)42);"))
+        "__result = obj<number>(42);"))
 
   (defmacro macro-call []
     `(do (~'macro-aux)))

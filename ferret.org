@@ -6773,25 +6773,29 @@ other members of the group and port.
     
      return obj<boolean>(con.cast<multicast_socket>()->send(buffer,idx));")
 
-  (defn byte [conn idx]
-    "return obj<number>(conn.cast<multicast_socket>()->data()[number::to<number_t>(idx)]);")
+  (defn byte [data curr]
+    "auto buffer = value<datagram_t>::to_reference(data);
+     return obj<number>(buffer[number::to<number_t>(curr)]);")
 
   (defn data-seq
-    ([conn size]
-     (data-seq conn 0 size))
-    ([conn curr size]
+    ([[size data]]
+     (data-seq size data 0))
+    ([size data curr]
      (if (< curr size)
-       (cons (byte conn curr)
-             (lazy-seq (data-seq conn (inc curr) size))))))
+       (cons (byte data curr)
+             (lazy-seq (data-seq size data (inc curr)))))))
 
   (defn read [conn]
-    "return obj<number>(conn.cast<multicast_socket>()->recv());")
+    "return conn.cast<multicast_socket>()->recv();")
 
   (defn recv [conn]
-    (data-seq conn (read conn)))
+    (data-seq (read conn)))
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/net/multicast_o.h
+  const size_t max_data_gram_size = 65507;
+  typedef ferret::array<ferret::byte, max_data_gram_size> datagram_t;
+
   namespace multicast_aux {
     class address{
       sockaddr addr;
@@ -6837,10 +6841,7 @@ other members of the group and port.
       friend class udp;
     };
 
-    const size_t max_data_gram_size = 65507;
-
     class udp{
-      ferret::array<ferret::byte, max_data_gram_size> buf;
       int fd;
    
     public:
@@ -6859,12 +6860,10 @@ other members of the group and port.
       bool is_open() const{ return fd >= 0; }
    
       bool send(const void *data, size_t length, const address &dest);
-      ssize_t recv(address &src);
+      ssize_t recv(address &src, datagram_t & recv_buf);
    
       bool wait(int timeout_ms = -1) const;
       bool have_pending_data() const;
-   
-      const ferret::byte* data() const{ return buf.data; }
     };
    
     bool address::set_host(const char *hostname, unsigned short port){
@@ -6980,10 +6979,10 @@ other members of the group and port.
    
       return (len >= 0 && (size_t)len == length);
     }
-   
-    ssize_t udp::recv(address &src){
+
+    ssize_t udp::recv(address &src, datagram_t & recv_buf){
       src.addr_len = sizeof(src.addr);
-      ssize_t len = recvfrom(fd, buf.data, max_data_gram_size, 0, &src.addr, &src.addr_len);
+      ssize_t len = recvfrom(fd, recv_buf.data, max_data_gram_size, 0, &src.addr, &src.addr_len);
    
       if (len > 0) {
         recv_packets++;
@@ -7019,12 +7018,11 @@ other members of the group and port.
     }
   }
 
-  typedef ferret::array<ferret::byte, multicast_aux::max_data_gram_size> datagram_t;
-
   class multicast_socket final : public object {
     std::string ip;
     unsigned short port;
     multicast_aux::udp net;
+    mutex lock;
     
   public:
 
@@ -7055,16 +7053,20 @@ other members of the group and port.
     }
 
     bool send(datagram_t & data, number_t size) {
+      lock_guard guard(lock);
       multicast_aux::address dest_addr(ip.c_str(), port);
       return net.send(data.data, (size_t)size, dest_addr);
     }
 
-    number_t recv(){
+    var recv(){
+      lock_guard guard(lock);
       multicast_aux::address src_addr(ip.c_str(), port);
-      return (number_t)net.recv(src_addr);
-    }
 
-    const byte* data() const{ return net.data(); }
+      var buffer = obj<value<datagram_t>>();
+      number_t read = (number_t)net.recv(src_addr, value<datagram_t>::to_reference(buffer));
+
+      return runtime::list(obj<number>(read), buffer);
+    }
   };
 #+end_src
 

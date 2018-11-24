@@ -4528,7 +4528,7 @@ provides its own containers that are portable across architectures.
   #pragma pack(pop)
 #+end_src
 
-*** array_ seq 
+*** array
 
 =array= is a container that encapsulates fixed size arrays.
 

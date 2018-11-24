@@ -7559,11 +7559,17 @@ moving average of the last K samples by setting the value of alpha to
   class moving_average_filter : public lambda_i {
     T alpha;
     mutable T avrg;
+    mutex lock;
+
+    var step(T data) {
+      lock_guard guard(lock);
+      avrg = ((alpha * data) + ((1. - alpha) * avrg));
+      return obj<number>(avrg);
+    }
+    
   public:
 
-    explicit moving_average_filter(ref a) : avrg(0) {
-      alpha = number::to<T>(a);
-    }
+    explicit moving_average_filter(ref a) : alpha(number::to<T>(a)), avrg(0) { }
 
     size_t type() const { return runtime::type::moving_average_filter; }
 
@@ -7582,9 +7588,8 @@ moving average of the last K samples by setting the value of alpha to
   #endif
 
     var invoke(ref args) const {
-      T data = number::to<T>(runtime::first(args));
-      avrg = ((alpha * data) + ((1. - alpha) * avrg));
-      return obj<number>(avrg);
+      return var((object*)this).cast<moving_average_filter<T>>()
+        ->step(number::to<T>(runtime::first(args)));
     }
   };
 #+end_src

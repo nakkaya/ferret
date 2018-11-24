@@ -7413,48 +7413,26 @@ Ported from,
     mutable T error;
     mutable T result;
     mutable T input;
-  public:
+    mutex lock;
 
-    pid_controller(ref kp, ref ki, ref kd,
-                   ref inMin, ref inMax, ref outMin, ref outMax,
-                   ref cont,
-                   ref sp){
-      p = number::to<T>(kp);
-      i = number::to<T>(ki);
-      d = number::to<T>(kd);
-      maximum_output = number::to<T>(outMax);
-      minimum_output = number::to<T>(outMin);
-      maximum_input = number::to<T>(inMax);
-      minimum_input = number::to<T>(inMin);
-      continuous = cont.cast<boolean>()->container();
-
-      if (sp.is_type(runtime::type::lambda_i)){
-        setpoint_fn = sp;
-        set_setpoint(run(setpoint_fn));
-      }else{
-        set_setpoint(sp);
+    void set_setpoint(ref p) {
+      lock_guard guard(lock);
+      T sp = number::to<T>(p);
+      if (maximum_input > minimum_input) {
+        if (sp > maximum_input) {
+          setpoint = maximum_input;
+        } else if (sp < minimum_input) {
+          setpoint = minimum_input;
+        } else {
+          setpoint = sp;
+        }
+      } else {
+        setpoint = sp;
       }
-
-      prev_error = 0;
-      total_error = 0;
-      error = 0;
-      result = 0;
-      input = 0;
     }
-
-    size_t type() const { return runtime::type::pid_controller; }
-
-    bool equals(ref o) const {
-      return (this == o.cast<pid_controller>());
-    }
-
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
-      runtime::print("pid_controller");
-    }
-  #endif
-
-    var update(ref in) const {
+    
+    var step(ref in) {
+      lock_guard guard(lock);
       input = number::to<T>(in);
 
       // Calculate the error signal
@@ -7496,33 +7474,56 @@ Ported from,
       return obj<number>(result);
     }
     
-    void set_setpoint(ref p) const {
-      T sp = number::to<T>(p);
-      if (maximum_input > minimum_input) {
-        if (sp > maximum_input) {
-          setpoint = maximum_input;
-        } else if (sp < minimum_input) {
-          setpoint = minimum_input;
-        } else {
-          setpoint = sp;
-        }
-      } else {
-        setpoint = sp;
+  public:
+    pid_controller(ref kp, ref ki, ref kd,
+                   ref inMin, ref inMax, ref outMin, ref outMax,
+                   ref cont,
+                   ref sp):
+      p(number::to<T>(kp)),
+      i(number::to<T>(ki)),
+      d(number::to<T>(kd)),
+      maximum_output(number::to<T>(outMax)),
+      minimum_output(number::to<T>(outMin)),
+      maximum_input(number::to<T>(inMax)),
+      minimum_input(number::to<T>(inMin)),
+      continuous(cont.cast<boolean>()->container()){
+
+      if (sp.is_type(runtime::type::lambda_i)){
+        setpoint_fn = sp;
+        set_setpoint(run(setpoint_fn));
+      }else{
+        set_setpoint(sp);
       }
+
+      prev_error = 0;
+      total_error = 0;
+      error = 0;
+      result = 0;
+      input = 0;
     }
+
+    size_t type() const { return runtime::type::pid_controller; }
+
+    bool equals(ref o) const {
+      return (this == o.cast<pid_controller>());
+    }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    void stream_console() const {
+      runtime::print("pid_controller");
+    }
+  #endif
 
     var invoke(ref args) const {
       if (!setpoint_fn.is_nil())
-        set_setpoint(run(setpoint_fn));
-      return update(runtime::first(args));
-    }
-    
-    void reset(){
-      prev_error = 0;
-      total_error = 0;
-      result = 0;
+        var((object*)this).cast<pid_controller<T>>()
+          ->set_setpoint(run(setpoint_fn));
+      
+      return var((object*)this).cast<pid_controller<T>>()
+        ->step(runtime::first(args));
     }
   };
+
 #+end_src
 
 #+name: runtime-clojure-core

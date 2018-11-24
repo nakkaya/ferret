@@ -6128,8 +6128,8 @@ Port of Teensy elapsedMicros API,
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/elapsed_micros_o.h
   #if !defined(FERRET_SAFE_MODE)
   class elapsed_micros : public object {
-
     unsigned long us;
+    mutex lock;
 
   #if defined(FERRET_HARDWARE_ARDUINO)
     inline unsigned long now() const{
@@ -6148,7 +6148,11 @@ Port of Teensy elapsedMicros API,
    public:
 
     elapsed_micros(void) { us = now(); }
-    void reset() { us = now(); }
+
+    void reset() {
+      lock_guard guard(lock);
+      us = now();
+    }
     
     size_t type() const { return runtime::type::elapsed_micros; }
 

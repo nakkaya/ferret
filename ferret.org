@@ -7703,6 +7703,7 @@ sensors which have contacts that "chatter" or "bounce".
     unsigned long t_debounce;
     unsigned long t_last_debounce;
     byte pin;
+    mutex lock;
     
     void debounce(){
       int reading = digitalRead(pin);
@@ -7736,6 +7737,12 @@ sensors which have contacts that "chatter" or "bounce".
       fsm_state = &bounce::debounce;
     }
 
+    var step(){
+      lock_guard guard(lock);
+      (this->*fsm_state)();
+      return obj<number>(state);
+    }
+
    public:
 
     size_t type() const final { return runtime::type::bounce; }
@@ -7760,12 +7767,9 @@ sensors which have contacts that "chatter" or "bounce".
       t_last_debounce(millis()),
       pin(number::to<number_t>(p))
       {}
-    
-    void step(){ (this->*fsm_state)(); }
 
     var invoke(ref args) const {
-      var((object*)this).cast<bounce>()->step();
-      return obj<number>(state);
+      return var((object*)this).cast<bounce>()->step();
     }
   };
 #+end_src

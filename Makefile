@@ -56,7 +56,7 @@ define static_check
     cppcheck --quiet --inline-suppr --force --language=c++ --std=c++11 --template=gcc --enable=all --error-exitcode=1 $1 2> "$1.cppcheck"
 endef
 
-# only enable sanitizers when running in docker
+# only enable sanitizers during release test
 test-release: CPPFLAGS += -fsanitize=undefined,address,leak -fno-omit-frame-pointer
 
 %.gcc: %.cpp
@@ -110,6 +110,7 @@ INO_OBJS   = $(EMBEDDED_TESTS:.clj=.ino)
 test-compiler:
 	cd src/ && lein test
 test: bin/ferret test-compiler $(CXX_OBJS)
+test-all: bin/ferret test-compiler $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
 test-release: bin/ferret test-compiler $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
 
 # rules for preparing a release
@@ -159,4 +160,4 @@ docker-bash:
 docker-release:
 	 @${DOCKER_RUN} /bin/bash -c 'make release'
 docker-test:
-	 ${DOCKER_RUN} /bin/bash -c 'make test-release'
+	 ${DOCKER_RUN} /bin/bash -c 'make test-all'

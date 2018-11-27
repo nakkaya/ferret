@@ -2199,6 +2199,10 @@ All our types are derived from the base Object type. Which is a
 
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
+  template<typename>
+  void type_id(){}
+
+  using type_id_t = void(*)();
   typedef unsigned int type_t;
 
   class var;
@@ -2361,6 +2365,7 @@ traditional boolean values.
   public:
 
     type_t type() const final { return runtime::type::boolean; }
+    static constexpr type_id_t tag = type_id<boolean>;
 
     bool equals(ref o) const final {
       return (value == o.cast<boolean>()->container());
@@ -2434,6 +2439,7 @@ A =pointer= object keeps a reference to a C++ pointer.
 
 
     type_t type() const final { return runtime::type::pointer; }
+    static constexpr type_id_t tag = type_id<pointer>;
 
     bool equals(ref o) const final {
       return (_payload == o.cast<pointer>()->payload());
@@ -2499,6 +2505,7 @@ modern C++ libraries that use smart pointers for memory management.
    public:
 
     type_t type() const final { return runtime::type::value; }
+    static constexpr type_id_t tag = type_id<value>;
 
     bool equals(ref o) const final {
       return (this == o.get());
@@ -2553,6 +2560,7 @@ fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
 
 
     type_t type() const final { return runtime::type::number; }
+    static constexpr type_id_t tag = type_id<number>;
 
     bool equals(ref o) const final {
       if (runtime::abs(_word - o.cast<number>()->word()) < real_epsilon)
@@ -2624,6 +2632,7 @@ directly. count is O(n). conj puts the item at the front of the list.
   public:
 
     type_t type() const final { return runtime::type::empty_sequence; }
+    static constexpr type_id_t tag = type_id<empty_sequence>;
 
     bool equals(ref) const final {
       return true;
@@ -2648,6 +2657,7 @@ directly. count is O(n). conj puts the item at the front of the list.
   public:
 
     type_t type() const final { return runtime::type::sequence; }
+    static constexpr type_id_t tag = type_id<sequence>;
 
     bool equals(ref o) const final {
       return seekable_i::equals(var((object*)this), o);
@@ -2745,6 +2755,7 @@ sequence is iterated.
   public:
 
     type_t type() const final { return runtime::type::lazy_sequence; }
+    static constexpr type_id_t tag = type_id<lazy_sequence>;
 
     bool equals(ref o) const final {
       return seekable_i::equals(var((object*)this), o);
@@ -3065,6 +3076,7 @@ interpreted as FFI calls.
   public:
 
     type_t type() const final { return runtime::type::string; }
+    static constexpr type_id_t tag = type_id<string>;
 
     bool equals(ref other) const final {
       return (container() == other.cast<string>()->container());
@@ -3559,6 +3571,7 @@ uniform fashion.
     virtual var invoke(ref args) const = 0;
 
     type_t type() const { return runtime::type::lambda_i; }
+    static constexpr type_id_t tag = type_id<lambda_i>;
 
     bool equals(ref o) const {
       return (this == o.get());
@@ -6157,6 +6170,7 @@ Port of Teensy elapsedMicros API,
     }
     
     type_t type() const { return runtime::type::elapsed_micros; }
+    static constexpr type_id_t tag = type_id<elapsed_micros>;
 
     bool equals(ref o) const {
       return (this == o.cast<elapsed_micros>());
@@ -7029,6 +7043,7 @@ other members of the group and port.
   public:
 
     type_t type() const final { return runtime::type::multicast_socket; }
+    static constexpr type_id_t tag = type_id<multicast_socket>;
 
     bool equals(ref) const final {
       return false;

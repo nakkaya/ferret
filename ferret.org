@@ -1518,7 +1518,7 @@ nodes of the program AST.
         $if(embed_type)$
           namespace runtime {
             namespace type {
-               const size_t $type$ = $type_val$;}}
+               const type_t $type$ = $type_val$;}}
           $endif$
         $body$
         #endif"
@@ -2199,6 +2199,8 @@ All our types are derived from the base Object type. Which is a
 
 #+name: runtime-native-object
 #+begin_src c++ :tangle no
+  typedef unsigned int type_t;
+
   class var;
   typedef var const & ref;
   class seekable_i;
@@ -2209,7 +2211,7 @@ All our types are derived from the base Object type. Which is a
     object_i() { }
     virtual ~object_i() { };
     
-    virtual size_t type() const = 0;
+    virtual type_t type() const = 0;
     
   #if !defined(FERRET_DISABLE_STD_OUT)
     virtual void stream_console() const = 0;
@@ -2281,7 +2283,7 @@ count, when it reaches zero it will automatically free the object.
     template<typename T>
     inline T* cast() const { return static_cast<T*>(obj); }
 
-    inline bool is_type(size_t type) const { 
+    inline bool is_type(type_t type) const {
       return (static_cast<object*>(obj)->type() == type);
     }
 
@@ -2358,7 +2360,7 @@ traditional boolean values.
     const bool value;
   public:
 
-    size_t type() const final { return runtime::type::boolean; }
+    type_t type() const final { return runtime::type::boolean; }
 
     bool equals(ref o) const final {
       return (value == o.cast<boolean>()->container());
@@ -2431,7 +2433,7 @@ A =pointer= object keeps a reference to a C++ pointer.
   public:
 
 
-    size_t type() const final { return runtime::type::pointer; }
+    type_t type() const final { return runtime::type::pointer; }
 
     bool equals(ref o) const final {
       return (_payload == o.cast<pointer>()->payload());
@@ -2496,7 +2498,7 @@ modern C++ libraries that use smart pointers for memory management.
     T _value;
    public:
 
-    size_t type() const final { return runtime::type::value; }
+    type_t type() const final { return runtime::type::value; }
 
     bool equals(ref o) const final {
       return (this == o.get());
@@ -2550,7 +2552,7 @@ fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
   public:
 
 
-    size_t type() const final { return runtime::type::number; }
+    type_t type() const final { return runtime::type::number; }
 
     bool equals(ref o) const final {
       if (runtime::abs(_word - o.cast<number>()->word()) < real_epsilon)
@@ -2621,7 +2623,7 @@ directly. count is O(n). conj puts the item at the front of the list.
   class empty_sequence final : public object {
   public:
 
-    size_t type() const final { return runtime::type::empty_sequence; }
+    type_t type() const final { return runtime::type::empty_sequence; }
 
     bool equals(ref) const final {
       return true;
@@ -2645,7 +2647,7 @@ directly. count is O(n). conj puts the item at the front of the list.
     const var data;
   public:
 
-    size_t type() const final { return runtime::type::sequence; }
+    type_t type() const final { return runtime::type::sequence; }
 
     bool equals(ref o) const final {
       return seekable_i::equals(var((object*)this), o);
@@ -2742,7 +2744,7 @@ sequence is iterated.
 
   public:
 
-    size_t type() const final { return runtime::type::lazy_sequence; }
+    type_t type() const final { return runtime::type::lazy_sequence; }
 
     bool equals(ref o) const final {
       return seekable_i::equals(var((object*)this), o);
@@ -2875,7 +2877,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     
    public:
 
-    size_t type() const final { return runtime::type::d_list; }
+    type_t type() const final { return runtime::type::d_list; }
 
     bool equals(ref o) const final {
       return seekable_i::equals(var((object*)this), o);
@@ -2992,7 +2994,7 @@ the keyword as =number_t=.
     
   public:
 
-    size_t type() const final { return runtime::type::keyword; }
+    type_t type() const final { return runtime::type::keyword; }
 
     bool equals(ref o) const final {
       return (_word == o.cast<keyword>()->word());
@@ -3062,7 +3064,7 @@ interpreted as FFI calls.
     
   public:
 
-    size_t type() const final { return runtime::type::string; }
+    type_t type() const final { return runtime::type::string; }
 
     bool equals(ref other) const final {
       return (container() == other.cast<string>()->container());
@@ -3153,7 +3155,7 @@ or =reset!=. Changes to atoms are always free of race conditions.
     public:
 
 
-    size_t type() const final { return runtime::type::atomic; }
+    type_t type() const final { return runtime::type::atomic; }
 
     bool equals(ref o) const final {
       return (this == o.cast<atomic>());
@@ -3259,7 +3261,7 @@ thread to =future=,
       value(nil()), fn(f), cached(false),
       task(std::async(std::launch::async, [this](){ return exec(); })){ inc_ref(); }
 
-    size_t type() const final { return runtime::type::async; }
+    type_t type() const final { return runtime::type::async; }
 
     bool equals(ref o) const final {
       return (this == o.cast<async>());
@@ -3327,7 +3329,7 @@ calls.
     
     public:
 
-    size_t type() const final { return runtime::type::delayed; }
+    type_t type() const final { return runtime::type::delayed; }
 
     bool equals(ref o) const final {
       return (this == o.cast<delayed>());
@@ -3556,7 +3558,7 @@ uniform fashion.
    public:
     virtual var invoke(ref args) const = 0;
 
-    size_t type() const { return runtime::type::lambda_i; }
+    type_t type() const { return runtime::type::lambda_i; }
 
     bool equals(ref o) const {
       return (this == o.get());
@@ -6154,7 +6156,7 @@ Port of Teensy elapsedMicros API,
       us = now();
     }
     
-    size_t type() const { return runtime::type::elapsed_micros; }
+    type_t type() const { return runtime::type::elapsed_micros; }
 
     bool equals(ref o) const {
       return (this == o.cast<elapsed_micros>());
@@ -7026,7 +7028,7 @@ other members of the group and port.
     
   public:
 
-    size_t type() const final { return runtime::type::multicast_socket; }
+    type_t type() const final { return runtime::type::multicast_socket; }
 
     bool equals(ref) const final {
       return false;
@@ -7275,7 +7277,7 @@ returns true, returns the next state.
 
     fsm(ref e, ref t) : env(e), state(runtime::first(e)), transitions(t){ }
 
-    size_t type() const { return runtime::type::fsm; }
+    type_t type() const { return runtime::type::fsm; }
 
     bool equals(ref o) const {
       return (this == o.cast<fsm>());
@@ -7504,7 +7506,7 @@ Ported from,
       input = 0;
     }
 
-    size_t type() const { return runtime::type::pid_controller; }
+    type_t type() const { return runtime::type::pid_controller; }
 
     bool equals(ref o) const {
       return (this == o.cast<pid_controller>());
@@ -7574,7 +7576,7 @@ moving average of the last K samples by setting the value of alpha to
 
     explicit moving_average_filter(ref a) : alpha(number::to<T>(a)), avrg(0) { }
 
-    size_t type() const { return runtime::type::moving_average_filter; }
+    type_t type() const { return runtime::type::moving_average_filter; }
 
     bool equals(ref o) const {
       return (this == o.cast<moving_average_filter>());
@@ -7748,7 +7750,7 @@ sensors which have contacts that "chatter" or "bounce".
 
    public:
 
-    size_t type() const final { return runtime::type::bounce; }
+    type_t type() const final { return runtime::type::bounce; }
 
     bool equals(ref o) const final {
       return (this == o.get());

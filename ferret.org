@@ -2224,6 +2224,19 @@ All our types are derived from the base Object type. Which is a
   typedef object_i<FERRET_RC_POLICY> object;
 #+end_src
 
+A =pointer_t= holds a pointer to a Ferret object. Default =pointer_t=
+does nothing and delegates all requests to a regular =object *=.  See
+[[Pointers]] for rationale.
+
+#+name: runtime-native-object
+#+begin_src c++ :tangle no
+#if !defined(FERRET_POINTER_T)
+  #define FERRET_POINTER_T memory::pointer<object>
+#endif
+
+typedef FERRET_POINTER_T pointer_t;
+#+end_src
+
 A =var= holds a pointer to an object, everything is passed around as
 =vars= it is responsible for incrementing/decrementing the reference
 count, when it reaches zero it will automatically free the object.
@@ -2234,7 +2247,8 @@ count, when it reaches zero it will automatically free the object.
   public:
     explicit var(object* o = nullptr) : obj(o) { inc_ref(); }
 
-    var(ref o) : obj(o.obj) { inc_ref(); }
+    var(ref o)   : obj(o.obj) { inc_ref(); }
+    // cppcheck-suppress useInitializationList
     var(var&& o) : obj(o.obj) { o.obj = nullptr; }
       
     ~var() { dec_ref(); }
@@ -2277,7 +2291,7 @@ count, when it reaches zero it will automatically free the object.
     inline object* get() const { return obj; }
     
     template<typename T>
-    inline T* cast() const { return static_cast<T*>(obj); }
+    inline T* cast() const { return static_cast<T*>((object*)obj); }
 
     inline bool is_type(type_t type) const {
       return (static_cast<object*>(obj)->type() == type);
@@ -2306,7 +2320,7 @@ count, when it reaches zero it will automatically free the object.
   #endif
     }
       
-    object* obj;
+    pointer_t obj;
   };
 
   template<>
@@ -2388,7 +2402,7 @@ traditional boolean values.
     if (obj == nullptr)
       return false;
     else if (obj->type() == boolean::tag)
-      return static_cast<boolean*>(obj)->container();
+      return static_cast<boolean*>((object*)obj)->container();
     else
       return true;
   }
@@ -3715,6 +3729,35 @@ Enable and configure GC
 #+begin_src clojure
   (configure-runtime! FERRET_MEMORY_BOEHM_GC TRUE)
   (configure-ferret! :command "g++ -std=c++11 core.cpp -lgc")
+#+end_src
+
+*** Pointers
+
+Each =var= holds a reference to a Ferret object using one of the
+pointer types below. Default =pointer_t= does nothing and delegates
+all requests to a regular =object *=. Using this scheme allows
+optional use of tagged pointers on systems that support them.
+
+#+name: runtime-native-pointers
+#+begin_src c++ :tangle no
+namespace memory {
+  template <typename T>
+  class pointer{
+    T *ptr;
+
+  public:
+
+    inline explicit pointer(T *p = nullptr) : ptr(p){ }
+    inline operator T* () const { return ptr; }
+
+    inline pointer& operator= (T *other){
+      ptr = other;
+      return *this;
+    }
+
+    inline T *operator->() const { return ptr; }
+  };
+}
 #+end_src
 
 *** Allocators
@@ -10067,6 +10110,7 @@ Create some dummy libs under /test/modules/,
 
   // Object System Base
   namespace ferret{
+    <<runtime-native-pointers>>
     <<runtime-native-allocator-helpers>>
     <<runtime-native-allocator-pool-implementation>>
     <<runtime-native-allocator-pool>>

@@ -1515,17 +1515,9 @@ nodes of the program AST.
       (render-template
        "#ifndef FERRET_OBJECT_$guard$
         #define FERRET_OBJECT_$guard$
-        $if(embed_type)$
-          namespace runtime {
-            namespace type {
-               const type_t $type$ = $type_val$;}}
-          $endif$
-        $body$
+         $body$
         #endif"
        :guard       (.toUpperCase (str name))
-       :embed_type  (.contains def (str "runtime::type::" name))
-       :type        (str name)
-       :type_val    (gensym "")
        :body        def)))
 
   (defmethod emit 'defobject [options [_ name & spec] state]
@@ -2203,7 +2195,7 @@ All our types are derived from the base Object type. Which is a
   void type_id(){}
 
   using type_id_t = void(*)();
-  typedef unsigned int type_t;
+  typedef type_id_t type_t;
 
   class var;
   typedef var const & ref;
@@ -2364,7 +2356,7 @@ traditional boolean values.
     const bool value;
   public:
 
-    type_t type() const final { return runtime::type::boolean; }
+    type_t type() const final { return boolean::tag; }
     static constexpr type_id_t tag = type_id<boolean>;
 
     bool equals(ref o) const final {
@@ -2395,7 +2387,7 @@ traditional boolean values.
   var::operator bool() const {
     if (obj == nullptr)
       return false;
-    else if (obj->type() == runtime::type::boolean)
+    else if (obj->type() == boolean::tag)
       return static_cast<boolean*>(obj)->container();
     else
       return true;
@@ -2438,7 +2430,7 @@ A =pointer= object keeps a reference to a C++ pointer.
   public:
 
 
-    type_t type() const final { return runtime::type::pointer; }
+    type_t type() const final { return pointer::tag; }
     static constexpr type_id_t tag = type_id<pointer>;
 
     bool equals(ref o) const final {
@@ -2504,7 +2496,7 @@ modern C++ libraries that use smart pointers for memory management.
     T _value;
    public:
 
-    type_t type() const final { return runtime::type::value; }
+    type_t type() const final { return value::tag; }
     static constexpr type_id_t tag = type_id<value>;
 
     bool equals(ref o) const final {
@@ -2559,7 +2551,7 @@ fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
   public:
 
 
-    type_t type() const final { return runtime::type::number; }
+    type_t type() const final { return number::tag; }
     static constexpr type_id_t tag = type_id<number>;
 
     bool equals(ref o) const final {
@@ -2631,7 +2623,7 @@ directly. count is O(n). conj puts the item at the front of the list.
   class empty_sequence final : public object {
   public:
 
-    type_t type() const final { return runtime::type::empty_sequence; }
+    type_t type() const final { return empty_sequence::tag; }
     static constexpr type_id_t tag = type_id<empty_sequence>;
 
     bool equals(ref) const final {
@@ -2656,7 +2648,7 @@ directly. count is O(n). conj puts the item at the front of the list.
     const var data;
   public:
 
-    type_t type() const final { return runtime::type::sequence; }
+    type_t type() const final { return sequence::tag; }
     static constexpr type_id_t tag = type_id<sequence>;
 
     bool equals(ref o) const final {
@@ -2754,7 +2746,7 @@ sequence is iterated.
 
   public:
 
-    type_t type() const final { return runtime::type::lazy_sequence; }
+    type_t type() const final { return lazy_sequence::tag; }
     static constexpr type_id_t tag = type_id<lazy_sequence>;
 
     bool equals(ref o) const final {
@@ -2888,7 +2880,8 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     
    public:
 
-    type_t type() const final { return runtime::type::d_list; }
+    type_t type() const final { return d_list::tag; }
+    static constexpr type_id_t tag = type_id<d_list>;
 
     bool equals(ref o) const final {
       return seekable_i::equals(var((object*)this), o);
@@ -3005,7 +2998,8 @@ the keyword as =number_t=.
     
   public:
 
-    type_t type() const final { return runtime::type::keyword; }
+    type_t type() const final { return keyword::tag; }
+    static constexpr type_id_t tag = type_id<keyword>;
 
     bool equals(ref o) const final {
       return (_word == o.cast<keyword>()->word());
@@ -3030,7 +3024,7 @@ the keyword as =number_t=.
       ref map = runtime::first(args);
       ref map_args = runtime::cons(var((object*)this), runtime::rest(args));
 
-      if (map.is_type(runtime::type::d_list)){
+      if (map.is_type(type_id<d_list>)){
         return map.cast<map_t>()->val_at(map_args);
       }
 
@@ -3075,7 +3069,7 @@ interpreted as FFI calls.
     
   public:
 
-    type_t type() const final { return runtime::type::string; }
+    type_t type() const final { return string::tag; }
     static constexpr type_id_t tag = type_id<string>;
 
     bool equals(ref other) const final {
@@ -3167,7 +3161,8 @@ or =reset!=. Changes to atoms are always free of race conditions.
     public:
 
 
-    type_t type() const final { return runtime::type::atomic; }
+    type_t type() const final { return atomic::tag; }
+    static constexpr type_id_t tag = type_id<atomic>;
 
     bool equals(ref o) const final {
       return (this == o.cast<atomic>());
@@ -3273,7 +3268,8 @@ thread to =future=,
       value(nil()), fn(f), cached(false),
       task(std::async(std::launch::async, [this](){ return exec(); })){ inc_ref(); }
 
-    type_t type() const final { return runtime::type::async; }
+    type_t type() const final { return async::tag; }
+    static constexpr type_id_t tag = type_id<async>;
 
     bool equals(ref o) const final {
       return (this == o.cast<async>());
@@ -3328,7 +3324,7 @@ calls.
     `(_delay_ (fn [] ~@body)))
 
   (defn delay? [d]
-    "return obj<boolean>(d.is_type(runtime::type::delayed));")
+    "return obj<boolean>(d.is_type(delayed::tag));")
 
   (defn force [d] @d)
 #+end_src
@@ -3341,7 +3337,8 @@ calls.
     
     public:
 
-    type_t type() const final { return runtime::type::delayed; }
+    type_t type() const final { return delayed::tag; }
+    static constexpr type_id_t tag = type_id<delayed>;
 
     bool equals(ref o) const final {
       return (this == o.cast<delayed>());
@@ -3495,7 +3492,7 @@ Implementations for the C++ Seekable API,
 #+begin_src c++ :tangle no
   namespace runtime{
     var first(ref coll){
-      if (coll.is_nil() || coll.is_type(runtime::type::empty_sequence))
+      if (coll.is_nil() || coll.is_type(empty_sequence::tag))
         return nil();
       else
         return coll.cast<seekable_i>()->first();
@@ -3504,7 +3501,7 @@ Implementations for the C++ Seekable API,
     var rest(ref coll){
       if (coll.is_nil())
         return runtime::list();
-      if (coll.is_type(runtime::type::empty_sequence))
+      if (coll.is_type(empty_sequence::tag))
         return nil();
       return coll.cast<seekable_i>()->rest();
     }
@@ -3570,7 +3567,8 @@ uniform fashion.
    public:
     virtual var invoke(ref args) const = 0;
 
-    type_t type() const { return runtime::type::lambda_i; }
+    type_t type() const { return lambda_i::tag; }
+    // cppcheck-suppress duplInheritedMember
     static constexpr type_id_t tag = type_id<lambda_i>;
 
     bool equals(ref o) const {
@@ -5341,7 +5339,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn list? [x] "return obj<boolean>(x.is_type(runtime::type::sequence));")
+  (defn list? [x] "return obj<boolean>(x.is_type(sequence::tag));")
 #+end_src
 
 *** empty?
@@ -6169,7 +6167,7 @@ Port of Teensy elapsedMicros API,
       us = now();
     }
     
-    type_t type() const { return runtime::type::elapsed_micros; }
+    type_t type() const { return elapsed_micros::tag; }
     static constexpr type_id_t tag = type_id<elapsed_micros>;
 
     bool equals(ref o) const {
@@ -7042,7 +7040,7 @@ other members of the group and port.
     
   public:
 
-    type_t type() const final { return runtime::type::multicast_socket; }
+    type_t type() const final { return multicast_socket::tag; }
     static constexpr type_id_t tag = type_id<multicast_socket>;
 
     bool equals(ref) const final {
@@ -7292,7 +7290,8 @@ returns true, returns the next state.
 
     fsm(ref e, ref t) : env(e), state(runtime::first(e)), transitions(t){ }
 
-    type_t type() const { return runtime::type::fsm; }
+    type_t type() const { return fsm::tag; }
+    static constexpr type_id_t tag = type_id<fsm>;
 
     bool equals(ref o) const {
       return (this == o.cast<fsm>());
@@ -7507,7 +7506,7 @@ Ported from,
       minimum_input(number::to<T>(inMin)),
       continuous(cont.cast<boolean>()->container()){
 
-      if (sp.is_type(runtime::type::lambda_i)){
+      if (sp.is_type(lambda_i::tag)){
         setpoint_fn = sp;
         set_setpoint(run(setpoint_fn));
       }else{
@@ -7521,7 +7520,8 @@ Ported from,
       input = 0;
     }
 
-    type_t type() const { return runtime::type::pid_controller; }
+    type_t type() const { return pid_controller::tag; }
+    static constexpr type_id_t tag = type_id<pid_controller>;
 
     bool equals(ref o) const {
       return (this == o.cast<pid_controller>());
@@ -7591,7 +7591,8 @@ moving average of the last K samples by setting the value of alpha to
 
     explicit moving_average_filter(ref a) : alpha(number::to<T>(a)), avrg(0) { }
 
-    type_t type() const { return runtime::type::moving_average_filter; }
+    type_t type() const { return moving_average_filter::tag; }
+    static constexpr type_id_t tag = type_id<moving_average_filter>;
 
     bool equals(ref o) const {
       return (this == o.cast<moving_average_filter>());
@@ -7765,7 +7766,8 @@ sensors which have contacts that "chatter" or "bounce".
 
    public:
 
-    type_t type() const final { return runtime::type::bounce; }
+    type_t type() const final { return bounce::tag; }
+    static constexpr type_id_t tag = type_id<bounce>;
 
     bool equals(ref o) const final {
       return (this == o.get());

@@ -1582,7 +1582,13 @@ is supported.
          parent ".cast<map_t>()->val_at(runtime::list(" (emit nil key nil) "));"))
 
   (defn new-fn-arg [name parent pos]
-    (str "ref " name " = " (destructure-nth parent pos)))
+    (let [value (destructure-nth parent pos)
+          tag   (-> name meta :tag)]
+      (condp = tag
+        'real_t   (str "real_t " name " = " "number::to<real_t>(" value ")")
+        'number_t (str "number_t " name " = " "number::to<number_t>(" value ")")
+        'byte     (str "byte " name " = " "number::to<byte>(" value ")")
+        (str "ref " name " = " value))))
 
   (defn new-fn-var-arg [name parent pos]
     (str "ref " name " = " (destructure-nth-rest parent pos)))
@@ -5067,12 +5073,12 @@ will produce a compiler error. You can have multiple =on= blocks per
 
 #+name: runtime-clojure-core
 #+begin_src clojure
-  (defnative sleep [t]
+  (defnative sleep [^number_t t]
     (on "defined FERRET_STD_LIB"
-        "auto duration = ::std::chrono::milliseconds(number::to<number_t>(t));
+        "auto duration = ::std::chrono::milliseconds(t);
          ::std::this_thread::sleep_for(duration);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::delay(number::to<number_t>(t));"))
+        "::delay(t);"))
 #+end_src
 
 This way a single function can be defined for multiple
@@ -5349,7 +5355,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     `(_dotimes_ ~(second binding)
                 (fn [~(first binding)] ~@body)))
 
-  (defn _dotimes_ [t f] "for(number_t i = 0; i < number::to<number_t>(t); i++) run(f,obj<number>(i));")
+  (defn _dotimes_ [^number_t t f] "for(number_t i = 0; i < t; i++) run(f,obj<number>(i));")
 #+end_src
 
 ** Sequential
@@ -5418,7 +5424,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn nth [coll index] "return runtime::nth(coll,number::to<number_t>(index));")
+  (defn nth [coll ^number_t index] "return runtime::nth(coll,index);")
 #+end_src
 
 *** nthrest
@@ -5427,8 +5433,8 @@ Returns the nth rest of coll, coll when n is 0.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn nthrest [coll n]
-    "return runtime::nthrest(coll,number::to<number_t>(n));")
+  (defn nthrest [coll ^number_t n]
+    "return runtime::nthrest(coll,n);")
 #+end_src
 
 *** map
@@ -5787,8 +5793,8 @@ Returns a lazy seq of the first item in each coll, then the second etc.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn rem [num div]
-    "return obj<number>((number::to<number_t>(num) % number::to<number_t>(div)));")
+  (defn rem [^number_t num ^number_t div]
+    "return obj<number>((num % div));")
 #+end_src
 
 *** mod
@@ -5806,7 +5812,7 @@ Returns a lazy seq of the first item in each coll, then the second etc.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn floor [x] "return obj<number>(number::to<number_t>(x));")
+  (defn floor [^number_t x] "return obj<number>(x);")
 #+end_src
 
 *** scale
@@ -5832,42 +5838,42 @@ Returns a lazy seq of the first item in each coll, then the second etc.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-and [x y] "return obj<number>((number::to<number_t>(x) & number::to<number_t>(y)));")
+  (defn bit-and [^number_t x ^number_t y] "return obj<number>((x & y));")
 #+end_src
 
 *** bit-not
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-not [x] "return obj<number>(~number::to<number_t>(x));")
+  (defn bit-not [^number_t x] "return obj<number>(~x);")
 #+end_src
 
 *** bit-or
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-or [x y] "return obj<number>((number::to<number_t>(x) | number::to<number_t>(y) ));")
+  (defn bit-or [^number_t x ^number_t y] "return obj<number>((x | y ));")
 #+end_src
 
 *** bit-xor
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-xor [x y] "return obj<number>((number::to<number_t>(x) ^ number::to<number_t>(y) ));")
+  (defn bit-xor [^number_t x ^number_t y] "return obj<number>((x ^ y ));")
 #+end_src
 
 *** bit-shift-left
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-shift-left [x n] "return obj<number>((number::to<number_t>(x) << number::to<number_t>(n) ));")
+  (defn bit-shift-left [^number_t x ^number_t n] "return obj<number>((x << n ));")
 #+end_src
 
 *** bit-shift-right
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-shift-right [x n] "return obj<number>((number::to<number_t>(x) >> number::to<number_t>(n) ));")
+  (defn bit-shift-right [^number_t x ^number_t n] "return obj<number>((x >> n ));")
 #+end_src
 
 *** bit-extract
@@ -5876,9 +5882,8 @@ From =x= extract =k= bits starting from position =p=.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-extract [x p k]
-    "__result = obj<number>((number::to<number_t>(x) >> number::to<number_t>(p)) 
-                               & ((1 << number::to<number_t>(k)) - 1));")
+  (defn bit-extract [^number_t x ^number_t p ^number_t k]
+    "__result = obj<number>((x >> p) & ((1 << k) - 1));")
 #+end_src
 
 *** bit-override
@@ -5887,11 +5892,9 @@ Override =len= bits in =dst= starting from =pos= using bits from =src=.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn bit-override [dst src pos len]
-    "number_t mask = (((number_t)1 << number::to<number_t>(len)) - 1) 
-                          << number::to<number_t>(pos);
-     number_t num = (number::to<number_t>(dst) & ~mask) 
-                       | (number::to<number_t>(src) & mask);
+  (defn bit-override [^number_t dst ^number_t src ^number_t pos ^number_t len]
+    "number_t mask = (((number_t)1 << len) - 1) << pos;
+     number_t num = (dst & ~mask) | (src & mask);
      return obj<number>(num);")
 #+end_src
 
@@ -5967,8 +5970,8 @@ Square root.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn sqrt [s]
-    "return obj<number>((real_t)::sqrt(number::to<real_t>(s)));")
+  (defn sqrt [^real_t s]
+    "return obj<number>(::sqrt(s));")
 #+end_src
 
 *** pow
@@ -5977,8 +5980,8 @@ Returns base raised to the power exponent:
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn pow [b e]
-    "return obj<number>((real_t)::pow(number::to<real_t>(b), number::to<real_t>(e)));")
+  (defn pow [^real_t b ^real_t e]
+    "return obj<number>(::pow(b, e));")
 #+end_src
 
 *** cos
@@ -5987,8 +5990,8 @@ Returns the cosine of an angle of x radians.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn cos [s]
-    "return obj<number>((real_t)::cos(number::to<real_t>(s)));")
+  (defn cos [^real_t s]
+    "return obj<number>(::cos(s));")
 #+end_src
 
 *** sin
@@ -5997,8 +6000,8 @@ Returns the sine of an angle of x radians.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn sin [s]
-    "return obj<number>((real_t)::sin(number::to<real_t>(s)));")
+  (defn sin [^real_t s]
+    "return obj<number>(::sin(s));")
 #+end_src
 
 *** asin
@@ -6007,8 +6010,8 @@ Returns the sine of an angle of x radians.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn asin [x]
-    "return obj<number>((real_t)::asin(number::to<real_t>(x)));")
+  (defn asin [^real_t x]
+    "return obj<number>(::asin(x));")
 #+end_src
 
 *** atan2
@@ -6017,8 +6020,8 @@ Returns the principal value of the arc tangent of y/x, expressed in radians.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn atan2 [x y]
-    "return obj<number>((real_t)::atan2(number::to<real_t>(x),number::to<real_t>(y)));")
+  (defn atan2 [^real_t x ^real_t y]
+    "return obj<number>(::atan2(x,y));")
 #+end_src
 
 *** log / log10
@@ -6027,16 +6030,16 @@ Returns the natural logarithm of x.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn log [x]
-    "return obj<number>((real_t)::log(number::to<real_t>(x)));")
+  (defn log [^real_t x]
+    "return obj<number>(::log(x));")
 #+end_src
 
 Returns the natural logarithm of x.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn log10 [x]
-    "return obj<number>((real_t)::log10(number::to<real_t>(x)));")
+  (defn log10 [^real_t x]
+    "return obj<number>(::log10(x));")
 #+end_src
 
 *** to-degrees
@@ -6046,8 +6049,8 @@ angle measured in degrees.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn to-degrees [x]
-    "return obj<number>((real_t) (number::to<real_t>(x) * 180.0 / 1_pi) );")
+  (defn to-degrees [^real_t x]
+    "return obj<number>((x * 180.0 / 1_pi));")
 #+end_src
 
 *** to-radians
@@ -6057,8 +6060,8 @@ angle measured in radians.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn to-radians [x]
-    "return obj<number>((real_t) (number::to<real_t>(x) * 1_pi / 180.0) );")
+  (defn to-radians [^real_t x]
+    "return obj<number>((x * 1_pi / 180.0));")
 #+end_src
 
 *** rand
@@ -6137,12 +6140,12 @@ Sleep current thread for *t* microseconds,
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no :noweb yes
-  (defnative sleep-micros [t]
+  (defnative sleep-micros [^number_t t]
     (on "defined FERRET_STD_LIB"
-        "auto duration = ::std::chrono::microseconds(number::to<number_t>(t));
+        "auto duration = ::std::chrono::microseconds(t);
          ::std::this_thread::sleep_for(duration);")
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::delayMicroseconds(number::to<real_t>(t));"))
+        "::delayMicroseconds(t);"))
 #+end_src
 
 *** elapsed-micros
@@ -6156,8 +6159,8 @@ Port of Teensy elapsedMicros API,
   (defn new-elapsed-micros []
     "return obj<elapsed_micros>();")
 
-  (defn elapsed-micros? [t r]
-    "return obj<boolean>(t.cast<elapsed_micros>()->is_elapsed(number::to<real_t>(r)));")
+  (defn elapsed-micros? [t ^real_t r]
+    "return obj<boolean>(t.cast<elapsed_micros>()->is_elapsed(r));")
 
   (defn elapsed-micros-now [t]
     "return obj<number>(t.cast<elapsed_micros>()->elapsed());")
@@ -6327,9 +6330,8 @@ Converts a Ferret =number= to a Ferret =string=,
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn ntos [v]
-    "real_t f = number::to<real_t>(v);
-     number_t n = (number_t)f;
+  (defn ntos [^real_t f]
+    "number_t n = (number_t)f;
      number_t sign;
 
      if ((sign = n) < 0){
@@ -6678,8 +6680,8 @@ Wraps mlockall - locks the address space of process.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn system-exit [code]
-    "::exit(number::to<number_t>(code));")
+  (defn system-exit [^number_t code]
+    "::exit(code);")
 #+end_src
 
 *** system-abort
@@ -6714,9 +6716,8 @@ Wraps mlockall - locks the address space of process.
   (defn byte-stream-payload-ready [size in-waiting]
     (>= (in-waiting) (inc @size)))
 
-  (defn byte-stream-handle-payload [read s handler]
-    "number_t size = number::to<number_t>(s);
-     number_t cs_calculated = size;
+  (defn byte-stream-handle-payload [read ^number_t size handler]
+    "number_t cs_calculated = size;
      var payload_rev;
 
      for(number_t i = 0 ; i < size; i++){
@@ -6814,9 +6815,9 @@ other members of the group and port.
     
      return obj<boolean>(con.cast<multicast_socket>()->send(buffer,idx));")
 
-  (defn byte [data curr]
+  (defn byte [data ^number_t curr]
     "auto buffer = value<datagram_t>::to_reference(data);
-     return obj<number>(buffer[number::to<number_t>(curr)]);")
+     return obj<number>(buffer[curr]);")
 
   (defn data-seq
     ([[size data]]
@@ -7259,20 +7260,20 @@ Once opened, port is ready for =read=/=write=.
      (open-aux port speed v-min v-time)))
 
 
-  (defn write [port data]
-    "byte b[1] = {number::to<byte>(data)};
-     write(number::to<number_t>(port), b, 1);")
+  (defn write [^number_t port ^byte data]
+    "byte b[1] = {data};
+     write(port, b, 1);")
 
-  (defn available [port]
+  (defn available [^number_t port]
     "int bytes_ready;
-     int op = ioctl(number::to<number_t>(port), FIONREAD, &bytes_ready);
+     int op = ioctl(port, FIONREAD, &bytes_ready);
      if (op == -1)
        return nil();
      return obj<number>(bytes_ready);")
 
-  (defn read [port]
+  (defn read [^number_t port]
     "char b[1] = {0};
-     ssize_t bytes_read = read(number::to<number_t>(port), b, 1);
+     ssize_t bytes_read = read(port, b, 1);
      
      if (bytes_read == -1)
        return nil();
@@ -7661,9 +7662,9 @@ output.
 Write a HIGH or a LOW value to a digital pin.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
-  (defnative digital-write [pin val]
+  (defnative digital-write [^number_t pin ^number_t val]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::digitalWrite(number::to<number_t>(pin), number::to<number_t>(val));"))
+        "::digitalWrite(pin, val);"))
 #+end_src
 
 *** digital-read
@@ -7671,9 +7672,9 @@ Write a HIGH or a LOW value to a digital pin.
 Reads the value from a specified digital pin, either HIGH or LOW.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
-  (defnative digital-read [pin]
+  (defnative digital-read [^number_t pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "return obj<number>(::digitalRead(number::to<number_t>(pin)));"))
+        "return obj<number>(::digitalRead(pin));"))
 #+end_src
 
 *** analog-write
@@ -7681,9 +7682,9 @@ Reads the value from a specified digital pin, either HIGH or LOW.
 Writes an analog value (PWM wave) to a pin.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
-  (defnative analog-write [pin val]
+  (defnative analog-write [^number_t pin ^number_t val]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::analogWrite(number::to<number_t>(pin),number::to<number_t>(val));"))
+        "::analogWrite(pin,val);"))
 #+end_src
 
 *** analog-read
@@ -7691,9 +7692,9 @@ Writes an analog value (PWM wave) to a pin.
 Reads the value from the specified analog pin.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
-  (defnative analog-read [pin]
+  (defnative analog-read [^number_t pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "return obj<number>((number_t)::analogRead(number::to<number_t>(pin)));"))
+        "return obj<number>(::analogRead(pin));"))
 #+end_src
 
 *** analog-write-resolution
@@ -7701,9 +7702,9 @@ Reads the value from the specified analog pin.
 Sets the resolution of the *analog-write*
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
-  (defnative analog-write-resolution [bit]
+  (defnative analog-write-resolution [^number_t bit]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::analogWriteResolution(number::to<number_t>(bit));"))
+        "::analogWriteResolution(bit);"))
 #+end_src
 
 *** analog-read-resolution
@@ -7711,9 +7712,9 @@ Sets the resolution of the *analog-write*
 Sets the size (in bits) of the value returned by *analog-read*.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
-  (defnative analog-read-resolution [bit]
+  (defnative analog-read-resolution [^number_t bit]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::analogReadResolution(number::to<number_t>(bit));"))
+        "::analogReadResolution(bit);"))
 #+end_src
 
 *** bounce
@@ -7821,13 +7822,13 @@ sensors which have contacts that "chatter" or "bounce".
 *** random
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
-  (defnative random-seed [pin]
+  (defnative random-seed [^number_t pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "randomSeed(analogRead(number::to<number_t>(pin)));"))
+        "randomSeed(analogRead(pin));"))
 
-  (defnative random [x]
+  (defnative random [^number_t x]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "return obj<number>(random(number::to<number_t>(x)));"))
+        "return obj<number>(random(x));"))
 #+end_src
 
 *** tone/noTone
@@ -7836,13 +7837,13 @@ Generates a square wave of the specified frequency (and 50% duty
 cycle) on a pin.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
-  (defnative tone [pin freq]
+  (defnative tone [^number_t pin ^number_t freq]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::tone(number::to<number_t>(pin), number::to<number_t>(freq));"))
+        "::tone(pin, freq);"))
 
-  (defnative no-tone [pin]
+  (defnative no-tone [^number_t pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
-        "::noTone(number::to<number_t>(pin));"))
+        "::noTone(pin);"))
 #+end_src
 
 *** attach-interrupt
@@ -7905,8 +7906,8 @@ Turns off the given interrupt.
 #+END_EXAMPLE
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
-  (defn detach-interrupt [p]
-    "detachInterrupt(digitalPinToInterrupt(number::to<number_t>(p)));")
+  (defn detach-interrupt [^number_t p]
+    "detachInterrupt(digitalPinToInterrupt(p));")
 #+end_src
 
 *** SPI
@@ -7956,8 +7957,8 @@ Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation
   (defmacro with-spi [conf & body]
     `(with-spi-aux ~conf (fn [] ~@body)))
 
-  (defn spi-write [val]
-    "return obj<number>(SPI.transfer(number::to<number_t>(val)));")
+  (defn spi-write [^number_t val]
+    "return obj<number>(SPI.transfer(val));")
 #+end_src
 
 *** Watchdog Timer

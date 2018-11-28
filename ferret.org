@@ -5770,34 +5770,36 @@ numerator divided by all of the denominators.
 
 *** count
 
+Returns the number of items in the collection. (count nil) returns
+0.
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn count [s]
-    (if (or (nil? s)
-            (empty? s))
-      0
-      (reduce inc 0 s)))
+  (defn count [s] "return obj<number>(runtime::count(s))")
 #+end_src
 
 *** min / max
 
+Returns the least of the nums.
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn min
-    ([x] x)
-    ([x & r]
-     (reduce (fn[h v]
-               (if (< h v)
-                 h v))
-             x r)))
+(defn min [& args]
+  "__result = runtime::first(args);
+   for(ref i : runtime::range(runtime::rest(args)))
+    if (number::to<real_t>(__result) > number::to<real_t>(i))
+     __result = i;")
+#+end_src
 
-  (defn max
-    ([x] x)
-    ([x & r]
-     (reduce (fn[h v]
-               (if (> h v)
-                 h v))
-             x r)))
+Returns the greatest of the nums.
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+(defn max [& args]
+  "__result = runtime::first(args);
+   for(ref i : runtime::range(runtime::rest(args)))
+    if (number::to<real_t>(__result) < number::to<real_t>(i))
+     __result = i;")
 #+end_src
 
 *** rem

@@ -5154,60 +5154,64 @@ Tests if 2 arguments are the same object.
 
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
-  (defn <
-    ([] true)
-    ([x] true)
-    ([a b]
-     "return obj<boolean>((number::to<real_t>(a) < number::to<real_t>(b)))")
-    ([a b & more]
-     (if (< a b)
-       (apply < (cons b more))
-       false)))
+(defn < [& args]
+  "var a = runtime::first(args);
+
+   for(ref b : runtime::range(runtime::rest(args))){
+    if (number::to<real_t>(a) >= number::to<real_t>(b))
+      return cached::false_t;
+    a = b;
+   }
+
+   return cached::true_t;")
 #+end_src
 
 *** >
 
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
-  (defn >
-    ([] true)
-    ([x] true)
-    ([a b]
-     "return obj<boolean>((number::to<real_t>(a) > number::to<real_t>(b)))")
-    ([a b & more]
-     (if (> a b)
-       (apply > (cons b more))
-       false)))
+(defn > [& args]
+  "var a = runtime::first(args);
+
+   for(ref b : runtime::range(runtime::rest(args))){
+    if (number::to<real_t>(a) <= number::to<real_t>(b))
+      return cached::false_t;
+    a = b;
+   }
+
+   return cached::true_t;")
 #+end_src
 
 *** >=
 
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
-  (defn >=
-    ([] true)
-    ([x] true)
-    ([a b]
-     "return obj<boolean>((number::to<real_t>(a) >= number::to<real_t>(b)))")
-    ([a b & more]
-     (if (>= a b)
-       (apply >= (cons b more))
-       false)))
+(defn >= [& args]
+  "var a = runtime::first(args);
+
+   for(ref b : runtime::range(runtime::rest(args))){
+    if (number::to<real_t>(a) < number::to<real_t>(b))
+      return cached::false_t;
+    a = b;
+   }
+
+   return cached::true_t;")
 #+end_src
 
 *** <=
 
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
-  (defn <=
-    ([] true)
-    ([x] true)
-    ([a b]
-     "return obj<boolean>((number::to<real_t>(a) <= number::to<real_t>(b)))")
-    ([a b & more]
-     (if (<= a b)
-       (apply <= (cons b more))
-       false)))
+(defn <= [& args]
+  "var a = runtime::first(args);
+
+   for(ref b : runtime::range(runtime::rest(args))){
+    if (number::to<real_t>(a) > number::to<real_t>(b))
+      return cached::false_t;
+    a = b;
+   }
+
+   return cached::true_t;")
 #+end_src
 
 *** and

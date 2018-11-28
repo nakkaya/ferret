@@ -2589,23 +2589,6 @@ fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
       return _word;
     }
     
-    template<typename T> T as() const {
-      T::unimplemented_function;
-    }
-
-    var is_smaller(ref v) const {
-      return obj<boolean>(_word < v.cast<number>()->word());
-    }
-    var is_smaller_equal(ref v) const {
-      return obj<boolean>(_word <= v.cast<number>()->word());
-    }
-    var is_bigger(ref v) const {
-      return obj<boolean>(_word > v.cast<number>()->word());
-    }
-    var is_bigger_equal(ref v) const {
-      return obj<boolean>(_word >= v.cast<number>()->word());
-    }
-    
     template<typename T> static T to(ref v){
       return (T)v.cast<number>()->word();
     }
@@ -5175,7 +5158,7 @@ Tests if 2 arguments are the same object.
     ([] true)
     ([x] true)
     ([a b]
-     "return a.cast<number>()->is_smaller(b);")
+     "return obj<boolean>((number::to<real_t>(a) < number::to<real_t>(b)))")
     ([a b & more]
      (if (< a b)
        (apply < (cons b more))
@@ -5190,7 +5173,7 @@ Tests if 2 arguments are the same object.
     ([] true)
     ([x] true)
     ([a b]
-     "return a.cast<number>()->is_bigger(b);")
+     "return obj<boolean>((number::to<real_t>(a) > number::to<real_t>(b)))")
     ([a b & more]
      (if (> a b)
        (apply > (cons b more))
@@ -5205,7 +5188,7 @@ Tests if 2 arguments are the same object.
     ([] true)
     ([x] true)
     ([a b]
-     "return a.cast<number>()->is_bigger_equal(b);")
+     "return obj<boolean>((number::to<real_t>(a) >= number::to<real_t>(b)))")
     ([a b & more]
      (if (>= a b)
        (apply >= (cons b more))
@@ -5220,7 +5203,7 @@ Tests if 2 arguments are the same object.
     ([] true)
     ([x] true)
     ([a b]
-     "return a.cast<number>()->is_smaller_equal(b);")
+     "return obj<boolean>((number::to<real_t>(a) <= number::to<real_t>(b)))")
     ([a b & more]
      (if (<= a b)
        (apply <= (cons b more))

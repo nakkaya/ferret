@@ -5691,54 +5691,65 @@ Returns a lazy seq of the first item in each coll, then the second etc.
 
 *** +
 
+Returns the sum of nums. =(+ )= returns 0.
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn +
-    ([] 0)
-    ([x] x)
-    ([h v]
-     "return h.cast<number>()->add(v);")
-    ([x y & more]
-     (reduce + (+ x y) more)))
+(defn + [& args]
+  "__result = obj<number>(0);
+
+   for(ref i : runtime::range(args))
+     __result = __result.cast<number>()->add(i);")
 #+end_src
 
 *** -
 
+Subtracts nums and returns the result.
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn -
-    ([x]
-     (* -1 x))
-    ([h v]
-     "return h.cast<number>()->sub(v);")
-    ([x y & more]
-     (reduce - (- x y) more)))
+(defn - [& args]
+  "__result = runtime::first(args);
+   ref tail = runtime::rest(args);
+
+   if (tail == runtime::list()){
+     __result = obj<number>(number::to<real_t>(__result) * real_t(-1.0));
+   }else{
+     for(ref i : runtime::range(tail))
+       __result = __result.cast<number>()->sub(i);
+   }")
 #+end_src
 
 *** *
 
+Returns the product of nums. =(* )= returns 1.
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn *
-    ([] 1)
-    ([x] x)
-    ([h v]
-     "return h.cast<number>()->mul(v);")
-    ([x y & more]
-     (reduce * (* x y) more)))
+(defn * [& args]
+  "__result = obj<number>(1);
+
+   for(ref i : runtime::range(args))
+     __result = __result.cast<number>()->mul(i);")
 #+end_src
 
 *** /
 
+If no denominators are supplied, returns =1 / numerator=, else returns
+numerator divided by all of the denominators.
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn /
-    ([x]
-     (apply / (list 1 x)))
-    ([h v]
-     "return h.cast<number>()->div(v);")
-    ([x y & more]
-     (reduce / (/ x y) more)))
+(defn / [& args]
+  "__result = runtime::first(args);
+   ref tail = runtime::rest(args);
+
+   if (tail == runtime::list()){
+     __result = obj<number>(real_t(1.0) / number::to<real_t>(__result));
+   }else{
+     for(ref i : runtime::range(tail))
+       __result = __result.cast<number>()->div(i);
+   }")
 #+end_src
 
 *** inc

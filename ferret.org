@@ -2592,19 +2592,7 @@ fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
     template<typename T> T as() const {
       T::unimplemented_function;
     }
-    
-    var add(ref v) const {
-      return obj<number>(_word + v.cast<number>()->word());
-    }
-    var sub(ref v) const {
-      return obj<number>(_word - v.cast<number>()->word());
-    }
-    var mul(ref v) const {
-      return obj<number>(_word * v.cast<number>()->word());
-    }
-    var div(ref v) const {
-      return obj<number>(_word / v.cast<number>()->word());
-    }
+
     var is_smaller(ref v) const {
       return obj<boolean>(_word < v.cast<number>()->word());
     }
@@ -5699,7 +5687,7 @@ Returns the sum of nums. =(+ )= returns 0.
   "__result = obj<number>(0);
 
    for(ref i : runtime::range(args))
-     __result = __result.cast<number>()->add(i);")
+     __result = obj<number>(number::to<real_t>(__result) + number::to<real_t>(i));")
 #+end_src
 
 *** -
@@ -5716,7 +5704,7 @@ Subtracts nums and returns the result.
      __result = obj<number>(number::to<real_t>(__result) * real_t(-1.0));
    }else{
      for(ref i : runtime::range(tail))
-       __result = __result.cast<number>()->sub(i);
+      __result = obj<number>(number::to<real_t>(__result) - number::to<real_t>(i));
    }")
 #+end_src
 
@@ -5730,7 +5718,7 @@ Returns the product of nums. =(* )= returns 1.
   "__result = obj<number>(1);
 
    for(ref i : runtime::range(args))
-     __result = __result.cast<number>()->mul(i);")
+      __result = obj<number>(number::to<real_t>(__result) * number::to<real_t>(i));")
 #+end_src
 
 *** /
@@ -5748,7 +5736,7 @@ numerator divided by all of the denominators.
      __result = obj<number>(real_t(1.0) / number::to<real_t>(__result));
    }else{
      for(ref i : runtime::range(tail))
-       __result = __result.cast<number>()->div(i);
+      __result = obj<number>(number::to<real_t>(__result) / number::to<real_t>(i));
    }")
 #+end_src
 

@@ -1585,9 +1585,10 @@ is supported.
     (let [value (destructure-nth parent pos)
           tag   (-> name meta :tag)]
       (condp = tag
-        'real_t   (str "real_t " name " = " "number::to<real_t>(" value ")")
-        'number_t (str "number_t " name " = " "number::to<number_t>(" value ")")
-        'byte     (str "byte " name " = " "number::to<byte>(" value ")")
+        'real_t     (str "real_t " name " = " "number::to<real_t>(" value ")")
+        'number_t   (str "number_t " name " = " "number::to<number_t>(" value ")")
+        'byte       (str "byte " name " = " "number::to<byte>(" value ")")
+        'std_string (str "std::string " name " = " "string::to<std::string>(" value ")")
         (str "ref " name " = " value))))
 
   (defn new-fn-var-arg [name parent pos]
@@ -6581,11 +6582,10 @@ Reads the next line from default I/O stream.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defnative slurp [f]
+  (defnative slurp [^std_string f]
     (on "defined FERRET_STD_LIB"
         ("fstream")
-        "std::ifstream ifs(string::to<std::string>(f).c_str(),
-                           std::ios::in | std::ios::binary | std::ios::ate);
+        "std::ifstream ifs(f.c_str(), std::ios::in | std::ios::binary | std::ios::ate);
    
          if (!ifs.good())
            return nil();
@@ -6602,10 +6602,10 @@ Reads the next line from default I/O stream.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defnative sh [cmd]
+  (defnative sh [^std_string cmd]
     (on "defined FERRET_STD_LIB"
         ("memory")
-        "::std::shared_ptr<FILE> pipe(popen(string::to<std::string>(cmd).c_str(), \"r\"), pclose);
+        "::std::shared_ptr<FILE> pipe(popen(cmd.c_str(), \"r\"), pclose);
          if (!pipe) 
            return nil();
          char buffer[128];
@@ -7137,11 +7137,11 @@ Once opened, port is ready for =read=/=write=.
                  "unistd.h"
                  "sys/ioctl.h")
 
-  (defn open-aux [port speed v-min v-time]
+  (defn open-aux [^std_string port speed v-min v-time]
     "struct termios toptions;
      int fd;
 
-     fd = open(string::to<std::string>(port).c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
+     fd = open(port.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
 
      if (fd == -1){
        return nil();

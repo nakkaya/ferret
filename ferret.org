@@ -5672,10 +5672,12 @@ Returns the sum of nums. =(+ )= returns 0.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
 (defn + [& args]
-  "__result = obj<number>(0);
+  "real_t value(0.0);
 
    for(ref i : runtime::range(args))
-     __result = obj<number>(number::to<real_t>(__result) + number::to<real_t>(i));")
+    value = value + number::to<real_t>(i);
+
+   __result = obj<number>(value);")
 #+end_src
 
 *** -
@@ -5689,10 +5691,16 @@ Subtracts nums and returns the result.
    ref tail = runtime::rest(args);
 
    if (tail == runtime::list()){
+
      __result = obj<number>(number::to<real_t>(__result) * real_t(-1.0));
+
    }else{
+     real_t value = number::to<real_t>(__result);
+
      for(ref i : runtime::range(tail))
-      __result = obj<number>(number::to<real_t>(__result) - number::to<real_t>(i));
+      value = (value - number::to<real_t>(i));
+
+     __result = obj<number>(value);
    }")
 #+end_src
 
@@ -5703,10 +5711,12 @@ Returns the product of nums. =(* )= returns 1.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
 (defn * [& args]
-  "__result = obj<number>(1);
+  "real_t value(1.0);
 
    for(ref i : runtime::range(args))
-      __result = obj<number>(number::to<real_t>(__result) * number::to<real_t>(i));")
+    value = (value * number::to<real_t>(i));
+
+   __result = obj<number>(value);")
 #+end_src
 
 *** /
@@ -5721,10 +5731,16 @@ numerator divided by all of the denominators.
    ref tail = runtime::rest(args);
 
    if (tail == runtime::list()){
+
      __result = obj<number>(real_t(1.0) / number::to<real_t>(__result));
+
    }else{
+     real_t value = number::to<real_t>(__result);
+
      for(ref i : runtime::range(tail))
-      __result = obj<number>(number::to<real_t>(__result) / number::to<real_t>(i));
+      value = (value / number::to<real_t>(i));
+
+     __result = obj<number>(value);
    }")
 #+end_src
 

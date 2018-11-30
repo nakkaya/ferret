@@ -2645,7 +2645,7 @@ directly. count is O(n). conj puts the item at the front of the list.
     void stream_console() const final {
       runtime::print("(");
       data.stream_console();
-      for(ref i : runtime::range(next)){
+      for_each(i, next){
         runtime::print(" ");
         i.stream_console();
       }
@@ -2695,8 +2695,8 @@ directly. count is O(n). conj puts the item at the front of the list.
 
   template <> std_vector sequence::to(ref v) { 
     std_vector ret;
-    for(ref it : runtime::range(v))
-      ret.push_back(it);
+    for_each(i, v)
+      ret.push_back(i);
     return ret;
   }
 
@@ -2743,7 +2743,7 @@ sequence is iterated.
       var seq = var((object*)this);
       runtime::print("(");
       runtime::first(seq).stream_console();
-      for(ref i : runtime::range(runtime::rest(seq))){
+      for_each(i, runtime::rest(seq)){
         runtime::print(" ");
         i.stream_console();
       }
@@ -2852,7 +2852,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       var new_keys;
       var new_values;
       
-      for(auto const& i : runtime::range(keys)){
+      for_each(i, keys){
         if ( i == k)
           continue;
         new_keys = runtime::cons(i, new_keys);
@@ -2900,7 +2900,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       ref keys = runtime::first(data);
       var values = runtime::rest(data);
 
-      for(auto const& i : runtime::range(keys)){
+      for_each(i, keys){
         if (key == i)
           return runtime::first(values);
 
@@ -3060,7 +3060,7 @@ interpreted as FFI calls.
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      for(ref it : runtime::range(data))
+      for_each(it, data)
         runtime::print(number::to<byte>(it));
     }
   #endif
@@ -3116,7 +3116,7 @@ interpreted as FFI calls.
 
   template <> ::std::string string::to(ref v) { 
     ::std::stringstream ss;
-    for(ref it : runtime::range(v.cast<string>()->container()))
+    for_each(it, v.cast<string>()->container())
       ss << number::to<byte>(it);
     return ss.str();
   }
@@ -3401,68 +3401,10 @@ C++ API for the interface,
     size_t count(ref seq);
     bool is_seqable(ref seq);
   }
-#+end_src
 
-Range-based for loop support for seekable containers. See [[Accessing C,C++ Libraries]]
-for example usage.
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
-  namespace runtime {
-    struct range{
-      var p;
-
-      explicit range(ref v) : p(v) { }
-      inline range begin() const { return range(p); }
-      inline range end()   const { return range(cached::empty_sequence); }
-
-      inline bool operator!=(const range& other){
-        return !p.is_nil() && (p != other.p);
-      }
-
-      inline const range& operator++(){
-        p = runtime::rest(p);
-        return *this;
-      }
-
-      inline var operator*(){
-        return runtime::first(p);
-      }
-    };
-  }
-#+end_src
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
-  namespace runtime {
-    struct range_indexed_pair{
-      number_t index;
-      var value;
-
-      explicit range_indexed_pair(number_t i = 0, ref v = nil()) : index(i) , value(v) { }
-    };
-    
-    struct range_indexed{
-      var p;
-      number_t index;
-
-      explicit range_indexed(ref v) : p(v) , index(0) { }
-      inline range_indexed begin() const { return range_indexed(p); }
-      inline range_indexed end()   const { return range_indexed(cached::empty_sequence); }
-
-      inline bool operator!=(const range_indexed& other){
-        return !p.is_nil() && (p != other.p);
-      }
-
-      inline const range_indexed& operator++(){
-        p = runtime::rest(p);
-        index++;
-        return *this;
-      }
-
-      inline range_indexed_pair operator*(){
-        return range_indexed_pair(index, runtime::first(p));
-      }
-    };
-  }
+#define for_each(x,xs) for(var tail = xs, x = runtime::first(xs);                 \
+                           !tail.is_nil() && tail != cached::empty_sequence ;     \
+                           tail = runtime::rest(tail), x = runtime::first(tail))
 #+end_src
 
 Implementations for the C++ Seekable API,
@@ -3492,10 +3434,14 @@ Implementations for the C++ Seekable API,
       return coll.cast<seekable_i>()->cons(x);
     }
 
-    var nth(ref seq, number_t index){
-      for(auto const& i : range_indexed(seq))
-        if (index == i.index)
-          return i.value;
+    var nth(ref seq, number_t n_index){
+      number_t index = 0;
+      
+      for_each(i, seq){
+       if (n_index == index)
+         return i;
+       index++;
+      }
 
       return nil();
     }
@@ -3513,7 +3459,8 @@ Implementations for the C++ Seekable API,
     
     size_t count(ref seq){
       size_t acc = 0;
-      for(ref v : runtime::range(seq)){
+
+      for_each(v,seq){
         (void)v;
         acc++;
       }
@@ -5061,7 +5008,7 @@ are immutable you can freely call Ferret code from C++,
   var alist = runtime::list(obj<number>(1),obj<number>(2),obj<number>(3));
 
   int sum = 0;
-  for(ref it : runtime::range(alist)){
+  for_each(it, alist){
     sum += number::to<number_t>(it);
    }
 
@@ -5123,7 +5070,7 @@ applications.
 #+begin_src clojure :tangle no
   (defn = [& args]
     "var curr = runtime::first(args);
-     for(ref it : runtime::range(runtime::rest(args))){
+     for_each(it, runtime::rest(args)){
       if (curr != it)
         return cached::false_t;
       curr = it;
@@ -5158,7 +5105,7 @@ Tests if 2 arguments are the same object.
 (defn < [& args]
   "var a = runtime::first(args);
 
-   for(ref b : runtime::range(runtime::rest(args))){
+   for_each(b, runtime::rest(args)){
     if (number::to<real_t>(a) >= number::to<real_t>(b))
       return cached::false_t;
     a = b;
@@ -5174,7 +5121,7 @@ Tests if 2 arguments are the same object.
 (defn > [& args]
   "var a = runtime::first(args);
 
-   for(ref b : runtime::range(runtime::rest(args))){
+   for_each(b, runtime::rest(args)){
     if (number::to<real_t>(a) <= number::to<real_t>(b))
       return cached::false_t;
     a = b;
@@ -5190,7 +5137,7 @@ Tests if 2 arguments are the same object.
 (defn >= [& args]
   "var a = runtime::first(args);
 
-   for(ref b : runtime::range(runtime::rest(args))){
+   for_each(b, runtime::rest(args)){
     if (number::to<real_t>(a) < number::to<real_t>(b))
       return cached::false_t;
     a = b;
@@ -5206,7 +5153,7 @@ Tests if 2 arguments are the same object.
 (defn <= [& args]
   "var a = runtime::first(args);
 
-   for(ref b : runtime::range(runtime::rest(args))){
+   for_each(b, runtime::rest(args)){
     if (number::to<real_t>(a) > number::to<real_t>(b))
       return cached::false_t;
     a = b;
@@ -5320,7 +5267,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
     `(_doseq_ ~(second binding)
               (fn [~(first binding)] ~@body)))
 
-  (defn _doseq_ [seq f] "for(ref it : runtime::range(seq)) run(f,it);")
+  (defn _doseq_ [seq f] "for_each(it, seq) run(f,it);")
 #+end_src
 
 *** dotimes
@@ -5439,7 +5386,7 @@ Returns the nth rest of coll, coll when n is 0.
      (reduce f (first xs) (rest xs)))
     ([f acc coll]
      "__result = acc;
-      for (ref i : runtime::range(coll))
+      for_each(i, coll)
        __result = run(f, __result, i);"))
 #+end_src
 
@@ -5618,7 +5565,7 @@ false.
 #+name: runtime-clojure-core
 #+begin_src clojure
   (defn every? [pred coll]
-    "for(ref i : runtime::range(coll)){
+    "for_each(i, coll){
        if (!run(pred, i))
         return cached::false_t;
      }
@@ -5674,7 +5621,7 @@ Returns the sum of nums. =(+ )= returns 0.
 (defn + [& args]
   "real_t value(0.0);
 
-   for(ref i : runtime::range(args))
+   for_each(i, args)
     value = value + number::to<real_t>(i);
 
    __result = obj<number>(value);")
@@ -5688,20 +5635,18 @@ Subtracts nums and returns the result.
 #+begin_src clojure :tangle no :noweb yes
 (defn - [& args]
   "__result = runtime::first(args);
-   ref tail = runtime::rest(args);
+   real_t value = number::to<real_t>(__result);
+   size_t count = 1;
 
-   if (tail == runtime::list()){
+   for_each(i, runtime::rest(args)){
+    value = (value - number::to<real_t>(i));
+    count++;
+   }
 
-     __result = obj<number>(number::to<real_t>(__result) * real_t(-1.0));
+   if (count == 1)
+    value = value * -1;
 
-   }else{
-     real_t value = number::to<real_t>(__result);
-
-     for(ref i : runtime::range(tail))
-      value = (value - number::to<real_t>(i));
-
-     __result = obj<number>(value);
-   }")
+   __result = obj<number>(value);")
 #+end_src
 
 *** *
@@ -5713,7 +5658,7 @@ Returns the product of nums. =(* )= returns 1.
 (defn * [& args]
   "real_t value(1.0);
 
-   for(ref i : runtime::range(args))
+   for_each(i, args)
     value = (value * number::to<real_t>(i));
 
    __result = obj<number>(value);")
@@ -5728,20 +5673,18 @@ numerator divided by all of the denominators.
 #+begin_src clojure :tangle no :noweb yes
 (defn / [& args]
   "__result = runtime::first(args);
-   ref tail = runtime::rest(args);
+   real_t value = number::to<real_t>(__result);
+   size_t count = 1;
 
-   if (tail == runtime::list()){
+   for_each(i, runtime::rest(args)){
+    value = (value / number::to<real_t>(i));
+    count++;
+   }
 
-     __result = obj<number>(real_t(1.0) / number::to<real_t>(__result));
+   if (count == 1)
+    value = 1.0 / value;
 
-   }else{
-     real_t value = number::to<real_t>(__result);
-
-     for(ref i : runtime::range(tail))
-      value = (value / number::to<real_t>(i));
-
-     __result = obj<number>(value);
-   }")
+   __result = obj<number>(value);")
 #+end_src
 
 *** inc
@@ -5778,7 +5721,7 @@ Returns the least of the nums.
 #+begin_src clojure :tangle no :noweb yes
 (defn min [& args]
   "__result = runtime::first(args);
-   for(ref i : runtime::range(runtime::rest(args)))
+   for_each(i, runtime::rest(args))
     if (number::to<real_t>(__result) > number::to<real_t>(i))
      __result = i;")
 #+end_src
@@ -5789,7 +5732,7 @@ Returns the greatest of the nums.
 #+begin_src clojure :tangle no :noweb yes
 (defn max [& args]
   "__result = runtime::first(args);
-   for(ref i : runtime::range(runtime::rest(args)))
+   for_each(i, runtime::rest(args))
     if (number::to<real_t>(__result) < number::to<real_t>(i))
      __result = i;")
 #+end_src
@@ -5927,8 +5870,10 @@ Combine a list of bytes to a number.
     "int16_t val = 0;
      byte *p = (byte*)&val; 
 
-     for(auto const& i : runtime::range_indexed(s)){
-       p[i.index] = number::to<byte>(i.value);
+     size_t index = 0;
+     for_each(i, s){
+       p[index] = number::to<byte>(i);
+       index++;
      }
 
      return obj<number>(val);")
@@ -5960,10 +5905,12 @@ Combine a list of bytes to a number.
      } u;
      static_assert(sizeof(float) == 4 * sizeof(byte), \"\");
 
-     for(auto const& i : runtime::range_indexed(s)){
-       if (i.index > 3)
+     size_t index = 0;
+     for_each(i, s){
+       if (index > 3)
         break;
-       u.b[i.index] = number::to<byte>(i.value);
+       u.b[index] = number::to<byte>(i);
+       index++;
      }
 
      return obj<number>(u.f);")
@@ -6310,7 +6257,7 @@ and returns its value as a Ferret =number=.
      }
 
      bool point_passed = false;
-     for(ref i : runtime::range(seq)){
+     for_each(i, seq){
        byte ch = number::to<byte>(i);
 
        if (ch == '.'){
@@ -6555,7 +6502,7 @@ are evaluated in order.  Returns x.
          ref f = runtime::first(more);
          f.stream_console();
          ref r = runtime::rest(more);
-         for(ref it : runtime::range(r)){
+         for_each(it, r){
           runtime::print(\" \");
           it.stream_console();
          }
@@ -6735,7 +6682,7 @@ Wraps mlockall - locks the address space of process.
      if (cs_calculated == cs_read){
        var payload;
 
-       for(ref i : runtime::range(payload_rev))
+       for_each(i, payload_rev)
          payload = runtime::cons(i,payload);
        
        run(handler,payload);
@@ -6814,7 +6761,7 @@ other members of the group and port.
     "datagram_t buffer;
      number_t idx = 0; 
 
-     for(ref b : runtime::range(data))
+     for_each(b, data)
       buffer[idx++] = (byte)number::to<number_t>(b);
     
      return obj<boolean>(con.cast<multicast_socket>()->send(buffer,idx));")
@@ -8911,7 +8858,7 @@ Static code analysis (cppcheck) options,
 
     (let [sum (cxx "var alist = runtime::list(obj<number>(1),obj<number>(2),obj<number>(3));
                     number_t sum = 0;
-                    for(ref it : runtime::range(alist)){
+                    for_each(it, alist){
                       sum += number::to<number_t>(it);
                     }
                     __result = obj<number>(sum);")]

@@ -5644,7 +5644,7 @@ Subtracts nums and returns the result.
    }
 
    if (count == 1)
-    value = value * -1;
+    value = value * real_t(-1.0);
 
    __result = obj<number>(value);")
 #+end_src

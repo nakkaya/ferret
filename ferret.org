@@ -2220,7 +2220,7 @@ All our types are derived from the base Object type. Which is a
     virtual void stream_console() const = 0;
   #endif
     
-    virtual bool equals(ref) const = 0;
+    virtual bool equals(ref) const;
 
     virtual seekable_i* cast_seekable_i() { return nullptr; }
 
@@ -2332,6 +2332,11 @@ count, when it reaches zero it will automatically free the object.
 
   template<>
   inline seekable_i* var::cast<seekable_i>() const { return obj->cast_seekable_i(); }
+
+  template <typename rc>
+  bool object_i<rc>::equals(ref o) const {
+    return (this == o.get());
+  }
 #+end_src
 
 All object allocations are done using =obj= function. It will return a
@@ -2517,10 +2522,6 @@ modern C++ libraries that use smart pointers for memory management.
 
     type_t type() const final { return type_id<value>; }
 
-    bool equals(ref o) const final {
-      return (this == o.get());
-    }
-
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
       runtime::print("value<");
@@ -2609,13 +2610,8 @@ directly. count is O(n). conj puts the item at the front of the list.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
   class empty_sequence final : public object {
-  public:
 
     type_t type() const final { return type_id<empty_sequence>; }
-
-    bool equals(ref) const final {
-      return true;
-    }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
@@ -3145,10 +3141,6 @@ or =reset!=. Changes to atoms are always free of race conditions.
 
     type_t type() const final { return type_id<atomic>; }
 
-    bool equals(ref o) const final {
-      return (this == o.get());
-    }
-
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
       runtime::print("atom<");
@@ -3251,10 +3243,6 @@ thread to =future=,
 
     type_t type() const final { return type_id<async>; }
 
-    bool equals(ref o) const final {
-      return (this == o.get());
-    }
-
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
       runtime::print("future<");
@@ -3318,10 +3306,6 @@ calls.
     public:
 
     type_t type() const final { return type_id<delayed>; }
-
-    bool equals(ref o) const final {
-      return (this == o.get());
-    }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
@@ -3494,10 +3478,6 @@ uniform fashion.
     virtual var invoke(ref args) const = 0;
 
     type_t type() const { return type_id<lambda_i>; }
-
-    bool equals(ref o) const {
-      return (this == o.get());
-    }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const {
@@ -6152,10 +6132,6 @@ Port of Teensy elapsedMicros API,
     
     type_t type() const { return type_id<elapsed_micros>; }
 
-    bool equals(ref o) const final {
-      return (this == o.get());
-    }
-
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const {
       runtime::print("elapsed_micros<");
@@ -7021,10 +6997,6 @@ other members of the group and port.
 
     type_t type() const final { return type_id<multicast_socket>; }
 
-    bool equals(ref o) const final {
-      return (this == o.get());
-    }
-
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
       runtime::print("multicast_socket<");
@@ -7270,10 +7242,6 @@ returns true, returns the next state.
 
     type_t type() const { return type_id<fsm>; }
 
-    bool equals(ref o) const final {
-      return (this == o.get());
-    }
-
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const {
       runtime::print("fsm<");
@@ -7499,10 +7467,6 @@ Ported from,
 
     type_t type() const { return type_id<pid_controller>; }
 
-    bool equals(ref o) const final {
-      return (this == o.get());
-    }
-
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const {
       runtime::print("pid_controller");
@@ -7568,10 +7532,6 @@ moving average of the last K samples by setting the value of alpha to
     explicit moving_average_filter(ref a) : alpha(number::to<T>(a)), avrg(0) { }
 
     type_t type() const { return type_id<moving_average_filter>; }
-
-    bool equals(ref o) const final {
-      return (this == o.get());
-    }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const {
@@ -7742,10 +7702,6 @@ sensors which have contacts that "chatter" or "bounce".
    public:
 
     type_t type() const final { return type_id<bounce>; }
-
-    bool equals(ref o) const final {
-      return (this == o.get());
-    }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {

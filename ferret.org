@@ -3146,7 +3146,7 @@ or =reset!=. Changes to atoms are always free of race conditions.
     type_t type() const final { return type_id<atomic>; }
 
     bool equals(ref o) const final {
-      return (this == o.cast<atomic>());
+      return (this == o.get());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -3252,7 +3252,7 @@ thread to =future=,
     type_t type() const final { return type_id<async>; }
 
     bool equals(ref o) const final {
-      return (this == o.cast<async>());
+      return (this == o.get());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -3320,7 +3320,7 @@ calls.
     type_t type() const final { return type_id<delayed>; }
 
     bool equals(ref o) const final {
-      return (this == o.cast<delayed>());
+      return (this == o.get());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -6152,8 +6152,8 @@ Port of Teensy elapsedMicros API,
     
     type_t type() const { return type_id<elapsed_micros>; }
 
-    bool equals(ref o) const {
-      return (this == o.cast<elapsed_micros>());
+    bool equals(ref o) const final {
+      return (this == o.get());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -7021,8 +7021,8 @@ other members of the group and port.
 
     type_t type() const final { return type_id<multicast_socket>; }
 
-    bool equals(ref) const final {
-      return false;
+    bool equals(ref o) const final {
+      return (this == o.get());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -7270,8 +7270,8 @@ returns true, returns the next state.
 
     type_t type() const { return type_id<fsm>; }
 
-    bool equals(ref o) const {
-      return (this == o.cast<fsm>());
+    bool equals(ref o) const final {
+      return (this == o.get());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -7499,8 +7499,8 @@ Ported from,
 
     type_t type() const { return type_id<pid_controller>; }
 
-    bool equals(ref o) const {
-      return (this == o.cast<pid_controller>());
+    bool equals(ref o) const final {
+      return (this == o.get());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -7569,8 +7569,8 @@ moving average of the last K samples by setting the value of alpha to
 
     type_t type() const { return type_id<moving_average_filter>; }
 
-    bool equals(ref o) const {
-      return (this == o.cast<moving_average_filter>());
+    bool equals(ref o) const final {
+      return (this == o.get());
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)

@@ -3460,7 +3460,7 @@ Implementations for the C++ Seekable API,
     size_t count(ref seq){
       size_t acc = 0;
 
-      for_each(v,seq){
+      for_each(v, seq){
         (void)v;
         acc++;
       }
@@ -5010,7 +5010,7 @@ are immutable you can freely call Ferret code from C++,
   int sum = 0;
   for_each(it, alist){
     sum += number::to<number_t>(it);
-   }
+  }
 
   ::std::cout << sum << ::std::endl;
 

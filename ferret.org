@@ -1465,8 +1465,8 @@ nodes of the program AST.
 
   (defmethod emit :boolean [_ form state]
     (if (true? form)
-      (str "cached::true_t")
-      (str "cached::false_t")))
+      (str "cached::true_o")
+      (str "cached::false_o")))
 
   (defmethod emit :nil [_ form state] "nil()")
 
@@ -2405,8 +2405,8 @@ traditional boolean values.
   };
 
   namespace cached{
-    const var true_t = obj<::ferret::boolean>(true);
-    const var false_t = obj<::ferret::boolean>(false);
+    const var true_o = obj<::ferret::boolean>(true);
+    const var false_o = obj<::ferret::boolean>(false);
   }
 
   var::operator bool() const {
@@ -2622,7 +2622,7 @@ directly. count is O(n). conj puts the item at the front of the list.
   };
 
   namespace cached{
-    const var empty_sequence = obj<::ferret::empty_sequence>();
+    const var empty_sequence_o = obj<::ferret::empty_sequence>();
   }
 #+end_src
 
@@ -2675,10 +2675,10 @@ directly. count is O(n). conj puts the item at the front of the list.
   };
   namespace runtime {
     inline var list() { 
-      return cached::empty_sequence;
+      return cached::empty_sequence_o;
     }
     inline var list(ref v) { 
-      return obj<sequence>(v,cached::empty_sequence);
+      return obj<sequence>(v,cached::empty_sequence_o);
     }
                       
     template <typename... Args>
@@ -3388,7 +3388,7 @@ C++ API for the interface,
   }
 
 #define for_each(x,xs) for(var tail = xs, x = runtime::first(xs);                 \
-                           !tail.is_nil() && tail != cached::empty_sequence ;     \
+                           !tail.is_nil() && tail != cached::empty_sequence_o ;   \
                            tail = runtime::rest(tail), x = runtime::first(tail))
 #+end_src
 
@@ -4938,7 +4938,7 @@ by =std::sort= using a Ferret function,
      std_vector::iterator it = find (vec.begin(), vec.end(), item);
 
      if(it != vec.end())
-       __result = cached::true_t;")
+       __result = cached::true_o;")
 #+end_src
 
 #+begin_src clojure
@@ -5015,8 +5015,8 @@ applications.
 #+begin_src clojure :tangle no
   (defn true? [x]
     "if (x)
-       return cached::true_t;
-     return cached::false_t;")
+       return cached::true_o;
+     return cached::false_o;")
 #+end_src
 
 *** false?
@@ -5025,8 +5025,8 @@ applications.
 #+begin_src clojure :tangle no
   (defn false? [x]
     "if (!x)
-       return cached::true_t;
-     return cached::false_t;")
+       return cached::true_o;
+     return cached::false_o;")
 #+end_src
 
 *** nil?
@@ -5041,8 +5041,8 @@ applications.
 #+begin_src clojure :tangle no
   (defn not [x]
     "if (x)
-       return cached::false_t;
-     return cached::true_t;")
+       return cached::false_o;
+     return cached::true_o;")
 #+end_src
 
 *** =
@@ -5053,10 +5053,10 @@ applications.
     "var curr = runtime::first(args);
      for_each(it, runtime::rest(args)){
       if (curr != it)
-        return cached::false_t;
+        return cached::false_o;
       curr = it;
      }
-     return cached::true_t;")
+     return cached::true_o;")
 #+end_src
 
 *** not=
@@ -5075,8 +5075,8 @@ Tests if 2 arguments are the same object.
 #+begin_src clojure :tangle no
   (defn identical? [x y]
     "if(x.get() == y.get())
-      return cached::true_t;
-     return cached::false_t;")
+      return cached::true_o;
+     return cached::false_o;")
 #+end_src
 
 *** <
@@ -5088,11 +5088,11 @@ Tests if 2 arguments are the same object.
 
    for_each(b, runtime::rest(args)){
     if (number::to<real_t>(a) >= number::to<real_t>(b))
-      return cached::false_t;
+      return cached::false_o;
     a = b;
    }
 
-   return cached::true_t;")
+   return cached::true_o;")
 #+end_src
 
 *** >
@@ -5104,11 +5104,11 @@ Tests if 2 arguments are the same object.
 
    for_each(b, runtime::rest(args)){
     if (number::to<real_t>(a) <= number::to<real_t>(b))
-      return cached::false_t;
+      return cached::false_o;
     a = b;
    }
 
-   return cached::true_t;")
+   return cached::true_o;")
 #+end_src
 
 *** >=
@@ -5120,11 +5120,11 @@ Tests if 2 arguments are the same object.
 
    for_each(b, runtime::rest(args)){
     if (number::to<real_t>(a) < number::to<real_t>(b))
-      return cached::false_t;
+      return cached::false_o;
     a = b;
    }
 
-   return cached::true_t;")
+   return cached::true_o;")
 #+end_src
 
 *** <=
@@ -5136,11 +5136,11 @@ Tests if 2 arguments are the same object.
 
    for_each(b, runtime::rest(args)){
     if (number::to<real_t>(a) > number::to<real_t>(b))
-      return cached::false_t;
+      return cached::false_o;
     a = b;
    }
 
-   return cached::true_t;")
+   return cached::true_o;")
 #+end_src
 
 *** and
@@ -5548,9 +5548,9 @@ false.
   (defn every? [pred coll]
     "for_each(i, coll){
        if (!run(pred, i))
-        return cached::false_t;
+        return cached::false_o;
      }
-     return cached::true_t;")
+     return cached::true_o;")
 #+end_src
 
 *** interleave

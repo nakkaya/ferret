@@ -2570,33 +2570,25 @@ fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/number_o.h
   class number final : public object {
-    const real_t _word;
+    const real_t word;
   public:
-
 
     type_t type() const final { return type_id<number>; }
 
     bool equals(ref o) const final {
-      if (runtime::abs(_word - o.cast<number>()->word()) < real_epsilon)
-        return true;
-      else
-        return false;
+      return (runtime::abs(word - number::to<real_t>(o)) < real_epsilon);
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      runtime::print(_word);
+      runtime::print(word);
     }
   #endif
 
-    template<typename T> explicit number(T x) : _word((real_t)x) {} 
+    template<typename T> explicit number(T x) : word((real_t)x) {} 
 
-    real_t word() const {
-      return _word;
-    }
-    
     template<typename T> static T to(ref v){
-      return (T)v.cast<number>()->word();
+      return (T)v.cast<number>()->word;
     }
   };
 #+end_src
@@ -6589,22 +6581,31 @@ Wraps mlockall - locks the address space of process.
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn pr-object-sizes []
-    (println "Object Sizes")
+    (println "Machine Types")
+    (println "\t*void:\t\t\t" (cxx "return obj<number>(sizeof(void*));"))
+    (println "\treal_t:\t\t\t" (cxx "return obj<number>(sizeof(real_t));"))
+    (println "\tnumber_t:\t\t" (cxx "return obj<number>(sizeof(number_t));"))
+    (println "Object Types")
     (println "\tvar:\t\t\t" (cxx "return obj<number>(sizeof(var));"))
     (println "\tobject:\t\t\t" (cxx "return obj<number>(sizeof(object));"))
-    (println "\tpointer:\t\t" (cxx "return obj<number>(sizeof(pointer));"))
     (println "\tnumber:\t\t\t" (cxx "return obj<number>(sizeof(number));"))
     (println "\tkeyword:\t\t" (cxx "return obj<number>(sizeof(keyword));"))
+    (println "\tboolean:\t\t" (cxx "return obj<number>(sizeof(boolean));"))
     (println "\tempty_sequence:\t\t" (cxx "return obj<number>(sizeof(empty_sequence));"))
     (println "\tsequence:\t\t" (cxx "return obj<number>(sizeof(sequence));"))
     (println "\tlazy_sequence:\t\t" (cxx "return obj<number>(sizeof(lazy_sequence));"))
-    (println "\tstring:\t\t\t" (cxx "return obj<number>(sizeof(string));"))
-    (println "\tboolean:\t\t" (cxx "return obj<number>(sizeof(boolean));"))
-    (println "\tlambda_i:\t\t" (cxx "return obj<number>(sizeof(lambda_i));"))
     (println "\tatom:\t\t\t" (cxx "return obj<number>(sizeof(atomic));"))
+    (println "\td_list:\t\t\t" (cxx "return obj<number>(sizeof(d_list));"))
+    (println "\tpointer:\t\t" (cxx "return obj<number>(sizeof(pointer));"))
     (println "\telapsed_micros:\t\t" (cxx "return obj<number>(sizeof(elapsed_micros));"))
     (println "\tpid_controller<real_t>:\t"
-             (cxx "return obj<number>(sizeof(pid_controller<real_t>));")))
+             (cxx "return obj<number>(sizeof(pid_controller<real_t>));"))
+    (println "\tdelayed:\t\t" (cxx "return obj<number>(sizeof(delayed));"))
+    (println "\tstring:\t\t\t" (cxx "return obj<number>(sizeof(string));"))
+    (println "Interface Types")
+    (println "\tseekable_i:\t\t" (cxx "return obj<number>(sizeof(seekable_i));"))
+    (println "\tlambda_i:\t\t" (cxx "return obj<number>(sizeof(lambda_i));"))
+    (println "\tderef_i:\t\t" (cxx "return obj<number>(sizeof(deref_i));")))
 #+end_src
 
 *** memory-pool-free-space

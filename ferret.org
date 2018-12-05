@@ -2252,24 +2252,21 @@ count, when it reaches zero it will automatically free the object.
 #+begin_src c++ :tangle no
   class var{
   public:
-    explicit var(object* o = nullptr) : obj(o) { inc_ref(); }
-
-    var(ref o)   : obj(o.obj) { inc_ref(); }
-    // cppcheck-suppress useInitializationList
-    var(var&& o) : obj(o.obj) { o.obj = nullptr; }
+    explicit inline var(object* o = nullptr) : obj(o) { inc_ref(); }
+    inline var(ref o)   : obj(o.obj) { inc_ref(); }
+    inline var(var&& o) : obj(o.detach()) { }
       
     ~var() { dec_ref(); }
 
-    var& operator=(var&& other){
+    inline var& operator=(var&& other){
       if (this != &other){
         dec_ref();
-        obj = other.obj;
-        other.obj = nullptr;
+        obj = other.detach();
       }
       return *this;
     }
     
-    var& operator= (ref other){
+    inline var& operator= (ref other){
       if (obj != other.obj){
         dec_ref();
         obj = other.obj;
@@ -2307,6 +2304,12 @@ count, when it reaches zero it will automatically free the object.
     inline bool is_nil() const { return (obj == nullptr); }
 
   private:
+    object* detach(){
+      object* _obj = obj;
+      obj = nullptr;
+      return _obj;
+    }
+    
     inline void inc_ref(){
   #if !defined(FERRET_DISABLE_RC)
       // Only change if non-null

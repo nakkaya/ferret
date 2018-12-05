@@ -3202,7 +3202,11 @@ not yet finished, calls to =deref= will block.
 
   (defn _future_ [f] "return obj<async>(f);")
 
-  (defn future-done? [f] "return obj<boolean>(f.cast<async>()->is_ready());")
+  (defn future-done? [f]
+    "if (f.cast<async>()->is_ready())
+       return cached::true_o;
+     else
+       return cached::false_o;")
 #+end_src
 
 Divert *depricated* thread macro which runs the given lambda in a
@@ -3293,7 +3297,10 @@ calls.
     `(_delay_ (fn [] ~@body)))
 
   (defn delay? [d]
-    "return obj<boolean>(d.is_type(type_id<delayed>));")
+    "if (d.is_type(type_id<delayed>))
+       return cached::true_o;
+     else
+       return cached::false_o;")
 
   (defn force [d] @d)
 #+end_src
@@ -5033,7 +5040,10 @@ applications.
 
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
-  (defn nil? [x] "return obj<boolean>(x.is_nil())")
+(defn nil? [x]
+  "if (x.is_nil())
+       return cached::true_o;
+   return cached::false_o;")
 #+end_src
 *** not
 
@@ -5277,7 +5287,10 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn list? [x] "return obj<boolean>(x.is_type(type_id<sequence>));")
+(defn list? [x]
+  "if (x.is_type(type_id<sequence>))
+     return cached::true_o;
+   return cached::false_o;")
 #+end_src
 
 *** empty?
@@ -6091,7 +6104,9 @@ Port of Teensy elapsedMicros API,
     "return obj<elapsed_micros>();")
 
   (defn elapsed-micros? [t ^real_t r]
-    "return obj<boolean>(t.cast<elapsed_micros>()->is_elapsed(r));")
+    "if (t.cast<elapsed_micros>()->is_elapsed(r))
+       return cached::true_o;
+     return cached::false_o;")
 
   (defn elapsed-micros-now [t]
     "return obj<number>(t.cast<elapsed_micros>()->elapsed());")
@@ -6730,7 +6745,9 @@ other members of the group and port.
     "return obj<multicast_socket>(ip,port);")
 
   (defn pending? [con]
-    "return obj<boolean>(con.cast<multicast_socket>()->have_pending_data());")
+    "if (con.cast<multicast_socket>()->have_pending_data())
+       return cached::true_o;
+     return cached::false_o;")
 
   (defn send [con data]
     "datagram_t buffer;
@@ -6738,8 +6755,10 @@ other members of the group and port.
 
      for_each(b, data)
       buffer[idx++] = (byte)number::to<number_t>(b);
-    
-     return obj<boolean>(con.cast<multicast_socket>()->send(buffer,idx));")
+
+     if (con.cast<multicast_socket>()->send(buffer,idx))
+        return cached::true_o;
+      return cached::false_o;")
 
   (defn byte [data ^number_t curr]
     "auto buffer = value<datagram_t>::to_reference(data);

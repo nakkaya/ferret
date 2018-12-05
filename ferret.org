@@ -2934,7 +2934,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       ref keys = runtime::first(data);
       ref values = runtime::rest(data);
 
-      if(runtime::rest(keys) == runtime::list())
+      if(runtime::rest(keys).is_type(type_id<empty_sequence>))
         return runtime::list();
       
       return obj<d_list>(runtime::cons(runtime::rest(keys),runtime::rest(values)));
@@ -3091,7 +3091,7 @@ interpreted as FFI calls.
     var rest() final {
       ref r = runtime::rest(data);
 
-      if (r != runtime::list())
+      if (!r.is_type(type_id<empty_sequence>))
         return obj<string>(r);
 
       return runtime::list();
@@ -3413,7 +3413,7 @@ Implementations for the C++ Seekable API,
     }
 
     var cons(ref x, ref coll){
-      if (coll.is_nil() || coll == runtime::list())
+      if (coll.is_nil() || coll.is_type(type_id<empty_sequence>))
         return runtime::list(x);
 
       return coll.cast<seekable_i>()->cons(x);
@@ -5461,7 +5461,7 @@ arguments to =argv=.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn apply [f & argv]
-    "if (runtime::rest(argv) == runtime::list())
+    "if (runtime::rest(argv).is_type(type_id<empty_sequence>))
        return f.cast<lambda_i>()->invoke(runtime::first(argv));
 
      struct{
@@ -5836,7 +5836,6 @@ Split a number into bytes.
   (defn encode-int16 [n] 
     "int16_t val = number::to<int16_t>(n);
      byte *p = (byte*)&val;
-     __result = runtime::list();
      for (int i = (sizeof(int16_t) -1); i >= 0; i--)
        __result = runtime::cons(obj<number>((number_t)p[i]),__result);")
 #+end_src
@@ -5868,7 +5867,6 @@ Combine a list of bytes to a number.
     "static_assert(sizeof(float) == 4 * sizeof(byte), \"\");
      float val = number::to<float>(n);
      byte *p = (byte*)&val;
-     __result = runtime::list();
      for (int i = (sizeof(float) -1); i >= 0; i--)
        __result = runtime::cons(obj<number>(p[i]),__result);")
 #+end_src

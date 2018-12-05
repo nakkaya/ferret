@@ -2413,25 +2413,26 @@ traditional boolean values.
     if (obj == nullptr)
       return false;
     else if (obj->type() == (type_t)type_id<boolean>)
-      return static_cast<boolean*>((object*)obj)->container();
+      return cast<boolean>()->container();
     else
       return true;
   }
 
   bool var::equals (ref other) const {
-    if ( ( is_nil() && !other.is_nil()) ||
-         (!is_nil() &&  other.is_nil()))
-      return false;
-
     if (get() == other.get())
       return true;
+
+    if (!is_nil() && !other.is_nil()){
+
+      if (runtime::is_seqable(*this) && runtime::is_seqable(other))
+        return get()->equals(other);
+      else if (obj->type() != other.get()->type())
+        return false;
+      else
+        return get()->equals(other);
     
-    if (runtime::is_seqable(*this) && runtime::is_seqable(other))
-      return get()->equals(other);
-    else if (obj->type() != other.cast<object>()->type())
+    }else
       return false;
-    else
-      return get()->equals(other);
   }
 #+end_src
 
@@ -7449,7 +7450,7 @@ Ported from,
       minimum_output(number::to<T>(outMin)),
       maximum_input(number::to<T>(inMax)),
       minimum_input(number::to<T>(inMin)),
-      continuous(cont.cast<boolean>()->container()){
+      continuous(cont){
 
       if (sp.is_type(type_id<lambda_i>)){
         setpoint_fn = sp;

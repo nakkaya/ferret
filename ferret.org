@@ -2570,25 +2570,25 @@ fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/number_o.h
   class number final : public object {
-    const real_t word;
+    const real_t n;
   public:
 
     type_t type() const final { return type_id<number>; }
 
     bool equals(ref o) const final {
-      return (runtime::abs(word - number::to<real_t>(o)) < real_epsilon);
+      return (runtime::abs(n - number::to<real_t>(o)) < real_epsilon);
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      runtime::print(word);
+      runtime::print(n);
     }
   #endif
 
-    template<typename T> explicit number(T x) : word((real_t)x) {} 
+    template<typename T> explicit number(T x) : n((real_t)x) {} 
 
     template<typename T> static T to(ref v){
-      return (T)v.cast<number>()->word;
+      return (T)v.cast<number>()->n;
     }
   };
 #+end_src

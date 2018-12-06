@@ -1585,6 +1585,7 @@ is supported.
     (let [value (destructure-nth parent pos)
           tag   (-> name meta :tag)]
       (condp = tag
+        'bool_t     (str "bool " name " = " "bool(" value ")")
         'real_t     (str "real_t " name " = " "number::to<real_t>(" value ")")
         'number_t   (str "number_t " name " = " "number::to<number_t>(" value ")")
         'byte       (str "byte " name " = " "number::to<byte>(" value ")")
@@ -7421,17 +7422,17 @@ Ported from,
     }
     
   public:
-    pid_controller(ref kp, ref ki, ref kd,
-                   ref inMin, ref inMax, ref outMin, ref outMax,
-                   ref cont,
+    pid_controller(T kp, T ki, T kd,
+                   T inMin, T inMax, T outMin, T outMax,
+                   bool cont,
                    ref sp):
-      p(number::to<T>(kp)),
-      i(number::to<T>(ki)),
-      d(number::to<T>(kd)),
-      maximum_output(number::to<T>(outMax)),
-      minimum_output(number::to<T>(outMin)),
-      maximum_input(number::to<T>(inMax)),
-      minimum_input(number::to<T>(inMin)),
+      p(kp),
+      i(ki),
+      d(kd),
+      maximum_output(outMax),
+      minimum_output(outMin),
+      maximum_input(inMax),
+      minimum_input(inMin),
       continuous(cont){
 
       if (sp.is_type(type_id<lambda_i>)){
@@ -7462,15 +7463,19 @@ Ported from,
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn new-pid-controller [kp ki kd i-min i-max o-min o-max cont sp]
-    "return obj<pid_controller<real_t>>(kp, ki, kd, i_min, i_max, o_min, o_max, cont, sp);")
+(defn new-pid-controller [^real_t kp ^real_t ki ^real_t kd
+                          ^real_t i-min ^real_t i-max
+                          ^real_t o-min ^real_t o-max
+                          ^bool_t cont
+                          sp]
+  "return obj<pid_controller<real_t>>(kp, ki, kd, i_min, i_max, o_min, o_max, cont, sp);")
 
-  (defmacro pid-controller [& options]
-    (let [defaults {:kp 0 :ki 0 :kd 0 :set-point 0 :bounds [-1 1 -1 1] :continuous false}
-          options (merge defaults (apply hash-map options))
-          {:keys [container kp ki kd set-point bounds continuous]} options
-          [in-min in-max out-min out-max] bounds]
-      `(new-pid-controller ~kp ~ki ~kd ~in-min ~in-max ~out-min ~out-max ~continuous ~set-point)))
+(defmacro pid-controller [& options]
+  (let [defaults {:kp 0 :ki 0 :kd 0 :set-point 0 :bounds [-1 1 -1 1] :continuous false}
+        options (merge defaults (apply hash-map options))
+        {:keys [container kp ki kd set-point bounds continuous]} options
+        [in-min in-max out-min out-max] bounds]
+    `(new-pid-controller ~kp ~ki ~kd ~in-min ~in-max ~out-min ~out-max ~continuous ~set-point)))
 #+end_src
 
 *** Moving Average Filter

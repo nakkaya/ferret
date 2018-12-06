@@ -7262,17 +7262,6 @@ returns true, returns the next state.
 
     fsm(ref e, ref t) : env(e), state(runtime::first(e)), transitions(t){ }
 
-    type_t type() const { return type_id<fsm>; }
-
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
-      runtime::print("fsm<");
-      const void* addr = this;
-      runtime::print(addr);
-      runtime::print(">");
-    }
-  #endif
-
     var invoke(ref) const {
       return var((object*)this).cast<fsm>()->yield();
     }
@@ -7487,14 +7476,6 @@ Ported from,
       input = 0;
     }
 
-    type_t type() const { return type_id<pid_controller>; }
-
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
-      runtime::print("pid_controller");
-    }
-  #endif
-
     var invoke(ref args) const {
       if (!setpoint_fn.is_nil())
         var((object*)this).cast<pid_controller<T>>()
@@ -7552,18 +7533,6 @@ moving average of the last K samples by setting the value of alpha to
   public:
 
     explicit moving_average_filter(ref a) : alpha(number::to<T>(a)), avrg(0) { }
-
-    type_t type() const { return type_id<moving_average_filter>; }
-
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
-      runtime::print("moving_average_filter<");
-      runtime::print(alpha);
-      runtime::print(",");
-      runtime::print(avrg);
-      runtime::print(">");
-    }
-  #endif
 
     var invoke(ref args) const {
       return var((object*)this).cast<moving_average_filter<T>>()
@@ -7722,16 +7691,6 @@ sensors which have contacts that "chatter" or "bounce".
     }
 
    public:
-
-    type_t type() const final { return type_id<bounce>; }
-
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const final {
-      runtime::print("bounce<");
-      runtime::print(state);
-      runtime::print(">");
-    }
-  #endif
 
     explicit bounce(ref p, ref t_db) :
       fsm_state(&bounce::init),

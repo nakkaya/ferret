@@ -7490,7 +7490,7 @@ moving average of the last K samples by setting the value of alpha to
 #+begin_src clojure :tangle no
   (defobject moving_average_filter "ferret/obj/moving_average_filter_o.h")
 
-  (defn new-moving-average-filter [a]
+  (defn new-moving-average-filter [^real_t a]
     "return obj<moving_average_filter<real_t>>(a);")
 #+end_src
 
@@ -7509,7 +7509,7 @@ moving average of the last K samples by setting the value of alpha to
     
   public:
 
-    explicit moving_average_filter(ref a) : alpha(number::to<T>(a)), avrg(0) { }
+    explicit moving_average_filter(T a) : alpha(a), avrg(0) { }
 
     var invoke(ref args) const {
       return var((object*)this).cast<moving_average_filter<T>>()
@@ -7615,7 +7615,7 @@ sensors which have contacts that "chatter" or "bounce".
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
   (defobject bounce "ferret/obj/arduino/bounce_o.h")
 
-  (defn new-bounce [x t-debounce]
+  (defn new-bounce [^number_t x ^number_t t-debounce]
     "return obj<bounce>(x, t_debounce);")
 #+end_src
 
@@ -7669,13 +7669,13 @@ sensors which have contacts that "chatter" or "bounce".
 
    public:
 
-    explicit bounce(ref p, ref t_db) :
+    explicit bounce(number_t p, number_t t_db) :
       fsm_state(&bounce::init),
       state(0),
       last_state(0),
-      t_debounce(number::to<number_t>(t_db)),
+      t_debounce(t_db),
       t_last_debounce(millis()),
-      pin(number::to<number_t>(p))
+      pin(p)
       {}
 
     var invoke(ref args) const {

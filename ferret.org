@@ -2217,7 +2217,11 @@ All our types are derived from the base Object type. Which is a
     virtual type_t type() const = 0;
     
   #if !defined(FERRET_DISABLE_STD_OUT)
-    virtual void stream_console() const = 0;
+    virtual void stream_console() const {
+      runtime::print("var#");
+      const void* addr = this;
+      runtime::print(addr);
+    }
   #endif
     
     virtual bool equals(ref) const;
@@ -2465,14 +2469,6 @@ A =pointer= object keeps a reference to a C++ pointer.
       return (_payload == o.cast<pointer>()->payload());
     }
 
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const final {
-      runtime::print("pointer<");
-      runtime::print(_payload);
-      runtime::print(">");
-    }
-  #endif
-
     explicit pointer(void* p) : _payload(p) {} 
 
     void* payload() const {
@@ -2525,15 +2521,6 @@ modern C++ libraries that use smart pointers for memory management.
    public:
 
     type_t type() const final { return type_id<value>; }
-
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const final {
-      runtime::print("value<");
-      const void* addr = this;
-      runtime::print(addr);
-      runtime::print(">");
-    }
-  #endif
 
     template <typename... Args>
     explicit value(Args&&... args) : _value(static_cast<Args&&>(args)...) { } 
@@ -3310,12 +3297,6 @@ calls.
 
     type_t type() const final { return type_id<delayed>; }
 
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const final {
-      runtime::print("delay");
-    }
-  #endif
-
     explicit delayed(ref f) : fn(f) {} 
     
     var deref() {
@@ -3476,17 +3457,9 @@ uniform fashion.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lambda_i.h
-  class lambda_i : public object {
-   public:
+  struct lambda_i : public object {
     virtual var invoke(ref args) const = 0;
-
     type_t type() const { return type_id<lambda_i>; }
-
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const {
-      runtime::print("lambda");
-    }
-  #endif
   };
 #+end_src
 
@@ -6143,9 +6116,8 @@ Port of Teensy elapsedMicros API,
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const {
-      runtime::print("elapsed_micros<");
+      runtime::print("micros#");
       runtime::print(_elapsed());
-      runtime::print(">");
     }
   #endif
 

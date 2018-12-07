@@ -2948,52 +2948,51 @@ the keyword as =number_t=.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/keyword_o.h
-  class keyword final : public lambda_i {
-    const number_t _word;
+class keyword final : public lambda_i {
+  const number_t hash;
 
-    number_t from_str(const char * str){
-      number_t word = 0;
-      for (number_t i = 0; str[i] != '\0'; i++){
-        word = word + (number_t)str[i];
-      }
-      
-      return word;
+  number_t hash_str(const char * str){
+    number_t word = 0;
+    for (number_t i = 0; str[i] != '\0'; i++){
+      word = word + (number_t)str[i];
     }
     
-  public:
+    return word;
+  }
+  
+public:
 
-    type_t type() const final { return type_id<keyword>; }
+  type_t type() const final { return type_id<keyword>; }
 
-    bool equals(ref o) const final {
-      return (_word == o.cast<keyword>()->word());
+  bool equals(ref o) const final {
+    return (hash == keyword::to<number_t>(o));
+  }
+
+#if !defined(FERRET_DISABLE_STD_OUT)
+  void stream_console() const final {
+    runtime::print("keyword#");
+    runtime::print(hash);
+  }
+#endif
+
+  explicit keyword(number_t w) : hash(w) {} 
+  explicit keyword(const char * str): hash(hash_str(str)) { }
+
+  var invoke(ref args) const {
+    ref map = runtime::first(args);
+    ref map_args = runtime::cons(var((object*)this), runtime::rest(args));
+
+    if (map.is_type(type_id<map_t>)){
+      return map.cast<map_t>()->val_at(map_args);
     }
 
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const final {
-      runtime::print("keyword<");
-      runtime::print(_word);
-      runtime::print(">");
-    }
-  #endif
+    return nil();
+  }
 
-    explicit keyword(number_t w) : _word(w) {} 
-    explicit keyword(const char * str): _word(from_str(str)) { }
-
-    number_t word() const {
-      return _word;
-    }
-
-    var invoke(ref args) const {
-      ref map = runtime::first(args);
-      ref map_args = runtime::cons(var((object*)this), runtime::rest(args));
-
-      if (map.is_type(type_id<d_list>)){
-        return map.cast<map_t>()->val_at(map_args);
-      }
-
-      return nil();
-    }
-  };
+  template<typename T> static T to(ref v){
+    return (T)v.cast<keyword>()->hash;
+  }
+};
 #+end_src
 
 **** String

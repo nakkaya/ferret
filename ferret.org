@@ -4057,36 +4057,9 @@ support any real number type the system supports.
   #endif
 #+end_src
 
-Math related string literals,
+*** Math
 
-#+name: runtime-native-number-literals
-#+begin_src c++ :tangle no
-  constexpr auto operator "" _MB( unsigned long long const x ) -> long {
-    return 1024L * 1024L * (long)x;
-  }
-    
-  constexpr auto operator "" _KB( unsigned long long const x ) -> long {
-    return 1024L * (long)x;
-  }
-    
-  constexpr auto operator "" _pi(long double x) -> double {
-    return 3.14159265358979323846 * (double)x;
-  }
-
-  constexpr auto operator "" _pi(unsigned long long int  x) -> double {
-    return 1.0_pi * (double)x;
-  }
-
-  constexpr auto operator "" _deg(long double x) -> double {
-    return (1.0_pi * (double)x) / 180;
-  }
-
-  constexpr auto operator "" _deg(unsigned long long int  x) -> double {
-    return 1.0_deg * (double)x;
-  }
-#+end_src
-
-Math functions,
+Math functions.
 
 #+name: runtime-native-math
 #+begin_src c++ :tangle no
@@ -4121,6 +4094,8 @@ Math functions,
     }
   }
 #+end_src
+
+*** Fixed Point Math
 
 A fixed point number, like a floating point number, is an approximate
 representation of a rational number. Unlike floating point numbers
@@ -4234,7 +4209,9 @@ accuracy using 6 bits for fraction.
   #pragma pack(pop)
 #+end_src
 
-Euclidean geometry, See [[Euclidean Vector]] unit test for usage.
+*** Euclidean geometry
+
+See [[Euclidean Vector]] unit test for usage.
 
 #+name: runtime-native-euclidean-vector
 #+begin_src c++ :tangle no
@@ -4299,7 +4276,7 @@ Euclidean geometry, See [[Euclidean Vector]] unit test for usage.
    
       T dist(vector v){ return ((*this) - v).magnitude(); }
    
-  #if defined(AUTOMATON_STD_LIB)
+  #if defined(FERRET_STD_LIB)
       friend std::ostream& operator<< (std::ostream& stream, const vector& x) {
         stream << '[';
         for (size_t i = 0; i < D - 1; i++)
@@ -4315,11 +4292,42 @@ Euclidean geometry, See [[Euclidean Vector]] unit test for usage.
   }
 #+end_src
 
-** Containers
+*** Literals
 
-C++ containers used by the Ferret runtime. Most embedded systems does
-not provide standard containers such as =std::array= so Ferret
-provides its own containers that are portable across architectures.
+Math related string literals.
+
+#+name: runtime-native-number-literals
+#+begin_src c++ :tangle no
+  constexpr auto operator "" _MB( unsigned long long const x ) -> long {
+    return 1024L * 1024L * (long)x;
+  }
+    
+  constexpr auto operator "" _KB( unsigned long long const x ) -> long {
+    return 1024L * (long)x;
+  }
+    
+  constexpr auto operator "" _pi(long double x) -> double {
+    return 3.14159265358979323846 * (double)x;
+  }
+
+  constexpr auto operator "" _pi(unsigned long long int  x) -> double {
+    return 1.0_pi * (double)x;
+  }
+
+  constexpr auto operator "" _deg(long double x) -> double {
+    return (1.0_pi * (double)x) / 180;
+  }
+
+  constexpr auto operator "" _deg(unsigned long long int  x) -> double {
+    return 1.0_deg * (double)x;
+  }
+#+end_src
+
+** Native Types
+
+C++ types used by the Ferret runtime. Most embedded systems does
+not provide standard types such as =std::array= so Ferret
+provides its own types that are portable across architectures.
 
 *** byte
 
@@ -4510,11 +4518,7 @@ provides its own containers that are portable across architectures.
   };
 #+end_src
 
-** Concurrency
-
-Low level concurrency abstractions.
-
-*** Mutex
+*** mutex
 
 Locking abstractions for various platforms. They are disabled when
 running single threaded or on an embedded platform. (=FERRET_STD_LIB=

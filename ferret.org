@@ -3450,20 +3450,20 @@ Implementations for the C++ Seekable API,
     }
 
     var doall(ref coll){
-      class seek : public lambda_i {
+      class walk : public lambda_i {
         var seq;
       public:
-        explicit seek(ref s) : seq(s) { }
+        explicit walk(ref s) : seq(s) { }
         var invoke(ref) const {
           if (seq.is_nil() || seq.is_type(type_id<empty_sequence>))
             return nil();
           
-          var tail = obj<lazy_sequence>(obj<seek>(runtime::rest(seq)), true);
+          var tail = obj<lazy_sequence>(obj<walk>(runtime::rest(seq)), true);
           return runtime::cons(runtime::first(seq), tail);
         }
       };
 
-      return obj<seek>(coll).cast<lambda_i>()->invoke(nil());
+      return run(obj<walk>(coll));
     }
     
     bool is_seqable(ref seq){

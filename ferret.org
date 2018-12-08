@@ -2696,7 +2696,8 @@ directly. count is O(n). conj puts the item at the front of the list.
 Ferret supports lazily evaluated sequences. This means that sequence
 elements are not available ahead of time and produced as the result of
 a computation. The computation is performed as needed when lazy
-sequence is iterated.
+sequence is iterated. By default Ferret =lazy_sequence=s does not
+cache their values unless forced using [[doall]].
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
@@ -2708,6 +2709,7 @@ sequence is iterated.
     mutex lock;
     var thunk;
     var data;
+    bool cache;
     var seq;
 
   public:
@@ -2731,8 +2733,8 @@ sequence is iterated.
     }
   #endif
 
-    explicit lazy_sequence(ref t) : thunk(t) {} 
-    explicit lazy_sequence(ref d, ref t) : thunk(t), data(d) {} 
+    explicit lazy_sequence(ref t, bool c = false) : thunk(t) , cache(c) {} 
+    explicit lazy_sequence(ref d, ref t, bool c = false) : thunk(t), data(d) , cache(c) {} 
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
@@ -2740,7 +2742,7 @@ sequence is iterated.
       lock_guard guard(lock);
 
       if (data.is_nil())
-        return obj<lazy_sequence>(x,thunk);
+        return obj<lazy_sequence>(x, thunk, cache);
 
       return obj<sequence>(x, var((object*)this));
     }
@@ -2748,22 +2750,33 @@ sequence is iterated.
     var first() final {
       lock_guard guard(lock);
 
-      if (data.is_nil()){
-        seq = run(thunk);
-        data = runtime::first(seq);
-        seq = runtime::rest(seq);
-      }
+      if (cache){
+        if (data.is_nil()){
+          seq = run(thunk);
+          data = runtime::first(seq);
+          seq = runtime::rest(seq);
+        }
 
-      return data;
+        return data;
+      }else{
+        if (data.is_nil())
+          return runtime::first(run(thunk));
+        return data;
+      }
     }
     
     var rest() final {
       lock_guard guard(lock);
 
-      if (seq.is_nil())
-        seq = run(thunk);
-      
-      return seq;
+      if (cache){
+        if (seq.is_nil())
+          seq = run(thunk);
+        return seq;
+      }else{
+        if (data.is_nil())
+          return runtime::rest(run(thunk));
+        return run(thunk);        
+      }
     }
   };
 #+end_src
@@ -3367,6 +3380,7 @@ C++ API for the interface,
     var nth(ref seq, number_t index);
     var nthrest(ref seq, number_t index);
     size_t count(ref seq);
+    var doall(ref coll);
     bool is_seqable(ref seq);
   }
 
@@ -3435,6 +3449,23 @@ Implementations for the C++ Seekable API,
       return acc;
     }
 
+    var doall(ref coll){
+      class seek : public lambda_i {
+        var seq;
+      public:
+        explicit seek(ref s) : seq(s) { }
+        var invoke(ref) const {
+          if (seq.is_nil() || seq.is_type(type_id<empty_sequence>))
+            return nil();
+          
+          var tail = obj<lazy_sequence>(obj<seek>(runtime::rest(seq)), true);
+          return runtime::cons(runtime::first(seq), tail);
+        }
+      };
+
+      return obj<seek>(coll).cast<lambda_i>()->invoke(nil());
+    }
+    
     bool is_seqable(ref seq){
       if(seq.cast<seekable_i>())
         return true;
@@ -5551,6 +5582,20 @@ Returns a lazy seq of the first item in each coll, then the second etc.
                  (not (empty? s2)))
         (cons (first s1) (cons (first s2) 
                                (interleave (rest s1) (rest s2))))))))    
+#+end_src
+
+*** doall
+
+When lazy sequences are produced via functions that have side effects,
+any effects other than those needed to produce the first element in
+the seq do not occur until the seq is consumed. doall can be used to
+force any effects. Walks through the successive nexts of the seq, and
+caches the result, thus causing the entire seq to reside in memory at
+one time.
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no :noweb yes
+  (defn doall [s] "return runtime::doall(s)")
 #+end_src
 
 ** Math
@@ -8847,18 +8892,8 @@ Static code analysis (cppcheck) options,
     (is (= (list (list 0 1 2) (list 6 7 8) (list 12 13 14) (list 18 19 42))  (partition 3 6 (list 42) (range 20))))
     (is (= (list (list 0 1 2 3) (list 6 7 8 9) (list 12 13 14 15) (list 18 19 42 43)) (partition 4 6 (list 42 43 44 45) (range 20)))))
 
-  (let [acc (atom (list))]
-    
-    (defn thunk-acc [begin]
-      (cons begin
-            (lazy-seq
-             (swap! acc conj begin)
-             (thunk-acc (inc begin)))))
-
-    (let [seq-a (reverse (take 5 (thunk-acc 0)))
-          seq-b (map identity seq-a)]
-      (is (= seq-a @acc))
-      (is (= seq-b @acc))))
+  (let [xs (doall (repeatedly #(rand)))]
+    (is (= (take 5 xs) (take 5 xs))))
 #+end_src
 
 *** Associative

@@ -2707,9 +2707,9 @@ cache their values unless forced using [[doall]].
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/lazy_sequence_o.h
   class lazy_sequence final : public object, public seekable_i {
     mutex lock;
+    bool cache;
     var thunk;
     var data;
-    bool cache;
     var seq;
 
   public:
@@ -2733,8 +2733,8 @@ cache their values unless forced using [[doall]].
     }
   #endif
 
-    explicit lazy_sequence(ref t, bool c = false) : thunk(t) , cache(c) {} 
-    explicit lazy_sequence(ref d, ref t, bool c = false) : thunk(t), data(d) , cache(c) {} 
+    explicit lazy_sequence(ref t, bool c = false) : cache(c), thunk(t) {} 
+    explicit lazy_sequence(ref d, ref t, bool c = false) : cache(c), thunk(t), data(d) {} 
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
@@ -3130,8 +3130,8 @@ or =reset!=. Changes to atoms are always free of race conditions.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/atomic_o.h
   class atomic final : public deref_i {
-    var data;
     mutex lock;
+    var data;
     public:
 
 
@@ -3216,10 +3216,10 @@ thread to =future=,
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/async_o.h
   #ifdef FERRET_STD_LIB
   class async final : public deref_i {
-    var value;
     mutex lock;
-    var fn;
     bool cached;
+    var value;
+    var fn;
     std::future<var> task;
 
     class rc_guard{
@@ -3238,7 +3238,7 @@ thread to =future=,
     public:
 
     explicit async(ref f) :
-      value(nil()), fn(f), cached(false),
+      cached(false), value(nil()), fn(f), 
       task(std::async(std::launch::async, [this](){ return exec(); })){ inc_ref(); }
 
     type_t type() const final { return type_id<async>; }
@@ -3302,9 +3302,9 @@ calls.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/delayed_o.h
   class delayed final : public deref_i {
-    var val;
     mutex lock;
     var fn;
+    var val;
     
     public:
 
@@ -6135,8 +6135,8 @@ Port of Teensy elapsedMicros API,
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/elapsed_micros_o.h
   #if !defined(FERRET_SAFE_MODE)
   class elapsed_micros : public object {
-    unsigned long us;
     mutex lock;
+    unsigned long us;
 
   #if defined(FERRET_HARDWARE_ARDUINO)
     inline unsigned long now() const{
@@ -7393,6 +7393,14 @@ Ported from,
 #+begin_src c++ :mkdirp yes :tangle src/src/ferret/obj/pid_controller_o.h
   template <typename T>
   class pid_controller : public lambda_i {
+    mutex lock;
+    mutable T setpoint;
+    mutable T prev_error;
+    mutable T total_error;
+    mutable T error;
+    mutable T result;
+    mutable T input;
+
     T p;
     T i;
     T d;
@@ -7402,13 +7410,6 @@ Ported from,
     T minimum_input;
     bool continuous;
     var setpoint_fn;
-    mutable T setpoint;
-    mutable T prev_error;
-    mutable T total_error;
-    mutable T error;
-    mutable T result;
-    mutable T input;
-    mutex lock;
 
     void set_setpoint(ref p) {
       lock_guard guard(lock);
@@ -7545,9 +7546,9 @@ moving average of the last K samples by setting the value of alpha to
 #+begin_src c++ :mkdirp yes :tangle src/src/ferret/obj/moving_average_filter_o.h
   template <typename T>
   class moving_average_filter : public lambda_i {
+    mutex lock;
     T alpha;
     mutable T avrg;
-    mutex lock;
 
     var step(T data) {
       lock_guard guard(lock);
@@ -7669,13 +7670,13 @@ sensors which have contacts that "chatter" or "bounce".
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/arduino/bounce_o.h
   class bounce final : public lambda_i {
+    mutex lock;
     void (bounce::* fsm_state)();
     byte state;
     byte last_state;
     unsigned long t_debounce;
     unsigned long t_last_debounce;
     byte pin;
-    mutex lock;
     
     void debounce(){
       int reading = digitalRead(pin);

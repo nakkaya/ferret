@@ -4001,6 +4001,33 @@ Helper functions for user defined allocators.
   }
 #+end_src 
 
+**** Alloca
+
+=alloca= is a special allocator used by the *compiler*. If a variable
+can be proven to not escape its scope, storage for it can be allocated
+on the *stack* instead of the heap.
+
+#+name: runtime-native-allocator-alloca
+#+begin_src c++ :tangle no
+template<typename T>
+class alloca {
+
+  byte memory [sizeof(T)];
+  
+public:
+  
+  template<typename... Args>
+  inline explicit alloca(Args... args) {
+    (new(memory) T(args...))->inc_ref();
+  }
+
+  inline operator object*() {
+    return (object*)memory;
+  }
+};
+
+#+end_src
+
 *** Reference Counting
 
 Garbage collection is handled by reference counting. Reference count
@@ -10002,6 +10029,7 @@ Create some dummy libs under /test/modules/,
     <<runtime-native-allocators>>
     <<runtime-native-reference-counting>>
     <<runtime-native-object>>
+    <<runtime-native-allocator-alloca>>
   }
 
   // Runtime Prototypes

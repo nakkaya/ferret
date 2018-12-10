@@ -4009,6 +4009,8 @@ on the *stack* instead of the heap.
 
 #+name: runtime-native-allocator-alloca
 #+begin_src c++ :tangle no
+#undef alloca
+
 template<typename T>
 class alloca {
 

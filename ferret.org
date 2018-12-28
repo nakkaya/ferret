@@ -4552,30 +4552,31 @@ provides its own types that are portable across architectures.
 
 #+name: runtime-native-containers
 #+begin_src c++ :tangle no
-  template<size_t S>
-  class bitset {
-  private:
-    byte bits[S / 8 + 1];
-             
-    inline size_t index (size_t i) { return i / 8; }
-    inline size_t offset(size_t i) { return i % 8; }
-               
-  public:
-               
-    bitset() : bits{ (byte)0x00 } { }
-             
-    inline void set   (size_t b){
-      bits[index(b)] = (byte)((int)bits[index(b)] |  (1 << (offset(b))));
-    }
-               
-    inline void reset (size_t b){
-      bits[index(b)] = (byte)((int)bits[index(b)] & ~(1 << (offset(b))));
-    }
-               
-    inline bool test  (size_t b){
-      return ((int)bits[index(b)] & (1 << (offset(b))));
-    }
-  };
+template<size_t S>
+class bitset {
+  static_assert((S % 8) == 0, "bitset size must be a multiple of 8");
+
+  byte bits[S / 8];
+
+  inline size_t word (size_t i) { return i / 8; }
+  inline size_t bit  (size_t i) { return i % 8; }
+
+public:
+
+  bitset() : bits{ (byte)0x00 } { }
+
+  inline void set   (size_t b){
+    bits[word(b)] = (byte)((byte)bits[word(b)] |  (1 << (bit(b))));
+  }
+
+  inline void reset (size_t b){
+    bits[word(b)] = (byte)((byte)bits[word(b)] & ~(1 << (bit(b))));
+  }
+
+  inline bool test  (size_t b){
+    return ((byte)bits[word(b)] & (1 << (bit(b))));
+  }
+};
 #+end_src
 
 *** mutex

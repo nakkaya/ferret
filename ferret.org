@@ -3735,13 +3735,14 @@ to each other in the array which improves data locality.
     namespace allocator{
       template<typename page_size, size_t pool_size>
       class memory_pool{
+        static_assert((pool_size % 8) == 0, "memory_pool size must be a multiple of 8");
+
       public:
+
         bitset<pool_size> used;
         page_size pool[pool_size];
         size_t offset;
         size_t page_not_found;
-
-        memory_pool() : pool{0}, offset(0), page_not_found(pool_size + 1) { }
 
         inline size_t chunk_length(size_t size){
           size_t d = (size / sizeof(page_size));
@@ -3781,6 +3782,8 @@ to each other in the array which improves data locality.
             offset = end;
           }
         }
+
+        memory_pool() : pool{0}, offset(0), page_not_found(pool_size + 1) { }
 
         void *allocate(size_t req_size){
           size_t length = chunk_length(++req_size);
@@ -8439,7 +8442,7 @@ Static code analysis (cppcheck) options,
 
     size_t item_size = sizeof(size_t);
 
-    memory_pool<size_t,14> tiny_pool;
+    memory_pool<size_t,16> tiny_pool;
 
     assert(0  == tiny_pool.next_page(0));
     assert(nullptr  != tiny_pool.allocate(item_size * 2));
@@ -8455,28 +8458,17 @@ Static code analysis (cppcheck) options,
     assert(nullptr  != tiny_pool.allocate(item_size * 1));
     assert(nullptr  == tiny_pool.allocate(item_size * 10));
 
-    memory_pool<size_t,256> even_pool;
+    memory_pool<size_t,256> big_pool;
 
-    assert(0  == even_pool.next_page(0));
-    p = even_pool.allocate(item_size * 255);
+    assert(0  == big_pool.next_page(0));
+    p = big_pool.allocate(item_size * 255);
     assert(nullptr  != p);
-    assert(256  == even_pool.next_page(0));
-    even_pool.free(p);
-    assert(0  == even_pool.next_page(0));
-    assert(nullptr  == even_pool.allocate(item_size * 256));
-    assert(0  == even_pool.next_page(0));
+    assert(256  == big_pool.next_page(0));
+    big_pool.free(p);
+    assert(0  == big_pool.next_page(0));
+    assert(nullptr  == big_pool.allocate(item_size * 256));
+    assert(0  == big_pool.next_page(0));
 
-    memory_pool<size_t,255> odd_pool;
-
-    assert(0  == odd_pool.next_page(0));
-    p = odd_pool.allocate(item_size * 254);
-    assert(nullptr  != p);
-    assert(255  == odd_pool.next_page(0));
-    odd_pool.free(p);
-    assert(0  == odd_pool.next_page(0));
-    assert(nullptr  == odd_pool.allocate(item_size * 255));
-    assert(0  == odd_pool.next_page(0));  
-    
     return 0;
   }
 #+end_src

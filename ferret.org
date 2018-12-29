@@ -3742,17 +3742,7 @@ to each other in the array which improves data locality.
         bitset<pool_size> used;
         page_size pool[pool_size];
         size_t offset;
-        size_t page_not_found;
-
-        inline size_t chunk_length(size_t size){
-          size_t d = (size / sizeof(page_size));
-          size_t f = (size % sizeof(page_size));
-
-          if (f == 0)
-            return d;
-          else
-            return (d + 1);
-        }
+        size_t npos;
 
         inline bool chunk_usable(size_t begin, size_t end){
           for(size_t i=begin; i < end; i++)
@@ -3774,7 +3764,7 @@ to each other in the array which improves data locality.
             size_t end   = begin + pages_needed;
     
             if (end > pool_size)
-              return page_not_found;
+              return npos;
           
             if (chunk_usable(begin, end))
               return begin;
@@ -3783,20 +3773,20 @@ to each other in the array which improves data locality.
           }
         }
 
-        memory_pool() : pool{0}, offset(0), page_not_found(pool_size + 1) { }
+        memory_pool() : pool{0}, offset(0), npos(pool_size + 1) { }
 
         void *allocate(size_t req_size){
-          size_t length = chunk_length(++req_size);
-          size_t page   = scan_pool(length, offset);
+          size_t size = align_of(++req_size, sizeof(page_size));
+          size_t page = scan_pool(size, offset);
 
-          if (page == page_not_found){
-            page = scan_pool(length);
-            if (page == page_not_found)
+          if (page == npos){
+            page = scan_pool(size);
+            if (page == npos)
               return nullptr;
           }
           
-          pool[page] = length;
-          offset = page + length;
+          pool[page] = (page_size)size;
+          offset = page + size;
           for(size_t i = page; i < offset; i++)
             used.set(i);
 
@@ -8440,9 +8430,9 @@ Static code analysis (cppcheck) options,
 
     using namespace allocator;
 
-    size_t item_size = sizeof(size_t);
+    size_t item_size = sizeof(ferret::byte);
 
-    memory_pool<size_t,16> tiny_pool;
+    memory_pool<ferret::byte,16> tiny_pool;
 
     assert(0  == tiny_pool.next_page(0));
     assert(nullptr  != tiny_pool.allocate(item_size * 2));
@@ -8458,15 +8448,15 @@ Static code analysis (cppcheck) options,
     assert(nullptr  != tiny_pool.allocate(item_size * 1));
     assert(nullptr  == tiny_pool.allocate(item_size * 10));
 
-    memory_pool<size_t,256> big_pool;
+    memory_pool<uint64_t,256> big_pool;
 
     assert(0  == big_pool.next_page(0));
-    p = big_pool.allocate(item_size * 255);
+    p = big_pool.allocate(1);
     assert(nullptr  != p);
-    assert(256  == big_pool.next_page(0));
+    assert(8 == big_pool.next_page(0));
     big_pool.free(p);
     assert(0  == big_pool.next_page(0));
-    assert(nullptr  == big_pool.allocate(item_size * 256));
+    assert(nullptr  == big_pool.allocate(256));
     assert(0  == big_pool.next_page(0));
 
     return 0;

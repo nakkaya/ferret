@@ -3744,29 +3744,16 @@ to each other in the array which improves data locality.
         size_t offset;
         size_t npos;
 
-        inline bool chunk_usable(size_t begin, size_t end){
-          for(size_t i=begin; i < end; i++)
-            if (used.test(i))
-              return false;
-          return true;
-        }
-
-        inline size_t next_page(size_t begin){
-          for(size_t i=begin; i < pool_size; i++)
-            if (!used.test(i))
-              return i;
-          return pool_size;
-        }
-
-        inline size_t scan_pool(size_t pages_needed, size_t offset = 0){
+        inline size_t scan(size_t size, size_t offset = 0){
           for(;;){
-            size_t begin = next_page(offset);
-            size_t end   = begin + pages_needed;
+            size_t begin = used.ffr(offset);
+            size_t end   = begin + size;
     
             if (end > pool_size)
               return npos;
-          
-            if (chunk_usable(begin, end))
+
+            size_t fs = used.ffs(begin);
+            if (fs >= end)
               return begin;
     
             offset = end;
@@ -3777,10 +3764,10 @@ to each other in the array which improves data locality.
 
         void *allocate(size_t req_size){
           size_t size = align_of(++req_size, sizeof(page_size));
-          size_t page = scan_pool(size, offset);
+          size_t page = scan(size, offset);
 
           if (page == npos){
-            page = scan_pool(size);
+            page = scan(size);
             if (page == npos)
               return nullptr;
           }
@@ -4568,6 +4555,20 @@ public:
 
   inline bool test  (size_t b){
     return ((byte)bits[word(b)] & (1 << (bit(b))));
+  }
+
+  inline size_t ffs(size_t b = 0){
+    for(size_t i = b; i < S; i++)
+      if (test(i))
+        return i;
+    return S;
+  }
+
+  inline size_t ffr(size_t b = 0){
+    for(size_t i = b; i < S; i++)
+      if (!test(i))
+        return i;
+    return S;
   }
 };
 #+end_src
@@ -8408,59 +8409,87 @@ Static code analysis (cppcheck) options,
 *** Memory Pool
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/test/native/memory_pool.cpp
-  #define FERRET_MEMORY_POOL_SIZE 4_MB
+#define FERRET_MEMORY_POOL_SIZE 4_MB
 
-  #include <cassert>
-  #include <runtime.h>
+#include <cassert>
+#include <runtime.h>
 
-  int main() {
-    using namespace ferret::memory;
+int main() {
+  using namespace ferret::memory;
+  using namespace allocator;
 
-    assert(0  == align_req(0,8));
-    assert(7  == align_req(1,8));
-    assert(0  == align_req(8,8));
+  assert(0  == align_req(0,8));
+  assert(7  == align_req(1,8));
+  assert(0  == align_req(8,8));
 
-    assert(0  == align_of(0,8));
-    assert(8  == align_of(1,8));
-    assert(8  == align_of(8,8));
+  assert(0  == align_of(0,8));
+  assert(8  == align_of(1,8));
+  assert(8  == align_of(8,8));
 
-    alignas(16) int buff [4];
-    assert(0  == align_req<int16_t>(buff));
-    assert(reinterpret_cast<std::uintptr_t>(buff) == align_of<int16_t>(buff));
+  alignas(16) int buff [4];
+  assert(0  == align_req<int16_t>(buff));
+  assert(reinterpret_cast<std::uintptr_t>(buff) == align_of<int16_t>(buff));
 
-    using namespace allocator;
+  size_t byte_s = sizeof(ferret::byte);
 
-    size_t item_size = sizeof(ferret::byte);
+  memory_pool<ferret::byte, 8> nano_pool;
 
-    memory_pool<ferret::byte,16> tiny_pool;
+  void* a = nano_pool.allocate(byte_s);
+  assert(nullptr  != a);
+  assert(2        == nano_pool.used.ffr(0));
+  assert(nullptr  != nano_pool.allocate(byte_s));
+  assert(4        == nano_pool.used.ffr(0));
 
-    assert(0  == tiny_pool.next_page(0));
-    assert(nullptr  != tiny_pool.allocate(item_size * 2));
-    assert(3  == tiny_pool.next_page(0));
-    void* p = tiny_pool.allocate(item_size * 4);
-    assert(nullptr  != p);
-    assert(8  == tiny_pool.next_page(0));
-    tiny_pool.free(p);
-    assert(3  == tiny_pool.next_page(0));
-    assert(nullptr  == tiny_pool.allocate(item_size * 40));
-    assert(nullptr  != tiny_pool.allocate(item_size * 6));
-    assert(nullptr  != tiny_pool.allocate(item_size * 1));
-    assert(nullptr  != tiny_pool.allocate(item_size * 1));
-    assert(nullptr  == tiny_pool.allocate(item_size * 10));
+  void* c = nano_pool.allocate(byte_s);
 
-    memory_pool<uint64_t,256> big_pool;
+  assert(nullptr  != c);
+  assert(6        == nano_pool.used.ffr(0));
+  assert(nullptr  != nano_pool.allocate(byte_s));
 
-    assert(0  == big_pool.next_page(0));
-    p = big_pool.allocate(1);
-    assert(nullptr  != p);
-    assert(8 == big_pool.next_page(0));
-    big_pool.free(p);
-    assert(0  == big_pool.next_page(0));
-    assert(nullptr  == big_pool.allocate(256));
-    assert(0  == big_pool.next_page(0));
+  nano_pool.free(c);
 
-    return 0;
-  }
+  assert(4        == nano_pool.used.ffr(0));
+  assert(6        == nano_pool.used.ffs(4));
+  assert(nullptr  != nano_pool.allocate(byte_s));
+
+  memory_pool<ferret::byte,16> tiny_pool;
+
+  assert(0        == tiny_pool.used.ffr(0));
+  assert(nullptr  != tiny_pool.allocate(byte_s * 2));
+  assert(3        == tiny_pool.used.ffr(0));
+
+  void* p = tiny_pool.allocate(byte_s * 4);
+
+  assert(nullptr  != p);
+  assert(8        == tiny_pool.used.ffr(0));
+
+  tiny_pool.free(p);
+
+  assert(3        == tiny_pool.used.ffr(0));
+  assert(nullptr  == tiny_pool.allocate(byte_s * 40));
+  assert(nullptr  != tiny_pool.allocate(byte_s * 6));
+  assert(nullptr  != tiny_pool.allocate(byte_s * 1));
+  assert(nullptr  != tiny_pool.allocate(byte_s * 1));
+  assert(nullptr  == tiny_pool.allocate(byte_s * 10));
+
+  memory_pool<uint64_t,256> big_pool;
+
+  assert(0        == big_pool.used.ffr(0));
+
+  p = big_pool.allocate(1);
+
+  assert(nullptr  != p);
+
+  assert(8        == big_pool.used.ffr(0));
+
+  big_pool.free(p);
+
+  assert(0        == big_pool.used.ffr(0));
+  assert(nullptr  == big_pool.allocate(256));
+  assert(0        == big_pool.used.ffr(0));
+
+  return 0;
+}
 #+end_src
 
 ** Core

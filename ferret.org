@@ -4543,6 +4543,49 @@ class bitset {
 
 public:
 
+  template <typename I>
+  static I nlz(I x){
+    I n = 0;
+    
+    while (x > 0) {
+      x = (I)(x << I{1});
+      n++;
+    }
+  
+    return n;
+  }
+  
+  template <typename I>
+  static I ffss(I x, I n){
+    I s;
+  
+    while(n > I{1}){
+      s = (I)(n >> I{1});
+      x = (I)(x & (x << s));
+      n = (I)(n-s);
+    }
+  
+    return nlz(x);
+  }
+  
+  template <typename I>
+  static I _ffsr(I x, I n){
+    x = (I)~x;
+    return ffss(x,n);
+  }
+
+  inline size_t ffsr(uint16_t n = 1, uint16_t from_word = 0){
+    for(uint16_t i = from_word; i <= (S / 8) - 1; i++){
+      uint16_t val = (uint16_t)((bits[i+1] << 8 ) | (bits[i] & 0xff));
+      uint16_t x = _ffsr(val,n);
+        
+      if (x)
+        return (size_t)((16 - ((x - 1) + n)) + (8 * i));
+    }
+      
+    return S;
+  }
+  
   bitset() : bits{ (byte)0x00 } { }
 
   inline void set   (size_t b){
@@ -8418,6 +8461,31 @@ int main() {
   using namespace ferret::memory;
   using namespace allocator;
 
+  ferret::bitset<16> bs_a;
+  for(size_t i = 0; i < 2; i++)  bs_a.set(i);
+  for(size_t i = 7; i < 16; i++) bs_a.set(i);
+  assert(2 == bs_a.ffsr(5));
+
+  ferret::bitset<16> bs_b;
+  bs_b.set(0);
+  for(size_t i = 3; i < 8; i++)   bs_b.set(i);
+  for(size_t i = 10; i < 16; i++) bs_b.set(i);
+  assert(1 == bs_b.ffsr(2));
+
+  ferret::bitset<24> bs_c;
+  bs_c.set(0);
+  for(size_t i = 3; i < 8; i++)   bs_c.set(i);
+  for(size_t i = 10; i < 16; i++) bs_c.set(i);
+  assert(1 == bs_c.ffsr(2));
+  bs_c.set(1);
+  bs_c.set(2);
+  assert(8 == bs_c.ffsr(2));
+  assert(8 == bs_c.ffsr(2,1));
+  assert(16 == bs_c.ffsr(2,2));
+  bs_c.set(8);
+  bs_c.set(9);
+  assert(16 == bs_c.ffsr(2));
+  
   assert(0  == align_req(0,8));
   assert(7  == align_req(1,8));
   assert(0  == align_req(8,8));

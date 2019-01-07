@@ -3053,7 +3053,7 @@ interpreted as FFI calls.
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
       for_each(it, data)
-        runtime::print(number::to<byte>(it));
+        runtime::print(number::to<char>(it));
     }
   #endif
 

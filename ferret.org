@@ -3097,6 +3097,18 @@ interpreted as FFI calls.
       T::unimplemented_function;
     }
 
+    static size_t into(ref str, char buff[]){
+      size_t i = 0;
+
+      for_each(c, str){
+        buff[i] = number::to<char>(c);
+        i++;
+      }
+
+      buff[i] = '\0';
+
+      return i;
+    }
   };
 
   #ifdef FERRET_STD_LIB

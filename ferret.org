@@ -2588,25 +2588,7 @@ directly. count is O(n). conj puts the item at the front of the list.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject empty_sequence "ferret/obj/empty_sequence_o.h")
   (defobject sequence "ferret/obj/sequence_o.h")
-#+end_src
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/empty_sequence_o.h
-  class empty_sequence final : public object {
-
-    type_t type() const final { return type_id<empty_sequence>; }
-
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const final {
-      runtime::print("()");
-    }
-  #endif
-  };
-
-  namespace cached{
-    const var empty_sequence_o = obj<::ferret::empty_sequence>();
-  }
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/sequence_o.h
@@ -2658,10 +2640,10 @@ directly. count is O(n). conj puts the item at the front of the list.
   };
   namespace runtime {
     inline var list() { 
-      return cached::empty_sequence_o;
+      return nil();
     }
     inline var list(ref v) { 
-      return obj<sequence>(v,cached::empty_sequence_o);
+      return obj<sequence>(v,nil());
     }
                       
     template <typename... Args>
@@ -2870,7 +2852,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     }
   #endif
 
-    explicit d_list() : data(runtime::list(runtime::list())) { }
+    explicit d_list() : data(runtime::list(nil())) { }
     explicit d_list(ref l) : data(l) { }
     
     var assoc(ref k, ref v) const {
@@ -2930,8 +2912,8 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       ref keys = runtime::first(data);
       ref values = runtime::rest(data);
 
-      if(runtime::rest(keys).is_type(type_id<empty_sequence>))
-        return runtime::list();
+      if(runtime::rest(keys).is_nil())
+        return nil();
       
       return obj<d_list>(runtime::cons(runtime::rest(keys),runtime::rest(values)));
     }
@@ -3086,10 +3068,10 @@ interpreted as FFI calls.
     var rest() final {
       ref r = runtime::rest(data);
 
-      if (!r.is_type(type_id<empty_sequence>))
+      if (!r.is_nil())
         return obj<string>(r);
 
-      return runtime::list();
+      return nil();
     }
 
     template <typename T>
@@ -3397,7 +3379,7 @@ C++ API for the interface,
   }
 
 #define for_each(x,xs) for(var tail = xs, x = runtime::first(xs);                 \
-                           !tail.is_nil() && tail != cached::empty_sequence_o ;   \
+                           !tail.is_nil();                                        \
                            tail = runtime::rest(tail), x = runtime::first(tail))
 #+end_src
 
@@ -3407,7 +3389,7 @@ Implementations for the C++ Seekable API,
 #+begin_src c++ :tangle no
   namespace runtime{
     var first(ref coll){
-      if (coll.is_nil() || coll.is_type(type_id<empty_sequence>))
+      if (coll.is_nil())
         return nil();
       else
         return coll.cast<seekable_i>()->first();
@@ -3415,14 +3397,12 @@ Implementations for the C++ Seekable API,
 
     var rest(ref coll){
       if (coll.is_nil())
-        return runtime::list();
-      if (coll.is_type(type_id<empty_sequence>))
         return nil();
       return coll.cast<seekable_i>()->rest();
     }
 
     var cons(ref x, ref coll){
-      if (coll.is_nil() || coll.is_type(type_id<empty_sequence>))
+      if (coll.is_nil())
         return runtime::list(x);
 
       return coll.cast<seekable_i>()->cons(x);
@@ -3444,10 +3424,6 @@ Implementations for the C++ Seekable API,
       var ret = seq;
       for(number_t i = 0; i < index; i++)
         ret = runtime::rest(ret);
-
-      if (ret.is_nil())
-        return runtime::list(); 
-
       return ret;
     }
     
@@ -3467,7 +3443,7 @@ Implementations for the C++ Seekable API,
       public:
         explicit walk(ref s) : seq(s) { }
         var invoke(ref) const {
-          if (seq.is_nil() || seq.is_type(type_id<empty_sequence>))
+          if (seq.is_nil())
             return nil();
           
           var tail = obj<lazy_sequence>(obj<walk>(runtime::rest(seq)), true);
@@ -5317,10 +5293,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn list [& xs] "if (xs.is_nil())
-                       return runtime::list();
-                     else
-                       return xs;")
+  (defn list [& xs] "return xs;")
 #+end_src
 
 *** list?
@@ -5370,11 +5343,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn rest [x] "ref r = runtime::rest(x);
-                  if (r.is_nil())
-                    return runtime::list();
-                  else 
-                    return r;")
+  (defn rest [x] "return runtime::rest(x);")
 #+end_src
 
 *** nth
@@ -5514,7 +5483,7 @@ arguments to =argv=.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn apply [f & argv]
-    "if (runtime::rest(argv).is_type(type_id<empty_sequence>))
+    "if (runtime::rest(argv).is_nil())
        return f.cast<lambda_i>()->invoke(runtime::first(argv));
 
      struct{
@@ -6649,7 +6618,6 @@ Wraps mlockall - locks the address space of process.
     (println "\tnumber:\t\t\t" (cxx "return obj<number>(sizeof(number));"))
     (println "\tkeyword:\t\t" (cxx "return obj<number>(sizeof(keyword));"))
     (println "\tboolean:\t\t" (cxx "return obj<number>(sizeof(boolean));"))
-    (println "\tempty_sequence:\t\t" (cxx "return obj<number>(sizeof(empty_sequence));"))
     (println "\tsequence:\t\t" (cxx "return obj<number>(sizeof(sequence));"))
     (println "\tlazy_sequence:\t\t" (cxx "return obj<number>(sizeof(lazy_sequence));"))
     (println "\tatom:\t\t\t" (cxx "return obj<number>(sizeof(atomic));"))

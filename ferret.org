@@ -3364,7 +3364,6 @@ C++ API for the interface,
 #+begin_src c++ :tangle no
   namespace runtime {
     var list(ref v);
-    var list(ref v);
     template <typename... Args>
     var list(ref first, Args const & ... args);
 

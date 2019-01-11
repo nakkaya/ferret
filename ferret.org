@@ -3390,8 +3390,7 @@ Implementations for the C++ Seekable API,
     var first(ref coll){
       if (coll.is_nil())
         return nil();
-      else
-        return coll.cast<seekable_i>()->first();
+      return coll.cast<seekable_i>()->first();
     }
 
     var rest(ref coll){
@@ -3403,7 +3402,6 @@ Implementations for the C++ Seekable API,
     var cons(ref x, ref coll){
       if (coll.is_nil())
         return runtime::list(x);
-
       return coll.cast<seekable_i>()->cons(x);
     }
 

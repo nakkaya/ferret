@@ -5275,6 +5275,9 @@ Tests if 2 arguments are the same object.
 
 *** while
 
+Repeatedly executes =body= while =test= is true. Presumes some
+side-effect will cause =test= to become =false/nil=. Returns =nil=.
+
 #+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
   (defn _while_ [pred fn]
@@ -5283,6 +5286,23 @@ Tests if 2 arguments are the same object.
 
   (defmacro while [test & body]
     `(_while_ (fn [] ~test) (fn [] ~@body)))
+#+end_src
+
+*** while-let
+
+Repeatedly executes body while test expression is true, evaluating the
+body with binding-form bound to the value of test. 
+
+#+name: runtime-clojure-conditional-operators
+#+begin_src clojure :tangle no
+  (defn _while-let_ [pred fn]
+    "var v;
+     while((v = run(pred)))
+       run(fn,v);")
+
+  (defmacro while-let
+    [[form test] & body]
+    `(_while-let_ (fn [] ~test) (fn [~form] ~@body)))
 #+end_src
 
 *** forever
@@ -8838,7 +8858,19 @@ int main() {
     (is (= true  (and true  (identity true))))
     (is (= false (and true  (identity false))))
     (is (= true  (or  true  (identity false))))
-    (is (= false (or  false (identity false)))))
+    (is (= false (or  false (identity false))))
+
+
+    (let [lst (atom (list 1 2 3 4 5))
+          acc (atom )]
+      
+      (while-let [item (first @lst)]
+        (swap! lst rest)
+        (swap! acc conj item))
+
+      (is (empty? @lst))
+      (is (not (empty? @acc)))
+      (is (= (list 5 4 3 2 1) @acc))))
 #+end_src
 
 *** Sequential

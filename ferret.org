@@ -1395,7 +1395,10 @@ done by running =emit= on the final intermediate representation.
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no  
   (defmulti emit (fn [_ f _]
-                   (cond (parser/form? 'fir_defn_heap f)   'fir_defn_heap
+                   (cond (parser/form? '(fir_fn_stack list) f)   'fir_inline_list
+                         (parser/form? '(fir_fn_stack first) f)  'fir_inline_first
+                         (parser/form? '(fir_fn_stack rest) f)   'fir_inline_rest
+                         (parser/form? 'fir_defn_heap f)   'fir_defn_heap
                          (parser/form? 'fir_defn_stack f)  'fir_defn_stack
                          (parser/form? 'fir_defn_arity f)  'fir_defn_arity
                          (parser/form? 'fir_fn_heap f)     'fir_fn_heap
@@ -1498,6 +1501,11 @@ nodes of the program AST.
 
 *** Special Forms
 
+Special forms have evaluation rules that differ from standard Ferret
+evaluation rules and are understood directly by the compiler. Most
+special forms define control structures or perform variable
+bindings—things which functions cannot do.
+
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
   (defmethod emit 'def [options [_ name & form] state]
@@ -1531,6 +1539,23 @@ nodes of the program AST.
 
   (defmethod emit 'native_define [_ [_ define] state]
     (append-to! state [:native-defines] define))
+#+end_src
+
+Inline primitive sequence operations. Some sequence operations such as
+=first= / =rest= are implemented as native C++ functions instead of
+executing a Ferret =fn= for these operations, these can be replaced
+with calls to native implementations resulting in much smaller code.
+
+#+name: core-compiler-emitter
+#+begin_src clojure :tangle no
+  (defmethod emit 'fir_inline_list [options [_ & args] state]
+    (str "runtime::list(" (apply str (interpose \, (emit-ast options args state))) ")"))
+
+  (defmethod emit 'fir_inline_first [options [_ & seq] state]
+    (str "runtime::first(" (apply str (emit-ast options seq state)) ")"))
+
+  (defmethod emit 'fir_inline_rest [options [_ & seq] state]
+    (str "runtime::rest(" (apply str (emit-ast options seq state)) ")"))
 #+end_src
 
 *** Functions

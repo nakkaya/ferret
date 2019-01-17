@@ -4620,6 +4620,14 @@ public:
         return i;
     return S;
   }
+
+#if defined(FERRET_STD_LIB)
+  friend std::ostream& operator<< (std::ostream& stream, bitset& x) {
+    for(size_t i = 0; i < S; i++)
+      stream << x.test(i);
+    return stream;
+  }
+#endif
 };
 #+end_src
 

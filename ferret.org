@@ -2328,7 +2328,9 @@ count, when it reaches zero it will automatically free the object.
     inline T* cast() const { return static_cast<T*>((object*)obj); }
 
     inline bool is_type(type_t type) const {
-      return (static_cast<object*>(obj)->type() == type);
+      if (obj)
+        return (static_cast<object*>(obj)->type() == type);
+      return false;
     }
 
     inline bool is_nil() const { return (obj == nullptr); }

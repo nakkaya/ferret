@@ -3744,16 +3744,12 @@ parameterized. Thus, close to optimal performance will result.
 
    #if !defined(FERRET_MEMORY_POOL_PAGE_TYPE)
     #define FERRET_MEMORY_POOL_PAGE_TYPE size_t
-    #define FERRET_MEMORY_POOL_PAGE_COUNT                                   \
-      (FERRET_MEMORY_POOL_SIZE / sizeof(FERRET_MEMORY_POOL_PAGE_TYPE))
-   #else
-    #define FERRET_MEMORY_POOL_PAGE_COUNT FERRET_MEMORY_POOL_SIZE
    #endif
 
   namespace memory{
     namespace allocator{
 
-      memory_pool<FERRET_MEMORY_POOL_PAGE_TYPE, FERRET_MEMORY_POOL_PAGE_COUNT> program_memory;
+      memory_pool<FERRET_MEMORY_POOL_PAGE_TYPE, FERRET_MEMORY_POOL_SIZE> program_memory;
 
       class pool{
       public:
@@ -3798,38 +3794,38 @@ to each other in the array which improves data locality.
         bitset<pool_size> used;
         page_size pool[pool_size];
         size_t offset;
-        size_t npos;
 
         inline size_t scan(size_t size, size_t offset = 0){
           for(;;){
             size_t begin = used.ffr(offset);
             size_t end   = begin + size;
     
-            if (end > pool_size)
-              return npos;
+            if (end > (pool_size / sizeof(page_size)))
+              return pool_size;
 
-            size_t fs = used.ffs(begin, size);
-            if (fs >= end)
+            if (used.ffs(begin, size) >= end)
               return begin;
     
             offset = end;
           }
         }
 
-        memory_pool() : pool{0}, offset(0), npos(pool_size + 1) { }
+        memory_pool() : pool{0}, offset(0) { }
 
         void *allocate(size_t req_size){
-          size_t size = align_of(++req_size, sizeof(page_size));
-          size_t page = scan(size, offset);
+          size_t size_byte = align_of(req_size, sizeof(page_size));
+          size_t size_page = (size_byte / sizeof(page_size)) + 1;
 
-          if (page == npos){
-            page = scan(size);
-            if (page == npos)
+          size_t page = scan(size_page, offset);
+  
+          if (page == pool_size){
+            page = scan(size_page);
+            if (page == pool_size)
               return nullptr;
           }
           
-          pool[page] = (page_size)size;
-          offset = page + size;
+          pool[page] = (page_size)size_page;
+          offset = page + size_page;
           for(size_t i = page; i < offset; i++)
             used.set(i);
 
@@ -8566,7 +8562,7 @@ int main() {
 
   assert(nullptr  != p);
 
-  assert(8        == big_pool.used.ffr(0));
+  assert(2        == big_pool.used.ffr(0));
 
   big_pool.free(p);
 

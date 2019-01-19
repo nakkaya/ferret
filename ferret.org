@@ -3785,59 +3785,61 @@ to each other in the array which improves data locality.
   #ifdef FERRET_MEMORY_POOL_SIZE
   namespace memory{
     namespace allocator{
-      template<typename page_size, size_t pool_size>
+      template<typename page_t, size_t pool_size>
       class memory_pool{
         static_assert((pool_size % 8) == 0, "memory_pool size must be a multiple of 8");
 
+        static const size_t max_page = (pool_size  / sizeof(page_t));
+
       public:
 
-        bitset<pool_size> used;
-        page_size pool[pool_size];
-        size_t offset;
+        bitset<max_page> used;
+        alignas(alignof(page_t)) page_t pool[max_page];
+        size_t next_ptr;
 
-        inline size_t scan(size_t size, size_t offset = 0){
+        inline size_t scan(size_t size, size_t from_page = 0){
           for(;;){
-            size_t begin = used.ffr(offset);
+            size_t begin = used.ffr(from_page);
             size_t end   = begin + size;
     
-            if (end > (pool_size / sizeof(page_size)))
-              return pool_size;
+            if (end > max_page)
+              return max_page;
 
             if (used.ffs(begin, size) >= end)
               return begin;
     
-            offset = end;
+            from_page = end;
           }
         }
 
-        memory_pool() : pool{0}, offset(0) { }
+        memory_pool() : pool{0}, next_ptr(0) { }
 
         void *allocate(size_t req_size){
-          size_t size_byte = align_of(req_size, sizeof(page_size));
-          size_t size_page = (size_byte / sizeof(page_size)) + 1;
+          req_size = align_of(req_size, sizeof(page_t)) + sizeof(page_t);
+          size_t n_pages = (req_size / sizeof(page_t));
 
-          size_t page = scan(size_page, offset);
+          size_t page = scan(n_pages, next_ptr);
   
-          if (page == pool_size){
-            page = scan(size_page);
-            if (page == pool_size)
+          if (page == max_page){
+            page = scan(n_pages);
+            if (page == max_page)
               return nullptr;
           }
           
-          pool[page] = (page_size)size_page;
-          offset = page + size_page;
-          for(size_t i = page; i < offset; i++)
+          pool[page] = (page_t)n_pages;
+          next_ptr = page + n_pages;
+          for(size_t i = page; i < next_ptr; i++)
             used.set(i);
 
           return &pool[++page];
         }
 
         void free(void *p){
-          ptrdiff_t begin = (static_cast<page_size *>(p) - pool) - 1;
+          ptrdiff_t begin = (static_cast<page_t *>(p) - pool) - 1;
           ptrdiff_t end = begin + (ptrdiff_t)pool[begin];
 
-          for (ptrdiff_t i = begin; i < end; i++)
-            used.reset((size_t)i);
+          for (size_t i = (size_t)begin; i < (size_t)end; i++)
+            used.reset(i);
         }
       };
     }
@@ -4710,13 +4712,6 @@ indicating platform.
     #if defined(FERRET_HARDWARE_ARDUINO)
       # undef  FERRET_CONFIG_SAFE_MODE
       # define FERRET_DISABLE_STD_MAIN TRUE
-
-
-      #if defined(__AVR__)
-        # undef  FERRET_MEMORY_POOL_PAGE_TYPE
-        # define FERRET_MEMORY_POOL_PAGE_TYPE byte
-      #endif
-
     #endif
   #endif
 

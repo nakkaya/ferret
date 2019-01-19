@@ -2370,6 +2370,13 @@ count, when it reaches zero it will automatically free the object.
   bool object_i<rc>::equals(ref o) const {
     return (this == o.get());
   }
+
+  #ifdef FERRET_STD_LIB
+  std::ostream &operator<<(std::ostream &os, var const &v) {
+    v.stream_console();
+    return os;
+  }
+  #endif
 #+end_src
 
 All object allocations are done using =obj= function. It will return a

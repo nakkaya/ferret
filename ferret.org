@@ -3788,44 +3788,39 @@ to each other in the array which improves data locality.
       template<typename page_t, size_t pool_size>
       class memory_pool{
         static_assert((pool_size % 8) == 0, "memory_pool size must be a multiple of 8");
-
-        static const size_t max_page = (pool_size  / sizeof(page_t));
-
       public:
-
-        bitset<max_page> used;
-        alignas(alignof(page_t)) page_t pool[max_page];
+        bitset<pool_size> used;
+        page_t pool[pool_size];
         size_t next_ptr;
 
-        inline size_t scan(size_t size, size_t from_page = 0){
+        memory_pool() : pool{0}, next_ptr(0) { }
+
+        inline size_t scan(size_t n_pages, size_t from_page = 0){
           for(;;){
             size_t begin = used.ffr(from_page);
-            size_t end   = begin + size;
-    
-            if (end > max_page)
-              return max_page;
+            size_t end   = begin + n_pages;
 
-            if (used.ffs(begin, size) >= end)
+            if (end > pool_size)
+              return pool_size;
+
+            if (used.ffs(begin, end) >= end)
               return begin;
-    
+
             from_page = end;
           }
         }
 
-        memory_pool() : pool{0}, next_ptr(0) { }
-
         void *allocate(size_t req_size){
           req_size = align_of(req_size, sizeof(page_t)) + sizeof(page_t);
-          size_t n_pages = (req_size / sizeof(page_t));
+          size_t n_pages = req_size / sizeof(page_t);
+          size_t page   = scan(n_pages, next_ptr);
 
-          size_t page = scan(n_pages, next_ptr);
-  
-          if (page == max_page){
+          if (page == pool_size){
             page = scan(n_pages);
-            if (page == max_page)
+            if (page == pool_size)
               return nullptr;
           }
-          
+
           pool[page] = (page_t)n_pages;
           next_ptr = page + n_pages;
           for(size_t i = page; i < next_ptr; i++)
@@ -8562,7 +8557,7 @@ int main() {
   big_pool.free(p);
 
   assert(0        == big_pool.used.ffr(0));
-  assert(nullptr  == big_pool.allocate(256));
+  assert(nullptr  == big_pool.allocate(2048));
   assert(0        == big_pool.used.ffr(0));
 
   return 0;

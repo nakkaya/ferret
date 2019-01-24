@@ -3785,11 +3785,9 @@ to each other in the array which improves data locality.
   #ifdef FERRET_MEMORY_POOL_SIZE
   namespace memory{
     namespace allocator{
-      template<typename page_t, size_t pool_size>
-      class memory_pool{
-        static_assert((pool_size % 8) == 0, "memory_pool size must be a multiple of 8");
-      public:
-        bitset<pool_size> used;
+      template<typename page_t, size_t pool_size, typename bitset_word_t = int>
+      struct memory_pool {
+        bitset<pool_size, bitset_word_t> used;
         page_t pool[pool_size];
         size_t next_ptr;
 
@@ -4583,28 +4581,30 @@ provides its own types that are portable across architectures.
 #+begin_src c++ :tangle no
 #undef bit
 
-template<size_t S>
+template<size_t S, typename word_t = int>
 class bitset {
-  static_assert((S % 8) == 0, "bitset size must be a multiple of 8");
+  static const size_t bits_per_word = sizeof(word_t) * 8;
 
-  byte bits[S / 8];
+  static_assert((S % bits_per_word) == 0, "bitset size must be a multiple of word_t");
 
-  inline size_t word (size_t i) { return i / 8; }
-  inline size_t bit  (size_t i) { return i % 8; }
+  int bits[S / bits_per_word];
+
+  inline size_t word (size_t i) { return i / bits_per_word; }
+  inline size_t bit  (size_t i) { return i % bits_per_word; }
 
 public:
-  bitset() : bits{ (byte)0x00 } { }
+  bitset() : bits{ (word_t)0x00 } { }
 
   inline void set   (size_t b){
-    bits[word(b)] = (byte)((byte)bits[word(b)] |  (1 << (bit(b))));
+    bits[word(b)] = (word_t)((word_t)bits[word(b)] |  (1 << (bit(b))));
   }
 
   inline void reset (size_t b){
-    bits[word(b)] = (byte)((byte)bits[word(b)] & ~(1 << (bit(b))));
+    bits[word(b)] = (word_t)((word_t)bits[word(b)] & ~(1 << (bit(b))));
   }
 
   inline bool test  (size_t b){
-    return ((byte)bits[word(b)] & (1 << (bit(b))));
+    return ((word_t)bits[word(b)] & (1 << (bit(b))));
   }
 
   inline size_t ffs(size_t b = 0, size_t e = S){
@@ -8504,7 +8504,7 @@ int main() {
 
   size_t byte_s = sizeof(ferret::byte);
 
-  memory_pool<ferret::byte, 8> nano_pool;
+  memory_pool<ferret::byte, 8, char> nano_pool;
 
   void* a = nano_pool.allocate(byte_s);
   assert(nullptr  != a);
@@ -8524,7 +8524,7 @@ int main() {
   assert(6        == nano_pool.used.ffs(4));
   assert(nullptr  != nano_pool.allocate(byte_s));
 
-  memory_pool<ferret::byte,16> tiny_pool;
+  memory_pool<ferret::byte, 16, char> tiny_pool;
 
   assert(0        == tiny_pool.used.ffr(0));
   assert(nullptr  != tiny_pool.allocate(byte_s * 2));
@@ -8544,7 +8544,7 @@ int main() {
   assert(nullptr  != tiny_pool.allocate(byte_s * 1));
   assert(nullptr  == tiny_pool.allocate(byte_s * 10));
 
-  memory_pool<uint64_t,256> big_pool;
+  memory_pool<uint64_t, 256> big_pool;
 
   assert(0        == big_pool.used.ffr(0));
 

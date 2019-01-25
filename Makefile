@@ -83,6 +83,7 @@ test-release: CPPFLAGS += -fsanitize=undefined,address,leak -fno-omit-frame-poin
 NATIVE_TESTS = src/test/native/fixed_real.cpp                  \
                src/test/native/euclidean_vector.cpp            \
                src/test/native/container_array.cpp             \
+               src/test/native/bitset.cpp                      \
                src/test/native/memory_pool.cpp
 
 CORE_TESTS = src/test/core/module.clj                     \

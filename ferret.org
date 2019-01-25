@@ -8524,10 +8524,60 @@ Static code analysis (cppcheck) options,
   }
 #+end_src
 
+*** Bitset
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/test/native/bitset.cpp
+#include <cassert>
+#include <runtime.h>
+
+int main() {
+  using namespace ferret;
+
+  assert(FERRET_BITSET_USE_COMPILER_INTRINSICS == true);
+  
+  bitset<32> bs_a;
+  assert(32 == bs_a.ffs(0));
+  for(size_t i = 0; i < 2; i++)  bs_a.set(i);
+  assert(0  == bs_a.ffs(0));
+  assert(1  == bs_a.ffs(1));
+  for(size_t i = 7; i < 16; i++) bs_a.set(i);
+  assert(2  == bs_a.ffr(0));
+  assert(5  == bs_a.ffr(5));
+  assert(16 == bs_a.ffr(10));
+  assert(32 == bs_a.ffs(31));
+
+  bitset<64> bs_b;
+  assert(0  == bs_b.ffr(0));
+  assert(64 == bs_b.ffs(0));
+  for(size_t i = 0; i < 8; i++)   bs_b.set(i);
+  assert(0  == bs_b.ffs(0));
+  assert(5  == bs_b.ffs(5));
+  assert(8  == bs_b.ffr(5));
+  for(size_t i = 16; i < 48; i++) bs_b.set(i);
+  assert(16 == bs_b.ffs(8));
+  assert(48 == bs_b.ffr(16));
+
+  bitset<1024> bs_c;
+  assert(0    == bs_c.ffr(0));
+  assert(1024 == bs_c.ffs(0));
+  for(size_t i = 0; i < 32; i++)  bs_c.set(i);
+  assert(0    == bs_c.ffs(0));
+  assert(32   == bs_c.ffr(0));
+  for(size_t i = 256; i < 512; i++) bs_c.set(i);
+  assert(256   == bs_c.ffs(256));
+  assert(512   == bs_c.ffr(256));
+  for(size_t i = 768; i < 1024; i++) bs_c.set(i);
+  assert(1024  == bs_c.ffr(768));
+  
+  return 0;
+}
+#+end_src
+
 *** Memory Pool
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/test/native/memory_pool.cpp
 #define FERRET_MEMORY_POOL_SIZE 4_MB
+#define FERRET_BITSET_WORD_TYPE int
 
 #include <cassert>
 #include <runtime.h>

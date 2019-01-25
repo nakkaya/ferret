@@ -4576,7 +4576,7 @@ provides its own types that are portable across architectures.
 
 *** bitset
 
-=bitset= represents a fixed-size sequence of N bits. 
+=bitset= represents a fixed-size sequence of N bits.
 
 #+name: runtime-native-containers
 #+begin_src c++ :tangle no
@@ -4584,6 +4584,9 @@ provides its own types that are portable across architectures.
 
 #if !defined(FERRET_BITSET_WORD_TYPE)
   #define FERRET_BITSET_WORD_TYPE int
+  #if defined(__clang__) || defined(__GNUG__)
+    #define FERRET_BITSET_USE_COMPILER_INTRINSICS true
+  #endif
 #endif
 
 template<size_t S, typename word_t = FERRET_BITSET_WORD_TYPE>
@@ -4613,16 +4616,54 @@ public:
   }
 
   inline size_t ffs(size_t b = 0, size_t e = S){
-    for(size_t i = b; i < e; i++)
-      if (test(i))
-        return i;
+#if defined(FERRET_BITSET_USE_COMPILER_INTRINSICS)
+      // search first word
+      size_t word_ptr = word(b);
+      word_t this_word = bits[word_ptr];
+
+      // mask off bits below bound
+      this_word &= (~static_cast<word_t>(0)) << bit(b);
+      
+      if (this_word != static_cast<word_t>(0))
+	return ((word_ptr * bits_per_word) + (size_t) __builtin_ffs(this_word) - 1);
+
+      // check subsequent words
+      word_ptr++;
+      for (; word_ptr < word(e); word_ptr++){
+        this_word = bits[word_ptr];
+        if (this_word != static_cast<word_t>(0))
+          return ((word_ptr * bits_per_word) + (size_t) __builtin_ffs(this_word) - 1);
+      }
+#else
+      for(size_t i = b; i < e; i++)
+        if (test(i))
+          return i;
+#endif
     return S;
   }
 
   inline size_t ffr(size_t b = 0, size_t e = S){
-    for(size_t i = b; i < e; i++)
-      if (!test(i))
-        return i;
+#if defined(FERRET_BITSET_USE_COMPILER_INTRINSICS)
+      // same as ffs but complements word before counting
+      size_t word_ptr = word(b);
+      word_t this_word = ~bits[word_ptr];
+
+      this_word &= (~static_cast<word_t>(0)) << bit(b);
+      
+      if (this_word != static_cast<word_t>(0))
+	return ((word_ptr * bits_per_word) + (size_t) __builtin_ffs(this_word) - 1);
+
+      word_ptr++;
+      for (; word_ptr < word(e); word_ptr++){
+        this_word = ~bits[word_ptr];
+        if (this_word != static_cast<word_t>(0))
+          return ((word_ptr * bits_per_word) + (size_t) __builtin_ffs(this_word) - 1);
+      }
+#else
+      for(size_t i = b; i < e; i++)
+        if (!test(i))
+          return i;
+#endif
     return S;
   }
 

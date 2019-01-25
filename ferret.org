@@ -3785,7 +3785,8 @@ to each other in the array which improves data locality.
   #ifdef FERRET_MEMORY_POOL_SIZE
   namespace memory{
     namespace allocator{
-      template<typename page_t, size_t pool_size, typename bitset_word_t = int>
+      template<typename page_t, size_t pool_size,
+               typename bitset_word_t = FERRET_BITSET_WORD_TYPE>
       struct memory_pool {
         bitset<pool_size, bitset_word_t> used;
         page_t pool[pool_size];
@@ -4581,7 +4582,11 @@ provides its own types that are portable across architectures.
 #+begin_src c++ :tangle no
 #undef bit
 
-template<size_t S, typename word_t = int>
+#if !defined(FERRET_BITSET_WORD_TYPE)
+  #define FERRET_BITSET_WORD_TYPE int
+#endif
+
+template<size_t S, typename word_t = FERRET_BITSET_WORD_TYPE>
 class bitset {
   static const size_t bits_per_word = sizeof(word_t) * 8;
 

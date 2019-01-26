@@ -3794,7 +3794,7 @@ to each other in the array which improves data locality.
 
         memory_pool() : pool{0}, next_ptr(0) { }
 
-        inline size_t scan(size_t n_pages, size_t from_page = 0){
+        inline size_t scan(size_t n_pages, size_t from_page = 0) const {
           for(;;){
             size_t begin = used.ffr(from_page);
             size_t end   = begin + n_pages;

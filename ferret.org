@@ -3639,16 +3639,8 @@ To enable memory pooling,
 #+END_EXAMPLE
 
 This will create a pool object as a global variable that holds an
-array of =256 / sizeof(size_t)=.
-
-Pool sizes can also be defined using user-defined suffixes.
-
-#+BEGIN_EXAMPLE
-  (configure-runtime! FERRET_MEMORY_POOL_SIZE "4_MB")   ;; Allocate 4 mega bytes of memory.
-  (configure-runtime! FERRET_MEMORY_POOL_SIZE "512_KB") ;; Allocate 512 kilo bytes of memory.
-#+END_EXAMPLE
-
-By default page size is =sizeof(size_t)=. This can be changed using,
+array of =256= =size_t=s. By default page size is
+=sizeof(size_t)=. This can be changed using,
 
 #+BEGIN_EXAMPLE
   (configure-runtime! FERRET_MEMORY_POOL_PAGE_TYPE byte)
@@ -3718,15 +3710,15 @@ namespace memory {
 
 When =FERRET_MEMORY_POOL_SIZE= is defined Ferret programs will use a
 memory pool called =memory::allocator::program_memory= instead of
-/mallac/,/free/ for memory allocation, depending on the pool size
-Ferret will allocate /N/ bytes of memory on stack and all memory
+=mallac=, =free= for memory allocation, depending on the pool size
+Ferret will allocate =N= bytes of memory on stack and all memory
 allocation happens in this memory pool useful when working with very
 limited amount of memory, such as micro controllers where you want
 complete control over the memory and you need deterministic timing
 requirements.
 
 This allocator uses a bit-map to keep track of the used and unused
-memory locations for its book-keeping purposes.  This allocator will
+memory locations for its book-keeping purposes. This allocator will
 make use of 1 single bit to keep track of whether it has been
 allocated or not. A bit 0 indicates free, while 1 indicates
 allocated. This has been done so that you can easily check a
@@ -3766,13 +3758,13 @@ parameterized. Thus, close to optimal performance will result.
   #endif
 #+end_src 
 
-Pool allocator uses circular first-fit strategy, when /allocate/ is
-called the pool will scan the memory pool using the /used/ bit array
+Pool allocator uses circular first-fit strategy, when =allocate= is
+called the pool will scan the memory pool using the =used= bit array
 to find a block of memory big enough to satisfy the request. If found,
-it will the mark the region as used and return a pointer from /pool/
+it will the mark the region as used and return a pointer from =pool=
 array to the user which points to the memory block.
 
-When a free request is received, we resolve the pointer in to the
+When a =free= request is received, we resolve the pointer in to the
 memory pool read the book keeping information on how much memory
 is allocated to this pointer and set these pages to unused.
 

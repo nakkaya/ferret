@@ -3814,8 +3814,7 @@ to each other in the array which improves data locality.
 
           pool[page] = (page_t)n_pages;
           next_ptr = page + n_pages;
-          for(size_t i = page; i < next_ptr; i++)
-            used.set(i);
+          used.set(page, next_ptr);
 
           return &pool[++page];
         }
@@ -3823,9 +3822,7 @@ to each other in the array which improves data locality.
         void free(void *p){
           ptrdiff_t begin = (static_cast<page_t *>(p) - pool) - 1;
           ptrdiff_t end = begin + (ptrdiff_t)pool[begin];
-
-          for (size_t i = (size_t)begin; i < (size_t)end; i++)
-            used.reset(i);
+          used.reset((size_t)begin, (size_t)end);
         }
       };
     }
@@ -4599,8 +4596,27 @@ public:
     bits[word(b)] = (word_t)((word_t)bits[word(b)] |  (1 << (bit(b))));
   }
 
+  inline void set (size_t b, size_t e){
+    for(size_t i = b; i < e; i++)
+      set(i);
+  }
+
   inline void reset (size_t b){
     bits[word(b)] = (word_t)((word_t)bits[word(b)] & ~(1 << (bit(b))));
+  }
+
+  inline void reset (size_t b, size_t e){
+    for(size_t i = b; i < e; i++)
+      reset(i);
+  }
+
+  inline void flip (size_t b){
+    bits[word(b)] = (word_t)((word_t)bits[word(b)] ^  (1 << (bit(b))));
+  }
+
+  inline void flip (size_t b, size_t e){
+    for(size_t i = b; i < e; i++)
+      flip(i);
   }
 
   inline bool test  (size_t b) const {
@@ -8560,6 +8576,13 @@ int main() {
   assert(512   == bs_c.ffr(256));
   for(size_t i = 768; i < 1024; i++) bs_c.set(i);
   assert(1024  == bs_c.ffr(768));
+
+  bitset<32> bs_d;
+  assert(0    == bs_d.ffr(0));
+  bs_d.flip(0);
+  assert(1    == bs_d.ffr(0));
+  bs_d.set(2,6);
+  assert(6    == bs_d.ffr(5));
   
   return 0;
 }

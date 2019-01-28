@@ -4675,6 +4675,13 @@ public:
     return S;
   }
 
+  // Return word with length-n bit block starting at bit p set.
+  // Both p and n are effectively taken modulo bits_per_word.
+  static inline word_t bit_block(word_t p, word_t n){
+    word_t x = (word_t(1) << n) - word_t(1);
+    return  x << p;
+  }
+
 #if defined(FERRET_STD_LIB)
   friend std::ostream& operator<< (std::ostream& stream, bitset& x) {
     for(size_t i = 0; i < S; i++)
@@ -8583,7 +8590,13 @@ int main() {
   assert(1    == bs_d.ffr(0));
   bs_d.set(2,6);
   assert(6    == bs_d.ffr(5));
-  
+
+  assert((15    == bitset<32,int>::bit_block(0,4)));
+  assert((60    == bitset<32,int>::bit_block(2,4)));
+  assert((1024  == bitset<32,int>::bit_block(10,1)));
+  assert((3072  == bitset<32,int>::bit_block(10,2)));
+  assert((98304 == bitset<32,int>::bit_block(15,2)));
+
   return 0;
 }
 #+end_src

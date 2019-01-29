@@ -4584,16 +4584,16 @@ class bitset {
 
   static_assert((S % bits_per_word) == 0, "bitset size must be a multiple of word_t");
 
-  int bits[S / bits_per_word];
+  word_t bits[S / bits_per_word];
 
   inline size_t word (size_t i) const { return i / bits_per_word; }
   inline size_t bit  (size_t i) const { return i % bits_per_word; }
 
 public:
-  bitset() : bits{ (word_t)0x00 } { }
+  bitset() : bits{ word_t(0x00) } { }
 
   inline void set   (size_t b){
-    bits[word(b)] = (word_t)((word_t)bits[word(b)] |  (1 << (bit(b))));
+    bits[word(b)] = (word_t)(bits[word(b)] |  (word_t(1) << (bit(b))));
   }
 
   inline void set (size_t b, size_t e){
@@ -4602,7 +4602,7 @@ public:
   }
 
   inline void reset (size_t b){
-    bits[word(b)] = (word_t)((word_t)bits[word(b)] & ~(1 << (bit(b))));
+    bits[word(b)] = (word_t)(bits[word(b)] & ~(word_t(1) << (bit(b))));
   }
 
   inline void reset (size_t b, size_t e){
@@ -4611,7 +4611,7 @@ public:
   }
 
   inline void flip (size_t b){
-    bits[word(b)] = (word_t)((word_t)bits[word(b)] ^  (1 << (bit(b))));
+    bits[word(b)] = (word_t)(bits[word(b)] ^  (word_t(1) << (bit(b))));
   }
 
   inline void flip (size_t b, size_t e){
@@ -4620,7 +4620,7 @@ public:
   }
 
   inline bool test  (size_t b) const {
-    return ((word_t)bits[word(b)] & (1 << (bit(b))));
+    return (bits[word(b)] & (word_t(1) << (bit(b))));
   }
 
   inline size_t ffs(size_t b = 0, size_t e = S) const {

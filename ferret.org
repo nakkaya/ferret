@@ -4572,7 +4572,7 @@ provides its own types that are portable across architectures.
 #undef bit
 
 #if !defined(FERRET_BITSET_WORD_TYPE)
-  #define FERRET_BITSET_WORD_TYPE int
+  #define FERRET_BITSET_WORD_TYPE unsigned int
   #if defined(__clang__) || defined(__GNUG__)
     #define FERRET_BITSET_USE_COMPILER_INTRINSICS true
   #endif
@@ -4633,14 +4633,14 @@ public:
       this_word &= (~static_cast<word_t>(0)) << bit(b);
       
       if (this_word != static_cast<word_t>(0))
-	return ((word_ptr * bits_per_word) + (size_t) __builtin_ffs(this_word) - 1);
+	return ((word_ptr * bits_per_word) + (size_t) __builtin_ctz(this_word));
 
       // check subsequent words
       word_ptr++;
       for (; word_ptr < word(e); word_ptr++){
         this_word = bits[word_ptr];
         if (this_word != static_cast<word_t>(0))
-          return ((word_ptr * bits_per_word) + (size_t) __builtin_ffs(this_word) - 1);
+          return ((word_ptr * bits_per_word) + (size_t) __builtin_ctz(this_word));
       }
 #else
       for(size_t i = b; i < e; i++)
@@ -4659,13 +4659,13 @@ public:
       this_word &= (~static_cast<word_t>(0)) << bit(b);
       
       if (this_word != static_cast<word_t>(0))
-	return ((word_ptr * bits_per_word) + (size_t) __builtin_ffs(this_word) - 1);
+	return ((word_ptr * bits_per_word) + (size_t) __builtin_ctz(this_word));
 
       word_ptr++;
       for (; word_ptr < word(e); word_ptr++){
         this_word = ~bits[word_ptr];
         if (this_word != static_cast<word_t>(0))
-          return ((word_ptr * bits_per_word) + (size_t) __builtin_ffs(this_word) - 1);
+          return ((word_ptr * bits_per_word) + (size_t) __builtin_ctz(this_word));
       }
 #else
       for(size_t i = b; i < e; i++)

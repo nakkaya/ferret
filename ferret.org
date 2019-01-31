@@ -3814,7 +3814,7 @@ to each other in the array which improves data locality.
 
           pool[page] = (page_t)n_pages;
           next_ptr = page + n_pages;
-          used.set(page, next_ptr);
+          used.flip(page, next_ptr);
 
           return &pool[++page];
         }
@@ -3822,7 +3822,7 @@ to each other in the array which improves data locality.
         void free(void *p){
           ptrdiff_t begin = (static_cast<page_t *>(p) - pool) - 1;
           ptrdiff_t end = begin + (ptrdiff_t)pool[begin];
-          used.reset((size_t)begin, (size_t)end);
+          used.flip((size_t)begin, (size_t)end);
         }
       };
     }
@@ -4597,8 +4597,17 @@ public:
   }
 
   inline void set (size_t b, size_t e){
-    for(size_t i = b; i < e; i++)
-      set(i);
+    size_t word_ptr = word(b);
+    size_t n_bits = e - b;
+
+    bits[word_ptr] = (word_t)(bits[word_ptr] | bit_block(bit(b), n_bits));
+
+    n_bits -= bits_per_word - bit(b);
+    word_ptr++;
+    for (; word_ptr <= word(e); word_ptr++){
+      bits[word_ptr] = (word_t)(bits[word_ptr] | bit_block(0, n_bits));
+      n_bits -= bits_per_word;
+    }
   }
 
   inline void reset (size_t b){
@@ -4606,8 +4615,17 @@ public:
   }
 
   inline void reset (size_t b, size_t e){
-    for(size_t i = b; i < e; i++)
-      reset(i);
+    size_t word_ptr = word(b);
+    size_t n_bits = e - b;
+
+    bits[word_ptr] = (word_t)(bits[word_ptr] & ~bit_block(bit(b), n_bits));
+
+    n_bits -= bits_per_word - bit(b);
+    word_ptr++;
+    for (; word_ptr <= word(e); word_ptr++){
+      bits[word_ptr] = (word_t)(bits[word_ptr] & ~bit_block(0, n_bits));
+      n_bits -= bits_per_word;
+    }
   }
 
   inline void flip (size_t b){
@@ -4615,8 +4633,17 @@ public:
   }
 
   inline void flip (size_t b, size_t e){
-    for(size_t i = b; i < e; i++)
-      flip(i);
+    size_t word_ptr = word(b);
+    size_t n_bits = e - b;
+
+    bits[word_ptr] = (word_t)(bits[word_ptr] ^ bit_block(bit(b), n_bits));
+
+    n_bits -= bits_per_word - bit(b);
+    word_ptr++;
+    for (; word_ptr <= word(e); word_ptr++){
+      bits[word_ptr] = (word_t)(bits[word_ptr] ^ bit_block(0, n_bits));
+      n_bits -= bits_per_word;
+    }
   }
 
   inline bool test  (size_t b) const {
@@ -4677,9 +4704,12 @@ public:
 
   // Return word with length-n bit block starting at bit p set.
   // Both p and n are effectively taken modulo bits_per_word.
-  static inline word_t bit_block(word_t p, word_t n){
-    word_t x = (word_t(1) << n) - word_t(1);
-    return  x << p;
+  static inline word_t bit_block(size_t p, size_t n){
+    if (n >= bits_per_word)
+      return (word_t)(word_t(-1) << p);
+
+    word_t x = (word_t)((word_t(1) << n) - word_t(1));
+    return  (word_t)(x << p);
   }
 
 #if defined(FERRET_STD_LIB)
@@ -8573,29 +8603,50 @@ int main() {
   assert(48 == bs_b.ffr(16));
 
   bitset<1024> bs_c;
-  assert(0    == bs_c.ffr(0));
-  assert(1024 == bs_c.ffs(0));
+  assert(0     == bs_c.ffr(0));
+  assert(1024  == bs_c.ffs(0));
   for(size_t i = 0; i < 32; i++)  bs_c.set(i);
-  assert(0    == bs_c.ffs(0));
-  assert(32   == bs_c.ffr(0));
+  assert(0     == bs_c.ffs(0));
+  assert(32    == bs_c.ffr(0));
   for(size_t i = 256; i < 512; i++) bs_c.set(i);
   assert(256   == bs_c.ffs(256));
   assert(512   == bs_c.ffr(256));
   for(size_t i = 768; i < 1024; i++) bs_c.set(i);
   assert(1024  == bs_c.ffr(768));
 
-  bitset<32> bs_d;
+  bitset<1024> bs_d;
   assert(0    == bs_d.ffr(0));
   bs_d.flip(0);
   assert(1    == bs_d.ffr(0));
-  bs_d.set(2,6);
-  assert(6    == bs_d.ffr(5));
+  bs_d.flip(0);
+  assert(0    == bs_d.ffr(0));
 
-  assert((15    == bitset<32,int>::bit_block(0,4)));
-  assert((60    == bitset<32,int>::bit_block(2,4)));
-  assert((1024  == bitset<32,int>::bit_block(10,1)));
-  assert((3072  == bitset<32,int>::bit_block(10,2)));
-  assert((98304 == bitset<32,int>::bit_block(15,2)));
+  assert(1024 == bs_d.ffs(0));
+  bs_d.set(0, 1024);
+  assert(0 == bs_d.ffs(0));
+  bs_d.reset(0, 1024);
+  assert(1024 == bs_d.ffs(0));
+  bs_d.flip(0, 1024);
+  assert(0 == bs_d.ffs(0));
+  bs_d.flip(0, 1024);
+  assert(1024 == bs_d.ffs(0));
+
+  bs_d.set(256,512);
+  bs_d.set(768,1024);
+
+  assert(512  == bs_d.ffr(256));
+  assert(256  == bs_d.ffs(256));
+  assert(1024 == bs_d.ffr(768));
+  assert(768  == bs_d.ffs(768));
+
+  assert((15    == bitset<8,unsigned char>::bit_block(0,4)));
+  assert((15    == bitset<32,unsigned int>::bit_block(0,4)));
+  assert((60    == bitset<32,unsigned int>::bit_block(2,4)));
+  assert((1024  == bitset<32,unsigned int>::bit_block(10,1)));
+  assert((3072  == bitset<32,unsigned int>::bit_block(10,2)));
+  assert((98304 == bitset<32,unsigned int>::bit_block(15,2)));
+  assert((-1U   == bitset<32,unsigned int>::bit_block(0,60)));
+  assert((-1U   == bitset<32,unsigned int>::bit_block(0,32)));
 
   return 0;
 }
@@ -8605,7 +8656,7 @@ int main() {
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/test/native/memory_pool.cpp
 #define FERRET_MEMORY_POOL_SIZE 4_MB
-#define FERRET_BITSET_WORD_TYPE int
+#define FERRET_BITSET_WORD_TYPE unsigned int
 
 #include <cassert>
 #include <runtime.h>
@@ -8628,7 +8679,7 @@ int main() {
 
   size_t byte_s = sizeof(ferret::byte);
 
-  memory_pool<ferret::byte, 8, char> nano_pool;
+  memory_pool<ferret::byte, 8, unsigned char> nano_pool;
 
   void* a = nano_pool.allocate(byte_s);
   assert(nullptr  != a);
@@ -8648,7 +8699,7 @@ int main() {
   assert(6        == nano_pool.used.ffs(4));
   assert(nullptr  != nano_pool.allocate(byte_s));
 
-  memory_pool<ferret::byte, 16, char> tiny_pool;
+  memory_pool<ferret::byte, 16, unsigned char> tiny_pool;
 
   assert(0        == tiny_pool.used.ffr(0));
   assert(nullptr  != tiny_pool.allocate(byte_s * 2));

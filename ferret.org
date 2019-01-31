@@ -4604,7 +4604,7 @@ public:
 
     n_bits -= bits_per_word - bit(b);
     word_ptr++;
-    for (; word_ptr <= word(e); word_ptr++){
+    for (; word_ptr <= word(e) && word_ptr < S / bits_per_word; word_ptr++){
       bits[word_ptr] = (word_t)(bits[word_ptr] | bit_block(0, n_bits));
       n_bits -= bits_per_word;
     }
@@ -4622,7 +4622,7 @@ public:
 
     n_bits -= bits_per_word - bit(b);
     word_ptr++;
-    for (; word_ptr <= word(e); word_ptr++){
+    for (; word_ptr <= word(e) && word_ptr < S / bits_per_word; word_ptr++){
       bits[word_ptr] = (word_t)(bits[word_ptr] & ~bit_block(0, n_bits));
       n_bits -= bits_per_word;
     }
@@ -4640,7 +4640,7 @@ public:
 
     n_bits -= bits_per_word - bit(b);
     word_ptr++;
-    for (; word_ptr <= word(e); word_ptr++){
+    for (; word_ptr <= word(e) && word_ptr < S / bits_per_word; word_ptr++){
       bits[word_ptr] = (word_t)(bits[word_ptr] ^ bit_block(0, n_bits));
       n_bits -= bits_per_word;
     }

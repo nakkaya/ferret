@@ -4581,10 +4581,11 @@ provides its own types that are portable across architectures.
 template<size_t S, typename word_t = FERRET_BITSET_WORD_TYPE>
 class bitset {
   static const size_t bits_per_word = sizeof(word_t) * 8;
+  static const size_t n_words = S / bits_per_word;
 
   static_assert((S % bits_per_word) == 0, "bitset size must be a multiple of word_t");
 
-  word_t bits[S / bits_per_word];
+  word_t bits[n_words];
 
   inline size_t word (size_t i) const { return i / bits_per_word; }
   inline size_t bit  (size_t i) const { return i % bits_per_word; }
@@ -4604,7 +4605,7 @@ public:
 
     n_bits -= bits_per_word - bit(b);
     word_ptr++;
-    for (; word_ptr <= word(e) && word_ptr < S / bits_per_word; word_ptr++){
+    for (; word_ptr <= word(e) && word_ptr < n_words; word_ptr++){
       bits[word_ptr] = (word_t)(bits[word_ptr] | bit_block(0, n_bits));
       n_bits -= bits_per_word;
     }
@@ -4622,7 +4623,7 @@ public:
 
     n_bits -= bits_per_word - bit(b);
     word_ptr++;
-    for (; word_ptr <= word(e) && word_ptr < S / bits_per_word; word_ptr++){
+    for (; word_ptr <= word(e) && word_ptr < n_words; word_ptr++){
       bits[word_ptr] = (word_t)(bits[word_ptr] & ~bit_block(0, n_bits));
       n_bits -= bits_per_word;
     }
@@ -4640,7 +4641,7 @@ public:
 
     n_bits -= bits_per_word - bit(b);
     word_ptr++;
-    for (; word_ptr <= word(e) && word_ptr < S / bits_per_word; word_ptr++){
+    for (; word_ptr <= word(e) && word_ptr < n_words; word_ptr++){
       bits[word_ptr] = (word_t)(bits[word_ptr] ^ bit_block(0, n_bits));
       n_bits -= bits_per_word;
     }
@@ -4664,7 +4665,7 @@ public:
 
       // check subsequent words
       word_ptr++;
-      for (; word_ptr < word(e); word_ptr++){
+      for (; word_ptr <= word(e) && word_ptr < n_words; word_ptr++){
         this_word = bits[word_ptr];
         if (this_word != static_cast<word_t>(0))
           return ((word_ptr * bits_per_word) + (size_t) __builtin_ctz(this_word));
@@ -4689,7 +4690,7 @@ public:
 	return ((word_ptr * bits_per_word) + (size_t) __builtin_ctz(this_word));
 
       word_ptr++;
-      for (; word_ptr < word(e); word_ptr++){
+      for (; word_ptr <= word(e) && word_ptr < n_words; word_ptr++){
         this_word = ~bits[word_ptr];
         if (this_word != static_cast<word_t>(0))
           return ((word_ptr * bits_per_word) + (size_t) __builtin_ctz(this_word));
@@ -8638,6 +8639,14 @@ int main() {
   assert(256  == bs_d.ffs(256));
   assert(1024 == bs_d.ffr(768));
   assert(768  == bs_d.ffs(768));
+
+  bs_d.reset(0,1024);
+  for(size_t i = 0; i < 87; i++)  bs_d.set(i);
+  for(size_t i = 90; i < 94; i++)  bs_d.set(i);
+  for(size_t i = 106; i < 111; i++)  bs_d.set(i);
+  for(size_t i = 136; i < 149; i++)  bs_d.set(i);
+
+  assert(106 == bs_d.ffs(94,100));
 
   assert((15    == bitset<8,unsigned char>::bit_block(0,4)));
   assert((15    == bitset<32,unsigned int>::bit_block(0,4)));

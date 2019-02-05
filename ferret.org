@@ -4605,7 +4605,8 @@ public:
 
     n_bits -= bits_per_word - bit(b);
     word_ptr++;
-    for (; word_ptr <= word(e) && word_ptr < n_words; word_ptr++){
+    size_t last_word = (word(e) == n_words) ? n_words : word(e) + 1;
+    for (; word_ptr < last_word; word_ptr++){
       bits[word_ptr] = (word_t)(bits[word_ptr] | bit_block(0, n_bits));
       n_bits -= bits_per_word;
     }
@@ -4623,7 +4624,8 @@ public:
 
     n_bits -= bits_per_word - bit(b);
     word_ptr++;
-    for (; word_ptr <= word(e) && word_ptr < n_words; word_ptr++){
+    size_t last_word = (word(e) == n_words) ? n_words : word(e) + 1;
+    for (; word_ptr < last_word; word_ptr++){
       bits[word_ptr] = (word_t)(bits[word_ptr] & ~bit_block(0, n_bits));
       n_bits -= bits_per_word;
     }
@@ -4641,7 +4643,8 @@ public:
 
     n_bits -= bits_per_word - bit(b);
     word_ptr++;
-    for (; word_ptr <= word(e) && word_ptr < n_words; word_ptr++){
+    size_t last_word = (word(e) == n_words) ? n_words : word(e) + 1;
+    for (; word_ptr < last_word; word_ptr++){
       bits[word_ptr] = (word_t)(bits[word_ptr] ^ bit_block(0, n_bits));
       n_bits -= bits_per_word;
     }
@@ -4665,7 +4668,8 @@ public:
 
       // check subsequent words
       word_ptr++;
-      for (; word_ptr <= word(e) && word_ptr < n_words; word_ptr++){
+      size_t last_word = (word(e) == n_words) ? n_words : word(e) + 1;
+      for (; word_ptr < last_word; word_ptr++){
         this_word = bits[word_ptr];
         if (this_word != static_cast<word_t>(0))
           return ((word_ptr * bits_per_word) + (size_t) __builtin_ctz(this_word));
@@ -4690,7 +4694,8 @@ public:
 	return ((word_ptr * bits_per_word) + (size_t) __builtin_ctz(this_word));
 
       word_ptr++;
-      for (; word_ptr <= word(e) && word_ptr < n_words; word_ptr++){
+      size_t last_word = (word(e) == n_words) ? n_words : word(e) + 1;
+      for (; word_ptr < last_word; word_ptr++){
         this_word = ~bits[word_ptr];
         if (this_word != static_cast<word_t>(0))
           return ((word_ptr * bits_per_word) + (size_t) __builtin_ctz(this_word));

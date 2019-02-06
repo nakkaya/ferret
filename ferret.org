@@ -3596,16 +3596,19 @@ Function invocation,
         return f.cast<lambda_i>()->invoke(runtime::first(argv));
 
       struct{
-        var operator()(ref seq) const { 
+        var operator()(ref seq) const {
           ref head = runtime::first(seq);
 
+          if (head.is_nil())
+            return cached::empty_sequence_o;
+  
           if (head.cast<seekable_i>())
             return head;
-          else
-            return runtime::cons(head, (*this)(runtime::rest(seq)));
+
+          return runtime::cons(head, (*this)(runtime::rest(seq)));
         }
       } spread;
-
+      
       return f.cast<lambda_i>()->invoke(spread(argv));
     }
   }
@@ -6410,41 +6413,73 @@ function *f* to run in milliseconds,
     function. When called faster than ==rate== it can either block or
     return ==nil== immediately.
 
-#+BEGIN_EXAMPLE
-  (defn ping []
-    (println "Ping!"))
+#+begin_src clojure
+(defn ping []
+  (println "Ping!"))
 
-  (def throttled-ping (fn-throttler ping 1 :second :blocking))
+(def throttled-ping (fn-throttler ping 1 :second :blocking))
 
-  ;; Ping console every second
-  (forever
-   (throttled-ping))
-#+END_EXAMPLE
+;; Ping console every second
+(forever
+ (throttled-ping))    
+#+end_src
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn fn-throttler-aux-blocking [timer f rate]
-    (fn [& args]
-      (let [wait (- rate (elapsed-micros-now timer))]
-        (elapsed-micros-reset timer)
-        (sleep-micros wait)
-        (apply f args))))
+(defobject fn_throttler_o "ferret/obj/fn_throttler_o.h")
 
-  (defn fn-throttler-aux-non-blocking [timer f rate]
-    (fn [& args]
-      (when (elapsed-micros? timer rate)
-        (elapsed-micros-reset timer)
-        (apply f args))))
+(defn new-fn-throttler [f ^real_t rate ^bolean block]
+  "return obj<fn_throttler>(f, rate, block);")
 
-  (defmacro fn-throttler [f rate unit policy]
-    (let [unit->ms {:microsecond 1 :millisecond 1000
-                    :second 1000000 :minute 60000000
-                    :hour 3600000000 :day 86400000000
-                    :month 2678400000000}
-          rate (/ (unit->ms unit) rate)]
-      (if (= policy :blocking)
-        `(fn-throttler-aux-blocking     (new-elapsed-micros) ~f ~rate)
-        `(fn-throttler-aux-non-blocking (new-elapsed-micros) ~f ~rate))))
+(defmacro fn-throttler [f rate unit policy]
+  (let [unit->ms {:microsecond 1 :millisecond 1000
+                  :second 1000000 :minute 60000000
+                  :hour 3600000000 :day 86400000000
+                  :month 2678400000000}
+        rate (/ (unit->ms unit) rate)]
+    `(new-fn-throttler ~f ~rate ~(= policy :blocking))))
+#+end_src
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/fn_throttler_o.h
+#if !defined(FERRET_SAFE_MODE)
+class fn_throttler : public lambda_i {
+  var fn;
+  elapsed_micros timer;
+  real_t rate;
+  bool blocking;
+
+#if defined(FERRET_HARDWARE_ARDUINO)
+  inline void _wait(number_t t) const{
+    ::delayMicroseconds(t);
+  }
+#elif defined(FERRET_STD_LIB)
+  inline void _wait(number_t t) const{
+    auto duration = ::std::chrono::microseconds(t);
+    ::std::this_thread::sleep_for(duration);
+  }
+#endif
+  
+  var exec(ref args){
+    if (blocking)
+      _wait((number_t)rate - timer.elapsed());
+
+    if (timer.is_elapsed(rate)){
+      timer.reset();
+      return runtime::apply(fn, args);
+    }
+    
+    return nil();
+  }
+  
+public:
+
+  explicit fn_throttler(var f, real_t r, bool b) : fn(f), rate(r), blocking (b) { }
+
+  var invoke(ref args) const {
+    return var((object*)this).cast<fn_throttler>()->exec(args);
+  }
+};
+#endif
 #+end_src
 
 ** String

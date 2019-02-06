@@ -3562,6 +3562,10 @@ Function invocation,
 
   template<>
   inline var run(ref);
+
+  namespace runtime{
+    inline var apply(ref fn, ref argv);
+  }
 #+end_src
 
 #+name: runtime-native-implementations
@@ -3584,6 +3588,26 @@ Function invocation,
   template<typename... Args>
   inline var run(ref fn, Args const & ... args) {
     return fn.cast<lambda_i>()->invoke(runtime::list(args...));
+  }
+
+  namespace runtime {
+    inline var apply(ref f, ref argv){
+      if (runtime::rest(argv).is_type(type_id<empty_sequence>))
+        return f.cast<lambda_i>()->invoke(runtime::first(argv));
+
+      struct{
+        var operator()(ref seq) const { 
+          ref head = runtime::first(seq);
+
+          if (head.cast<seekable_i>())
+            return head;
+          else
+            return runtime::cons(head, (*this)(runtime::rest(seq)));
+        }
+      } spread;
+
+      return f.cast<lambda_i>()->invoke(spread(argv));
+    }
   }
 #+end_src
 
@@ -5667,21 +5691,7 @@ arguments to =argv=.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn apply [f & argv]
-    "if (runtime::rest(argv).is_type(type_id<empty_sequence>))
-       return f.cast<lambda_i>()->invoke(runtime::first(argv));
-
-     struct{
-       var operator()(ref seq) const { 
-         ref head = runtime::first(seq);
-
-         if (head.cast<seekable_i>())
-           return head;
-         else
-           return runtime::cons(head, (*this)(runtime::rest(seq)));
-         }
-     } spread;
-
-     return f.cast<lambda_i>()->invoke(spread(argv));")
+    "return runtime::apply(f,argv);")
 #+end_src
 
 *** conj

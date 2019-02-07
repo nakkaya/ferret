@@ -5733,9 +5733,9 @@ returns logical =true=.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn repeatedly
-    ([f] (cons (f) (lazy-seq (repeatedly f))))
-    ([n f] (take n (repeatedly f))))
+(defn repeatedly
+  ([f]   (lazy-seq (cons (f) (repeatedly f))))
+  ([n f] (take n (repeatedly f))))
 #+end_src
 
 *** partition

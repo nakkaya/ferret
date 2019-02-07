@@ -9974,6 +9974,7 @@ Create some dummy libs under /test/modules/,
   - *Memory Pool* 
     - Allow chainable allocators. i.e Use system
       allocator until OOM then switch to pool allocator or vice versa.
+      - [[https://www.youtube.com/watch?v=LIb3L4vKZ7U&t=2457s][CppCon 2015: Andrei Alexandrescu std::allocator]]
       - [[https://github.com/FelixPetriconi/AllocatorBuilder][Allocator Builder]]
       - https://github.com/mtrebi/memory-allocators
       - [[https://www.gamedev.net/articles/programming/general-and-gameplay-programming/c-custom-memory-allocation-r3010/][C++: Custom memory allocation]]

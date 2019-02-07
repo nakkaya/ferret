@@ -6355,8 +6355,6 @@ Port of Teensy elapsedMicros API,
       return (unsigned long)::std::chrono::duration_cast<::std::chrono::microseconds>(epoch).count();
     }
   #endif
-
-    inline unsigned long _elapsed() const { return (now() - us); }  
     
    public:
 
@@ -6376,35 +6374,72 @@ Port of Teensy elapsedMicros API,
     }
   #endif
 
+    inline unsigned long _elapsed() const { return (now() - us); }
     inline var elapsed() const { return obj<number>((number_t)_elapsed()); }
     inline bool is_elapsed(real_t t) const { return (_elapsed() >= (unsigned long)t); }
   };
   #endif
 #+end_src
 
-*** time-fn
-
-Takes a function *f* and returns the number of milliseconds it takes
-to run,
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defn time-fn [f]
-    (let [start (millis)]
-      (f)
-      (- (millis) start)))
-#+end_src
-
 *** benchmark
 
-Runs the function *f* *n* times and return the average time it takes
-function *f* to run in milliseconds,
+Benchmark a function. Run function =f= =n= times and print execution
+statistics.
+
+#+begin_src clojure
+(benchmark #(reduce + (range 1000)) 10000)
+#+end_src
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn benchmark [f n]
-    (let [values (map (fn [_] (time-fn f)) (range n))]
-      (floor (/ (apply + values) n))))
+(defn benchmark
+  ([f]
+   (benchmark f 100))
+  ([f ^number_t n]
+   "elapsed_micros timer;
+
+    run(f);
+    real_t elapsed = (real_t)timer._elapsed() / 1000.0;
+
+    real_t min = elapsed;
+    real_t max = elapsed;
+    real_t sum = 0;
+    real_t sum_sq = 0;
+
+    for(number_t i =0; i < n; i++){
+      timer.reset();
+      run(f);
+      real_t elapsed = (real_t)timer._elapsed() / 1000.0;
+      sum += elapsed;
+      sum_sq += (elapsed * elapsed);
+      if (elapsed < min)
+        min = elapsed;
+      if (elapsed > max)
+        max = elapsed;
+      }
+
+      real_t mean = sum / n;
+      real_t stdev = sqrt((sum_sq / n) - (mean * mean));
+
+      runtime::print(\" \\t mean : \");
+      runtime::print(mean);
+      runtime::print((char)0xA);
+
+      runtime::print(\"std-deviation : \");
+      runtime::print(stdev);
+      runtime::print((char)0xA);
+
+      runtime::print(\"\\t  min : \");
+      runtime::print(min);
+      runtime::print((char)0xA);
+
+      runtime::print(\"\\t  max : \");
+      runtime::print(max);
+      runtime::print((char)0xA);
+
+      runtime::print(\"\\trange : \");
+      runtime::print((max - min));
+      runtime::print((char)0xA);"))
 #+end_src
 
 *** fn-throttler
@@ -9463,9 +9498,7 @@ int main() {
   (deftest timing-test
     (let [now (millis)]
       (sleep 150)
-      (is (>= (- (millis) now) 100)))
-    (is (>= (time-fn (fn [] (sleep 150) (+ 1 1))) 100))
-    (is (>= (benchmark (fn [] (sleep 20) (+ 1 1)) 10) 10)))
+      (is (>= (- (millis) now) 100))))
 
   (defn ping [] true)
 

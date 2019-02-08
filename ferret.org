@@ -4150,15 +4150,20 @@ support any real number type the system supports.
   #endif
 
   #if !defined(FERRET_REAL_EPSILON)
-     #define FERRET_REAL_EPSILON   0.00001
+     #define FERRET_REAL_EPSILON   0.0001
   #endif
-    
-    typedef FERRET_NUMBER_TYPE           number_t;                   // Whole number Container.
-    typedef FERRET_REAL_TYPE             real_t;                     // Real number Container.
-    const   real_t                       real_epsilon(FERRET_REAL_EPSILON);
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    const   size_t                       number_precision = 4;       // number Format String (fprinf)
-  #endif
+
+    static int req_real_precision(double t) {
+      int p = 0;
+      for (size_t i = 1; t * (double)i != 1; i*=10)
+        p++;
+      return p;
+    }
+
+    typedef FERRET_NUMBER_TYPE  number_t;                   // Whole number Container.
+    typedef FERRET_REAL_TYPE    real_t;                     // Real number Container.
+    const   real_t              real_epsilon(FERRET_REAL_EPSILON);
+    const   int                 real_precision = req_real_precision(FERRET_REAL_EPSILON);
 #+end_src
 
 *** Math
@@ -4924,7 +4929,7 @@ Setup IO for general purpose OS,
 
       template <>
       void print(const real_t & n){
-        std::cout << std::fixed << std::setprecision(number_precision) << n;
+        std::cout << std::fixed << std::setprecision(real_precision) << n;
       }
 
       void read_line(char *buff, std::streamsize len){
@@ -4947,7 +4952,9 @@ Setup IO for Arduino boards,
 
       template <>
       // cppcheck-suppress passedByValue
-      void print(const real_t d){ FERRET_HARDWARE_ARDUINO_UART_PORT.print(double(d)); }
+      void print(const real_t d){
+        FERRET_HARDWARE_ARDUINO_UART_PORT.print(double(d), real_precision);
+      }
       
       template <>
       void print(void *p){
@@ -5077,7 +5084,7 @@ running in safe mode.
   | FERRET_HARDWARE_ARDUINO_UART_PORT  | Serial       | Set default UART port.                                   |
   | FERRET_NUMBER_TYPE                 | int          | Default number_t type.                                   |
   | FERRET_REAL_TYPE                   | double       | Default real_t type.                                     |
-  | FERRET_REAL_EPSILON                | 0.00001      | Least significant digit representable.                   |
+  | FERRET_REAL_EPSILON                | 0.0001       | Least significant digit representable.                   |
   |------------------------------------+--------------+----------------------------------------------------------|
 #+END_EXAMPLE
 
@@ -6572,7 +6579,7 @@ Converts a Ferret =number= to a Ferret =string=,
      var s;
 
      f = (f - n) + 10;
-     for (int i = number_precision; i >= 1; i--){
+     for (int i = real_precision; i >= 1; i--){
         number_t ch = ((number_t)(f * ::pow(10, i)) % 10) + '0';
         s = runtime::cons(obj<number>(ch), s);
      }

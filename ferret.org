@@ -2607,7 +2607,7 @@ fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
     }
   #endif
 
-    template<typename T> explicit number(T x) : n((real_t)x) {} 
+    template<typename T> explicit number(T x) : n(real_t(x)) {} 
 
     template<typename T> static T to(ref v){
       return (T)v.cast<number>()->n;
@@ -5899,7 +5899,7 @@ numerator divided by all of the denominators.
    }
 
    if (count == 1)
-    value = 1.0 / value;
+    value = real_t(1.0) / value;
 
    __result = obj<number>(value);")
 #+end_src
@@ -6398,17 +6398,17 @@ statistics.
    "elapsed_micros timer;
 
     run(f);
-    real_t elapsed = timer.elapsed() / real_t(1000);
+    real_t elapsed = timer.elapsed() / real_t(1000.0);
 
     real_t min = elapsed;
     real_t max = elapsed;
-    real_t sum = real_t(0);
-    real_t sum_sq = real_t(0);
+    real_t sum = real_t(0.0);
+    real_t sum_sq = real_t(0.0);
 
     for(number_t i =0; i < n; i++){
       timer.reset();
       run(f);
-      real_t elapsed = timer.elapsed() / real_t(1000);
+      real_t elapsed = timer.elapsed() / real_t(1000.0);
       sum += elapsed;
       sum_sq += (elapsed * elapsed);
       if (elapsed < min)
@@ -6546,8 +6546,8 @@ and returns its value as a Ferret =number=.
        number_t d = ch - '0';
        if (d >= 0 && d <= 9){
          if (point_passed)
-           factor /= 10.0f;
-         value = value * 10.0f + (real_t)d;
+           factor /= real_t(10.0);
+         value = value * real_t(10.0) + real_t(d);
        }
      }
     
@@ -7708,8 +7708,8 @@ Ported from,
 
       // If continuous is set to true allow wrap around
       if (continuous) {
-        if (runtime::abs(error) > ((maximum_input - minimum_input) / (real_t)2)) {
-          if (error > (real_t)0) {
+        if (runtime::abs(error) > ((maximum_input - minimum_input) / real_t(2))) {
+          if (error > real_t(0)) {
             error = (error - maximum_input) + minimum_input;
           } else {
             error = (error + maximum_input) - minimum_input;

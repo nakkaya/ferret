@@ -6326,7 +6326,7 @@ Port of Teensy elapsedMicros API,
   (defn new-elapsed-micros []
     "return obj<elapsed_micros>();")
 
-  (defn elapsed-micros? [t ^number_t t]
+  (defn elapsed-micros? [t ^real_t t]
     "if (t.cast<elapsed_micros>()->is_elapsed(t))
        return cached::true_o;
      return cached::false_o;")
@@ -6374,8 +6374,8 @@ Port of Teensy elapsedMicros API,
     }
   #endif
 
-    inline number_t elapsed() const { return (number_t)(now() - us); }
-    inline bool is_elapsed(number_t t) const { return (elapsed() >= t); }
+    inline real_t elapsed() const { return (real_t)(now() - us); }
+    inline bool is_elapsed(real_t t) const { return (elapsed() >= t); }
   };
   #endif
 #+end_src
@@ -6398,17 +6398,17 @@ statistics.
    "elapsed_micros timer;
 
     run(f);
-    real_t elapsed = (real_t)timer.elapsed() / 1000.0;
+    real_t elapsed = timer.elapsed() / real_t(1000);
 
     real_t min = elapsed;
     real_t max = elapsed;
-    real_t sum = 0;
-    real_t sum_sq = 0;
+    real_t sum = real_t(0);
+    real_t sum_sq = real_t(0);
 
     for(number_t i =0; i < n; i++){
       timer.reset();
       run(f);
-      real_t elapsed = (real_t)timer.elapsed() / 1000.0;
+      real_t elapsed = timer.elapsed() / real_t(1000);
       sum += elapsed;
       sum_sq += (elapsed * elapsed);
       if (elapsed < min)
@@ -6417,8 +6417,8 @@ statistics.
         max = elapsed;
       }
 
-      real_t mean = sum / n;
-      real_t stdev = sqrt((sum_sq / n) - (mean * mean));
+      real_t mean = (real_t)(sum / n);
+      real_t stdev = (real_t)sqrt((sum_sq / n) - (mean * mean));
 
       runtime::print(\" \\t mean : \");
       runtime::print(mean);
@@ -6462,7 +6462,7 @@ statistics.
 #+begin_src clojure :tangle no
 (defobject fn_throttler_o "ferret/obj/fn_throttler_o.h")
 
-(defn new-fn-throttler [f ^number_t rate ^bolean block]
+(defn new-fn-throttler [f ^real_t rate ^bolean block]
   "return obj<fn_throttler>(f, rate, block);")
 
 (defmacro fn-throttler [f rate unit policy]
@@ -6479,23 +6479,23 @@ statistics.
 class fn_throttler : public lambda_i {
   var fn;
   elapsed_micros timer;
-  number_t rate;
+  real_t rate;
   bool blocking;
 
 #if defined(FERRET_HARDWARE_ARDUINO)
-  inline void _wait(number_t t) const{
-    ::delayMicroseconds(t);
+  inline void _wait(real_t t) const{
+    ::delayMicroseconds((number_t)t);
   }
 #elif defined(FERRET_STD_LIB)
-  inline void _wait(number_t t) const{
-    auto duration = ::std::chrono::microseconds(t);
+  inline void _wait(real_t t) const{
+    auto duration = ::std::chrono::microseconds((number_t)t);
     ::std::this_thread::sleep_for(duration);
   }
 #endif
   
   var exec(ref args){
     if (blocking)
-      _wait((number_t)rate - timer.elapsed());
+      _wait(rate - timer.elapsed());
 
     if (timer.is_elapsed(rate)){
       timer.reset();
@@ -6507,7 +6507,7 @@ class fn_throttler : public lambda_i {
   
 public:
 
-  explicit fn_throttler(var f, number_t r, bool b) : fn(f), rate(r), blocking (b) { }
+  explicit fn_throttler(var f, real_t r, bool b) : fn(f), rate(r), blocking (b) { }
 
   var invoke(ref args) const {
     return var((object*)this).cast<fn_throttler>()->exec(args);

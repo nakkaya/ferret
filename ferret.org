@@ -6416,6 +6416,12 @@ statistics.
       timer.reset();
       run(f);
       real_t elapsed = timer.elapsed() / real_t(1000.0);
+
+      #if defined(FERRET_BENCHMARK_VERBOSE)
+         runtime::print(elapsed);
+         runtime::print((char)0xA);
+      #endif
+
       sum += elapsed;
       sum_sq += (elapsed * elapsed);
       if (elapsed < min)
@@ -6427,23 +6433,23 @@ statistics.
       real_t mean = (real_t)(sum / n);
       real_t stdev = (real_t)sqrt((sum_sq / n) - (mean * mean));
 
-      runtime::print(\" \\t mean : \");
+      runtime::print(\"\\t mean: \");
       runtime::print(mean);
       runtime::print((char)0xA);
 
-      runtime::print(\"std-deviation : \");
+      runtime::print(\"\\tstdev: \");
       runtime::print(stdev);
       runtime::print((char)0xA);
 
-      runtime::print(\"\\t  min : \");
+      runtime::print(\"\\t  min: \");
       runtime::print(min);
       runtime::print((char)0xA);
 
-      runtime::print(\"\\t  max : \");
+      runtime::print(\"\\t  max: \");
       runtime::print(max);
       runtime::print((char)0xA);
 
-      runtime::print(\"\\trange : \");
+      runtime::print(\"\\trange: \");
       runtime::print((max - min));
       runtime::print((char)0xA);"))
 #+end_src

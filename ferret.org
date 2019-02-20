@@ -4153,11 +4153,8 @@ support any real number type the system supports.
      #define FERRET_REAL_EPSILON   0.0001
   #endif
 
-    static int req_real_precision(double t) {
-      int p = 0;
-      for (size_t i = 1; t * (double)i != 1; i*=10)
-        p++;
-      return p;
+    int req_real_precision(double t) {
+      return ((-1 * (int)log10(t)) + 1);
     }
 
     typedef FERRET_NUMBER_TYPE  number_t;                   // Whole number Container.
@@ -6585,7 +6582,7 @@ Converts a Ferret =number= to a Ferret =string=,
      var s;
 
      f = (f - n) + 10;
-     for (int i = real_precision; i >= 1; i--){
+     for (int i = real_precision - 1; i >= 1; i--){
         number_t ch = ((number_t)(f * ::pow(10, i)) % 10) + '0';
         s = runtime::cons(obj<number>(ch), s);
      }

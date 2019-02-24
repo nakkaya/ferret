@@ -6950,6 +6950,14 @@ Wraps mlockall - locks the address space of process.
     "::abort();")
 #+end_src
 
+*** system-halt
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+(defn system-halt [code]
+  (forever (sleep 1000)))
+#+end_src
+
 *** byte-stream-encoder/decoder
 
 #+name: runtime-clojure-core

@@ -4976,6 +4976,22 @@ Setup IO for Arduino boards,
   #endif
 #+end_src
 
+Prints data to the output stream as human-readable ASCII text followed
+by a newline character (=ASCII 10=, or =\n=).
+
+#+name: runtime-native-hardware-initialize
+#+begin_src c++ :tangle no
+  #if !defined(FERRET_DISABLE_STD_OUT)
+     namespace runtime{
+       template <typename T>
+       void println(T t){
+         print(t);
+         print((char)0xA);
+       }
+     }
+  #endif
+#+end_src
+
 *** Program Run
 
 Unless =FERRET_DISABLE_STD_MAIN= is *defined* a =main= function is
@@ -6415,8 +6431,7 @@ statistics.
       real_t elapsed = timer.elapsed() / real_t(1000.0);
 
       #if defined(FERRET_BENCHMARK_VERBOSE)
-         runtime::print(elapsed);
-         runtime::print((char)0xA);
+         runtime::println(elapsed);
       #endif
 
       sum += elapsed;
@@ -6431,24 +6446,19 @@ statistics.
       real_t stdev = (real_t)sqrt((sum_sq / n) - (mean * mean));
 
       runtime::print(\"\\t mean: \");
-      runtime::print(mean);
-      runtime::print((char)0xA);
+      runtime::println(mean);
 
       runtime::print(\"\\tstdev: \");
-      runtime::print(stdev);
-      runtime::print((char)0xA);
+      runtime::println(stdev);
 
       runtime::print(\"\\t  min: \");
-      runtime::print(min);
-      runtime::print((char)0xA);
+      runtime::println(min);
 
       runtime::print(\"\\t  max: \");
-      runtime::print(max);
-      runtime::print((char)0xA);
+      runtime::println(max);
 
       runtime::print(\"\\trange: \");
-      runtime::print((max - min));
-      runtime::print((char)0xA);"))
+      runtime::println((max - min));"))
 #+end_src
 
 *** fn-throttler

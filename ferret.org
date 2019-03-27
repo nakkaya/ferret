@@ -6783,6 +6783,16 @@ are evaluated in order.  Returns x.
          ~gx)))
 #+end_src
 
+*** comment
+
+Ignores body, yields nil.
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+(defmacro comment
+  [& body])
+#+end_src
+
 ** I/O
 *** print
 

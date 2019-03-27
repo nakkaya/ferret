@@ -10189,7 +10189,7 @@ Create some dummy libs under /test/modules/,
                    [org.bituf/clj-stringtemplate "0.2"]
                    [org.clojars.amit/commons-io "1.4.0"]
                    [commons-lang "2.5"]
-                   [org.flatland/ordered "1.5.6"]
+                   [org.flatland/ordered "1.5.7"]
                    [watchtower "0.1.1"]]
 
     :deploy-repositories [["releases"  {:sign-releases false :url "https://clojars.org/repo"

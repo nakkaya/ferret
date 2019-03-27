@@ -3013,13 +3013,8 @@ the keyword as =number_t=.
 class keyword final : public lambda_i {
   const number_t hash;
 
-  number_t hash_str(const char * str){
-    number_t word = 0;
-    for (number_t i = 0; str[i] != '\0'; i++){
-      word = word + (number_t)str[i];
-    }
-    
-    return word;
+  static constexpr number_t hash_key(const char * key){
+    return *key ? (number_t)*key + hash_key(key + 1) : 0;
   }
   
 public:
@@ -3038,7 +3033,7 @@ public:
 #endif
 
   explicit keyword(number_t w) : hash(w) {} 
-  explicit keyword(const char * str): hash(hash_str(str)) { }
+  explicit keyword(const char * str): hash(hash_key(str)) { }
 
   var invoke(ref args) const {
     ref map = runtime::first(args);

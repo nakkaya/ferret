@@ -7882,12 +7882,8 @@ Configures the specified pin to behave either as an input or an
 output.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
-  (defmacro pin-mode [pin mode]
-    (let [pin (if (number? pin)
-                pin
-                (str "number::to<number_t>(" (symbol-conversion pin) ")"))
-          mode (-> mode name .toUpperCase)]
-      `(cxx ~(str "::pinMode(" pin ", " mode ");"))))
+(defn pin-mode [^number_t pin mode]
+  "::pinMode(pin, (mode == obj<keyword>(\":input\")) ? INPUT : OUTPUT);")
 #+end_src
 
 *** digital-write

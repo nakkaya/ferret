@@ -10180,8 +10180,8 @@ Create some dummy libs under /test/modules/,
     :license {:name "BSD 2-Clause"
               :url "https://github.com/nakkaya/ferret/blob/master/LICENSE"}
     
-    :dependencies [[org.clojure/clojure "1.9.0"]
-                   [org.clojure/tools.cli "0.3.7"]
+    :dependencies [[org.clojure/clojure "1.10.0"]
+                   [org.clojure/tools.cli "0.4.2"]
                    [org.clojure/tools.logging "0.4.1"]
                    [org.slf4j/slf4j-simple "1.7.25"]
                    [fast-zip "0.7.0"]

@@ -3915,8 +3915,10 @@ allocator used.)
 
         static void init(){ }
 
+        static inline void* allocate(size_t s){ return ::malloc(s); }
+
         template<typename FT>
-        static inline void* allocate(){ return ::malloc(sizeof(FT)); }
+        static inline void* allocate(){ return allocate(sizeof(FT)); }
 
         static inline void  free(void * ptr){ ::free(ptr); } 
       };
@@ -4310,87 +4312,209 @@ accuracy using 6 bits for fraction.
   #pragma pack(pop)
 #+end_src
 
-*** Euclidean geometry
+*** Matrices
 
-See [[Euclidean Vector]] unit test for usage.
+A matrix is a two-dimensional array often used for linear algebra.
 
-#+name: runtime-native-euclidean-vector
+#+name: runtime-native-matrix-test
 #+begin_src c++ :tangle no
-  namespace euclidean{
-    template <size_t D, typename T>
-    struct vector {
-      T d[D];
-   
-      T& operator [](size_t idx)      { return d[idx]; }
-      T operator [](size_t idx) const { return d[idx]; }
-      
-      friend vector operator+ (vector u, const vector& v) {
-        vector result;
-        for (size_t i = 0; i < D; i++)
-          result.d[i] = u.d[i] + v.d[i];
-        return result;
-      }
-   
-      friend vector operator- (vector u, const vector& v) {
-        vector result;
-        for (size_t i = 0; i < D; i++)
-          result.d[i] = u.d[i] - v.d[i];
-        return result;
-      }
-   
-      friend vector operator* (vector u, const T& v) {
-        vector result;
-        for (size_t i = 0; i < D; i++)
-          result.d[i] = u.d[i] * v;
-        return result;
-      }
-   
-      friend bool operator== (const vector& x, const vector& y) {
-        for (size_t i = 0; i < D; i++)
-          if (x.d[i] != y.d[i])
-            return false;
-        return true;
-      }
-   
-      T magnitude(){
-        T acc = 0;
-        for(size_t i = 0; i < D; i++){
-          T t = d[i] * d[i];
-          acc += t;
-        }
-   
-        return sqrt(acc);
-      }
-   
-      vector normalize(){
-        T mag = magnitude();
-        if (mag == 0)
-          return vector{{0}};
-   
-        vector r;
-        for(size_t i = 0; i < D; i++){
-          r[i] = d[i] / mag;
-        }
-        
-        return r;
-      }
-   
-      T dist(vector v){ return ((*this) - v).magnitude(); }
-   
-  #if defined(FERRET_STD_LIB)
-      friend std::ostream& operator<< (std::ostream& stream, const vector& x) {
-        stream << '[';
-        for (size_t i = 0; i < D - 1; i++)
-          stream << x.d[i] << ',';
-        stream << x.d[D - 1] << ']';
-        return stream;
-      }
-  #endif
-    };
+//initializers
+assert((matrix::zeros(2,2)  == matrix::into<2,2>(0,0,0,0)));
+assert((matrix::ones(2,2)   == matrix::into<2,2>(1,1,1,1)));
+assert((matrix::eyes(2,2)   == matrix::into<2,2>(1,0,0,1)));
+assert((matrix::full(2,2,4) == matrix::into<2,2>(4,4,4,4)));
 
-    typedef euclidean::vector<2, real_t> vector_2d;
-    typedef euclidean::vector<3, real_t> vector_3d;
+//operations
+matrix ones  = matrix::ones(2,2);
+matrix zeros = matrix::zeros(2,2);
+matrix twos  = matrix::full(2,2,2);
+
+assert((ones - ones   == zeros));
+assert((ones + ones   == twos));
+assert((ones * 2      == twos));
+
+assert((matrix::into<1,3>(0, 10, 0).magnitude()  == 10));
+assert((matrix::into<1,3>(0, 10, 0).normalize()  == matrix::into<1,3>(0, 1, 0)));
+#+end_src
+
+#+name: runtime-native-matrix
+#+begin_src c++ :tangle no
+class matrix {
+  size_t  rows{0};
+  size_t  cols{0};
+  //row-major
+  real_t* data {nullptr};
+
+  matrix(size_t r = 0, size_t c = 0) :
+    rows(r) , cols(c),
+    data((real_t *)FERRET_ALLOCATOR::allocate
+         (rows * cols * sizeof(real_t))) { }
+
+  void fill(real_t val) {
+    for(size_t i = 0; i < rows * cols; i++)
+      data[i] = val;
   }
+
+  size_t n_data() const { return rows * cols; }
+
+  static void into_aux(matrix &m){ }
+
+  template<typename... Args>
+  static void into_aux(matrix &m, real_t first, Args... rest){
+    m.data[m.n_data() - sizeof...(rest) - 1] = first;
+    into_aux(m, rest...);
+  }
+
+public:
+  inline matrix(matrix&& o) :
+    rows(o.rows), cols(o.cols),
+    data(o.data) { o.data = nullptr; }
+
+  matrix operator+ (const matrix& m) {
+    matrix sum(rows,cols);
+    for(size_t i = 0; i < n_data(); i++)
+      sum.data[i] = data[i] + m.data[i];
+    return sum;
+  }
+
+  matrix operator- (const matrix& m) {
+    matrix diff(rows,cols);
+    for(size_t i = 0; i < n_data(); i++)
+      diff.data[i] = data[i] - m.data[i];
+    return diff;
+  }
+
+  matrix operator* (const matrix& m) {
+    matrix mul(m.cols,rows);
+
+    if (cols != m.rows){
+      mul.fill(0);
+      return mul;
+    }
+
+    for (size_t i = 0; i < rows; i++) {
+      for (size_t j = 0; j < cols; j++) {
+        for (size_t k = 0; k < rows; k++) {
+          mul.data[i * rows + j] += data[i * rows + k] * m.data[k * rows + j];
+        }
+      }
+    }
+
+    return mul;
+  }
+
+  matrix operator* (const real_t r) {
+    matrix mul(rows,cols);
+    for(size_t i = 0; i < n_data(); i++)
+      mul.data[i] = data[i] * r;
+    return mul;
+  }
+
+  real_t operator()(size_t row, size_t col) const {
+    return data[row * cols + col];
+  }
+
+  void operator()(size_t row, size_t col, real_t val) {
+    data[row * cols + col] = val;
+  }
+
+  matrix& operator=(matrix&& x){
+    rows = x.rows;
+    cols = x.cols;
+    data = x.data;
+    x.data = nullptr;
+    return *this;
+  }
+
+  bool operator ==(const matrix& m) const {
+    for (unsigned i = 0; i < n_data(); i++) {
+      if (data[i] != m.data[i]) {
+        return false;
+      }
+      return true;
+    }
+  }
+
+  real_t magnitude(){
+    real_t norm = 0;
+
+    for(size_t i = 0; i < n_data(); i++){
+      norm += data[i] * data[i];
+    }
+
+    return sqrt(norm);
+  }
+
+  matrix normalize(){
+    real_t mag = magnitude();
+    matrix m = matrix::zeros(rows,cols);
+
+    if (mag == 0)
+      return m;
+
+    for(size_t i = 0; i < n_data(); i++)
+      m.data[i] = data[i] / mag;
+
+    return m;
+  }
+
+#if defined(FERRET_STD_LIB)
+  friend std::ostream& operator<< (std::ostream& stream, const matrix& x) {
+    stream << "matrix<";
+    for (size_t r = 0; r < x.rows; r++){
+      stream << "[";
+      stream << x(r, 0);
+      for (size_t c = 1; c < x.cols; c++)
+        stream << " " << x(r,c);
+      stream << "]";
+    }
+    return stream << ">";
+  }
+#endif
+
+  ~matrix(){
+    FERRET_ALLOCATOR::free(data);
+  }
+
+  static matrix empty(size_t r = 0, size_t c = 0) {
+    return matrix(r,c);
+  }
+
+  static matrix zeros(size_t r = 0, size_t c = 0) {
+    matrix m(r,c);
+    m.fill(0);
+    return m;
+  }
+
+  static matrix ones(size_t r = 0, size_t c = 0) {
+    matrix m(r,c);
+    m.fill(1);
+    return m;
+  }
+
+  static matrix full(size_t r = 0, size_t c = 0, real_t v = 0) {
+    matrix m(r,c);
+    m.fill(v);
+    return m;
+  }
+
+  static matrix eye(size_t n = 1){
+    matrix m(n,n);
+
+    for(size_t r = 0; r < m.rows; r++)
+      m(r,r,1);
+
+    return m;
+  }
+
+  template<size_t rows, size_t cols, typename... Args>
+  static matrix into(Args... rest){
+    matrix m(rows, cols);
+    into_aux(m, rest...);
+    return m;
+  }
+
+};
 #+end_src
 
 *** Literals
@@ -8622,34 +8746,14 @@ Static code analysis (cppcheck) options,
   (run-all-tests)
 #+end_src
 
-*** Euclidean Vector
+*** Matrices
 
-#+begin_src c++ :noweb yes :mkdirp yes :tangle src/test/native/euclidean_vector.cpp
+#+begin_src c++ :noweb yes :mkdirp yes :tangle src/test/native/matrix.cpp
   #include <cassert>
   #include <runtime.h>
 
   int main() {
-    using namespace std;
-    using namespace ferret::euclidean;
-
-    vector_3d z = {{0, 0, 0}};
-    vector_3d u = {{1, 2, 3}};
-    vector_3d v = {{3, 2, 1}};
-
-    vector_3d a = u + v;
-    vector_3d s = u - v;
-    vector_3d m = u * 2;
-
-    
-    assert((z == vector_3d{{ 0, 0, 0}}));
-    assert((a == vector_3d{{ 4, 4, 4}}));
-    assert((s == vector_3d{{-2, 0, 2}}));
-    assert((m == vector_3d{{ 2, 4, 6}}));
-
-    assert((10                    == vector_3d{{ 0, 10, 0}}.magnitude()));
-    assert((vector_3d{{ 0, 1, 0}} == vector_3d{{ 0, 10, 0}}.normalize()));
-    assert((10                    == vector_3d{{ 0, 0, 0}}.dist(vector_3d{{0, 10, 0}})));
-    
+    <<runtime-native-matrix-test>>
     return 0;
   }
 #+end_src
@@ -10411,7 +10515,6 @@ Create some dummy libs under /test/modules/,
     <<runtime-native-fixed-point-real>>
     <<runtime-native-number-config-macros>>
     <<runtime-native-math>>
-    <<runtime-native-euclidean-vector>>
   }
 
   // Initialize Hardware
@@ -10429,6 +10532,10 @@ Create some dummy libs under /test/modules/,
     <<runtime-native-reference-counting>>
     <<runtime-native-object>>
     <<runtime-native-allocator-alloca>>
+  }
+
+  namespace ferret{
+    <<runtime-native-matrix>>
   }
 
   // Runtime Prototypes

@@ -1423,7 +1423,7 @@ done by running =emit= on the final intermediate representation.
                          :default                    :unsupported-form)))
 
   (defmethod emit :unsupported-form [_ form _]
-    (warn "unsopported form =>" form)
+    (warn "unsupported form =>" form)
     (io/exit-failure))
 
   (defn emit-ast [options ast state]

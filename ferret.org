@@ -7387,7 +7387,7 @@ other members of the group and port.
 
 =ferret.io.serial= includes functions for creating and manipulating
 serial ports in a portable manner. For example, a serial port may be
-opened in RAW mode at boud rate (assumes 8 data bits, no parity, one
+opened in RAW mode at baud rate (assumes 8 data bits, no parity, one
 stop bit) using,
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/test/core/io/serial.clj

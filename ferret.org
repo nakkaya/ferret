@@ -6607,6 +6607,21 @@ Pretty-prints a matrix to =std::cout=.
   "std::cout << u;")
 #+end_src
 
+*** seq
+
+Converts =matrix= to a =lazy-seq=.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn seq [u]
+  (map
+   (fn [row]
+     (map
+      (fn [col]
+        (mget u row col))
+      (range (column-count u))))
+   (range (row-count u))))
+#+end_src
+
 ** Timing
 *** millis
 

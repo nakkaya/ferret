@@ -6430,6 +6430,25 @@ Returns a random integer between 0 (inclusive) and n (exclusive).
 #+end_src
 
 ** Matrices
+
+#+begin_src clojure
+(require '[ferret.matrix :as m])
+
+(def pi 3.1415)
+
+(defn rot [turns]
+  (let [a (* 2 pi turns)]
+    (make-matrix
+     [[   (cos a)  (sin a)]
+      [(- (sin a)) (cos a)]])))
+
+(->> (make-matrix [[3] [4]])
+     (m/mmul (rot 1/8))
+     (m/cout))
+
+(println )
+#+end_src
+
 *** zeros
 
 Constructs a new zero-filled numerical matrix with the given

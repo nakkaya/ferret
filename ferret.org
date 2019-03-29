@@ -4349,6 +4349,10 @@ assert((matrix::ones(2,2)   == matrix::into<2,2>(1,1,1,1)));
 assert((matrix::eye(2)      == matrix::into<2,2>(1,0,0,1)));
 assert((matrix::full(2,2,4) == matrix::into<2,2>(4,4,4,4)));
 
+//shape
+assert((matrix::row_count(matrix::zeros(2,3))    == 2));
+assert((matrix::column_count(matrix::zeros(2,3)) == 3));
+
 //operations
 matrix ones  = matrix::ones(2,2);
 matrix zeros = matrix::zeros(2,2);
@@ -4528,15 +4532,15 @@ public:
     return m;
   }
 
-  static size_t row_count(matrix& m){
+  static size_t row_count(const matrix& m){
     return m.rows;
   }
 
-  static size_t column_count(matrix& m){
+  static size_t column_count(const matrix& m){
     return m.cols;
   }
 
-  static real_t norm_euclidean(matrix& m){
+  static real_t norm_euclidean(const matrix& m){
     real_t norm = real_t(0);
 
     for(size_t i = 0; i < m.n_data(); i++){
@@ -4546,7 +4550,7 @@ public:
     return real_t(sqrt(norm));
   }
 
-  static matrix normalise(matrix& m){
+  static matrix normalise(const matrix& m){
     real_t mag = matrix::norm_euclidean(m);
     matrix norm = matrix::zeros(m.rows,m.cols);
 

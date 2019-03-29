@@ -4540,6 +4540,13 @@ public:
     return m;
   }
 
+  static number_t row_count(matrix& m){
+    return m.rows;
+  }
+
+  static number_t column_count(matrix& m){
+    return m.cols;
+  }
 };
 #+end_src
 
@@ -6447,6 +6454,24 @@ Returns a random integer between 0 (inclusive) and n (exclusive).
      (m/cout))
 
 (println )
+#+end_src
+
+*** row-count
+
+Returns the number of rows in a matrix.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn row-count [^matrix u]
+  "return obj<number>(matrix::row_count(u));")
+#+end_src
+
+*** column-count
+
+Returns the number of columns in a matrix.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn column-count [^matrix u]
+  "return obj<number>(matrix::column_count(u));")
 #+end_src
 
 *** zeros

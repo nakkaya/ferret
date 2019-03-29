@@ -1404,6 +1404,7 @@ done by running =emit= on the final intermediate representation.
                          (parser/form? 'fir_fn_heap f)     'fir_fn_heap
                          (parser/form? 'fir_fn_stack f)    'fir_fn_stack
                          (parser/form? 'defobject f)       'defobject
+                         (parser/form? 'make_matrix f)     'make_matrix
                          (parser/form? 'native_header f)   'native_header
                          (parser/form? 'native_declare f)  'native_declare
                          (parser/form? 'native_define f)   'native_define
@@ -1531,6 +1532,17 @@ bindings—things which functions cannot do.
   (defmethod emit 'defobject [options [_ name & spec] state]
     (append-to! state [:objects] (defobject name spec options)))
 
+  (defmethod emit 'make_matrix [options [_ elements] state]
+    (let [rows (count elements)
+          cols (-> elements first count)
+          elements (flatten elements)
+          elements (emit-ast options elements state)
+          elements (map #(str "number::to<real_t>(" % ")") elements)
+          elements (apply str (interpose \, elements))
+          matrix-t (str rows "," cols "," elements)
+          matrix-decl (str "obj<matrix_t>(" matrix-t ")")]
+      matrix-decl))
+
   (defmethod emit 'native_header [_ [_ & declarations] state]
     (append-to! state [:native-headers] declarations))
 
@@ -1615,6 +1627,7 @@ is supported.
         'number_t   (str "number_t " name " = " "number::to<number_t>(" value ")")
         'byte       (str "byte " name " = " "number::to<byte>(" value ")")
         'std_string (str "std::string " name " = " "string::to<std::string>(" value ")")
+        'matrix     (str "matrix &" name " = " "value<matrix>::to_reference(" value ")")
         (str "ref " name " = " value))))
 
   (defn new-fn-var-arg [name parent pos]
@@ -2576,6 +2589,8 @@ modern C++ libraries that use smart pointers for memory management.
       return v.cast<value<T>>()->to_reference();
     }  
   };
+
+  typedef value<matrix> matrix_t;
 #+end_src
 
 **** Number
@@ -4345,11 +4360,6 @@ class matrix {
   //row-major
   real_t* data {nullptr};
 
-  matrix(size_t r = 0, size_t c = 0) :
-    rows(r) , cols(c),
-    data((real_t *)FERRET_ALLOCATOR::allocate
-         (rows * cols * sizeof(real_t))) { }
-
   void fill(real_t val) {
     for(size_t i = 0; i < rows * cols; i++)
       data[i] = val;
@@ -4366,9 +4376,26 @@ class matrix {
   }
 
 public:
+  matrix(size_t r = 0, size_t c = 0) :
+    rows(r) , cols(c),
+    data((real_t *)FERRET_ALLOCATOR::allocate
+         (rows * cols * sizeof(real_t))) { }
+
+  template<typename... Args>
+  inline matrix(size_t rows, size_t cols, Args... elements)
+    : matrix(rows,cols) {
+    into_aux(*this, elements...);
+  }
+
   inline matrix(matrix&& o) :
     rows(o.rows), cols(o.cols),
     data(o.data) { o.data = nullptr; }
+
+  inline matrix(matrix& o)
+    : matrix(o.rows,o.cols){
+    for(size_t i = 0; i < n_data(); i++)
+      data[i] = o.data[i];
+  }
 
   matrix operator+ (const matrix& m) {
     matrix sum(rows,cols);

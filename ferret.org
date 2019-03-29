@@ -4358,8 +4358,10 @@ assert((ones - ones == zeros));
 assert((ones + ones == twos));
 assert((ones * 2    == twos));
 
-assert((matrix::into<1,3>(0, 10, 0).magnitude()  == 10));
-assert((matrix::into<1,3>(0, 10, 0).normalize()  == matrix::into<1,3>(0, 1, 0)));
+auto v3d = matrix::into<1,3>(0, 10, 0);
+
+assert((matrix::norm_euclidean(v3d) == 10));
+assert((matrix::normalise(v3d)      == matrix::into<1,3>(0, 1, 0)));
 #+end_src
 
 #+name: runtime-native-matrix
@@ -4469,29 +4471,6 @@ public:
     return true;
   }
 
-  real_t magnitude(){
-    real_t norm = real_t(0);
-
-    for(size_t i = 0; i < n_data(); i++){
-      norm += data[i] * data[i];
-    }
-
-    return real_t(sqrt(norm));
-  }
-
-  matrix normalize(){
-    real_t mag = magnitude();
-    matrix m = matrix::zeros(rows,cols);
-
-    if (mag == real_t(0))
-      return m;
-
-    for(size_t i = 0; i < n_data(); i++)
-      m.data[i] = data[i] / mag;
-
-    return m;
-  }
-
 #if defined(FERRET_STD_LIB)
   friend std::ostream& operator<< (std::ostream& stream, const matrix& x) {
     stream << "[";
@@ -4555,6 +4534,29 @@ public:
 
   static size_t column_count(matrix& m){
     return m.cols;
+  }
+
+  static real_t norm_euclidean(matrix& m){
+    real_t norm = real_t(0);
+
+    for(size_t i = 0; i < m.n_data(); i++){
+      norm += m.data[i] * m.data[i];
+    }
+
+    return real_t(sqrt(norm));
+  }
+
+  static matrix normalise(matrix& m){
+    real_t mag = matrix::norm_euclidean(m);
+    matrix norm = matrix::zeros(m.rows,m.cols);
+
+    if (mag == real_t(0))
+      return norm;
+
+    for(size_t i = 0; i < m.n_data(); i++)
+      norm.data[i] = m.data[i] / mag;
+
+    return norm;
   }
 };
 #+end_src
@@ -6577,7 +6579,7 @@ matrix.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn normalise [^matrix u]
-  "return obj<matrix_t>(u.normalize());")
+  "return obj<matrix_t>(matrix::normalise(u));")
 #+end_src
 
 *** norm
@@ -6586,7 +6588,7 @@ Calcualtes the Euclidean norm of matrix.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn norm [^matrix u]
-  "return obj<number>(u.magnitude());")
+  "return obj<number>(matrix::norm_euclidean(u));")
 #+end_src
 
 *** mset!

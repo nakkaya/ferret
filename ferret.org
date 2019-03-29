@@ -1536,8 +1536,12 @@ bindings—things which functions cannot do.
     (let [rows (count elements)
           cols (-> elements first count)
           elements (apply concat elements)
-          elements (emit-ast options elements state)
-          elements (map #(str "number::to<real_t>(" % ")") elements)
+          elements (map #(if (number? %)
+                           (str "real_t(" % ")")
+                           (str
+                            "number::to<real_t>"
+                            "(" (emit options % state) ")"))
+                        elements)
           elements (apply str (interpose \, elements))
           matrix-t (str rows "," cols "," elements)
           matrix-decl (str "obj<matrix_t>(" matrix-t ")")]

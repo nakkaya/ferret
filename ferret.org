@@ -6537,6 +6537,15 @@ Calcualtes the Euclidean norm of matrix.
   "return obj<number>(u.magnitude());")
 #+end_src
 
+*** mset!
+
+Mutates a scalar value in a matrix at the specified position.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn mset! [^matrix u ^number_t r ^number_t c ^number_t v]
+  "u(r,c,v);")
+#+end_src
+
 ** Timing
 *** millis
 

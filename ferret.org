@@ -6589,6 +6589,15 @@ Mutates a scalar value in a matrix at the specified position.
   "u(r,c,v);")
 #+end_src
 
+*** mget
+
+Gets a scalar value from a matrix at the specified position.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn mget [^matrix u ^number_t r ^number_t c]
+  "return obj<number>(u(r,c));")
+#+end_src
+
 *** cout
 
 Pretty-prints a matrix to =std::cout=.

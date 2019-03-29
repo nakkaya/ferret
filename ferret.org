@@ -4486,7 +4486,7 @@ public:
 
 #if defined(FERRET_STD_LIB)
   friend std::ostream& operator<< (std::ostream& stream, const matrix& x) {
-    stream << "matrix<";
+    stream << "[";
     for (size_t r = 0; r < x.rows; r++){
       stream << "[";
       stream << x(r, 0);
@@ -4494,7 +4494,7 @@ public:
         stream << " " << x(r,c);
       stream << "]";
     }
-    return stream << ">";
+    return stream << "]";
   }
 #endif
 
@@ -6543,6 +6543,15 @@ Mutates a scalar value in a matrix at the specified position.
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn mset! [^matrix u ^number_t r ^number_t c ^number_t v]
   "u(r,c,v);")
+#+end_src
+
+*** cout
+
+Pretty-prints a matrix to =std::cout=.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn cout [^matrix u]
+  "std::cout << u;")
 #+end_src
 
 ** Timing

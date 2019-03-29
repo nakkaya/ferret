@@ -6430,6 +6430,113 @@ Returns a random integer between 0 (inclusive) and n (exclusive).
     (floor (rand x)))
 #+end_src
 
+** Matrices
+*** zeros
+
+Constructs a new zero-filled numerical matrix with the given
+dimensions.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn zeros [^number_t r, ^number_t c]
+  "return obj<matrix_t>(matrix::zeros(r,c));")
+#+end_src
+
+*** ones
+
+Constructs a new zero-filled numerical matrix with the given
+dimensions.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn ones [^number_t r, ^number_t c]
+  "return obj<matrix_t>(matrix::ones(r,c));")
+#+end_src
+
+*** full
+
+Fills a matrix with a single scalar value.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn full [^number_t r, ^number_t c, ^number_t v]
+  "return obj<matrix_t>(matrix::ones(r,c,v));")
+#+end_src
+
+*** eye
+
+Identity matrix. Returns an n-by-n identity matrix with ones on the
+main diagonal and zeros elsewhere.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn eye [^number_t n]
+  "return obj<matrix_t>(matrix::eye(n));")
+#+end_src
+
+*** add
+
+Performs element-wise addition on matrices.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn add [^matrix u ^matrix v]
+  "return obj<matrix_t>(u + v);")
+#+end_src
+
+*** sub
+
+Performs element-wise subtraction on matrices.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn sub [^matrix u ^matrix v]
+  "return obj<matrix_t>(u - v);")
+#+end_src
+
+*** mul
+
+Performs element-wise multipication with scalar on matrices.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn mul [^matrix u ^real_t s]
+  "return obj<matrix_t>(u * s);")
+#+end_src
+
+*** mmul
+
+Performs matrix multiplication on matrices.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn mul [^matrix u ^matrix v]
+  "return obj<matrix_t>(u * v);")
+#+end_src
+
+*** equals
+
+Returns =true= if both matrices are numerically equal.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn equals [^matrix u ^matrix v]
+  "if (u == v)
+       return cached::true_o;
+   else
+       return cached::false_o;")
+#+end_src
+
+*** normalise
+
+Normalises a matrix (scales to unit length). Returns a new normalised
+matrix.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn normalise [^matrix u]
+  "return obj<matrix_t>(u.normalize());")
+#+end_src
+
+*** norm
+
+Calcualtes the Euclidean norm of matrix.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
+(defn norm [^matrix u]
+  "return obj<number>(u.magnitude());")
+#+end_src
+
 ** Timing
 *** millis
 

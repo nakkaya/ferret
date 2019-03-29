@@ -1535,7 +1535,7 @@ bindings—things which functions cannot do.
   (defmethod emit 'make_matrix [options [_ elements] state]
     (let [rows (count elements)
           cols (-> elements first count)
-          elements (flatten elements)
+          elements (apply concat elements)
           elements (emit-ast options elements state)
           elements (map #(str "number::to<real_t>(" % ")") elements)
           elements (apply str (interpose \, elements))
@@ -6502,7 +6502,7 @@ Performs element-wise multipication with scalar on matrices.
 Performs matrix multiplication on matrices.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
-(defn mul [^matrix u ^matrix v]
+(defn mmul [^matrix u ^matrix v]
   "return obj<matrix_t>(u * v);")
 #+end_src
 

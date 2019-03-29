@@ -4412,17 +4412,16 @@ public:
   }
 
   matrix operator* (const matrix& m) {
-    matrix mul(m.cols,rows);
+    matrix mul(rows, m.cols);
+    mul.fill(0);
 
-    if (cols != m.rows){
-      mul.fill(0);
+    if (cols != m.rows)
       return mul;
-    }
 
     for (size_t i = 0; i < rows; i++) {
-      for (size_t j = 0; j < cols; j++) {
-        for (size_t k = 0; k < rows; k++) {
-          mul.data[i * rows + j] += data[i * rows + k] * m.data[k * rows + j];
+      for (size_t j = 0; j < m.cols; j++) {
+        for (size_t k = 0; k < m.rows; k++) {
+          mul(i,j, mul(i,j) + operator()(i,k) * m(k,j));
         }
       }
     }

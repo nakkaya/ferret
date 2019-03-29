@@ -3785,8 +3785,12 @@ parameterized. Thus, close to optimal performance will result.
 
         static void init(){ }
         
+        static inline void*  allocate(size_t s){
+          return program_memory.allocate(s);
+        }
+
         template<typename FT>
-        static inline void*  allocate(){ return program_memory.allocate(sizeof(FT)); }
+        static inline void* allocate(){ return allocate(sizeof(FT)); }
         
         static inline void   free(void * ptr){ program_memory.free(ptr); }
       };
@@ -3895,14 +3899,16 @@ libgc.{a,so}.
 
         static void init(){ GC_INIT(); }
         
-        template<typename FT>
-        static inline void* allocate(){
+        static inline void* allocate(size_t s){
   #ifdef FERRET_DISABLE_MULTI_THREADING
-          return GC_MALLOC(sizeof(FT));
+          return GC_MALLOC(s);
   #else
-          return GC_MALLOC_ATOMIC(sizeof(FT));
+          return GC_MALLOC_ATOMIC(s);
   #endif
         }
+
+        template<typename FT>
+        static inline void* allocate(){ return allocate(sizeof(FT)); }
       
         static inline void  free(void * ptr){ }
       };
@@ -3956,11 +3962,13 @@ Synchronizes access to other allocators.
 
         static void init(){ FERRET_ALLOCATOR::init(); }
 
-        template<typename FT>
-        static inline void* allocate(){
+        static inline void* allocate(size_t s){
           lock_guard guard(lock);
-          return FERRET_ALLOCATOR::allocate<FT>();
+          return FERRET_ALLOCATOR::allocate(s);
         }
+
+        template<typename FT>
+        static inline void* allocate(){ return allocate(sizeof(FT)); }
 
         static inline void  free(void * ptr){
           lock_guard guard(lock);
@@ -4006,8 +4014,10 @@ used by including the header files.
 
     static void init(){ loaded = true; }
 
+    static inline void* allocate(size_t s){ return ::malloc(s); }
+
     template<typename FT>
-    static inline void* allocate(){ return ::malloc(sizeof(FT)); }
+    static inline void* allocate(){ return allocate(sizeof(FT)); }
 
     static inline void  free(void * ptr){ ::free(ptr); } 
   };
@@ -4336,7 +4346,7 @@ A matrix is a two-dimensional array often used for linear algebra.
 //initializers
 assert((matrix::zeros(2,2)  == matrix::into<2,2>(0,0,0,0)));
 assert((matrix::ones(2,2)   == matrix::into<2,2>(1,1,1,1)));
-assert((matrix::eyes(2,2)   == matrix::into<2,2>(1,0,0,1)));
+assert((matrix::eye(2)      == matrix::into<2,2>(1,0,0,1)));
 assert((matrix::full(2,2,4) == matrix::into<2,2>(4,4,4,4)));
 
 //operations
@@ -4344,9 +4354,9 @@ matrix ones  = matrix::ones(2,2);
 matrix zeros = matrix::zeros(2,2);
 matrix twos  = matrix::full(2,2,2);
 
-assert((ones - ones   == zeros));
-assert((ones + ones   == twos));
-assert((ones * 2      == twos));
+assert((ones - ones == zeros));
+assert((ones + ones == twos));
+assert((ones * 2    == twos));
 
 assert((matrix::into<1,3>(0, 10, 0).magnitude()  == 10));
 assert((matrix::into<1,3>(0, 10, 0).normalize()  == matrix::into<1,3>(0, 1, 0)));
@@ -4367,7 +4377,7 @@ class matrix {
 
   size_t n_data() const { return rows * cols; }
 
-  static void into_aux(matrix &m){ }
+  static void into_aux(matrix &){ }
 
   template<typename... Args>
   static void into_aux(matrix &m, real_t first, Args... rest){
@@ -4413,7 +4423,7 @@ public:
 
   matrix operator* (const matrix& m) {
     matrix mul(rows, m.cols);
-    mul.fill(0);
+    mul.fill(real_t(0));
 
     if (cols != m.rows)
       return mul;
@@ -4429,7 +4439,7 @@ public:
     return mul;
   }
 
-  matrix operator* (const real_t r) {
+  matrix operator* (const real_t& r) {
     matrix mul(rows,cols);
     for(size_t i = 0; i < n_data(); i++)
       mul.data[i] = data[i] * r;
@@ -4453,29 +4463,27 @@ public:
   }
 
   bool operator ==(const matrix& m) const {
-    for (unsigned i = 0; i < n_data(); i++) {
-      if (data[i] != m.data[i]) {
+    for (unsigned i = 0; i < n_data(); i++)
+      if (data[i] != m.data[i])
         return false;
-      }
-      return true;
-    }
+    return true;
   }
 
   real_t magnitude(){
-    real_t norm = 0;
+    real_t norm = real_t(0);
 
     for(size_t i = 0; i < n_data(); i++){
       norm += data[i] * data[i];
     }
 
-    return sqrt(norm);
+    return real_t(sqrt(norm));
   }
 
   matrix normalize(){
     real_t mag = magnitude();
     matrix m = matrix::zeros(rows,cols);
 
-    if (mag == 0)
+    if (mag == real_t(0))
       return m;
 
     for(size_t i = 0; i < n_data(); i++)
@@ -4508,17 +4516,17 @@ public:
 
   static matrix zeros(size_t r = 0, size_t c = 0) {
     matrix m(r,c);
-    m.fill(0);
+    m.fill(real_t(0));
     return m;
   }
 
   static matrix ones(size_t r = 0, size_t c = 0) {
     matrix m(r,c);
-    m.fill(1);
+    m.fill(real_t(1));
     return m;
   }
 
-  static matrix full(size_t r = 0, size_t c = 0, real_t v = 0) {
+  static matrix full(size_t r = 0, size_t c = 0, real_t v = real_t(0)) {
     matrix m(r,c);
     m.fill(v);
     return m;
@@ -4526,9 +4534,10 @@ public:
 
   static matrix eye(size_t n = 1){
     matrix m(n,n);
+    m.fill(real_t(0));
 
     for(size_t r = 0; r < m.rows; r++)
-      m(r,r,1);
+      m(r,r,real_t(1));
 
     return m;
   }
@@ -4540,11 +4549,11 @@ public:
     return m;
   }
 
-  static number_t row_count(matrix& m){
+  static size_t row_count(matrix& m){
     return m.rows;
   }
 
-  static number_t column_count(matrix& m){
+  static size_t column_count(matrix& m){
     return m.cols;
   }
 };
@@ -8972,6 +8981,7 @@ Static code analysis (cppcheck) options,
   #include <runtime.h>
 
   int main() {
+    using namespace ferret;
     <<runtime-native-matrix-test>>
     return 0;
   }

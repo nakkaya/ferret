@@ -4413,21 +4413,21 @@ public:
       data[i] = o.data[i];
   }
 
-  matrix operator+ (const matrix& m) {
+  matrix operator+ (const matrix& m) const {
     matrix sum(rows,cols);
     for(size_t i = 0; i < n_data(); i++)
       sum.data[i] = data[i] + m.data[i];
     return sum;
   }
 
-  matrix operator- (const matrix& m) {
+  matrix operator- (const matrix& m) const {
     matrix diff(rows,cols);
     for(size_t i = 0; i < n_data(); i++)
       diff.data[i] = data[i] - m.data[i];
     return diff;
   }
 
-  matrix operator* (const matrix& m) {
+  matrix operator* (const matrix& m) const {
     matrix mul(rows, m.cols);
     mul.fill(real_t(0));
 
@@ -4445,7 +4445,7 @@ public:
     return mul;
   }
 
-  matrix operator* (const real_t& r) {
+  matrix operator* (const real_t& r) const {
     matrix mul(rows,cols);
     for(size_t i = 0; i < n_data(); i++)
       mul.data[i] = data[i] * r;

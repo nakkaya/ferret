@@ -4378,31 +4378,31 @@ assert((matrix::normalise(v3d)      == matrix::into<1,3>(0, 1, 0)));
 #+name: runtime-native-matrix
 #+begin_src c++ :tangle no
 class matrix {
-  size_t  rows{0};
-  size_t  cols{0};
   //row-major
   real_t* data {nullptr};
+  //shape
+  size_t  size{0};
+  size_t  rows{0};
+  size_t  cols{0};
 
   void fill(real_t val) {
     for(size_t i = 0; i < rows * cols; i++)
       data[i] = val;
   }
 
-  size_t n_data() const { return rows * cols; }
-
   static void into_aux(matrix &){ }
 
   template<typename... Args>
   static void into_aux(matrix &m, real_t first, Args... rest){
-    m.data[m.n_data() - sizeof...(rest) - 1] = first;
+    m.data[m.size - sizeof...(rest) - 1] = first;
     into_aux(m, rest...);
   }
 
 public:
   matrix(size_t r = 0, size_t c = 0) :
-    rows(r) , cols(c),
-    data((real_t *)FERRET_ALLOCATOR::allocate
-         (rows * cols * sizeof(real_t))) { }
+    size(r * c), rows(r) , cols(c) {
+    data = (real_t *)FERRET_ALLOCATOR::allocate(size * sizeof(real_t));
+  }
 
   template<typename... Args>
   inline matrix(size_t rows, size_t cols, Args... elements)
@@ -4411,25 +4411,25 @@ public:
   }
 
   inline matrix(matrix&& o) :
-    rows(o.rows), cols(o.cols),
-    data(o.data) { o.data = nullptr; }
+    data(o.data), size(o.size), rows(o.rows), cols(o.cols)
+    { o.data = nullptr; }
 
   inline matrix(matrix& o)
     : matrix(o.rows,o.cols){
-    for(size_t i = 0; i < n_data(); i++)
+    for(size_t i = 0; i < size; i++)
       data[i] = o.data[i];
   }
 
   matrix operator+ (const matrix& m) const {
     matrix sum(rows,cols);
-    for(size_t i = 0; i < n_data(); i++)
+    for(size_t i = 0; i < size; i++)
       sum.data[i] = data[i] + m.data[i];
     return sum;
   }
 
   matrix operator- (const matrix& m) const {
     matrix diff(rows,cols);
-    for(size_t i = 0; i < n_data(); i++)
+    for(size_t i = 0; i < size; i++)
       diff.data[i] = data[i] - m.data[i];
     return diff;
   }
@@ -4454,7 +4454,7 @@ public:
 
   matrix operator* (const real_t& r) const {
     matrix mul(rows,cols);
-    for(size_t i = 0; i < n_data(); i++)
+    for(size_t i = 0; i < size; i++)
       mul.data[i] = data[i] * r;
     return mul;
   }
@@ -4468,15 +4468,16 @@ public:
   }
 
   matrix& operator=(matrix&& x){
+    data = x.data;
     rows = x.rows;
     cols = x.cols;
-    data = x.data;
+    size = x.size;
     x.data = nullptr;
     return *this;
   }
 
   bool operator ==(const matrix& m) const {
-    for (unsigned i = 0; i < n_data(); i++)
+    for (unsigned i = 0; i < size; i++)
       if (data[i] != m.data[i])
         return false;
     return true;
@@ -4550,7 +4551,7 @@ public:
   static real_t norm_euclidean(const matrix& m){
     real_t norm = real_t(0);
 
-    for(size_t i = 0; i < m.n_data(); i++){
+    for(size_t i = 0; i < m.size; i++){
       norm += m.data[i] * m.data[i];
     }
 
@@ -4564,7 +4565,7 @@ public:
     if (mag == real_t(0))
       return norm;
 
-    for(size_t i = 0; i < m.n_data(); i++)
+    for(size_t i = 0; i < m.size; i++)
       norm.data[i] = m.data[i] / mag;
 
     return norm;

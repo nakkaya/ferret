@@ -4385,11 +4385,6 @@ class matrix {
   size_t  rows{0};
   size_t  cols{0};
 
-  void fill(real_t val) {
-    for(size_t i = 0; i < rows * cols; i++)
-      data[i] = val;
-  }
-
   static void into_aux(matrix &){ }
 
   template<typename... Args>
@@ -4399,7 +4394,7 @@ class matrix {
   }
 
 public:
-  matrix(size_t r = 0, size_t c = 0) :
+  inline matrix(size_t r = 0, size_t c = 0) :
     size(r * c), rows(r) , cols(c) {
     data = (real_t *)FERRET_ALLOCATOR::allocate(size * sizeof(real_t));
   }
@@ -4410,14 +4405,14 @@ public:
     into_aux(*this, elements...);
   }
 
-  inline matrix(matrix&& o) :
-    data(o.data), size(o.size), rows(o.rows), cols(o.cols)
-    { o.data = nullptr; }
+  inline matrix(matrix&& m) :
+    data(m.data), size(m.size), rows(m.rows), cols(m.cols)
+    { m.data = nullptr; }
 
-  inline matrix(matrix& o)
-    : matrix(o.rows,o.cols){
+  inline matrix(matrix& m)
+    : matrix(m.rows,m.cols){
     for(size_t i = 0; i < size; i++)
-      data[i] = o.data[i];
+      data[i] = m.data[i];
   }
 
   matrix operator+ (const matrix& m) const {
@@ -4435,8 +4430,7 @@ public:
   }
 
   matrix operator* (const matrix& m) const {
-    matrix mul(rows, m.cols);
-    mul.fill(real_t(0));
+    matrix mul = matrix::zeros(rows, m.cols);
 
     if (cols != m.rows)
       return mul;
@@ -4452,22 +4446,22 @@ public:
     return mul;
   }
 
-  matrix operator* (const real_t& r) const {
+  matrix operator* (const real_t& val) const {
     matrix mul(rows,cols);
     for(size_t i = 0; i < size; i++)
-      mul.data[i] = data[i] * r;
+      mul.data[i] = data[i] * val;
     return mul;
   }
 
-  real_t operator()(size_t row, size_t col) const {
+  inline real_t operator()(size_t row, size_t col) const {
     return data[row * cols + col];
   }
 
-  void operator()(size_t row, size_t col, real_t val) {
+  inline void operator()(size_t row, size_t col, real_t val) {
     data[row * cols + col] = val;
   }
 
-  matrix& operator=(matrix&& x){
+  inline matrix& operator=(matrix&& x){
     data = x.data;
     rows = x.rows;
     cols = x.cols;
@@ -4477,7 +4471,7 @@ public:
   }
 
   bool operator ==(const matrix& m) const {
-    for (unsigned i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
       if (data[i] != m.data[i])
         return false;
     return true;
@@ -4501,31 +4495,35 @@ public:
     FERRET_ALLOCATOR::free(data);
   }
 
-  static matrix empty(size_t r = 0, size_t c = 0) {
+  inline static matrix empty(size_t r = 0, size_t c = 0) {
     return matrix(r,c);
   }
 
-  static matrix zeros(size_t r = 0, size_t c = 0) {
+  inline static void fill(matrix& m, real_t val) {
+    for(size_t i = 0; i < m.size; i++)
+      m.data[i] = val;
+  }
+  
+  inline static matrix zeros(size_t r = 0, size_t c = 0) {
     matrix m(r,c);
-    m.fill(real_t(0));
+    fill(m, real_t(0));
     return m;
   }
 
-  static matrix ones(size_t r = 0, size_t c = 0) {
+  inline static matrix ones(size_t r = 0, size_t c = 0) {
     matrix m(r,c);
-    m.fill(real_t(1));
+    fill(m, real_t(1));
     return m;
   }
 
-  static matrix full(size_t r = 0, size_t c = 0, real_t v = real_t(0)) {
+  inline static matrix full(size_t r = 0, size_t c = 0, real_t v = real_t(0)) {
     matrix m(r,c);
-    m.fill(v);
+    fill(m, v);
     return m;
   }
 
   static matrix eye(size_t n = 1){
-    matrix m(n,n);
-    m.fill(real_t(0));
+    matrix m = matrix::zeros(n,n);
 
     for(size_t r = 0; r < m.rows; r++)
       m(r,r,real_t(1));
@@ -4540,11 +4538,11 @@ public:
     return m;
   }
 
-  static size_t row_count(const matrix& m){
+  inline static size_t row_count(const matrix& m){
     return m.rows;
   }
 
-  static size_t column_count(const matrix& m){
+  inline static size_t column_count(const matrix& m){
     return m.cols;
   }
 

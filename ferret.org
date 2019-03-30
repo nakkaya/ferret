@@ -3459,6 +3459,7 @@ C++ API for the interface,
     size_t count(ref seq);
     var doall(ref coll);
     var range(number_t low, number_t high);
+    var map(var fn, var coll);
     bool is_seqable(ref seq);
   }
 
@@ -3555,7 +3556,27 @@ Implementations for the C++ Seekable API,
       };
       return run(seq(low, high));
     }
-    
+
+    var map(var fn, var coll){
+      class seq : public lambda_i {
+        var fn;
+        var coll;
+      public:
+        explicit seq(var f, var c) : fn(f), coll(c) { }
+        var invoke(ref) const {
+          if (coll.is_nil() || coll.is_type(type_id<empty_sequence>))
+            return nil();
+
+          var first = fn.cast<lambda_i>()->
+            invoke(runtime::list(runtime::first(coll)));
+          var thunk = obj<seq>(fn, runtime::rest(coll));
+          var tail = obj<lazy_sequence>(thunk);
+          return runtime::cons(first, tail);
+        }
+      };
+      return run(seq(fn, coll));
+    }
+
     bool is_seqable(ref seq){
       if(seq.cast<seekable_i>())
         return true;
@@ -5788,17 +5809,8 @@ Returns the nth rest of coll, coll when n is 0.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn map
-    ([f col]
-     (if (not (empty? col))
-       (cons (f (first col))
-             (lazy-seq (map f (rest col))))))
-    ([f s1 s2]
-     (lazy-seq
-      (when (and (not (empty? s1))
-                 (not (empty? s2)))
-        (cons (f (first s1) (first s2))
-              (map f (rest s1) (rest s2)))))))
+  (defn map [f coll]
+    "return runtime::map(f, coll)")
 #+end_src
 
 *** reduce
@@ -9647,7 +9659,6 @@ int main() {
     (is (= 0   (first (map dec (list 1 2 3)))))
     (is (= 4   (first (map (fn [x] (+ 3 x)) (list 1 2 3)))))
     (is (= 3   (count (map inc (list 1 2 3)))))
-    (is (= (list (list 1 4) (list 2 5))   (map (fn [a b] (list a b)) (list 1 2) (list 4 5))))
     (is (= 10  (apply + (range 5))))
     (is (= 5   (count (range 5))))
     (is (= 2   (first (take 2 (map inc (list 1 2 3))))))

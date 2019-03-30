@@ -3458,6 +3458,7 @@ C++ API for the interface,
     var nthrest(ref seq, number_t index);
     size_t count(ref seq);
     var doall(ref coll);
+    var range(number_t low, number_t high);
     bool is_seqable(ref seq);
   }
 
@@ -3536,7 +3537,23 @@ Implementations for the C++ Seekable API,
         }
       };
 
-      return run(obj<walk>(coll));
+      return run(walk(coll));
+    }
+
+    var range(number_t low, number_t high){
+      class seq : public lambda_i {
+        number_t low, high;
+      public:
+        explicit seq(number_t l, number_t h) : low(l), high(h) { }
+        var invoke(ref) const {
+          if (low < high){
+            var tail = obj<lazy_sequence>(obj<seq>((low + 1), high));
+            return runtime::cons(obj<number>(low), tail);
+          }
+          return nil();
+        }
+      };
+      return run(seq(low, high));
     }
     
     bool is_seqable(ref seq){
@@ -5801,13 +5818,11 @@ Returns the nth rest of coll, coll when n is 0.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn range
-    ([high]
-     (range 0 high))
-    ([low high]
-     (if (< low high)
-       (cons low (lazy-seq
-                  (range (inc low) high))))))
+(defn range
+  ([high]
+   (range 0 high))
+  ([^number_t low ^number_t high]
+   "return runtime::range(low, high)"))
 #+end_src
 
 *** take

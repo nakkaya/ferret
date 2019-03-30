@@ -220,7 +220,7 @@ calling malloc/free at runtime.
 
 BSD 2-Clause License
 
-Copyright (c) 2017, Nurullah Akkaya
+Copyright (c) 2019, Nurullah Akkaya
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -1404,7 +1404,7 @@ done by running =emit= on the final intermediate representation.
                          (parser/form? 'fir_fn_heap f)     'fir_fn_heap
                          (parser/form? 'fir_fn_stack f)    'fir_fn_stack
                          (parser/form? 'defobject f)       'defobject
-                         (parser/form? 'make_matrix f)     'make_matrix
+                         (parser/form? 'matrix f)          'matrix
                          (parser/form? 'native_header f)   'native_header
                          (parser/form? 'native_declare f)  'native_declare
                          (parser/form? 'native_define f)   'native_define
@@ -1532,7 +1532,7 @@ bindings—things which functions cannot do.
   (defmethod emit 'defobject [options [_ name & spec] state]
     (append-to! state [:objects] (defobject name spec options)))
 
-  (defmethod emit 'make_matrix [options [_ elements] state]
+  (defmethod emit 'matrix [options [_ elements] state]
     (let [rows (count elements)
           cols (-> elements first count)
           elements (apply concat elements)
@@ -1544,7 +1544,7 @@ bindings—things which functions cannot do.
                         elements)
           elements (apply str (interpose \, elements))
           matrix-t (str rows "," cols "," elements)
-          matrix-decl (str "obj<matrix_t>(" matrix-t ")")]
+          matrix-decl (str "obj<matrix>(" matrix-t ")")]
       matrix-decl))
 
   (defmethod emit 'native_header [_ [_ & declarations] state]
@@ -2594,7 +2594,10 @@ modern C++ libraries that use smart pointers for memory management.
     }  
   };
 
-  typedef value<matrix> matrix_t;
+  template<>
+  inline var obj<matrix>(matrix m) {
+    return obj<value<matrix>>(m);
+  }
 #+end_src
 
 **** Number
@@ -6464,11 +6467,11 @@ Returns a random integer between 0 (inclusive) and n (exclusive).
 
 (defn rot [turns]
   (let [a (* 2 pi turns)]
-    (make-matrix
+    (matrix
      [[   (cos a)  (sin a)]
       [(- (sin a)) (cos a)]])))
 
-(->> (make-matrix [[3] [4]])
+(->> (matrix [[3] [4]])
      (m/mmul (rot 1/8))
      (m/cout))
 
@@ -6500,7 +6503,7 @@ dimensions.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn zeros [^number_t r, ^number_t c]
-  "return obj<matrix_t>(matrix::zeros(r,c));")
+  "return obj<matrix>(matrix::zeros(r,c));")
 #+end_src
 
 *** ones
@@ -6510,7 +6513,7 @@ dimensions.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn ones [^number_t r, ^number_t c]
-  "return obj<matrix_t>(matrix::ones(r,c));")
+  "return obj<matrix>(matrix::ones(r,c));")
 #+end_src
 
 *** full
@@ -6519,7 +6522,7 @@ Fills a matrix with a single scalar value.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn full [^number_t r, ^number_t c, ^number_t v]
-  "return obj<matrix_t>(matrix::ones(r,c,v));")
+  "return obj<matrix>(matrix::ones(r,c,v));")
 #+end_src
 
 *** eye
@@ -6529,7 +6532,7 @@ main diagonal and zeros elsewhere.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn eye [^number_t n]
-  "return obj<matrix_t>(matrix::eye(n));")
+  "return obj<matrix>(matrix::eye(n));")
 #+end_src
 
 *** add
@@ -6538,7 +6541,7 @@ Performs element-wise addition on matrices.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn add [^matrix u ^matrix v]
-  "return obj<matrix_t>(u + v);")
+  "return obj<matrix>(u + v);")
 #+end_src
 
 *** sub
@@ -6547,7 +6550,7 @@ Performs element-wise subtraction on matrices.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn sub [^matrix u ^matrix v]
-  "return obj<matrix_t>(u - v);")
+  "return obj<matrix>(u - v);")
 #+end_src
 
 *** mul
@@ -6556,7 +6559,7 @@ Performs element-wise multipication with scalar on matrices.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn mul [^matrix u ^real_t s]
-  "return obj<matrix_t>(u * s);")
+  "return obj<matrix>(u * s);")
 #+end_src
 
 *** mmul
@@ -6565,7 +6568,7 @@ Performs matrix multiplication on matrices.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn mmul [^matrix u ^matrix v]
-  "return obj<matrix_t>(u * v);")
+  "return obj<matrix>(u * v);")
 #+end_src
 
 *** equals
@@ -6587,7 +6590,7 @@ matrix.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn normalise [^matrix u]
-  "return obj<matrix_t>(matrix::normalise(u));")
+  "return obj<matrix>(matrix::normalise(u));")
 #+end_src
 
 *** norm

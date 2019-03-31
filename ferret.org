@@ -3451,15 +3451,16 @@ C++ API for the interface,
     template <typename... Args>
     var list(ref first, Args const & ... args);
 
-    var first(ref coll);
-    var rest(ref coll);
+    bool is_empty(ref seq);
+    var first(ref seq);
+    var rest(ref seq);
     var cons(ref x, ref seq);
     var nth(ref seq, number_t index);
     var nthrest(ref seq, number_t index);
     size_t count(ref seq);
-    var doall(ref coll);
+    var doall(ref seq);
     var range(number_t low, number_t high);
-    var map(var fn, var coll);
+    var map(var fn, var seq);
     bool is_seqable(ref seq);
   }
 
@@ -3473,22 +3474,28 @@ Implementations for the C++ Seekable API,
 #+name: runtime-native-implementations
 #+begin_src c++ :tangle no
   namespace runtime{
-    var first(ref coll){
-      if (coll.is_nil() || coll.is_type(type_id<empty_sequence>))
-        return nil();
-      return coll.cast<seekable_i>()->first();
+    inline bool is_empty(ref seq){
+      if (seq.is_nil() || seq.is_type(type_id<empty_sequence>))
+        return true;
+      return false;
     }
 
-    var rest(ref coll){
-      if (coll.is_nil() || coll.is_type(type_id<empty_sequence>))
+    var first(ref seq){
+      if (is_empty(seq))
         return nil();
-      return coll.cast<seekable_i>()->rest();
+      return seq.cast<seekable_i>()->first();
     }
 
-    var cons(ref x, ref coll){
-      if (coll.is_nil() || coll.is_type(type_id<empty_sequence>))
+    var rest(ref seq){
+      if (is_empty(seq))
+        return nil();
+      return seq.cast<seekable_i>()->rest();
+    }
+
+    var cons(ref x, ref seq){
+      if (is_empty(seq))
         return runtime::list(x);
-      return coll.cast<seekable_i>()->cons(x);
+      return seq.cast<seekable_i>()->cons(x);
     }
 
     var nth(ref seq, number_t n_index){
@@ -3524,13 +3531,13 @@ Implementations for the C++ Seekable API,
       return acc;
     }
 
-    var doall(ref coll){
+    var doall(ref seq){
       class walk : public lambda_i {
         var seq;
       public:
         explicit walk(ref s) : seq(s) { }
         var invoke(ref) const {
-          if (seq.is_nil() || seq.is_type(type_id<empty_sequence>))
+          if (is_empty(seq))
             return nil();
           
           var tail = obj<lazy_sequence>(obj<walk>(runtime::rest(seq)), true);
@@ -3538,7 +3545,7 @@ Implementations for the C++ Seekable API,
         }
       };
 
-      return run(walk(coll));
+      return run(walk(seq));
     }
 
     var range(number_t low, number_t high){
@@ -3557,28 +3564,28 @@ Implementations for the C++ Seekable API,
       return run(seq(low, high));
     }
 
-    var map(var fn, var coll){
-      class seq : public lambda_i {
+    var map(var fn, var seq){
+      class walk : public lambda_i {
         var fn;
-        var coll;
+        var seq;
       public:
-        explicit seq(var f, var c) : fn(f), coll(c) { }
+        explicit walk(var f, var c) : fn(f), seq(c) { }
         var invoke(ref) const {
-          if (coll.is_nil() || coll.is_type(type_id<empty_sequence>))
+          if (is_empty(seq))
             return nil();
 
           var first = fn.cast<lambda_i>()->
-            invoke(runtime::list(runtime::first(coll)));
-          var thunk = obj<seq>(fn, runtime::rest(coll));
+            invoke(runtime::list(runtime::first(seq)));
+          var thunk = obj<walk>(fn, runtime::rest(seq));
           var tail = obj<lazy_sequence>(thunk);
           return runtime::cons(first, tail);
         }
       };
-      return run(seq(fn, coll));
+      return run(walk(fn, seq));
     }
 
-    bool is_seqable(ref seq){
-      if(seq.cast<seekable_i>())
+    bool is_seqable(ref coll){
+      if(coll.cast<seekable_i>())
         return true;
       else
         return false;

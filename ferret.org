@@ -8574,6 +8574,38 @@ Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation
     "return obj<number>(SPI.transfer(val));")
 #+end_src
 
+*** Wire
+
+This library allows you to communicate with I2C / TWI devices. See
+[[https://www.arduino.cc/en/Reference/Wire][documentation]] for more information.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
+(defnative wire-begin []
+  (on "defined FERRET_HARDWARE_ARDUINO"
+      ("Wire.h")
+      "Wire.begin();"))
+
+(defn with-wire-aux [^number_t addr f]
+  "Wire.beginTransmission(addr);
+   __result = run(f);
+   Wire.endTransmission();")
+
+(defmacro with-wire [addr & body]
+  `(with-wire-aux ~addr (fn [] ~@body)))
+
+(defn wire-write [^number_t val]
+  "Wire.write(val);")
+
+(defn wire-read []
+  "return obj<number>(Wire.read());")
+
+(defn wire-request-from [^number_t addr ^number_t bytes]
+  "Wire.requestFrom(addr, bytes);")
+
+(defn wire-available []
+  "__result = obj<number>(Wire.available());")
+#+end_src
+
 *** Watchdog Timer
 
 A watchdog timer is an electronic timer that is used to detect and

@@ -7197,6 +7197,8 @@ Ignores body, yields nil.
 ** I/O
 *** print
 
+Prints the object(s) to =STD_OUT=.
+
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative print [& more]
@@ -7213,23 +7215,15 @@ Ignores body, yields nil.
          return nil();"))
 #+end_src
 
-*** newline
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defnative newline []
-    (on "!defined(FERRET_DISABLE_STD_OUT)"
-        "runtime::print((char)0xA);"))
-#+end_src
-
 *** println
 
+Same as print followed by (newline).
+
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn println [& more]
-    (when more
-      (apply print more))
-    (newline))
+(defn println [& more]
+  (apply print more)
+  (cxx "runtime::print((char)0xA);"))
 #+end_src
 
 *** get-char

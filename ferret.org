@@ -1403,6 +1403,7 @@ done by running =emit= on the final intermediate representation.
                          (parser/form? 'fir_defn_arity f)  'fir_defn_arity
                          (parser/form? 'fir_fn_heap f)     'fir_fn_heap
                          (parser/form? 'fir_fn_stack f)    'fir_fn_stack
+                         (parser/form? 'list f)            'list
                          (parser/form? 'defobject f)       'defobject
                          (parser/form? 'matrix f)          'matrix
                          (parser/form? 'native_header f)   'native_header
@@ -1528,6 +1529,12 @@ bindings—things which functions cannot do.
         #endif"
        :guard       (.toUpperCase (str name))
        :body        def)))
+
+  (defmethod emit 'list [options [fn & args] state]
+    (let [elements  (->> (emit-ast options args state)
+                         (interpose \,)
+                         (apply str))]
+      (str "runtime::list(" elements ")")))
 
   (defmethod emit 'defobject [options [_ name & spec] state]
     (append-to! state [:objects] (defobject name spec options)))
@@ -5735,15 +5742,11 @@ When test is true, evaluates body with binding-form bound to the value of test.
 ** Sequential
 *** list
 
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
-  (defn list [& xs] "if (xs.is_nil())
-                       return runtime::list();
-                     else
-                       return xs;")
-#+end_src
+Creates a new list. See [[Special%20Forms][Spacial Forms]].
 
 *** list?
+
+Returns true if =x= implements [[Sequence]].
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no

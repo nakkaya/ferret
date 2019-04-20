@@ -2686,13 +2686,13 @@ directly. count is O(n). conj puts the item at the front of the list.
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      runtime::print("(");
+      runtime::print('(');
       data.stream_console();
       for_each(i, next){
-        runtime::print(" ");
+        runtime::print(' ');
         i.stream_console();
       }
-      runtime::print(")");
+      runtime::print(')');
     }
   #endif
 
@@ -2788,15 +2788,15 @@ cache their values unless forced using [[doall]].
       var seq = var((object*)this);
       var tail = runtime::rest(seq);
 
-      runtime::print("(");
+      runtime::print('(');
       if (tail)
         runtime::first(seq).stream_console();
 
       for_each(i, tail){
-        runtime::print(" ");
+        runtime::print(' ');
         i.stream_console();
       }
-      runtime::print(")");
+      runtime::print(')');
     }
   #endif
 
@@ -3226,7 +3226,7 @@ or =reset!=. Changes to atoms are always free of race conditions.
     void stream_console() const final {
       runtime::print("atom<");
       data.stream_console();
-      runtime::print(">");
+      runtime::print('>');
     }
   #endif
 
@@ -3332,7 +3332,7 @@ thread to =future=,
     void stream_console() const final {
       runtime::print("future<");
       fn.stream_console();
-      runtime::print(">");
+      runtime::print('>');
     }
   #endif
 
@@ -7207,7 +7207,7 @@ Ignores body, yields nil.
          f.stream_console();
          ref r = runtime::rest(more);
          for_each(it, r){
-          runtime::print(\" \");
+          runtime::print(' ');
           it.stream_console();
          }
          return nil();"))
@@ -7219,7 +7219,7 @@ Ignores body, yields nil.
 #+begin_src clojure :tangle no
   (defnative newline []
     (on "!defined(FERRET_DISABLE_STD_OUT)"
-        "runtime::print(\"\\n\");"))
+        "runtime::print((char)0xA);"))
 #+end_src
 
 *** println
@@ -7750,9 +7750,9 @@ other members of the group and port.
     void stream_console() const final {
       runtime::print("multicast_socket<");
       runtime::print(ip);
-      runtime::print(" ");
+      runtime::print(' ');
       runtime::print(port);
-      runtime::print(">");
+      runtime::print('>');
     }
   #endif
 

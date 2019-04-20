@@ -5742,7 +5742,12 @@ When test is true, evaluates body with binding-form bound to the value of test.
 ** Sequential
 *** list
 
-Creates a new list. See [[Special%20Forms][Spacial Forms]].
+Creates a new list. See also [[Special%20Forms][Spacial Forms]].
+
+#+name: runtime-clojure-sequence
+#+begin_src clojure :tangle no
+  (defn list [& xs] "return xs;")
+#+end_src
 
 *** list?
 

@@ -4605,7 +4605,7 @@ public:
       norm += m.data[i] * m.data[i];
     }
 
-    return real_t(sqrt(norm));
+    return real_t(sqrt((double)norm));
   }
 
   static matrix normalise(const matrix& m){

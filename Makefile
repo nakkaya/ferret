@@ -53,7 +53,15 @@ CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
 CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/src/ferret/
 
 define static_check
-    cppcheck --quiet --inline-suppr --force --language=c++ --std=c++11 --template=gcc --enable=all --error-exitcode=1 $1 2> "$1.cppcheck"
+    cppcheck --quiet\
+    -DFERRET_STD_LIB \
+    --language=c++ --std=c++11 --template=gcc --enable=all\
+    --inline-suppr\
+    --suppress=preprocessorErrorDirective:$1 \
+    --suppress=unusedFunction:$1\
+    --suppress=missingIncludeSystem:$1\
+    --suppress=unmatchedSuppression:$1\
+    --error-exitcode=1 $1 2> "$1.cppcheck"
 endef
 
 # only enable sanitizers during release test

@@ -2838,15 +2838,15 @@ cache their values unless forced using [[doall]].
 
         return seq;
       }else{
-        var seq = run(thunk);
+        var tail = run(thunk);
 
         if (data.is_nil())
-          return runtime::rest(seq);
+          return runtime::rest(tail);
 
-        if (seq.is_nil())
+        if (tail.is_nil())
           return runtime::list();
 
-        return seq;
+        return tail;
       }
     }
   };
@@ -2910,18 +2910,18 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     var data;
 
     var dissoc_aux(ref k) const {
-      ref keys = runtime::first(data);
-      var values = runtime::rest(data);
+      ref _keys = runtime::first(data);
+      var _values = runtime::rest(data);
 
       var new_keys;
       var new_values;
       
-      for_each(i, keys){
+      for_each(i, _keys){
         if ( i == k)
           continue;
         new_keys = runtime::cons(i, new_keys);
-        new_values = runtime::cons(runtime::first(values), new_values);
-        values = runtime::rest(values);
+        new_values = runtime::cons(runtime::first(_values), new_values);
+        _values = runtime::rest(_values);
       }
         
       return runtime::cons(new_keys,new_values);
@@ -2946,11 +2946,11 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     
     var assoc(ref k, ref v) const {
       ref map = dissoc_aux(k);
-      ref keys = runtime::first(map);
-      ref values = runtime::rest(map);
+      ref _keys = runtime::first(map);
+      ref _values = runtime::rest(map);
 
-      return obj<d_list>(runtime::cons(runtime::cons(k,keys),
-                                       runtime::cons(v,values)));
+      return obj<d_list>(runtime::cons(runtime::cons(k,_keys),
+                                       runtime::cons(v,_values)));
     }
 
     var dissoc(ref k) const {
@@ -2961,14 +2961,14 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       ref key = runtime::first(args);
       ref not_found = runtime::first(runtime::rest(args));
 
-      ref keys = runtime::first(data);
-      var values = runtime::rest(data);
+      ref _keys = runtime::first(data);
+      var _values = runtime::rest(data);
 
-      for_each(i, keys){
+      for_each(i, _keys){
         if (key == i)
-          return runtime::first(values);
+          return runtime::first(_values);
 
-        values = runtime::rest(values);
+        _values = runtime::rest(_values);
       }
       
       if (!not_found.is_nil()){
@@ -2992,19 +2992,19 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     }
     
     var first() final {
-      ref keys = runtime::first(data);
-      ref values = runtime::rest(data);
-      return runtime::list(runtime::first(keys),runtime::first(values));
+      ref _keys = runtime::first(data);
+      ref _values = runtime::rest(data);
+      return runtime::list(runtime::first(_keys),runtime::first(_values));
     }
     
     var rest() final {
-      ref keys = runtime::first(data);
-      ref values = runtime::rest(data);
+      ref _keys = runtime::first(data);
+      ref _values = runtime::rest(data);
 
-      if(runtime::rest(keys).is_type(type_id<empty_sequence>))
+      if(runtime::rest(_keys).is_type(type_id<empty_sequence>))
         return runtime::list();
       
-      return obj<d_list>(runtime::cons(runtime::rest(keys),runtime::rest(values)));
+      return obj<d_list>(runtime::cons(runtime::rest(_keys),runtime::rest(_values)));
     }
   };
 
@@ -3057,7 +3057,7 @@ public:
   explicit keyword(number_t w) : hash(w) {} 
   explicit keyword(const char * str): hash(hash_key(str)) { }
 
-  var invoke(ref args) const {
+  var invoke(ref args) const final {
     ref map = runtime::first(args);
     ref map_args = runtime::cons(var((object*)this), runtime::rest(args));
 
@@ -3237,7 +3237,7 @@ or =reset!=. Changes to atoms are always free of race conditions.
       return data;
     }
     
-    var deref() {
+    var deref() final {
       lock_guard guard(lock);
       return data;
     }
@@ -3343,7 +3343,7 @@ thread to =future=,
       }
     }
 
-    var deref() {
+    var deref() final {
       lock_guard guard(lock);
       get();
       return value;
@@ -3390,7 +3390,7 @@ calls.
 
     explicit delayed(ref f) : fn(f) {} 
     
-    var deref() {
+    var deref() final {
       lock_guard guard(lock);
       if (!fn.is_nil()){
         val = fn.cast<lambda_i>()->invoke(nil());
@@ -3536,7 +3536,7 @@ Implementations for the C++ Seekable API,
         var seq;
       public:
         explicit walk(ref s) : seq(s) { }
-        var invoke(ref) const {
+        var invoke(ref) const final {
           if (is_empty(seq))
             return nil();
           
@@ -3553,7 +3553,7 @@ Implementations for the C++ Seekable API,
         number_t low, high;
       public:
         explicit seq(number_t l, number_t h) : low(l), high(h) { }
-        var invoke(ref) const {
+        var invoke(ref) const final {
           if (low < high){
             var tail = obj<lazy_sequence>(obj<seq>((low + 1), high));
             return runtime::cons(obj<number>(low), tail);
@@ -3570,15 +3570,15 @@ Implementations for the C++ Seekable API,
         var seq;
       public:
         explicit walk(var f, var c) : fn(f), seq(c) { }
-        var invoke(ref) const {
+        var invoke(ref) const final {
           if (is_empty(seq))
             return nil();
 
-          var first = fn.cast<lambda_i>()->
+          var head = fn.cast<lambda_i>()->
             invoke(runtime::list(runtime::first(seq)));
           var thunk = obj<walk>(fn, runtime::rest(seq));
           var tail = obj<lazy_sequence>(thunk);
-          return runtime::cons(first, tail);
+          return runtime::cons(head, tail);
         }
       };
       return run(walk(fn, seq));
@@ -6922,7 +6922,7 @@ public:
 
   explicit fn_throttler(var f, real_t r, bool b) : fn(f), rate(r), blocking (b) { }
 
-  var invoke(ref args) const {
+  var invoke(ref args) const final {
     return var((object*)this).cast<fn_throttler>()->exec(args);
   }
 };
@@ -7986,7 +7986,7 @@ returns true, returns the next state.
 
     fsm(ref e, ref t) : env(e), state(runtime::first(e)), transitions(t){ }
 
-    var invoke(ref) const {
+    var invoke(ref) const final {
       return var((object*)this).cast<fsm>()->yield();
     }
 
@@ -8201,7 +8201,7 @@ Ported from,
       input = 0;
     }
 
-    var invoke(ref args) const {
+    var invoke(ref args) const final {
       if (!setpoint_fn.is_nil())
         var((object*)this).cast<pid_controller<T>>()
           ->set_setpoint(run(setpoint_fn));
@@ -8263,7 +8263,7 @@ moving average of the last K samples by setting the value of alpha to
 
     explicit moving_average_filter(T a) : alpha(a), avrg(0) { }
 
-    var invoke(ref args) const {
+    var invoke(ref args) const final {
       return var((object*)this).cast<moving_average_filter<T>>()
         ->step(number::to<T>(runtime::first(args)));
     }
@@ -8426,7 +8426,7 @@ sensors which have contacts that "chatter" or "bounce".
       pin(p)
       {}
 
-    var invoke(ref args) const {
+    var invoke(ref args) const final {
       return var((object*)this).cast<bounce>()->step();
     }
   };
@@ -9049,7 +9049,8 @@ Static code analysis (cppcheck) options,
     assert((numbers[2] == 3));
     assert((numbers[3] == 4));
     assert((numbers[4] == 5));
-    
+
+    // cppcheck-suppress useStlAlgorithm
     for (int& x : numbers) { x++; }
    
     assert((numbers[0] == 2));

@@ -1403,6 +1403,7 @@ done by running =emit= on the final intermediate representation.
                          (parser/form? 'fir_defn_arity f)  'fir_defn_arity
                          (parser/form? 'fir_fn_heap f)     'fir_fn_heap
                          (parser/form? 'fir_fn_stack f)    'fir_fn_stack
+                         (parser/form? 'list f)            'list
                          (parser/form? 'defobject f)       'defobject
                          (parser/form? 'matrix f)          'matrix
                          (parser/form? 'native_header f)   'native_header
@@ -1528,6 +1529,12 @@ bindings—things which functions cannot do.
         #endif"
        :guard       (.toUpperCase (str name))
        :body        def)))
+
+  (defmethod emit 'list [options [fn & args] state]
+    (let [elements  (->> (emit-ast options args state)
+                         (interpose \,)
+                         (apply str))]
+      (str "runtime::list(" elements ")")))
 
   (defmethod emit 'defobject [options [_ name & spec] state]
     (append-to! state [:objects] (defobject name spec options)))
@@ -2679,13 +2686,13 @@ directly. count is O(n). conj puts the item at the front of the list.
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      runtime::print("(");
+      runtime::print('(');
       data.stream_console();
       for_each(i, next){
-        runtime::print(" ");
+        runtime::print(' ');
         i.stream_console();
       }
-      runtime::print(")");
+      runtime::print(')');
     }
   #endif
 
@@ -2781,15 +2788,15 @@ cache their values unless forced using [[doall]].
       var seq = var((object*)this);
       var tail = runtime::rest(seq);
 
-      runtime::print("(");
+      runtime::print('(');
       if (tail)
         runtime::first(seq).stream_console();
 
       for_each(i, tail){
-        runtime::print(" ");
+        runtime::print(' ');
         i.stream_console();
       }
-      runtime::print(")");
+      runtime::print(')');
     }
   #endif
 
@@ -3219,7 +3226,7 @@ or =reset!=. Changes to atoms are always free of race conditions.
     void stream_console() const final {
       runtime::print("atom<");
       data.stream_console();
-      runtime::print(">");
+      runtime::print('>');
     }
   #endif
 
@@ -3325,7 +3332,7 @@ thread to =future=,
     void stream_console() const final {
       runtime::print("future<");
       fn.stream_console();
-      runtime::print(">");
+      runtime::print('>');
     }
   #endif
 
@@ -5735,15 +5742,16 @@ When test is true, evaluates body with binding-form bound to the value of test.
 ** Sequential
 *** list
 
+Creates a new list. See also [[Special%20Forms][Spacial Forms]].
+
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn list [& xs] "if (xs.is_nil())
-                       return runtime::list();
-                     else
-                       return xs;")
+  (defn list [& xs] "return xs;")
 #+end_src
 
 *** list?
+
+Returns true if =x= implements [[Sequence]].
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
@@ -7194,6 +7202,8 @@ Ignores body, yields nil.
 ** I/O
 *** print
 
+Prints the object(s) to =STD_OUT=.
+
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative print [& more]
@@ -7204,29 +7214,21 @@ Ignores body, yields nil.
          f.stream_console();
          ref r = runtime::rest(more);
          for_each(it, r){
-          runtime::print(\" \");
+          runtime::print(' ');
           it.stream_console();
          }
          return nil();"))
 #+end_src
 
-*** newline
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defnative newline []
-    (on "!defined(FERRET_DISABLE_STD_OUT)"
-        "runtime::print(\"\\n\");"))
-#+end_src
-
 *** println
 
+Same as print followed by (newline).
+
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn println [& more]
-    (when more
-      (apply print more))
-    (newline))
+(defn println [& more]
+  (apply print more)
+  (cxx "runtime::print((char)0xA);"))
 #+end_src
 
 *** get-char
@@ -7747,9 +7749,9 @@ other members of the group and port.
     void stream_console() const final {
       runtime::print("multicast_socket<");
       runtime::print(ip);
-      runtime::print(" ");
+      runtime::print(' ');
       runtime::print(port);
-      runtime::print(">");
+      runtime::print('>');
     }
   #endif
 
@@ -8572,6 +8574,38 @@ Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation
 
   (defn spi-write [^number_t val]
     "return obj<number>(SPI.transfer(val));")
+#+end_src
+
+*** Wire
+
+This library allows you to communicate with I2C / TWI devices. See
+[[https://www.arduino.cc/en/Reference/Wire][documentation]] for more information.
+
+#+begin_src clojure :mkdirp yes :tangle src/src/ferret/arduino.clj
+(defnative wire-begin []
+  (on "defined FERRET_HARDWARE_ARDUINO"
+      ("Wire.h")
+      "Wire.begin();"))
+
+(defn with-wire-aux [^number_t addr f]
+  "Wire.beginTransmission(addr);
+   __result = run(f);
+   Wire.endTransmission();")
+
+(defmacro with-wire [addr & body]
+  `(with-wire-aux ~addr (fn [] ~@body)))
+
+(defn wire-write [^number_t val]
+  "Wire.write(val);")
+
+(defn wire-read []
+  "return obj<number>(Wire.read());")
+
+(defn wire-request-from [^number_t addr ^number_t bytes]
+  "Wire.requestFrom(addr, bytes);")
+
+(defn wire-available []
+  "__result = obj<number>(Wire.available());")
 #+end_src
 
 *** Watchdog Timer

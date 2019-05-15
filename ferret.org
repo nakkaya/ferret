@@ -4793,28 +4793,54 @@ provides its own types that are portable across architectures.
 
 =array= is a container that encapsulates fixed size arrays.
 
-#+name: runtime-native-containers
+#+name: runtime-native-array
 #+begin_src c++ :tangle no
-  template<class Type>
-  struct array_seq {
-    Type* p;
-    explicit array_seq(Type* p) : p(p) {}
-    bool operator!=(array_seq rhs) {return p != rhs.p;}
-    Type& operator*() {return *p;}
-    void operator++() {++p;}
-  };
-   
-  template<class T, size_t S>
-  struct array {
-    T data[S];
-        
-    T& operator [](int idx)      { return data[idx]; }
-    T operator [](int idx) const { return data[idx]; }
-      
-    array_seq<T> begin() { return array_seq<T>(data);      }
-    array_seq<T> end()   { return array_seq<T>(data + S);  }
-    size_t       size()  { return S;                       }
-  };
+template <typename T>
+struct array {
+  T* data {nullptr};
+  size_t  _size{0};
+
+  explicit inline array(size_t s = 0) : _size(s) {
+    data = (T *)FERRET_ALLOCATOR::allocate(_size * sizeof(T));
+  }
+
+  explicit inline array(const T* source, size_t s = 0) : _size(s) {
+    data = (T *)FERRET_ALLOCATOR::allocate(_size * sizeof(T));
+    for(size_t i = 0; i < _size; i++)
+      data[i] = source[i];
+  }
+
+#if defined(FERRET_STD_LIB)
+  explicit inline array(std::initializer_list<T> source) :
+    _size(source.size()) {
+    data = (T *)FERRET_ALLOCATOR::allocate(_size * sizeof(T));
+    size_t idx = 0;
+    for(auto item : source){  
+      data[idx] = item;
+      idx++;
+    }
+  }
+#endif
+
+  inline array(array&& m) :
+    data(m.data), _size(m.size()) { m.data = nullptr; }
+
+  inline array(array& m) : _size(m.size()){
+    for(size_t i = 0; i < _size; i++)
+      data[i] = m.data[i];
+  }
+  
+  ~array(){
+    FERRET_ALLOCATOR::free(data);
+  }
+
+  T& operator [](int idx)      { return data[idx]; }
+  T operator [](int idx) const { return data[idx]; }
+
+  T*      begin() { return &data[0];      }
+  T*      end()   { return &data[_size];  }
+  size_t  size()  { return _size;         }
+};
 #+end_src
 
 *** bitset
@@ -7480,7 +7506,7 @@ other members of the group and port.
      return cached::false_o;")
 
   (defn send [con data]
-    "datagram_t buffer;
+    "datagram_t buffer(max_data_gram_size);
      number_t idx = 0; 
 
      for_each(b, data)
@@ -7491,7 +7517,7 @@ other members of the group and port.
       return cached::false_o;")
 
   (defn byte [data ^number_t curr]
-    "auto buffer = value<datagram_t>::to_reference(data);
+    "datagram_t& buffer = value<datagram_t>::to_reference(data);
      return obj<number>(buffer[curr]);")
 
   (defn data-seq
@@ -7511,7 +7537,7 @@ other members of the group and port.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/net/multicast_o.h
   const size_t max_data_gram_size = 65507;
-  typedef ferret::array<ferret::byte, max_data_gram_size> datagram_t;
+  typedef ferret::array<ferret::byte> datagram_t;
 
   namespace multicast_aux {
     class address{
@@ -7775,7 +7801,7 @@ other members of the group and port.
       lock_guard guard(lock);
       multicast_aux::address src_addr(ip.c_str(), port);
 
-      var buffer = obj<value<datagram_t>>();
+      var buffer = obj<value<datagram_t>>(max_data_gram_size);
       number_t read = (number_t)net.recv(src_addr, value<datagram_t>::to_reference(buffer));
 
       return runtime::list(obj<number>(read), buffer);
@@ -9076,8 +9102,15 @@ Static code analysis (cppcheck) options,
   int main() {
     using namespace ferret;
 
-    array<int, 5> numbers{{1, 2, 3, 4, 5}};
-   
+    array<char> buffer(16);
+    assert((buffer.size() == 16));
+
+    array<char> str("abcde",5);
+    assert((str[0] == 'a'));
+    assert((str[1] == 'b'));
+    assert((str[4] == 'e'));
+
+    array<int> numbers {1, 2, 3, 4, 5};
     assert((numbers[0] == 1));
     assert((numbers[1] == 2));
     assert((numbers[2] == 3));
@@ -10844,6 +10877,7 @@ Create some dummy libs under /test/modules/,
   }
 
   namespace ferret{
+    <<runtime-native-array>>
     <<runtime-native-matrix>>
   }
 

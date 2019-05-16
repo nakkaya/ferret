@@ -1551,7 +1551,7 @@ bindings—things which functions cannot do.
                         elements)
           elements (apply str (interpose \, elements))
           matrix-t (str rows "," cols "," elements)
-          matrix-decl (str "obj<matrix>(" matrix-t ")")]
+          matrix-decl (str "obj<value<matrix>>(" matrix-t ")")]
       matrix-decl))
 
   (defmethod emit 'native_header [_ [_ & declarations] state]
@@ -2600,11 +2600,6 @@ modern C++ libraries that use smart pointers for memory management.
       return v.cast<value<T>>()->to_reference();
     }  
   };
-
-  template<>
-  inline var obj<matrix>(matrix m) {
-    return obj<value<matrix>>(m);
-  }
 #+end_src
 
 **** Number
@@ -6568,7 +6563,7 @@ dimensions.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn zeros [^number_t r, ^number_t c]
-  "return obj<matrix>(matrix::zeros(r,c));")
+  "return obj<value<matrix>>(matrix::zeros(r,c));")
 #+end_src
 
 *** ones
@@ -6578,7 +6573,7 @@ dimensions.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn ones [^number_t r, ^number_t c]
-  "return obj<matrix>(matrix::ones(r,c));")
+  "return obj<value<matrix>>(matrix::ones(r,c));")
 #+end_src
 
 *** full
@@ -6587,7 +6582,7 @@ Fills a matrix with a single scalar value.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn full [^number_t r, ^number_t c, ^number_t v]
-  "return obj<matrix>(matrix::ones(r,c,v));")
+  "return obj<value<matrix>>(matrix::ones(r,c,v));")
 #+end_src
 
 *** eye
@@ -6597,7 +6592,7 @@ main diagonal and zeros elsewhere.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn eye [^number_t n]
-  "return obj<matrix>(matrix::eye(n));")
+  "return obj<value<matrix>>(matrix::eye(n));")
 #+end_src
 
 *** add
@@ -6606,7 +6601,7 @@ Performs element-wise addition on matrices.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn add [^matrix u ^matrix v]
-  "return obj<matrix>(u + v);")
+  "return obj<value<matrix>>(u + v);")
 #+end_src
 
 *** sub
@@ -6615,7 +6610,7 @@ Performs element-wise subtraction on matrices.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn sub [^matrix u ^matrix v]
-  "return obj<matrix>(u - v);")
+  "return obj<value<matrix>>(u - v);")
 #+end_src
 
 *** mul
@@ -6624,7 +6619,7 @@ Performs element-wise multipication with scalar on matrices.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn mul [^matrix u ^real_t s]
-  "return obj<matrix>(u * s);")
+  "return obj<value<matrix>>(u * s);")
 #+end_src
 
 *** mmul
@@ -6633,7 +6628,7 @@ Performs matrix multiplication on matrices.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn mmul [^matrix u ^matrix v]
-  "return obj<matrix>(u * v);")
+  "return obj<value<matrix>>(u * v);")
 #+end_src
 
 *** equals
@@ -6655,7 +6650,7 @@ matrix.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn normalise [^matrix u]
-  "return obj<matrix>(matrix::normalise(u));")
+  "return obj<value<matrix>>(matrix::normalise(u));")
 #+end_src
 
 *** norm

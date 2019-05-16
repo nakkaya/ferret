@@ -1550,7 +1550,7 @@ bindings—things which functions cannot do.
                             "(" (emit options % state) ")"))
                         elements)
           elements (apply str (interpose \, elements))
-          matrix-t (str rows "," cols "," elements)
+          matrix-t (str "size_t(" rows "), size_t(" cols ")," elements)
           matrix-decl (str "obj<value<matrix>>(" matrix-t ")")]
       matrix-decl))
 
@@ -6520,6 +6520,7 @@ Returns a random integer between 0 (inclusive) and n (exclusive).
 
 ** Matrices
 
+#+name: ferret-unit-tests
 #+begin_src clojure
 (require '[ferret.matrix :as m])
 
@@ -6533,9 +6534,12 @@ Returns a random integer between 0 (inclusive) and n (exclusive).
 
 (->> (matrix [[3] [4]])
      (m/mmul (rot 1/8))
-     (m/cout))
+     (m/seq))
 
-(println )
+(assert (= (->> (matrix [[3] [4]])
+                (m/mmul (rot 1/8))
+                (m/seq))
+           (list (list 4.9497) (list 0.7072))))
 #+end_src
 
 *** row-count
@@ -6677,7 +6681,7 @@ Gets a scalar value from a matrix at the specified position.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn mget [^matrix u ^number_t r ^number_t c]
-  "return obj<number>(u(r,c));")
+  "return obj<number>(u((size_t)r, (size_t)c));")
 #+end_src
 
 *** cout

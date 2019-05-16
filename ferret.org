@@ -4431,10 +4431,10 @@ class matrix {
   size_t  rows{0};
   size_t  cols{0};
 
-  static void into_aux(matrix &){ }
+  inline static void into_aux(matrix &){ }
 
   template<typename... Args>
-  static void into_aux(matrix &m, real_t first, Args... rest){
+  inline static void into_aux(matrix &m, real_t first, Args... rest){
     m.data[m.data.size() - sizeof...(rest) - 1] = first;
     into_aux(m, rest...);
   }
@@ -4458,14 +4458,14 @@ public:
       data[i] = m.data[i];
   }
 
-  matrix operator+ (const matrix& m) const {
+  inline matrix operator+ (const matrix& m) const {
     matrix sum(rows,cols);
     for(size_t i = 0; i < data.size(); i++)
       sum.data[i] = data[i] + m.data[i];
     return sum;
   }
 
-  matrix operator- (const matrix& m) const {
+  inline matrix operator- (const matrix& m) const {
     matrix diff(rows,cols);
     for(size_t i = 0; i < data.size(); i++)
       diff.data[i] = data[i] - m.data[i];
@@ -4511,7 +4511,7 @@ public:
     return *this;
   }
 
-  bool operator ==(const matrix& m) const {
+  inline bool operator ==(const matrix& m) const {
     for (size_t i = 0; i < data.size(); i++)
       if (data[i] != m.data[i])
         return false;
@@ -4569,7 +4569,7 @@ public:
   }
 
   template<size_t rows, size_t cols, typename... Args>
-  static matrix into(Args... rest){
+  inline static matrix into(Args... rest){
     matrix m(rows, cols);
     into_aux(m, rest...);
     return m;
@@ -4830,12 +4830,12 @@ public:
     return *this;
   }
 
-  T& operator [](size_t idx)      { return data[idx]; }
-  T operator [](size_t idx) const { return data[idx]; }
+  inline T& operator [](size_t idx)      { return data[idx]; }
+  inline T operator [](size_t idx) const { return data[idx]; }
 
-  T*      begin() const { return &data[0];      }
-  T*      end()   const { return &data[_size];  }
-  size_t  size()  const { return _size;         }
+  inline T*      begin() const { return &data[0];      }
+  inline T*      end()   const { return &data[_size];  }
+  inline size_t  size()  const { return _size;         }
 };
 #+end_src
 

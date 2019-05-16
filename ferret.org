@@ -4781,9 +4781,12 @@ provides its own types that are portable across architectures.
 #+name: runtime-native-array
 #+begin_src c++ :tangle no
 template <typename T>
-struct array {
-  T* data {nullptr};
+class array {
   size_t  _size{0};
+
+public:
+
+  T* data {nullptr};
 
   explicit inline array(size_t s = 0) : _size(s) {
     data = (T *)FERRET_ALLOCATOR::allocate(_size * sizeof(T));

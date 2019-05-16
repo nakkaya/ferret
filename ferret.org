@@ -4431,9 +4431,8 @@ assert((matrix::normalise(v3d)      == matrix::into<1,3>(0, 1, 0)));
 #+begin_src c++ :tangle no
 class matrix {
   //row-major
-  real_t* data {nullptr};
+  array<real_t> data;
   //shape
-  size_t  size{0};
   size_t  rows{0};
   size_t  cols{0};
 
@@ -4441,15 +4440,13 @@ class matrix {
 
   template<typename... Args>
   static void into_aux(matrix &m, real_t first, Args... rest){
-    m.data[m.size - sizeof...(rest) - 1] = first;
+    m.data[m.data.size() - sizeof...(rest) - 1] = first;
     into_aux(m, rest...);
   }
 
 public:
   inline matrix(size_t r = 0, size_t c = 0) :
-    size(r * c), rows(r) , cols(c) {
-    data = (real_t *)FERRET_ALLOCATOR::allocate(size * sizeof(real_t));
-  }
+    data(r * c), rows(r) , cols(c) { }
 
   template<typename... Args>
   inline matrix(size_t rows, size_t cols, Args... elements)
@@ -4458,25 +4455,24 @@ public:
   }
 
   inline matrix(matrix&& m) :
-    data(m.data), size(m.size), rows(m.rows), cols(m.cols)
-    { m.data = nullptr; }
+    data(m.data), rows(m.rows), cols(m.cols) { }
 
   inline matrix(matrix& m)
     : matrix(m.rows,m.cols){
-    for(size_t i = 0; i < size; i++)
+    for(size_t i = 0; i < data.size(); i++)
       data[i] = m.data[i];
   }
 
   matrix operator+ (const matrix& m) const {
     matrix sum(rows,cols);
-    for(size_t i = 0; i < size; i++)
+    for(size_t i = 0; i < data.size(); i++)
       sum.data[i] = data[i] + m.data[i];
     return sum;
   }
 
   matrix operator- (const matrix& m) const {
     matrix diff(rows,cols);
-    for(size_t i = 0; i < size; i++)
+    for(size_t i = 0; i < data.size(); i++)
       diff.data[i] = data[i] - m.data[i];
     return diff;
   }
@@ -4500,7 +4496,7 @@ public:
 
   matrix operator* (const real_t& val) const {
     matrix mul(rows,cols);
-    for(size_t i = 0; i < size; i++)
+    for(size_t i = 0; i < data.size(); i++)
       mul.data[i] = data[i] * val;
     return mul;
   }
@@ -4514,16 +4510,14 @@ public:
   }
 
   inline matrix& operator=(matrix&& x){
-    data = x.data;
+    data = array<real_t>(x.data);
     rows = x.rows;
     cols = x.cols;
-    size = x.size;
-    x.data = nullptr;
     return *this;
   }
 
   bool operator ==(const matrix& m) const {
-    for (size_t i = 0; i < size; i++)
+    for (size_t i = 0; i < data.size(); i++)
       if (data[i] != m.data[i])
         return false;
     return true;
@@ -4543,16 +4537,12 @@ public:
   }
 #endif
 
-  ~matrix(){
-    FERRET_ALLOCATOR::free(data);
-  }
-
   inline static matrix empty(size_t r = 0, size_t c = 0) {
     return matrix(r,c);
   }
 
   inline static void fill(matrix& m, real_t val) {
-    for(size_t i = 0; i < m.size; i++)
+    for(size_t i = 0; i < m.data.size(); i++)
       m.data[i] = val;
   }
   
@@ -4601,7 +4591,7 @@ public:
   static real_t norm_euclidean(const matrix& m){
     real_t norm = real_t(0);
 
-    for(size_t i = 0; i < m.size; i++){
+    for(size_t i = 0; i < m.data.size(); i++){
       norm += m.data[i] * m.data[i];
     }
 
@@ -4615,7 +4605,7 @@ public:
     if (mag == real_t(0))
       return norm;
 
-    for(size_t i = 0; i < m.size; i++)
+    for(size_t i = 0; i < m.data.size(); i++)
       norm.data[i] = m.data[i] / mag;
 
     return norm;
@@ -4834,12 +4824,20 @@ struct array {
     FERRET_ALLOCATOR::free(data);
   }
 
-  T& operator [](int idx)      { return data[idx]; }
-  T operator [](int idx) const { return data[idx]; }
 
-  T*      begin() { return &data[0];      }
-  T*      end()   { return &data[_size];  }
-  size_t  size()  { return _size;         }
+  inline array& operator=(array&& x){
+    data = x.data;
+    _size = x._size;
+    x.data = nullptr;
+    return *this;
+  }
+
+  T& operator [](size_t idx)      { return data[idx]; }
+  T operator [](size_t idx) const { return data[idx]; }
+
+  T*      begin() const { return &data[0];      }
+  T*      end()   const { return &data[_size];  }
+  size_t  size()  const { return _size;         }
 };
 #+end_src
 
@@ -7507,7 +7505,7 @@ other members of the group and port.
 
   (defn send [con data]
     "datagram_t buffer(max_data_gram_size);
-     number_t idx = 0; 
+     size_t idx = 0; 
 
      for_each(b, data)
       buffer[idx++] = (byte)number::to<number_t>(b);
@@ -7518,7 +7516,7 @@ other members of the group and port.
 
   (defn byte [data ^number_t curr]
     "datagram_t& buffer = value<datagram_t>::to_reference(data);
-     return obj<number>(buffer[curr]);")
+     return obj<number>(buffer[(size_t)curr]);")
 
   (defn data-seq
     ([[size data]]
@@ -7791,10 +7789,10 @@ other members of the group and port.
       return net.have_pending_data();
     }
 
-    bool send(datagram_t & data, number_t size) {
+    bool send(datagram_t & data, size_t size) {
       lock_guard guard(lock);
       multicast_aux::address dest_addr(ip.c_str(), port);
-      return net.send(data.data, (size_t)size, dest_addr);
+      return net.send(data.data, size, dest_addr);
     }
 
     var recv(){

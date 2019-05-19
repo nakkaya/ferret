@@ -4,7 +4,7 @@ MINOR_VERSION = $(shell git rev-list ${MAJOR_VERSION}.. --count)
 VERSION = ${MAJOR_VERSION}.${MINOR_VERSION}
 
 .DEFAULT_GOAL := bin/ferret
-.PHONY: test test-release deb deb-repo docs release docker-release clean
+.PHONY: test test-compiler test-all test-release deb deb-repo docs release docker-release clean
 .PRECIOUS: %.cpp %.gcc %.clang %.ino
 
 CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
@@ -17,9 +17,11 @@ CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/src/ferret/
 # only enable sanitizers during release test
 test-release: CPPFLAGS += -fsanitize=undefined,address,leak -fno-omit-frame-pointer
 
+CPPCHECK_CONF = -DFERRET_STD_LIB
+
 define static_check
     cppcheck --quiet\
-    -DFERRET_STD_LIB \
+    ${CPPCHECK_CONF} \
     --language=c++ --std=c++11 --template=gcc --enable=all\
     --inline-suppr\
     --suppress=preprocessorErrorDirective:$1 \
@@ -80,6 +82,7 @@ bin/ferret: src/
 	$(CXX) $(CPPFLAGS) -x c++ $< -o $@
 	$@ 1 2
 
+%.ino: CPPCHECK_CONF="-DFERRET_HARDWARE_ARDUINO"
 %.ino: %.cpp
 	mv $< $@
 	arduino --verify --board arduino:avr:uno $@

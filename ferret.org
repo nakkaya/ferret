@@ -8706,37 +8706,31 @@ information.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn is-aux-expect [ex-fb form-fn form-str]
-    (let [expect (ex-fb)
-          got  (form-fn)]
-      (when (not=  expect got)
-        (println "fail in" form-str "\n expected" expect "\n      got" got)
-        (system-exit 1))))
+(defn is-aux-expect [ex-fb form-fn form-str]
+  (let [expect (ex-fb)
+        got  (form-fn)]
+    (when (not=  expect got)
+      (println "err" form-str "\n exp" expect "\n got" got)
+      (system-exit 1))))
 
-  (defn is-aux [f msg]
-    (when (not (f))
-      (println "fail" msg)
-      (system-exit 1)))
+(defmacro is [form]
+  (cond (= (first form) '=)
+        (let [[_ expected form] form]
+          `(is-aux-expect
+            (fn [] ~expected) (fn [] ~form)
+            ~(-> form pr-str (clojure.string/escape {\\ "\\\\"}))))
+        :default `(~'assert ~form)))
 
-  (defmacro is [form]
-    (let [check-op (first form)
-          form-str (-> form pr-str (clojure.string/escape {\\ "\\\\"}))]
+(defmacro deftest [name & exprs]
+  (defonce fir-unit-tests (atom []))
+  (swap! fir-unit-tests conj name)
+  `(def ~name (fn [] ~@exprs)))
 
-      (cond (= check-op '=)
-            (let [[_ expected form] form]
-              `(is-aux-expect (fn [] ~expected) (fn [] ~form) ~form-str))
-            
-            :default `(is-aux (fn [] ~form) ~form-str))))
-
-  (defmacro deftest [name & exprs]
-    (defonce fir-unit-tests (atom []))
-    (swap! fir-unit-tests conj name)
-    `(def ~name (fn [] ~@exprs)))
-
-  (defmacro run-all-tests []
-    (if (bound? #'fir-unit-tests)
-      `(do ~@(map #(list %) @fir-unit-tests) (system-exit 0))
-      `(do (system-exit 0))))
+(defmacro run-all-tests []
+  (if (bound? #'fir-unit-tests)
+    `(do ~@(map #(list %) @fir-unit-tests)
+         (system-exit 0))
+    `(system-exit 0)))
 #+end_src
 
 ** Compiler

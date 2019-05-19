@@ -4,7 +4,7 @@ MINOR_VERSION = $(shell git rev-list ${MAJOR_VERSION}.. --count)
 VERSION = ${MAJOR_VERSION}.${MINOR_VERSION}
 
 .DEFAULT_GOAL := bin/ferret
-.PHONY: test test-compiler test-all test-release deb deb-repo docs release docker-release clean
+.PHONY: clean repl test-compiler test-core test-embedded test-all deb deb-repo clojars docs release docker-build docker-bash docker-release docker-test
 .PRECIOUS: %.cpp %.gcc %.clang %.ino
 
 CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
@@ -15,7 +15,7 @@ CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
 CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/src/ferret/
 
 # only enable sanitizers during release test
-test-release: CPPFLAGS += -fsanitize=undefined,address,leak -fno-omit-frame-pointer
+release: CPPFLAGS += -fsanitize=undefined,address,leak -fno-omit-frame-pointer
 
 CPPCHECK_CONF = -DFERRET_STD_LIB
 
@@ -82,7 +82,7 @@ bin/ferret: src/
 	$(CXX) $(CPPFLAGS) -x c++ $< -o $@
 	$@ 1 2
 
-%.ino: CPPCHECK_CONF="-DFERRET_HARDWARE_ARDUINO"
+%.ino: CPPCHECK_CONF=-DFERRET_HARDWARE_ARDUINO
 %.ino: %.cpp
 	mv $< $@
 	arduino --verify --board arduino:avr:uno $@
@@ -118,9 +118,9 @@ INO_OBJS   = $(EMBEDDED_TESTS:.clj=.ino)
 
 test-compiler:
 	cd src/ && lein test
-test: bin/ferret test-compiler $(CXX_OBJS)
-test-all: bin/ferret test-compiler $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
-test-release: bin/ferret test-compiler $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
+test-core: $(CXX_OBJS)
+test-embedded: $(INO_OBJS)
+test-all: bin/ferret test-compiler $(GCC_OBJS) $(CLANG_OBJS) test-embedded
 
 # rules for preparing a release
 deb:    bin/ferret
@@ -144,7 +144,7 @@ docs:   src/
 	mkdir -p docs/
 	mv ferret-manual.html docs/
 	rm clojure-mode-extra-font-locking.el
-release: clean test-release deb-repo docs clojars
+release: clean test-all deb-repo docs clojars
 	mkdir -p release/builds/
 	mv bin/ferret* release/builds/
 	cp release/builds/ferret.jar release/builds/ferret-`git rev-parse --short HEAD`.jar
@@ -159,14 +159,14 @@ DOCKER_RUN = docker run --rm -i \
 		-e LEIN_PASSWORD='${LEIN_PASSWORD}' \
 		-t -v "${DIR}":/ferret/ -w /ferret/ nakkaya/ferret-build
 
-docker-create: src/
+docker-build: src/
 	cd src/resources/ferret-build/ && \
-	   sudo docker build -t nakkaya/ferret-build:latest -t nakkaya/ferret-build:${VERSION} .
-	sudo docker push nakkaya/ferret-build:${VERSION}
-	sudo docker push nakkaya/ferret-build:latest
+	   docker build -t nakkaya/ferret-build:latest -t nakkaya/ferret-build:${VERSION} .
+	docker push nakkaya/ferret-build:${VERSION}
+	docker push nakkaya/ferret-build:latest
 docker-bash:
 	 ${DOCKER_RUN} /bin/bash
 docker-release:
-	 @${DOCKER_RUN} /bin/bash -c 'make release'
+	 ${DOCKER_RUN} /bin/bash -c 'make release'
 docker-test:
 	 ${DOCKER_RUN} /bin/bash -c 'make test-all'

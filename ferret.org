@@ -2782,12 +2782,12 @@ cache their values unless forced using [[doall]].
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      var seq = var((object*)this);
-      var tail = runtime::rest(seq);
+      var coll = var((object*)this);
+      var tail = runtime::rest(coll);
 
       runtime::print('(');
       if (tail)
-        runtime::first(seq).stream_console();
+        runtime::first(coll).stream_console();
 
       for_each(i, tail){
         runtime::print(' ');

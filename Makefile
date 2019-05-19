@@ -7,6 +7,28 @@ VERSION = ${MAJOR_VERSION}.${MINOR_VERSION}
 .PHONY: test test-release deb deb-repo docs release docker-release clean
 .PRECIOUS: %.cpp %.gcc %.clang %.ino
 
+CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
+              -Wconversion -Wpointer-arith -Wmissing-braces          \
+              -Woverloaded-virtual -Wuninitialized -Winit-self       \
+	      -Wsign-conversion
+
+CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/src/ferret/
+
+# only enable sanitizers during release test
+test-release: CPPFLAGS += -fsanitize=undefined,address,leak -fno-omit-frame-pointer
+
+define static_check
+    cppcheck --quiet\
+    -DFERRET_STD_LIB \
+    --language=c++ --std=c++11 --template=gcc --enable=all\
+    --inline-suppr\
+    --suppress=preprocessorErrorDirective:$1 \
+    --suppress=unusedFunction:$1\
+    --suppress=missingIncludeSystem:$1\
+    --suppress=unmatchedSuppression:$1\
+    --error-exitcode=1 $1 2> "$1.cppcheck"
+endef
+
 clean:
 	rm -rf src/ bin/ docs/ release/
 
@@ -41,50 +63,25 @@ bin/ferret: src/
 # tell make how to compile Ferret lisp to C++
 %.cpp: %.clj
 	bin/ferret -i $<
+	$(call static_check,$@)
 
 # each compiler/framework to be tested get an extensiton. 
 # i.e all cpp files compiled with g++ will have .gcc extension
 
-CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
-              -Wconversion -Wpointer-arith -Wmissing-braces          \
-              -Woverloaded-virtual -Wuninitialized -Winit-self       \
-	      -Wsign-conversion
-
-CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/src/ferret/
-
-define static_check
-    cppcheck --quiet\
-    -DFERRET_STD_LIB \
-    --language=c++ --std=c++11 --template=gcc --enable=all\
-    --inline-suppr\
-    --suppress=preprocessorErrorDirective:$1 \
-    --suppress=unusedFunction:$1\
-    --suppress=missingIncludeSystem:$1\
-    --suppress=unmatchedSuppression:$1\
-    --error-exitcode=1 $1 2> "$1.cppcheck"
-endef
-
-# only enable sanitizers during release test
-test-release: CPPFLAGS += -fsanitize=undefined,address,leak -fno-omit-frame-pointer
-
 %.gcc: %.cpp
 	g++ $(CPPFLAGS) -x c++ $< -o $@
-	$(call static_check,$<)
 	$@ 1 2
 
 %.clang: %.cpp
 	clang++ $(CPPFLAGS) -x c++ $< -o $@
-	$(call static_check,$<)
 	$@ 1 2
 
 %.cxx: %.cpp
 	$(CXX) $(CPPFLAGS) -x c++ $< -o $@
-	$(call static_check,$<)
 	$@ 1 2
 
 %.ino: %.cpp
 	mv $< $@
-	$(call static_check,$@)
 	arduino --verify --board arduino:avr:uno $@
 
 # list of unit tests to run againts the current build

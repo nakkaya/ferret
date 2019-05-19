@@ -11014,47 +11014,49 @@ Create some dummy libs under /test/modules/,
 *** ferret-build/Dockerfile
 
 #+begin_src fundamental :mkdirp yes :tangle src/resources/ferret-build/Dockerfile :padline no
-  FROM    ubuntu:16.04
-  MAINTAINER Nurullah Akkaya <nurullah@nakkaya.com>
+FROM    ubuntu:18.04
+MAINTAINER Nurullah Akkaya <nurullah@nakkaya.com>
 
-  RUN apt-get update && \
-      apt-get upgrade -y
+RUN apt-get update && \
+    apt-get upgrade -y
 
-  RUN apt-get install apt-utils software-properties-common -y
-  RUN add-apt-repository ppa:openjdk-r/ppa
-  RUN apt-get update
+# Setup Tangle Requirements
 
-  # Setup Tangle Requirements
+RUN apt-get install wget make git emacs25-nox openjdk-8-jre-headless -y
 
-  RUN apt-get install wget make git emacs24-nox openjdk-8-jre-headless -y
+RUN wget https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein
+RUN chmod +x lein
+RUN mv lein /usr/bin/
+RUN lein
 
-  RUN wget https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein
-  RUN chmod +x lein
-  RUN mv lein /usr/bin/
-  RUN lein
+ENV LEIN_ROOT true
 
-  ENV LEIN_ROOT true
+# Setup Test Requirements
 
-  # Setup Test Requirements
+# arduino
+RUN apt-get install xz-utils
+RUN wget http://downloads.arduino.cc/arduino-1.8.7-linux64.tar.xz
+RUN tar xf arduino-1.8.7-linux64.tar.xz
+RUN mv arduino-1.8.7 /usr/local/share/arduino
+RUN ln -s /usr/local/share/arduino/arduino /usr/local/bin/arduino
+RUN rm -rf arduino-1.8.7-linux64.tar.xz
 
-  # arduino
-  RUN wget http://downloads.arduino.cc/arduino-1.8.7-linux64.tar.xz
-  RUN tar xf arduino-1.8.7-linux64.tar.xz
-  RUN mv arduino-1.8.7 /usr/local/share/arduino
-  RUN ln -s /usr/local/share/arduino/arduino /usr/local/bin/arduino
+# x86
+RUN apt-get install gcc-5 g++-5 cppcheck -y
+RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 50
+RUN apt-get install clang-6.0 llvm-6.0 -y
+RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-6.0 50
 
-  # x86
-  RUN apt-get install gcc-5 g++-5 cppcheck -y
-  RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 50
-  RUN wget http://apt.llvm.org/llvm-snapshot.gpg.key
-  RUN apt-key add llvm-snapshot.gpg.key
-  RUN apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial main"
-  RUN apt-get update
-  RUN apt-get install clang-6.0 llvm-6.0 -y
-  RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-6.0 50
+# cppcheck
+RUN apt-get -y install unzip libpcre3-dev
+RUN wget https://github.com/danmar/cppcheck/archive/1.87.zip
+RUN unzip 1.87.zip
+RUN cd cppcheck-1.87/ && make SRCDIR=build CFGDIR=/usr/share/cppcheck/ HAVE_RULES=yes CXXFLAGS="-O2 -DNDEBUG -Wall -Wno-sign-compare -Wno-unused-function"
+RUN cd cppcheck-1.87/ && make install CFGDIR=/usr/share/cppcheck/
+RUN rm -rf cppcheck-1.87 1.87.zip
 
-  # Setup Platform Build Requirements
-  RUN apt-get install zip reprepro -y
+# Setup Platform Build Requirements
+RUN apt-get install zip reprepro -y
 #+end_src
 
 *** deb-package-conf

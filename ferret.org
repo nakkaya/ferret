@@ -6775,8 +6775,8 @@ Port of Teensy elapsedMicros API,
   (defn new-elapsed-micros []
     "return obj<elapsed_micros>();")
 
-  (defn elapsed-micros? [t ^real_t t]
-    "if (t.cast<elapsed_micros>()->is_elapsed(t))
+  (defn elapsed-micros? [t ^real_t n]
+    "if (t.cast<elapsed_micros>()->is_elapsed(n))
        return cached::true_o;
      return cached::false_o;")
 

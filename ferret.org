@@ -3171,10 +3171,9 @@ interpreted as FFI calls.
   class string final : public object, public seekable_i {
     var data;
 
-    void from_char_pointer(const char * str, int length){
-      for (int i = --length; i >= 0; i--)
-        data = runtime::cons(obj<number>((number_t)str[i]),data);
-    }
+  void from_char_pointer(const char * str, int length){
+    data = obj<array_seq<char, number>>(str, (size_t) length);
+  }
     
   public:
 

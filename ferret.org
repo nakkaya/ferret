@@ -3180,7 +3180,7 @@ interpreted as FFI calls.
     type_t type() const final { return type_id<string>; }
 
     bool equals(ref other) const final {
-      return (container() == other.cast<string>()->container());
+      return (data == other.cast<string>()->data);
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
@@ -3201,10 +3201,6 @@ interpreted as FFI calls.
     }
 
     explicit string(const char * str,number_t length) { from_char_pointer(str,length); }
-
-    var container() const {
-      return data;
-    }
 
     virtual seekable_i* cast_seekable_i() { return this; }
 
@@ -3253,7 +3249,7 @@ interpreted as FFI calls.
 
   template <> ::std::string string::to(ref v) { 
     ::std::stringstream ss;
-    for_each(it, v.cast<string>()->container())
+    for_each(it, v.cast<string>()->data)
       ss << number::to<byte>(it);
     return ss.str();
   }

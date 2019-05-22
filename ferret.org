@@ -2894,10 +2894,16 @@ public:
 
 #if !defined(FERRET_DISABLE_STD_OUT)
   void stream_console() const final {
-    array_t& b = value_t::to_reference(storage);
+    runtime::print('(');
+    var xs = var((object*) this);
+
+    runtime::first(xs).stream_console();
     
-    for(auto& it : b)
-      runtime::print(it);
+    for_each(i, runtime::rest(xs)){
+      runtime::print(' ');
+      i.stream_console();
+    }
+    runtime::print(')');
   }
 #endif
 
@@ -6597,7 +6603,7 @@ Returns a random integer between 0 (inclusive) and n (exclusive).
 (assert (= (->> (matrix [[3] [4]])
                 (m/mmul (rot 1/8))
                 (m/seq))
-           (list (list 4.9497) (list 0.7072))))
+           (list 4.9497 0.7072)))
 #+end_src
 
 *** row-count
@@ -6757,13 +6763,7 @@ Converts =matrix= to a =lazy-seq=.
 
 #+begin_src clojure :mkdirp yes :tangle src/src/ferret/matrix.clj
 (defn seq [u]
-  (map
-   (fn [row]
-     (map
-      (fn [col]
-        (mget u row col))
-      (range (column-count u))))
-   (range (row-count u))))
+  "return obj<array_seq<real_t, number>>(u);")
 #+end_src
 
 ** Timing

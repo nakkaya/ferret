@@ -2864,6 +2864,8 @@ cache their values unless forced using [[doall]].
 
 **** Array Sequence
 
+Creates a view of an array.
+
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defobject array_sequence "ferret/obj/array_sequence_o.h")
@@ -2876,10 +2878,11 @@ class array_seq : public object , public seekable_i {
   size_t pos;
 
   typedef array<element_t> array_t;
+  typedef value<array_t> value_t;
 public:
 
   explicit array_seq(const element_t* src, size_t s = 0)
-    : storage(obj<value<array_t>>(src, s)), pos (0) { }
+    : storage(obj<value_t>(src, s)), pos (0) { }
 
   explicit array_seq(var b, size_t p = 0) : storage(b), pos(p){ }
 
@@ -2891,7 +2894,7 @@ public:
 
 #if !defined(FERRET_DISABLE_STD_OUT)
   void stream_console() const final {
-    array_t& b = value<array_t>::to_reference(storage);
+    array_t& b = value_t::to_reference(storage);
     
     for(auto& it : b)
       runtime::print(it);
@@ -2905,27 +2908,19 @@ public:
   }
 
   var first() final {
-    array_t& b = value<array<element_t>>::to_reference(storage);
+    array_t& b = value_t::to_reference(storage);
     return obj<object_t>(b[pos]);
   }
 
   var rest() final {
-    array<element_t>& b = value<array<element_t>>::to_reference(storage);
+    array_t& b = value_t::to_reference(storage);
 
-    if (pos < b.size())
+    if (pos < b.size() - 1)
       return obj<array_seq>(storage, pos + 1);
-    return nil();
+
+    return runtime::list();
   }
 };
-#+end_src
-
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
-  (defn new-lazy-seq [f]
-    "return obj<lazy_sequence>(f);")
-
-  (defmacro lazy-seq [& body]
-    `(new-lazy-seq (fn [] ~@body)))
 #+end_src
 
 **** D-List

@@ -3273,8 +3273,8 @@ or =reset!=. Changes to atoms are always free of race conditions.
   class atomic final : public deref_i {
     mutex lock;
     var data;
-    public:
 
+    public:
 
     type_t type() const final { return type_id<atomic>; }
 
@@ -3306,7 +3306,6 @@ or =reset!=. Changes to atoms are always free of race conditions.
     }
   };
 #+end_src
-
 
 Operations on =atoms=
 

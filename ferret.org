@@ -2518,23 +2518,20 @@ A =pointer= object keeps a reference to a C++ pointer.
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/pointer_o.h
   class pointer final : public object {
-    void * _payload;
+    void * payload;
   public:
 
 
     type_t type() const final { return type_id<pointer>; }
 
     bool equals(ref o) const final {
-      return (_payload == o.cast<pointer>()->payload());
+      return (payload == o.cast<pointer>()->payload);
     }
 
-    explicit pointer(void* p) : _payload(p) {} 
-
-    void* payload() const {
-      return _payload;
-    }
+    explicit pointer(void* p) : payload(p) {}
+    
     template<typename T> static T* to_pointer(ref v){
-      return ((T *) v.cast<pointer>()->payload());
+      return ((T *) v.cast<pointer>()->payload);
     }
     template<typename T> static T& to_reference(ref v){
       return (*(pointer::to_pointer<T>(v)));

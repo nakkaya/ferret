@@ -2573,24 +2573,24 @@ modern C++ libraries that use smart pointers for memory management.
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/value_o.h
 template <typename T>
 class value final : public object {
-  T _value;
+  T payload;
 public:
 
   type_t type() const final { return type_id<value>; }
 
   template <typename... Args>
-  explicit value(Args&&... args) : _value(static_cast<Args&&>(args)...) { } 
+  explicit value(Args&&... args) : payload(static_cast<Args&&>(args)...) { } 
 
   T to_value() const {
-    return _value;
-  }
-    
-  static T to_value(ref v){
-    return v.cast<value<T>>()->to_value();
+    return payload;
   }
 
+  static T to_value(ref v){
+    return v.cast<value<T>>()->payload;
+  }
+  
   T & to_reference() {
-    return _value;
+    return payload;
   }
     
   static T & to_reference(ref v) {

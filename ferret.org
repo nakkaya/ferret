@@ -1637,7 +1637,6 @@ is supported.
         'real_t     (str "real_t " name " = " "number::to<real_t>(" value ")")
         'number_t   (str "number_t " name " = " "number::to<number_t>(" value ")")
         'byte       (str "byte " name " = " "number::to<byte>(" value ")")
-        'std_string (str "std::string " name " = " "string::to<std::string>(" value ")")
         'c_str      (str "var " name "_packed = string::pack(" value ");\n"
                          "char* " name " = " "string::c_str(" name "_packed)")
         'matrix     (str "matrix &" name " = " "value<matrix>::to_reference(" value ")")
@@ -7341,10 +7340,10 @@ Reads the next line from default I/O stream.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defnative slurp [^std_string f]
+  (defnative slurp [^c_str f]
     (on "defined FERRET_STD_LIB"
         ("fstream")
-        "std::ifstream ifs(f.c_str(), std::ios::in | std::ios::binary | std::ios::ate);
+        "std::ifstream ifs(f, std::ios::in | std::ios::binary | std::ios::ate);
    
          if (!ifs.good())
            return nil();
@@ -7361,10 +7360,10 @@ Reads the next line from default I/O stream.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defnative sh [^std_string cmd]
+  (defnative sh [^c_str cmd]
     (on "defined FERRET_STD_LIB"
         ("memory")
-        "::std::shared_ptr<FILE> pipe(popen(cmd.c_str(), \"r\"), pclose);
+        "::std::shared_ptr<FILE> pipe(popen(cmd, \"r\"), pclose);
          if (!pipe) 
            return nil();
          char buffer[128];
@@ -7913,11 +7912,11 @@ Once opened, port is ready for =read=/=write=.
                  "unistd.h"
                  "sys/ioctl.h")
 
-  (defn open-aux [^std_string port speed v-min v-time]
+  (defn open-aux [^c_str port speed v-min v-time]
     "struct termios toptions;
      int fd;
 
-     fd = open(port.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
+     fd = open(port, O_RDWR | O_NOCTTY | O_NDELAY);
 
      if (fd == -1){
        return nil();

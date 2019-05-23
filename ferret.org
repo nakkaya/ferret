@@ -7113,6 +7113,50 @@ Converts a Ferret =number= to a Ferret =string=,
      return obj<string>(s);")
 #+end_src
 
+*** str-tok
+
+Returns a =lazy-seq= of tokens in =str= separated by =delimeter=.
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+(assert (= (str-tok "- This, a sample string." " ,.-")
+           (list "This" "a" "sample" "string")))
+#+end_src
+
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no
+(defnative str-tok [str delimeter]
+  (on "defined FERRET_RUNTIME_H"
+      ("string.h")
+      "var packed_delimeter = string::pack(delimeter);
+       var packed_str = string::pack(str);
+
+       class seq : public lambda_i {
+         var s;
+         var d;
+       public:
+         explicit seq(ref str = nil(), ref del = nil()) : s(str), d(del) { }
+         var invoke(ref) const final {
+           char* token = strtok(NULL, string::c_str(d));
+           if (token != nullptr){
+             var tail = obj<lazy_sequence>(obj<seq>(s, d));
+             return runtime::cons(obj<string>(token), tail);
+           }
+           return nil();
+         }
+       };
+
+       char* token = strtok(string::c_str(packed_str), 
+                            string::c_str(packed_delimeter)); 
+
+       if (token != nullptr){
+         var tail = obj<lazy_sequence>(obj<seq>(packed_str, packed_delimeter));
+         return runtime::cons(obj<string>(token), tail);
+       }
+       return nil();"))
+#+end_src
+
 ** Functions
 *** fn
 

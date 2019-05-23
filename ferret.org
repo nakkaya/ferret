@@ -2874,17 +2874,18 @@ Creates a view of an array.
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/array_sequence_o.h
 template<typename element_t, typename object_t>
 class array_seq : public object , public seekable_i {
-  var storage;
   size_t pos;
 
+public:
   typedef array<element_t> array_t;
   typedef value<array_t> value_t;
-public:
+
+  var storage;
 
   explicit array_seq(const element_t* src, size_t s = 0)
-    : storage(obj<value_t>(src, s)), pos (0) { }
+    : pos (0), storage(obj<value_t>(src, s)) { }
 
-  explicit array_seq(var b, size_t p = 0) : storage(b), pos(p){ }
+  explicit array_seq(var b, size_t p = 0) : pos(p), storage(b){ }
 
   type_t type() const final { return type_id<array_seq>; }
 
@@ -3168,92 +3169,102 @@ interpreted as FFI calls.
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/src/ferret/obj/string_o.h
-  class string final : public object, public seekable_i {
-    var data;
+class string final : public object, public seekable_i {
+  var data;
+
+  typedef array_seq<byte, number> array_t;
 
   void from_char_pointer(const char * str, int length){
-    data = obj<array_seq<byte, number>>((byte*)str, (size_t)length);
-  }
-    
-  public:
-
-    type_t type() const final { return type_id<string>; }
-
-    bool equals(ref other) const final {
-      return (data == other.cast<string>()->data);
-    }
-
-  #if !defined(FERRET_DISABLE_STD_OUT)
-    void stream_console() const final {
-      for_each(it, data)
-        runtime::print(number::to<char>(it));
-    }
-  #endif
-
-    explicit string() : data(nullptr) {} 
-
-    explicit string(ref s) : data(s) {}
-
-    explicit string(const char * str) {
-      int length = 0;
-      for (length = 0; str[length] != '\0'; ++length);
-      from_char_pointer(str,length);
-    }
-
-    explicit string(const char * str,number_t length) { from_char_pointer(str,length); }
-
-    virtual seekable_i* cast_seekable_i() { return this; }
-
-    var cons(ref x) final {
-      return obj<string>(runtime::cons(x,data));
-    }
-
-    var first() final {
-      return runtime::first(data);
-    }
-
-    var rest() final {
-      ref r = runtime::rest(data);
-
-      if (!r.is_type(type_id<empty_sequence>))
-        return obj<string>(r);
-
-      return runtime::list();
-    }
-
-    template <typename T>
-    static T to(ref){
-      T::unimplemented_function;
-    }
-
-    static size_t into(ref str, char buff[]){
-      size_t i = 0;
-
-      for_each(c, str){
-        buff[i] = number::to<char>(c);
-        i++;
-      }
-
-      buff[i] = '\0';
-
-      return i;
-    }
-  };
-
-  #ifdef FERRET_STD_LIB
-  template<>
-  inline var obj<string>(std::string s) {
-    void * storage = FERRET_ALLOCATOR::allocate<string>();
-    return var(new(storage) string(s.c_str(), (number_t)s.size()));
+    data = obj<array_t>((byte*)str, (size_t)length);
   }
 
-  template <> ::std::string string::to(ref v) { 
-    ::std::stringstream ss;
-    for_each(it, v.cast<string>()->data)
-      ss << number::to<byte>(it);
-    return ss.str();
+public:
+
+  type_t type() const final { return type_id<string>; }
+
+  bool equals(ref other) const final {
+    return (data == other.cast<string>()->data);
   }
-  #endif
+
+#if !defined(FERRET_DISABLE_STD_OUT)
+  void stream_console() const final {
+    for_each(it, data)
+      runtime::print(number::to<char>(it));
+  }
+#endif
+
+  explicit string() : data(runtime::list()) {} 
+
+  explicit string(ref s) : data(s) {}
+
+  explicit string(const char * str) {
+    int length = 0;
+    for (length = 0; str[length] != '\0'; ++length);
+    from_char_pointer(str,length);
+  }
+
+  explicit string(const char * str,number_t length) { from_char_pointer(str,length); }
+
+  virtual seekable_i* cast_seekable_i() { return this; }
+
+  var cons(ref x) final {
+    return obj<string>(runtime::cons(x,data));
+  }
+
+  var first() final {
+    return runtime::first(data);
+  }
+
+  var rest() final {
+    ref r = runtime::rest(data);
+
+    if (!r.is_type(type_id<empty_sequence>))
+      return obj<string>(r);
+
+    return runtime::list();
+  }
+
+  static var pack(ref s)  {
+    if (s.cast<string>()->data.is_type(type_id<array_t>))
+      return s.cast<string>()->data;
+
+    size_t size = runtime::count(s);
+    var packed_array = obj<value<array<byte>>>(size);
+    auto& packed_data = value<array<byte>>::to_reference(packed_array).data;
+
+    size_t pos = 0;
+    for_each(c, s){
+      packed_data[pos] = number::to<byte>(c);
+      pos++;
+    }
+
+    return obj<array_t>(packed_array);
+  }
+
+  static char* c_str(ref s)  {
+    var seq = (s.cast<array_t>()->storage);
+    auto & str = value<array<byte>>::to_reference(seq).data;
+    return (char*) str;
+  }
+
+  template <typename T>
+  static T to(ref){
+    T::unimplemented_function;
+  }
+};
+
+#ifdef FERRET_STD_LIB
+template<>
+inline var obj<string>(std::string s) {
+  void * storage = FERRET_ALLOCATOR::allocate<string>();
+  return var(new(storage) string(s.c_str(), (number_t)s.size()));
+}
+
+template <> ::std::string string::to(ref str) {
+  var packed = string::pack(str);
+  return std::string(string::c_str(packed));
+}
+#endif
 #+end_src
 
 **** Atom

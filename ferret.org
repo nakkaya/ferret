@@ -3172,7 +3172,7 @@ interpreted as FFI calls.
     var data;
 
   void from_char_pointer(const char * str, int length){
-    data = obj<array_seq<char, number>>(str, (size_t) length);
+    data = obj<array_seq<byte, number>>((byte*)str, (size_t)length);
   }
     
   public:

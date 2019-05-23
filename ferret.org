@@ -3189,8 +3189,9 @@ public:
 
 #if !defined(FERRET_DISABLE_STD_OUT)
   void stream_console() const final {
-    for_each(it, data)
-      runtime::print(number::to<char>(it));
+    var packed = string::pack(var((object*)this));
+    char* str = string::c_str(packed);
+    runtime::print(str);
   }
 #endif
 

@@ -1638,6 +1638,8 @@ is supported.
         'number_t   (str "number_t " name " = " "number::to<number_t>(" value ")")
         'byte       (str "byte " name " = " "number::to<byte>(" value ")")
         'std_string (str "std::string " name " = " "string::to<std::string>(" value ")")
+        'c_str      (str "var " name "_packed = string::pack(" value ");\n"
+                         "char* " name " = " "string::c_str(" name "_packed)")
         'matrix     (str "matrix &" name " = " "value<matrix>::to_reference(" value ")")
         (str "ref " name " = " value))))
 

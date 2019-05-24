@@ -6,4 +6,4 @@ before_script:
 
 compile:
   script:
-- make docker-test
+    - make docker-test

@@ -6,6 +6,7 @@ services:
 before_script:
   - apk update
   - apk add make
+  - apk add script
 
 compile:
   script:

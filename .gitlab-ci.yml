@@ -1,12 +1,10 @@
 image: docker:18
 
-before_script:
-  - apt-get update -qq && apt-get install -y -qq make
-
 stages:
 - build
 
 Build:
   stage: build
   script:
+    - apt-get update -qq && apt-get install -y -qq make
     - make docker-test

@@ -1,4 +1,7 @@
-image: docker:stable
+image: ubuntu:bionic
+
+services:
+  - docker
 
 before_script:
   - apt-get update

@@ -10855,6 +10855,7 @@ Create some dummy libs under /test/modules/,
                    :port 7888
                    :init-ns ferret.core}
 
+    :source-paths ["src" "src/ferret/compiler"]
     :test-paths ["test/compiler/"]
     :filespecs [{:type :bytes :path "build.info"
                  :bytes ~(.getBytes "<<ferret-version()>>")}]
@@ -10866,9 +10867,9 @@ Create some dummy libs under /test/modules/,
 #+end_src 
 
 ** src/
-*** ferret/core.clj
+*** compiler/core.clj
 
-#+begin_src clojure :noweb yes :mkdirp yes :tangle src/ferret/core.clj
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/ferret/compiler/ferret/core.clj
   (ns ferret.core
     (:refer-clojure :exclude [compile])
     (:gen-class)
@@ -10905,9 +10906,9 @@ Create some dummy libs under /test/modules/,
   <<core-compiler-main>>
 #+end_src 
 
-*** ferret/parser.clj
+*** compiler/parser.clj
 
-#+begin_src clojure :noweb yes :mkdirp yes :tangle src/ferret/parser.clj
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/ferret/compiler/ferret/parser.clj
   (ns ferret.parser
     (:refer-clojure :exclude [drop peek])
     (:gen-class)
@@ -10918,9 +10919,9 @@ Create some dummy libs under /test/modules/,
   <<core-compiler-parser>>
 #+end_src 
 
-*** ferret/io.clj
+*** compiler/io.clj
 
-#+begin_src clojure :noweb yes :mkdirp yes :tangle src/ferret/io.clj
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/ferret/compiler/ferret/io.clj
   (ns ferret.io
     (:gen-class)
     (:use [clojure.java.io]
@@ -10931,9 +10932,9 @@ Create some dummy libs under /test/modules/,
   <<core-main-io>>
 #+end_src 
 
-*** ferret/template.clj
+*** compiler/template.clj
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/ferret/template.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/ferret/compiler/ferret/template.clj
   (ns ferret.template
     (:import (org.antlr.stringtemplate StringTemplateGroup StringTemplate)))
 

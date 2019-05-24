@@ -1,0 +1,9 @@
+image: docker:18
+
+stages:
+- build
+
+Build:
+  stage: build
+  script:
+    - make docker-test

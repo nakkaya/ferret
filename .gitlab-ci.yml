@@ -9,4 +9,4 @@ before_script:
 
 compile:
   script:
-    - make docker-test
+    - script -q -c "make docker-test"

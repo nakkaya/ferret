@@ -6,7 +6,7 @@ services:
 before_script:
   - apk update
   - apk add make
-  - apk add script
+  - apk add util-linux
 
 compile:
   script:

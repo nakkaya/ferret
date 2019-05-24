@@ -6,5 +6,5 @@ stages:
 Build:
   stage: build
   script:
-    - apt-get update -qq && apt-get install -y -qq make
+    - sudo apt-get update -qq && sudo apt-get install -y -qq make
     - make docker-test

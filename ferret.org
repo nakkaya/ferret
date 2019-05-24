@@ -2933,6 +2933,9 @@ public:
 
 #+name: ferret-unit-tests
 #+begin_src clojure
+(assert (= (cxx "return runtime::dense_list(obj<number>(42), obj<number>(43));")
+           (list 42 43)))
+
 (assert (= (cxx "var arr = obj<var_array>(size_t(3));
                  auto& data = var_array::to_reference(arr);
                  data[0] = obj<number>(42);
@@ -2996,7 +2999,30 @@ public:
 
     return runtime::list();
   }
+
+  inline static void into_aux(ref){ }
+
+  template<typename... Args>
+  inline static void into_aux(ref arr, ref first, Args... rest){
+    auto& data = var_array::to_reference(arr);
+    data[data.size() - sizeof...(rest) - 1] = first;
+    into_aux(arr, rest...);
+  }
+  
+  template<typename... Args>
+  static inline var into(Args... rest){
+    var arr = obj<var_array>(sizeof...(rest));
+    into_aux(arr, rest...);
+    return obj<var_array_seq>(arr);
+  }
 };
+
+namespace runtime{
+  template<typename... Args>
+  static inline var dense_list(Args... rest){
+    return var_array_seq::into(rest...);
+  }
+}
 #+end_src
 
 **** D-List

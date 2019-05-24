@@ -12,7 +12,7 @@ CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
               -Woverloaded-virtual -Wuninitialized -Winit-self       \
 	      -Wsign-conversion
 
-CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/ferret/
+CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/ferret/runtime/
 
 # only enable sanitizers during release test
 release: CPPFLAGS += -fsanitize=undefined,address,leak -fno-omit-frame-pointer

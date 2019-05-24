@@ -1807,7 +1807,7 @@ namespace.)
 
  - Detect Hardware
  - Include files
- - Ferret Header (src/ferret/runtime.h)
+ - Ferret Header (src/ferret/runtime/runtime.h)
  - Ferret Native Runtime Prototypes (runtime::first, runtime::rest
    etc.)
  - Native Declarations
@@ -1827,7 +1827,7 @@ namespace.)
           native-headers (->> native-headers flatten (into #{}))
           file-ns        (-> options :base-name escape-cpp-symbol)
           main           (render-template
-                          (io/read-file "ferret/main.cpp")
+                          (io/read-file "ferret/runtime/main.cpp")
                           :file       file-ns)]
       (render-template
        "
@@ -1890,12 +1890,12 @@ namespace.)
           $ferret_main$"
        :file                 file-ns
        :native_defines       native-defines
-       :ferret_h             (io/read-file "ferret/runtime.h")
+       :ferret_h             (io/read-file "ferret/runtime/runtime.h")
        :native_headers       native-headers
        :objects              objects
        :symbols              symbol-table
        :native_declarations  native-declarations
-       :ferret_cpp           (io/read-file "ferret/runtime.cpp")
+       :ferret_cpp           (io/read-file "ferret/runtime/runtime.cpp")
        :lambda_classes       (lambda-definitions lambdas)
        :lambda_bodies        (lambda-implementations lambdas)
        :body                 (filter #(not (empty? %)) body)
@@ -11046,9 +11046,9 @@ Create some dummy libs under /test/modules/,
   <<runtime-clojure-core>>
 #+end_src
 
-*** ferret/runtime.h
+*** runtime/runtime.h
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/runtime.h
   // Detect Hardware
   <<runtime-native-hardware-setup>>
 
@@ -11097,17 +11097,17 @@ Create some dummy libs under /test/modules/,
   }
 #+end_src 
 
-*** ferret/runtime.cpp
+*** runtime/runtime.cpp
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime.cpp
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/runtime.cpp
   namespace ferret{
     <<runtime-native-implementations>>
   }
 #+end_src 
 
-*** ferret/main.cpp
+*** runtime/main.cpp
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/main.cpp
+    #+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/main.cpp
   <<runtime-native-program-run-std-main>>
   <<runtime-native-program-arduino>>
 #+end_src 

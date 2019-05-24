@@ -709,7 +709,7 @@ modules and concatenate the required runtime from [[*Core][Core]].
     (->> (-> form
              (import-modules-all options)
              (expand-reader-macros))
-         (shake-concat (read-clojure-file "ferret/runtime.clj"))
+         (shake-concat (read-clojure-file "ferret/lib/core.clj"))
          ;; tag form with the build info
          (cons `(~'native-define ~(try
                                     (let [version (io/read-file-from-url "build.info")]
@@ -748,7 +748,7 @@ Prepare form =f= for macro expansion,
 #+end_src
 
 Macro expansion is done by reading all the macros present in
-=src/ferret/runtime.clj= and combining them with user defined macros. They
+=src/ferret/lib/core.clj= and combining them with user defined macros. They
 are evaluated in a temporary namespace, using =parser/transform= we iterate
 all the macros used in the code that we are compiling and expand them
 in the temporary namespace then the node is replaced with its expanded
@@ -757,7 +757,7 @@ form.
 #+name: core-compiler-macro-expansion
 #+begin_src clojure :tangle no
   (defn expand-macros-single [form]
-    (let [core-macros (->> (read-clojure-file "ferret/runtime.clj")
+    (let [core-macros (->> (read-clojure-file "ferret/lib/core.clj")
                            (filter (parser/form? 'defmacro)))
           core-macro-symbols (into #{} (map second core-macros))
           form-macros (->> (filter (parser/form? 'defmacro) form)
@@ -11032,20 +11032,6 @@ Create some dummy libs under /test/modules/,
        (render-view view#)))
 #+end_src 
 
-*** ferret/runtime.clj
-
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/ferret/runtime.clj
-  <<runtime-clojure-threading-macros>>
-  <<runtime-clojure-fn-macros>>
-  <<runtime-clojure-interfaces>>
-  <<runtime-clojure-objects>>
-  <<runtime-clojure-sequence>>
-  <<runtime-clojure-logical-operators>>
-  <<runtime-clojure-conditional-operators>>
-  <<runtime-clojure-math>>
-  <<runtime-clojure-core>>
-#+end_src
-
 *** runtime/runtime.h
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/runtime.h
@@ -11111,6 +11097,20 @@ Create some dummy libs under /test/modules/,
   <<runtime-native-program-run-std-main>>
   <<runtime-native-program-arduino>>
 #+end_src 
+
+*** lib/core.clj
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/ferret/lib/core.clj
+  <<runtime-clojure-threading-macros>>
+  <<runtime-clojure-fn-macros>>
+  <<runtime-clojure-interfaces>>
+  <<runtime-clojure-objects>>
+  <<runtime-clojure-sequence>>
+  <<runtime-clojure-logical-operators>>
+  <<runtime-clojure-conditional-operators>>
+  <<runtime-clojure-math>>
+  <<runtime-clojure-core>>
+#+end_src
 
 ** test/
 *** compiler/ferret.clj

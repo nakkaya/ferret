@@ -1,11 +1,7 @@
-image: ubuntu:bionic
+image: docker:latest
 
 services:
-  - docker
-
-before_script:
-  - apt-get update
-  - apt-get install -y make
+  - docker:dind
 
 compile:
   script:

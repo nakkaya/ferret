@@ -1,7 +1,9 @@
 image: ubuntu:bionic
 
 before_script:
-  - sudo apt-get update -qq && sudo apt-get install -y -qq make
+  - apt-get update
+  - apt-get install -y make
 
-before_script:
-  - make docker-test
+compile:
+  script:
+- make docker-test

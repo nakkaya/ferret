@@ -1,10 +1,7 @@
-image: docker:18
+image: ubuntu:bionic
 
-stages:
-- build
+before_script:
+  - sudo apt-get update -qq && sudo apt-get install -y -qq make
 
-Build:
-  stage: build
-  script:
-    - sudo apt-get update -qq && sudo apt-get install -y -qq make
-    - make docker-test
+before_script:
+  - make docker-test

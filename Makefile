@@ -12,7 +12,7 @@ CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
               -Woverloaded-virtual -Wuninitialized -Winit-self       \
 	      -Wsign-conversion
 
-CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/ferret/runtime/
+CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/runtime/
 
 # only enable sanitizers during release test
 release: CPPFLAGS += -fsanitize=undefined,address,leak -fno-omit-frame-pointer
@@ -116,6 +116,7 @@ INO_OBJS   = $(EMBEDDED_TESTS:.clj=.ino)
 test-compiler: project.clj
 	lein test
 test-core: bin/ferret $(CXX_OBJS)
+test-embedded: bin/ferret $(INO_OBJS)
 test-all: bin/ferret test-compiler $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
 
 # rules for preparing a release

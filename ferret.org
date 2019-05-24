@@ -709,7 +709,7 @@ modules and concatenate the required runtime from [[*Core][Core]].
     (->> (-> form
              (import-modules-all options)
              (expand-reader-macros))
-         (shake-concat (read-clojure-file "ferret/lib/core.clj"))
+         (shake-concat (read-clojure-file "core.clj"))
          ;; tag form with the build info
          (cons `(~'native-define ~(try
                                     (let [version (io/read-file-from-url "build.info")]
@@ -748,7 +748,7 @@ Prepare form =f= for macro expansion,
 #+end_src
 
 Macro expansion is done by reading all the macros present in
-=src/ferret/lib/core.clj= and combining them with user defined macros. They
+=src/lib/core.clj= and combining them with user defined macros. They
 are evaluated in a temporary namespace, using =parser/transform= we iterate
 all the macros used in the code that we are compiling and expand them
 in the temporary namespace then the node is replaced with its expanded
@@ -757,7 +757,7 @@ form.
 #+name: core-compiler-macro-expansion
 #+begin_src clojure :tangle no
   (defn expand-macros-single [form]
-    (let [core-macros (->> (read-clojure-file "ferret/lib/core.clj")
+    (let [core-macros (->> (read-clojure-file "core.clj")
                            (filter (parser/form? 'defmacro)))
           core-macro-symbols (into #{} (map second core-macros))
           form-macros (->> (filter (parser/form? 'defmacro) form)
@@ -1807,7 +1807,7 @@ namespace.)
 
  - Detect Hardware
  - Include files
- - Ferret Header (src/ferret/runtime/runtime.h)
+ - Ferret Header (src/runtime/runtime.h)
  - Ferret Native Runtime Prototypes (runtime::first, runtime::rest
    etc.)
  - Native Declarations
@@ -1827,7 +1827,7 @@ namespace.)
           native-headers (->> native-headers flatten (into #{}))
           file-ns        (-> options :base-name escape-cpp-symbol)
           main           (render-template
-                          (io/read-file "ferret/runtime/main.cpp")
+                          (io/read-file "main.cpp")
                           :file       file-ns)]
       (render-template
        "
@@ -1890,12 +1890,12 @@ namespace.)
           $ferret_main$"
        :file                 file-ns
        :native_defines       native-defines
-       :ferret_h             (io/read-file "ferret/runtime/runtime.h")
+       :ferret_h             (io/read-file "runtime.h")
        :native_headers       native-headers
        :objects              objects
        :symbols              symbol-table
        :native_declarations  native-declarations
-       :ferret_cpp           (io/read-file "ferret/runtime/runtime.cpp")
+       :ferret_cpp           (io/read-file "runtime.cpp")
        :lambda_classes       (lambda-definitions lambdas)
        :lambda_bodies        (lambda-implementations lambdas)
        :body                 (filter #(not (empty? %)) body)
@@ -2441,10 +2441,10 @@ traditional boolean values.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject boolean "ferret/runtime/boolean_o.h")
+  (defobject boolean "boolean_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/boolean_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/boolean_o.h
   class boolean final : public object {
     const bool value;
   public:
@@ -2514,10 +2514,10 @@ A =pointer= object keeps a reference to a C++ pointer.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject pointer "ferret/runtime/pointer_o.h")
+  (defobject pointer "pointer_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/pointer_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/pointer_o.h
   class pointer final : public object {
     void * payload;
   public:
@@ -2568,10 +2568,10 @@ modern C++ libraries that use smart pointers for memory management.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject value "ferret/runtime/value_o.h")
+  (defobject value "value_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/value_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/value_o.h
 template <typename T>
 class value final : public object {
   T payload;
@@ -2611,10 +2611,10 @@ fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject number "ferret/runtime/number_o.h")
+  (defobject number "number_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/number_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/number_o.h
   class number final : public object {
     const real_t n;
   public:
@@ -2646,11 +2646,11 @@ directly. count is O(n). conj puts the item at the front of the list.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject empty_sequence "ferret/runtime/empty_sequence_o.h")
-  (defobject sequence "ferret/runtime/sequence_o.h")
+  (defobject empty_sequence "empty_sequence_o.h")
+  (defobject sequence "sequence_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/empty_sequence_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/empty_sequence_o.h
   class empty_sequence final : public object {
 
     type_t type() const final { return type_id<empty_sequence>; }
@@ -2667,7 +2667,7 @@ directly. count is O(n). conj puts the item at the front of the list.
   }
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/sequence_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/sequence_o.h
   class sequence final : public object, public seekable_i {
     const var next;
     const var data;
@@ -2759,10 +2759,10 @@ cache their values unless forced using [[doall]].
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject lazy_sequence "ferret/runtime/lazy_sequence_o.h")
+  (defobject lazy_sequence "lazy_sequence_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/lazy_sequence_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/lazy_sequence_o.h
   class lazy_sequence final : public object, public seekable_i {
     mutex lock;
     bool cache;
@@ -2869,10 +2869,10 @@ Creates a view of an array.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject array_sequence "ferret/runtime/array_sequence_o.h")
+  (defobject array_sequence "array_sequence_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/array_sequence_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/array_sequence_o.h
 template<typename element_t, typename object_t>
 class array_seq : public object , public seekable_i {
   size_t pos;
@@ -2945,7 +2945,7 @@ public:
            (list 42 43 44)))
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/array_sequence_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/array_sequence_o.h
 typedef array<var> var_array_t;
 typedef value<var_array_t> var_array;
 typedef array_seq<var,var> var_array_seq;
@@ -3040,7 +3040,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject d-list "ferret/runtime/d_list_o.h")
+  (defobject d-list "d_list_o.h")
 
   (defn new-d-list-aux [keys vals]
     "return obj<d_list>(keys, vals);")
@@ -3068,7 +3068,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     "return m.cast<map_t>()->keys();")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/d_list_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/d_list_o.h
   class d_list final : public lambda_i, public seekable_i {
 
     var data;
@@ -3192,10 +3192,10 @@ the keyword as =number_t=.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject keyword "ferret/runtime/keyword_o.h")
+  (defobject keyword "keyword_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/keyword_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/keyword_o.h
 class keyword final : public lambda_i {
   const number_t hash;
 
@@ -3247,7 +3247,7 @@ operations on strings.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject string "ferret/runtime/string_o.h")
+  (defobject string "string_o.h")
 #+end_src
 
 Defines a function that returns a given string. Can be used to return
@@ -3263,7 +3263,7 @@ interpreted as FFI calls.
       (reduce (fn [h v] (concat h v)) ss))))
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/string_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/string_o.h
 class string final : public object, public seekable_i {
   var data;
 
@@ -3383,10 +3383,10 @@ or =reset!=. Changes to atoms are always free of race conditions.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject atomic "ferret/runtime/atomic_o.h")
+  (defobject atomic "atomic_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/atomic_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/atomic_o.h
   class atomic final : public deref_i {
     mutex lock;
     var data;
@@ -3447,7 +3447,7 @@ not yet finished, calls to =deref= will block.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject async "ferret/runtime/async_o.h")
+  (defobject async "async_o.h")
 
   (defmacro future [& body]
     `(_future_ (fn [] ~@body)))
@@ -3470,7 +3470,7 @@ thread to =future=,
     "return obj<async>(f);")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/async_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/async_o.h
   #ifdef FERRET_STD_LIB
   class async final : public deref_i {
     mutex lock;
@@ -3540,7 +3540,7 @@ calls.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject delayed "ferret/runtime/delayed_o.h")
+  (defobject delayed "delayed_o.h")
 
   (defn _delay_ [f]
     "return obj<delayed>(f)")
@@ -3557,7 +3557,7 @@ calls.
   (defn force [d] @d)
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/delayed_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/delayed_o.h
   class delayed final : public deref_i {
     mutex lock;
     var fn;
@@ -3593,10 +3593,10 @@ to iterate seekable containers.
 
 #+name: runtime-clojure-interfaces
 #+begin_src clojure :tangle no
-  (defobject seekable_i "ferret/runtime/seekable_i.h")
+  (defobject seekable_i "seekable_i.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/seekable_i.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/seekable_i.h
   class seekable_i {
   public:
 
@@ -3781,10 +3781,10 @@ uniform fashion.
 
 #+name: runtime-clojure-interfaces
 #+begin_src clojure :tangle no
-  (defobject lambda_i "ferret/runtime/lambda_i.h")
+  (defobject lambda_i "lambda_i.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/lambda_i.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/lambda_i.h
   struct lambda_i : public object {
     virtual var invoke(ref args) const = 0;
     type_t type() const { return type_id<lambda_i>; }
@@ -3859,10 +3859,10 @@ Function invocation,
 
 #+name: runtime-clojure-interfaces
 #+begin_src clojure :tangle no
-  (defobject deref_i "ferret/runtime/deref_i.h")
+  (defobject deref_i "deref_i.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/deref_i.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/deref_i.h
   class deref_i : public object {
    public:
 
@@ -6726,7 +6726,7 @@ Returns a random integer between 0 (inclusive) and n (exclusive).
 
 Returns the number of rows in a matrix.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn row-count [^matrix u]
   "return obj<number>(matrix::row_count(u));")
 #+end_src
@@ -6735,7 +6735,7 @@ Returns the number of rows in a matrix.
 
 Returns the number of columns in a matrix.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn column-count [^matrix u]
   "return obj<number>(matrix::column_count(u));")
 #+end_src
@@ -6745,7 +6745,7 @@ Returns the number of columns in a matrix.
 Constructs a new zero-filled numerical matrix with the given
 dimensions.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn zeros [^number_t r, ^number_t c]
   "return obj<matrix_t>(matrix::zeros(r,c));")
 #+end_src
@@ -6755,7 +6755,7 @@ dimensions.
 Constructs a new zero-filled numerical matrix with the given
 dimensions.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn ones [^number_t r, ^number_t c]
   "return obj<matrix_t>(matrix::ones(r,c));")
 #+end_src
@@ -6764,7 +6764,7 @@ dimensions.
 
 Fills a matrix with a single scalar value.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn full [^number_t r, ^number_t c, ^number_t v]
   "return obj<matrix_t>(matrix::ones(r,c,v));")
 #+end_src
@@ -6774,7 +6774,7 @@ Fills a matrix with a single scalar value.
 Identity matrix. Returns an n-by-n identity matrix with ones on the
 main diagonal and zeros elsewhere.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn eye [^number_t n]
   "return obj<matrix_t>(matrix::eye(n));")
 #+end_src
@@ -6783,7 +6783,7 @@ main diagonal and zeros elsewhere.
 
 Performs element-wise addition on matrices.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn add [^matrix u ^matrix v]
   "return obj<matrix_t>(u + v);")
 #+end_src
@@ -6792,7 +6792,7 @@ Performs element-wise addition on matrices.
 
 Performs element-wise subtraction on matrices.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn sub [^matrix u ^matrix v]
   "return obj<matrix_t>(u - v);")
 #+end_src
@@ -6801,7 +6801,7 @@ Performs element-wise subtraction on matrices.
 
 Performs element-wise multipication with scalar on matrices.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn mul [^matrix u ^real_t s]
   "return obj<matrix_t>(u * s);")
 #+end_src
@@ -6810,7 +6810,7 @@ Performs element-wise multipication with scalar on matrices.
 
 Performs matrix multiplication on matrices.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn mmul [^matrix u ^matrix v]
   "return obj<matrix_t>(u * v);")
 #+end_src
@@ -6819,7 +6819,7 @@ Performs matrix multiplication on matrices.
 
 Returns =true= if both matrices are numerically equal.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn equals [^matrix u ^matrix v]
   "if (u == v)
        return cached::true_o;
@@ -6832,7 +6832,7 @@ Returns =true= if both matrices are numerically equal.
 Normalises a matrix (scales to unit length). Returns a new normalised
 matrix.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn normalise [^matrix u]
   "return obj<matrix_t>(matrix::normalise(u));")
 #+end_src
@@ -6841,7 +6841,7 @@ matrix.
 
 Calcualtes the Euclidean norm of matrix.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn norm [^matrix u]
   "return obj<number>(matrix::norm_euclidean(u));")
 #+end_src
@@ -6850,7 +6850,7 @@ Calcualtes the Euclidean norm of matrix.
 
 Mutates a scalar value in a matrix at the specified position.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn mset! [^matrix u ^number_t r ^number_t c ^number_t v]
   "u(r,c,v);")
 #+end_src
@@ -6859,7 +6859,7 @@ Mutates a scalar value in a matrix at the specified position.
 
 Gets a scalar value from a matrix at the specified position.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn mget [^matrix u ^number_t r ^number_t c]
   "return obj<number>(u((size_t)r, (size_t)c));")
 #+end_src
@@ -6868,7 +6868,7 @@ Gets a scalar value from a matrix at the specified position.
 
 Pretty-prints a matrix to =std::cout=.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn cout [^matrix u]
   "std::cout << u;")
 #+end_src
@@ -6877,7 +6877,7 @@ Pretty-prints a matrix to =std::cout=.
 
 Converts =matrix= to a =lazy-seq=.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/matrix.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn seq [u]
   "return obj<array_seq<real_t, number>>(u);")
 #+end_src
@@ -6939,7 +6939,7 @@ Port of Teensy elapsedMicros API,
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no :noweb yes
-  (defobject elapsed_micros "ferret/runtime/elapsed_micros_o.h")
+  (defobject elapsed_micros "elapsed_micros_o.h")
 
   (defn new-elapsed-micros []
     "return obj<elapsed_micros>();")
@@ -6956,7 +6956,7 @@ Port of Teensy elapsedMicros API,
     "t.cast<elapsed_micros>()->reset()")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/elapsed_micros_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/elapsed_micros_o.h
   #if !defined(FERRET_SAFE_MODE)
   class elapsed_micros : public object {
     mutex lock;
@@ -7078,7 +7078,7 @@ statistics.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-(defobject fn_throttler_o "ferret/runtime/fn_throttler_o.h")
+(defobject fn_throttler_o "fn_throttler_o.h")
 
 (defn new-fn-throttler [f ^real_t rate ^bolean block]
   "return obj<fn_throttler>(f, rate, block);")
@@ -7092,7 +7092,7 @@ statistics.
     `(new-fn-throttler ~f ~rate ~(= policy :blocking))))
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/fn_throttler_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/fn_throttler_o.h
 #if !defined(FERRET_SAFE_MODE)
 class fn_throttler : public lambda_i {
   var fn;
@@ -7684,7 +7684,7 @@ receives datagrams sent by other hosts to the group/port, as do all
 other members of the group and port.
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/net/multicast.clj
-  (require '[ferret.net.multicast :as multicast])
+  (require '[ferret.io.net.multicast :as multicast])
 
   (def sender   (multicast/socket "224.5.23.2" 10005))
   (def receiver (multicast/socket "224.5.23.2" 10005))
@@ -7699,7 +7699,7 @@ other members of the group and port.
   (assert (= data-in data-out))
 #+end_src
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/ferret/net/multicast.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/lib/ferret/io/net/multicast.clj
   (native-header "fcntl.h"
                  "unistd.h"
                  "arpa/inet.h"
@@ -7710,7 +7710,7 @@ other members of the group and port.
                  "sys/types.h"
                  "string.h")
 
-  (defobject multicast-socket "ferret/net/multicast_o.h")
+  (defobject multicast-socket "io/net/multicast_o.h")
 
   (defn socket [ip port]
     "return obj<multicast_socket>(ip,port);")
@@ -7750,7 +7750,7 @@ other members of the group and port.
     (data-seq (read conn)))
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/net/multicast_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/io/net/multicast_o.h
   const size_t max_data_gram_size = 65507;
   typedef ferret::array<ferret::byte> datagram_t;
 
@@ -8055,7 +8055,7 @@ Once opened, port is ready for =read=/=write=.
       (assert (= data-in data-out))))
 #+end_src
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/ferret/io/serial.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/lib/ferret/io/serial.clj
   (native-header "termios.h"
                  "fcntl.h"
                  "unistd.h"
@@ -8219,7 +8219,7 @@ DSL,
 Each transition takes a list of =fn=, =state= pairs first function that
 returns true, returns the next state.
 
-#+begin_src c++ :mkdirp yes :tangle src/ferret/runtime/fsm_o.h
+#+begin_src c++ :mkdirp yes :tangle src/runtime/fsm_o.h
   class fsm final : public lambda_i {
     mutex lock;
     var env;
@@ -8250,7 +8250,7 @@ returns true, returns the next state.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defobject fsm "ferret/runtime/fsm_o.h")
+  (defobject fsm "fsm_o.h")
 
   (defn new-fsm [env transitions]
     "return obj<fsm>(env, transitions)")
@@ -8333,10 +8333,10 @@ Ported from,
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defobject pid_controller "ferret/runtime/pid_controller_o.h")
+  (defobject pid_controller "pid_controller_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :tangle src/ferret/runtime/pid_controller_o.h
+#+begin_src c++ :mkdirp yes :tangle src/runtime/pid_controller_o.h
   template <typename T>
   class pid_controller : public lambda_i {
     mutex lock;
@@ -8483,13 +8483,13 @@ moving average of the last K samples by setting the value of alpha to
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defobject moving_average_filter "ferret/runtime/moving_average_filter_o.h")
+  (defobject moving_average_filter "moving_average_filter_o.h")
 
   (defn new-moving-average-filter [^real_t a]
     "return obj<moving_average_filter<real_t>>(a);")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :tangle src/ferret/runtime/moving_average_filter_o.h
+#+begin_src c++ :mkdirp yes :tangle src/runtime/moving_average_filter_o.h
   template <typename T>
   class moving_average_filter : public lambda_i {
     mutex lock;
@@ -8522,7 +8522,7 @@ moving average of the last K samples by setting the value of alpha to
 Configures the specified pin to behave either as an input or an
 output.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
 (defn pin-mode [^number_t pin mode]
   "::pinMode(pin, (mode == obj<keyword>(\":input\")) ? INPUT : OUTPUT);")
 #+end_src
@@ -8531,7 +8531,7 @@ output.
 
 Write a HIGH or a LOW value to a digital pin.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
   (defnative digital-write [^number_t pin ^number_t val]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "::digitalWrite(pin, val);"))
@@ -8541,7 +8541,7 @@ Write a HIGH or a LOW value to a digital pin.
 
 Reads the value from a specified digital pin, either HIGH or LOW.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
   (defnative digital-read [^number_t pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "return obj<number>(::digitalRead(pin));"))
@@ -8551,7 +8551,7 @@ Reads the value from a specified digital pin, either HIGH or LOW.
 
 Writes an analog value (PWM wave) to a pin.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
   (defnative analog-write [^number_t pin ^number_t val]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "::analogWrite(pin,val);"))
@@ -8561,7 +8561,7 @@ Writes an analog value (PWM wave) to a pin.
 
 Reads the value from the specified analog pin.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
   (defnative analog-read [^number_t pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "return obj<number>(::analogRead(pin));"))
@@ -8571,7 +8571,7 @@ Reads the value from the specified analog pin.
 
 Sets the resolution of the *analog-write*
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
   (defnative analog-write-resolution [^number_t bit]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "::analogWriteResolution(bit);"))
@@ -8581,7 +8581,7 @@ Sets the resolution of the *analog-write*
 
 Sets the size (in bits) of the value returned by *analog-read*.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
   (defnative analog-read-resolution [^number_t bit]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "::analogReadResolution(bit);"))
@@ -8603,14 +8603,14 @@ sensors which have contacts that "chatter" or "bounce".
     (sleep 250))
 #+end_src
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
-  (defobject bounce "ferret/runtime/arduino/bounce_o.h")
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
+  (defobject bounce "arduino/bounce_o.h")
 
   (defn new-bounce [^number_t x ^number_t t-debounce]
     "return obj<bounce>(x, t_debounce);")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/arduino/bounce_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/arduino/bounce_o.h
   class bounce final : public lambda_i {
     mutex lock;
     void (bounce::* fsm_state)();
@@ -8677,7 +8677,7 @@ sensors which have contacts that "chatter" or "bounce".
 
 *** random
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
   (defnative random-seed [^number_t pin]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "randomSeed(analogRead(pin));"))
@@ -8692,7 +8692,7 @@ sensors which have contacts that "chatter" or "bounce".
 Generates a square wave of the specified frequency (and 50% duty
 cycle) on a pin.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
   (defnative tone [^number_t pin ^number_t freq]
     (on "defined FERRET_HARDWARE_ARDUINO"
         "::tone(pin, freq);"))
@@ -8725,7 +8725,7 @@ Registers an interrupt function for the given pin and mode. See
    (sleep 100))
 #+end_src
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
   (defmacro attach-interrupt [pin mode callback]
     (let [mode    (-> mode name .toUpperCase)
           isr-fn  (gensym)
@@ -8743,7 +8743,7 @@ Registers an interrupt function for the given pin and mode. See
 
 Executes critical section with interrupts disabled.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
   (defmacro no-interrupt [& body]
     `(no-interrupt-aux  (fn [] ~@body)))
 
@@ -8761,7 +8761,7 @@ Turns off the given interrupt.
   (detach-interrupt input-pin)
 #+END_EXAMPLE
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
   (defn detach-interrupt [^number_t p]
     "detachInterrupt(digitalPinToInterrupt(p));")
 #+end_src
@@ -8776,7 +8776,7 @@ Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation
 
 **** Initialization
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
   (defnative spi-begin []
     (on "defined FERRET_HARDWARE_ARDUINO"
         ("SPI.h")
@@ -8788,7 +8788,7 @@ Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation
 
 **** Settings
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
   (defmacro spi-settings [max-speed data-order data-mode]
     (let [speed      (* max-speed 1000000)
           data-order (if (= data-order :msb-first)
@@ -8804,7 +8804,7 @@ Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation
 
 **** Transaction
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
   (defn with-spi-aux [conf f]
     "SPI.beginTransaction(value<SPISettings>::to_reference(conf));
      __result = run(f);
@@ -8822,7 +8822,7 @@ Arduino SPI library see [[https://www.arduino.cc/en/Reference/SPI][documentation
 This library allows you to communicate with I2C / TWI devices. See
 [[https://www.arduino.cc/en/Reference/Wire][documentation]] for more information.
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
 (defnative wire-begin []
   (on "defined FERRET_HARDWARE_ARDUINO"
       ("Wire.h")
@@ -8869,7 +8869,7 @@ elapsing, or "timing out".
     (avr/wdt-reset))
 #+end_src
 
-#+begin_src clojure :mkdirp yes :tangle src/ferret/arduino/avr.clj
+#+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino/avr.clj
   (defmacro wdt-enable [timer]
     (let [timer (condp = timer
                   15   "WDTO_15MS"
@@ -10855,7 +10855,9 @@ Create some dummy libs under /test/modules/,
                    :port 7888
                    :init-ns ferret.core}
 
-    :source-paths ["src" "src/ferret/compiler"]
+    :source-paths ["src/compiler"
+                   "src/runtime"
+                   "src/lib/"]
     :test-paths ["test/compiler/"]
     :filespecs [{:type :bytes :path "build.info"
                  :bytes ~(.getBytes "<<ferret-version()>>")}]
@@ -10869,7 +10871,7 @@ Create some dummy libs under /test/modules/,
 ** src/
 *** compiler/core.clj
 
-#+begin_src clojure :noweb yes :mkdirp yes :tangle src/ferret/compiler/ferret/core.clj
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/compiler/ferret/core.clj
   (ns ferret.core
     (:refer-clojure :exclude [compile])
     (:gen-class)
@@ -10908,7 +10910,7 @@ Create some dummy libs under /test/modules/,
 
 *** compiler/parser.clj
 
-#+begin_src clojure :noweb yes :mkdirp yes :tangle src/ferret/compiler/ferret/parser.clj
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/compiler/ferret/parser.clj
   (ns ferret.parser
     (:refer-clojure :exclude [drop peek])
     (:gen-class)
@@ -10921,7 +10923,7 @@ Create some dummy libs under /test/modules/,
 
 *** compiler/io.clj
 
-#+begin_src clojure :noweb yes :mkdirp yes :tangle src/ferret/compiler/ferret/io.clj
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/compiler/ferret/io.clj
   (ns ferret.io
     (:gen-class)
     (:use [clojure.java.io]
@@ -10934,7 +10936,7 @@ Create some dummy libs under /test/modules/,
 
 *** compiler/template.clj
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/ferret/compiler/ferret/template.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/compiler/ferret/template.clj
   (ns ferret.template
     (:import (org.antlr.stringtemplate StringTemplateGroup StringTemplate)))
 
@@ -11034,7 +11036,7 @@ Create some dummy libs under /test/modules/,
 
 *** runtime/runtime.h
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/runtime.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/runtime.h
   // Detect Hardware
   <<runtime-native-hardware-setup>>
 
@@ -11085,7 +11087,7 @@ Create some dummy libs under /test/modules/,
 
 *** runtime/runtime.cpp
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/runtime.cpp
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/runtime.cpp
   namespace ferret{
     <<runtime-native-implementations>>
   }
@@ -11093,14 +11095,14 @@ Create some dummy libs under /test/modules/,
 
 *** runtime/main.cpp
 
-    #+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/main.cpp
+    #+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/main.cpp
   <<runtime-native-program-run-std-main>>
   <<runtime-native-program-arduino>>
 #+end_src 
 
 *** lib/core.clj
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/ferret/lib/core.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/lib/core.clj
   <<runtime-clojure-threading-macros>>
   <<runtime-clojure-fn-macros>>
   <<runtime-clojure-interfaces>>

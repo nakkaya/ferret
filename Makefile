@@ -4,7 +4,7 @@ MINOR_VERSION = $(shell git rev-list ${MAJOR_VERSION}.. --count)
 VERSION = ${MAJOR_VERSION}.${MINOR_VERSION}
 
 .DEFAULT_GOAL := bin/ferret
-.PHONY: clean repl test-compiler test-core test-embedded test-all deb deb-repo clojars docs release docker-build docker-bash docker-release docker-test
+.PHONY: clean repl test-compiler test-core test-all deb deb-repo clojars docs release docker-build docker-bash docker-release docker-test
 .PRECIOUS: %.cpp %.gcc %.clang %.ino
 
 CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
@@ -12,7 +12,7 @@ CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
               -Woverloaded-virtual -Wuninitialized -Winit-self       \
 	      -Wsign-conversion
 
-CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/src/ferret/
+CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/ferret/
 
 # only enable sanitizers during release test
 release: CPPFLAGS += -fsanitize=undefined,address,leak -fno-omit-frame-pointer
@@ -32,10 +32,10 @@ define static_check
 endef
 
 clean:
-	rm -rf src/ bin/ docs/ release/
+	rm -rf resources/ src/ test/ project.clj target/ bin/ docs/ release/ core*
 
-# tangle compiler generate src/ directory
-src/: ferret.org
+# tangle compiler
+project.clj: ferret.org
 	emacs -nw -Q --batch --eval \
 	"(progn                                                     \
            (require 'org)                                           \
@@ -51,16 +51,13 @@ src/: ferret.org
            (find-file \"ferret.org\")                               \
            (org-babel-tangle))"
 
-repl: src/
-	cd src/ && lein repl
-
 # run low level unit tests and generate bin/ferret
-bin/ferret: src/
+bin/ferret: project.clj
 	mkdir -p bin/
-	cd src/ && lein uberjar
-	cat src/resources/jar-sh-header src/target/ferret.jar > bin/ferret
+	lein uberjar
+	cat resources/jar-sh-header target/ferret.jar > bin/ferret
 	chmod +x bin/ferret
-	mv src/target/ferret.jar bin/ferret.jar
+	mv target/ferret.jar bin/ferret.jar
 
 # tell make how to compile Ferret lisp to C++
 %.cpp: %.clj
@@ -88,27 +85,27 @@ bin/ferret: src/
 	arduino --verify --board arduino:avr:uno $@
 
 # list of unit tests to run againts the current build
-NATIVE_TESTS = src/test/native/fixed_real.cpp                  \
-               src/test/native/matrix.cpp                      \
-               src/test/native/container_array.cpp             \
-               src/test/native/bitset.cpp                      \
-               src/test/native/memory_pool.cpp
+NATIVE_TESTS = test/native/fixed_real.cpp                  \
+               test/native/matrix.cpp                      \
+               test/native/container_array.cpp             \
+               test/native/bitset.cpp                      \
+               test/native/memory_pool.cpp
 
-CORE_TESTS = src/test/core/module.clj                     \
-	     src/test/core/module_unit_test.clj           \
-             src/test/core/module_import_empty_aux_a.clj  \
-             src/test/core/module_import_empty_aux_b.clj  \
-             src/test/core/allocator_api.clj              \
-             src/test/core/core.clj                       \
-             src/test/core/fixed_num.clj                  \
-             src/test/core/net/multicast.clj              \
-             src/test/core/io/serial.clj                  \
-             src/test/core/concurrency.clj
+CORE_TESTS = test/core/module.clj                     \
+	     test/core/module_unit_test.clj           \
+             test/core/module_import_empty_aux_a.clj  \
+             test/core/module_import_empty_aux_b.clj  \
+             test/core/allocator_api.clj              \
+             test/core/core.clj                       \
+             test/core/fixed_num.clj                  \
+             test/core/net/multicast.clj              \
+             test/core/io/serial.clj                  \
+             test/core/concurrency.clj
 
-EMBEDDED_TESTS = src/test/embedded/blink/blink.clj              \
-	         src/test/embedded/blink-multi/blink-multi.clj  \
-		 src/test/embedded/bounce_pin/bounce_pin.clj    \
-	         src/test/embedded/interrupt/interrupt.clj
+EMBEDDED_TESTS = test/embedded/blink/blink.clj              \
+	         test/embedded/blink-multi/blink-multi.clj  \
+		 test/embedded/bounce_pin/bounce_pin.clj    \
+	         test/embedded/interrupt/interrupt.clj
 
 # assign tests to compilers
 CLANG_OBJS = $(NATIVE_TESTS:.cpp=.clang)   $(CORE_TESTS:.clj=.clang)
@@ -116,31 +113,30 @@ GCC_OBJS   = $(NATIVE_TESTS:.cpp=.gcc)     $(CORE_TESTS:.clj=.gcc)
 CXX_OBJS   = $(NATIVE_TESTS:.cpp=.cxx)     $(CORE_TESTS:.clj=.cxx)
 INO_OBJS   = $(EMBEDDED_TESTS:.clj=.ino)
 
-test-compiler:
-	cd src/ && lein test
-test-core: $(CXX_OBJS)
-test-embedded: $(INO_OBJS)
-test-all: bin/ferret test-compiler $(GCC_OBJS) $(CLANG_OBJS) test-embedded
+test-compiler: project.clj
+	lein test
+test-core: bin/ferret $(CXX_OBJS)
+test-all: bin/ferret test-compiler $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
 
 # rules for preparing a release
 deb:    bin/ferret
 	mkdir -p deb/usr/bin
 	cp bin/ferret deb/usr/bin/
 	mkdir -p deb/DEBIAN
-	cp src/resources/deb-package-conf deb/DEBIAN/control
+	cp resources/deb-package-conf deb/DEBIAN/control
 	echo "Version: ${VERSION}" >> deb/DEBIAN/control
 	dpkg -b deb ferret-lisp.deb
 	rm -rf deb
 	mv ferret-lisp.deb bin/
 deb-repo: deb
 	mkdir -p bin/debian-repo/conf/
-	cp src/resources/deb-repo-conf bin/debian-repo/conf/distributions
+	cp resources/deb-repo-conf bin/debian-repo/conf/distributions
 	reprepro -b bin/debian-repo/ includedeb ferret-lisp bin/ferret-lisp.deb
 clojars: 
-	cd src/ && lein deploy
-docs:   src/
+	lein deploy
+docs:   project.clj
 	wget https://s3.amazonaws.com/ferret-lang.org/build-artifacts/clojure-mode-extra-font-locking.el
-	emacs -nw -Q --batch -l src/resources/tangle-docs
+	emacs -nw -Q --batch -l resources/tangle-docs
 	mkdir -p docs/
 	mv ferret-manual.html docs/
 	rm clojure-mode-extra-font-locking.el
@@ -159,8 +155,8 @@ DOCKER_RUN = docker run --rm -i \
 		-e LEIN_PASSWORD='${LEIN_PASSWORD}' \
 		-t -v "${DIR}":/ferret/ -w /ferret/ nakkaya/ferret-build
 
-docker-build: src/
-	cd src/resources/ferret-build/ && \
+docker-build: project.clj
+	cd resources/ferret-build/ && \
 	   docker build -t nakkaya/ferret-build:latest -t nakkaya/ferret-build:${VERSION} .
 	docker push nakkaya/ferret-build:${VERSION}
 	docker push nakkaya/ferret-build:latest

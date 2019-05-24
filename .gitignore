@@ -1,6 +1,11 @@
 src/
+target/
+test/
+resources/
 bin/
 docs/
 release/
 org-mode-assets*
 core*
+.lein-failures
+project.clj

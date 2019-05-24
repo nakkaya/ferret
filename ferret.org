@@ -2441,10 +2441,10 @@ traditional boolean values.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject boolean "ferret/obj/boolean_o.h")
+  (defobject boolean "ferret/runtime/boolean_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/boolean_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/boolean_o.h
   class boolean final : public object {
     const bool value;
   public:
@@ -2514,10 +2514,10 @@ A =pointer= object keeps a reference to a C++ pointer.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject pointer "ferret/obj/pointer_o.h")
+  (defobject pointer "ferret/runtime/pointer_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/pointer_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/pointer_o.h
   class pointer final : public object {
     void * payload;
   public:
@@ -2568,10 +2568,10 @@ modern C++ libraries that use smart pointers for memory management.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject value "ferret/obj/value_o.h")
+  (defobject value "ferret/runtime/value_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/value_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/value_o.h
 template <typename T>
 class value final : public object {
   T payload;
@@ -2611,10 +2611,10 @@ fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject number "ferret/obj/number_o.h")
+  (defobject number "ferret/runtime/number_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/number_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/number_o.h
   class number final : public object {
     const real_t n;
   public:
@@ -2646,11 +2646,11 @@ directly. count is O(n). conj puts the item at the front of the list.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject empty_sequence "ferret/obj/empty_sequence_o.h")
-  (defobject sequence "ferret/obj/sequence_o.h")
+  (defobject empty_sequence "ferret/runtime/empty_sequence_o.h")
+  (defobject sequence "ferret/runtime/sequence_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/empty_sequence_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/empty_sequence_o.h
   class empty_sequence final : public object {
 
     type_t type() const final { return type_id<empty_sequence>; }
@@ -2667,7 +2667,7 @@ directly. count is O(n). conj puts the item at the front of the list.
   }
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/sequence_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/sequence_o.h
   class sequence final : public object, public seekable_i {
     const var next;
     const var data;
@@ -2759,10 +2759,10 @@ cache their values unless forced using [[doall]].
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject lazy_sequence "ferret/obj/lazy_sequence_o.h")
+  (defobject lazy_sequence "ferret/runtime/lazy_sequence_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/lazy_sequence_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/lazy_sequence_o.h
   class lazy_sequence final : public object, public seekable_i {
     mutex lock;
     bool cache;
@@ -2869,10 +2869,10 @@ Creates a view of an array.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject array_sequence "ferret/obj/array_sequence_o.h")
+  (defobject array_sequence "ferret/runtime/array_sequence_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/array_sequence_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/array_sequence_o.h
 template<typename element_t, typename object_t>
 class array_seq : public object , public seekable_i {
   size_t pos;
@@ -2945,7 +2945,7 @@ public:
            (list 42 43 44)))
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/array_sequence_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/array_sequence_o.h
 typedef array<var> var_array_t;
 typedef value<var_array_t> var_array;
 typedef array_seq<var,var> var_array_seq;
@@ -3040,7 +3040,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject d-list "ferret/obj/d_list_o.h")
+  (defobject d-list "ferret/runtime/d_list_o.h")
 
   (defn new-d-list-aux [keys vals]
     "return obj<d_list>(keys, vals);")
@@ -3068,7 +3068,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     "return m.cast<map_t>()->keys();")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/d_list_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/d_list_o.h
   class d_list final : public lambda_i, public seekable_i {
 
     var data;
@@ -3192,10 +3192,10 @@ the keyword as =number_t=.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject keyword "ferret/obj/keyword_o.h")
+  (defobject keyword "ferret/runtime/keyword_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/keyword_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/keyword_o.h
 class keyword final : public lambda_i {
   const number_t hash;
 
@@ -3247,7 +3247,7 @@ operations on strings.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject string "ferret/obj/string_o.h")
+  (defobject string "ferret/runtime/string_o.h")
 #+end_src
 
 Defines a function that returns a given string. Can be used to return
@@ -3263,7 +3263,7 @@ interpreted as FFI calls.
       (reduce (fn [h v] (concat h v)) ss))))
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/string_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/string_o.h
 class string final : public object, public seekable_i {
   var data;
 
@@ -3383,10 +3383,10 @@ or =reset!=. Changes to atoms are always free of race conditions.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject atomic "ferret/obj/atomic_o.h")
+  (defobject atomic "ferret/runtime/atomic_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/atomic_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/atomic_o.h
   class atomic final : public deref_i {
     mutex lock;
     var data;
@@ -3447,7 +3447,7 @@ not yet finished, calls to =deref= will block.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject async "ferret/obj/async_o.h")
+  (defobject async "ferret/runtime/async_o.h")
 
   (defmacro future [& body]
     `(_future_ (fn [] ~@body)))
@@ -3470,7 +3470,7 @@ thread to =future=,
     "return obj<async>(f);")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/async_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/async_o.h
   #ifdef FERRET_STD_LIB
   class async final : public deref_i {
     mutex lock;
@@ -3540,7 +3540,7 @@ calls.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defobject delayed "ferret/obj/delayed_o.h")
+  (defobject delayed "ferret/runtime/delayed_o.h")
 
   (defn _delay_ [f]
     "return obj<delayed>(f)")
@@ -3557,7 +3557,7 @@ calls.
   (defn force [d] @d)
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/delayed_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/delayed_o.h
   class delayed final : public deref_i {
     mutex lock;
     var fn;
@@ -3593,10 +3593,10 @@ to iterate seekable containers.
 
 #+name: runtime-clojure-interfaces
 #+begin_src clojure :tangle no
-  (defobject seekable_i "ferret/obj/seekable_i.h")
+  (defobject seekable_i "ferret/runtime/seekable_i.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/seekable_i.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/seekable_i.h
   class seekable_i {
   public:
 
@@ -3781,10 +3781,10 @@ uniform fashion.
 
 #+name: runtime-clojure-interfaces
 #+begin_src clojure :tangle no
-  (defobject lambda_i "ferret/obj/lambda_i.h")
+  (defobject lambda_i "ferret/runtime/lambda_i.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/lambda_i.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/lambda_i.h
   struct lambda_i : public object {
     virtual var invoke(ref args) const = 0;
     type_t type() const { return type_id<lambda_i>; }
@@ -3859,10 +3859,10 @@ Function invocation,
 
 #+name: runtime-clojure-interfaces
 #+begin_src clojure :tangle no
-  (defobject deref_i "ferret/obj/deref_i.h")
+  (defobject deref_i "ferret/runtime/deref_i.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/deref_i.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/deref_i.h
   class deref_i : public object {
    public:
 
@@ -6939,7 +6939,7 @@ Port of Teensy elapsedMicros API,
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no :noweb yes
-  (defobject elapsed_micros "ferret/obj/elapsed_micros_o.h")
+  (defobject elapsed_micros "ferret/runtime/elapsed_micros_o.h")
 
   (defn new-elapsed-micros []
     "return obj<elapsed_micros>();")
@@ -6956,7 +6956,7 @@ Port of Teensy elapsedMicros API,
     "t.cast<elapsed_micros>()->reset()")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/elapsed_micros_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/elapsed_micros_o.h
   #if !defined(FERRET_SAFE_MODE)
   class elapsed_micros : public object {
     mutex lock;
@@ -7078,7 +7078,7 @@ statistics.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-(defobject fn_throttler_o "ferret/obj/fn_throttler_o.h")
+(defobject fn_throttler_o "ferret/runtime/fn_throttler_o.h")
 
 (defn new-fn-throttler [f ^real_t rate ^bolean block]
   "return obj<fn_throttler>(f, rate, block);")
@@ -7092,7 +7092,7 @@ statistics.
     `(new-fn-throttler ~f ~rate ~(= policy :blocking))))
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/fn_throttler_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/fn_throttler_o.h
 #if !defined(FERRET_SAFE_MODE)
 class fn_throttler : public lambda_i {
   var fn;
@@ -8219,7 +8219,7 @@ DSL,
 Each transition takes a list of =fn=, =state= pairs first function that
 returns true, returns the next state.
 
-#+begin_src c++ :mkdirp yes :tangle src/ferret/obj/fsm_o.h
+#+begin_src c++ :mkdirp yes :tangle src/ferret/runtime/fsm_o.h
   class fsm final : public lambda_i {
     mutex lock;
     var env;
@@ -8250,7 +8250,7 @@ returns true, returns the next state.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defobject fsm "ferret/obj/fsm_o.h")
+  (defobject fsm "ferret/runtime/fsm_o.h")
 
   (defn new-fsm [env transitions]
     "return obj<fsm>(env, transitions)")
@@ -8333,10 +8333,10 @@ Ported from,
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defobject pid_controller "ferret/obj/pid_controller_o.h")
+  (defobject pid_controller "ferret/runtime/pid_controller_o.h")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :tangle src/ferret/obj/pid_controller_o.h
+#+begin_src c++ :mkdirp yes :tangle src/ferret/runtime/pid_controller_o.h
   template <typename T>
   class pid_controller : public lambda_i {
     mutex lock;
@@ -8483,13 +8483,13 @@ moving average of the last K samples by setting the value of alpha to
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defobject moving_average_filter "ferret/obj/moving_average_filter_o.h")
+  (defobject moving_average_filter "ferret/runtime/moving_average_filter_o.h")
 
   (defn new-moving-average-filter [^real_t a]
     "return obj<moving_average_filter<real_t>>(a);")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :tangle src/ferret/obj/moving_average_filter_o.h
+#+begin_src c++ :mkdirp yes :tangle src/ferret/runtime/moving_average_filter_o.h
   template <typename T>
   class moving_average_filter : public lambda_i {
     mutex lock;
@@ -8604,13 +8604,13 @@ sensors which have contacts that "chatter" or "bounce".
 #+end_src
 
 #+begin_src clojure :mkdirp yes :tangle src/ferret/arduino.clj
-  (defobject bounce "ferret/obj/arduino/bounce_o.h")
+  (defobject bounce "ferret/runtime/arduino/bounce_o.h")
 
   (defn new-bounce [^number_t x ^number_t t-debounce]
     "return obj<bounce>(x, t_debounce);")
 #+end_src
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/obj/arduino/bounce_o.h
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/ferret/runtime/arduino/bounce_o.h
   class bounce final : public lambda_i {
     mutex lock;
     void (bounce::* fsm_state)();

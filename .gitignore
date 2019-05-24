@@ -7,5 +7,6 @@ docs/
 release/
 org-mode-assets*
 core*
+prog*
 .lein-failures
 project.clj

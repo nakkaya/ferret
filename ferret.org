@@ -2934,14 +2934,6 @@ public:
 #+name: ferret-unit-tests
 #+begin_src clojure
 (deftest dense-seq
-  (is (= (cxx "var arr = obj<var_array>(size_t(3));
-               auto& data = var_array::to_reference(arr);
-               data[0] = obj<number>(42);
-               data[1] = obj<number>(43);
-               data[2] = obj<number>(44);
-               return obj<var_array_seq>(arr);")
-         (list 42 43 44)))
-  
   (is (= (cxx "return runtime::dense_list
                    (obj<number>(42), obj<number>(43));")
          (list 42 43))))

@@ -8943,7 +8943,7 @@ Build options,
  - -Wsign-conversion
  - -fno-rtti
  - -fsanitize=undefined,address,leak
- - -fno-omit-frame-pointer
+ - -ggdb
 
 Static code analysis (cppcheck) options,
 
@@ -8951,6 +8951,13 @@ Static code analysis (cppcheck) options,
  - --template=gcc
  - --enable=all
  - --error-exitcode=1
+
+Valgrind options,
+
+ - --quiet
+ - --leak-check=full
+ - --error-exitcode=1
+ - --track-origins=yes
 
 ** Compiler
 *** Three Shaking

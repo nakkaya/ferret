@@ -10,7 +10,7 @@ VERSION = ${MAJOR_VERSION}.${MINOR_VERSION}
 CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
               -Wconversion -Wpointer-arith -Wmissing-braces          \
               -Woverloaded-virtual -Wuninitialized -Winit-self       \
-	      -Wsign-conversion
+	      -Wsign-conversion -ggdb
 
 CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/runtime/
 
@@ -76,7 +76,7 @@ bin/ferret: project.clj
 	valgrind --quiet --leak-check=full --error-exitcode=1 --track-origins=yes $@ 1 2
 
 %.cxx: %.cpp
-	$(CXX) $(CPPFLAGS) -ggdb -x c++ $< -o $@
+	$(CXX) $(CPPFLAGS) -x c++ $< -o $@
 	$@ 1 2
 
 %.ino: CPPCHECK_CONF=-DFERRET_HARDWARE_ARDUINO

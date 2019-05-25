@@ -7578,15 +7578,15 @@ Wraps mlockall - locks the address space of process.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn system-exit [^number_t code]
-    "::exit(code);")
+  (defn system-exit []
+    "::exit(0);")
 #+end_src
 
 *** system-abort
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn system-abort [code]
+  (defn system-abort []
     "::abort();")
 #+end_src
 
@@ -8035,7 +8035,7 @@ Once opened, port is ready for =read=/=write=.
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/io/serial.clj
   (when (not dev)
-    (system-exit 0))
+    (system-exit))
 
   (sleep 2500)
 
@@ -8901,7 +8901,7 @@ Evaluates expr and aborts if it does not evaluate to logical true.
      ~exp
      (~'println
       "err" ~(-> exp pr-str (clojure.string/escape {\\ "\\\\"})))
-     (system-exit 1)))
+     (system-abort)))
   ([exp & callback]
    `(assert-aux (fn [] ~exp) (fn [] ~@callback))))
 #+end_src
@@ -8918,7 +8918,7 @@ information.
         got  (form-fn)]
     (when (not=  expect got)
       (println "err" form-str "\n exp" expect "\n got" got)
-      (system-exit 1))))
+      (system-abort))))
 
 (defmacro is [form]
   (cond (= (first form) '=)
@@ -8936,8 +8936,8 @@ information.
 (defmacro run-all-tests []
   (if (bound? #'fir-unit-tests)
     `(do ~@(map #(list %) @fir-unit-tests)
-         (system-exit 0))
-    `(system-exit 0)))
+         (system-exit))
+    `(system-exit)))
 #+end_src
 
 ** Compiler
@@ -9183,22 +9183,22 @@ Static code analysis (cppcheck) options,
 #+name: clojure-unit-tests
 #+begin_src clojure :tangle no
   (deftest testing-unit-test
-    (is (= 1 (check-form '((assert (= 2 1))))))
+    (is (= 134 (check-form '((assert (= 2 1))))))
     (is (= 0 (check-form '((assert (= 2 1))) {:release true})))
     (is (= 0 (check-form '((run-all-tests)))))
 
-    (is (= 1 (check-form '((deftest some-test
-                             (is (= 2 3)))
-                           (run-all-tests)))))
+    (is (= 134 (check-form '((deftest some-test
+                               (is (= 2 3)))
+                             (run-all-tests)))))
 
 
     (is (= 0 (check-form '((deftest some-test
                              (is (= 2 2)))
                            (run-all-tests)))))
 
-    (is (= 1 (check-form '((deftest some-test
-                             (is (= 5 (apply + (list 1 2 3)))))
-                           (run-all-tests)))))
+    (is (= 134 (check-form '((deftest some-test
+                               (is (= 5 (apply + (list 1 2 3)))))
+                             (run-all-tests)))))
 
     (is (= 0 (check-form '((deftest some-test
                              (is (= 6 (apply + (list 1 2 3)))))

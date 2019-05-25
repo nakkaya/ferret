@@ -4,7 +4,7 @@ MINOR_VERSION = $(shell git rev-list ${MAJOR_VERSION}.. --count)
 VERSION = ${MAJOR_VERSION}.${MINOR_VERSION}
 
 .DEFAULT_GOAL := bin/ferret
-.PHONY: clean repl test-compiler test-core test-all deb deb-repo clojars docs release docker-build docker-bash docker-release docker-test
+.PHONY: clean repl test-compiler test-core test-all test-release deb deb-repo clojars docs release docker-build docker-bash docker-release docker-test
 .PRECIOUS: %.cpp %.gcc %.clang %.ino
 
 CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
@@ -15,7 +15,7 @@ CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
 CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/runtime/
 
 # only enable sanitizers during release test
-release: CPPFLAGS += -fsanitize=undefined,address,leak -fno-omit-frame-pointer
+test-release: CPPFLAGS += -fsanitize=undefined,address,leak -fno-omit-frame-pointer
 
 CPPCHECK_CONF = -DFERRET_STD_LIB
 
@@ -118,6 +118,7 @@ test-compiler: project.clj
 test-core: bin/ferret $(CXX_OBJS)
 test-embedded: bin/ferret $(INO_OBJS)
 test-all: bin/ferret test-compiler $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
+test-release: test-all
 
 # rules for preparing a release
 deb:    bin/ferret
@@ -141,7 +142,7 @@ docs:   project.clj
 	mkdir -p docs/
 	mv ferret-manual.html docs/
 	rm clojure-mode-extra-font-locking.el
-release: clean test-all deb-repo docs clojars
+release: clean test-release deb-repo docs clojars
 	mkdir -p release/builds/
 	mv bin/ferret* release/builds/
 	cp release/builds/ferret.jar release/builds/ferret-`git rev-parse --short HEAD`.jar
@@ -167,3 +168,5 @@ docker-release:
 	 ${DOCKER_RUN} /bin/bash -c 'make release'
 docker-test:
 	 ${DOCKER_RUN} /bin/bash -c 'make test-all'
+docker-test-release:
+	 ${DOCKER_RUN} /bin/bash -c 'make test-release'

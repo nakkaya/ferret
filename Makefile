@@ -15,7 +15,7 @@ CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
 CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/runtime/
 
 # only enable sanitizers during release test
-test-release: CPPFLAGS += -fsanitize=undefined,address,leak -fno-omit-frame-pointer
+test-release: CPP_SANITIZE_FLAGS += -fsanitize=undefined,address,leak
 
 CPPCHECK_CONF = -DFERRET_STD_LIB
 
@@ -68,15 +68,15 @@ bin/ferret: project.clj
 # i.e all cpp files compiled with g++ will have .gcc extension
 
 %.gcc: %.cpp
-	g++ $(CPPFLAGS) -x c++ $< -o $@
+	g++ $(CPPFLAGS) $(CPP_SANITIZE_FLAGS) -x c++ $< -o $@
 	$@ 1 2
 
 %.clang: %.cpp
 	clang++ $(CPPFLAGS) -x c++ $< -o $@
-	$@ 1 2
+	valgrind --quiet --leak-check=full --error-exitcode=1 --track-origins=yes $@ 1 2
 
 %.cxx: %.cpp
-	$(CXX) $(CPPFLAGS) -x c++ $< -o $@
+	$(CXX) $(CPPFLAGS) -ggdb -x c++ $< -o $@
 	$@ 1 2
 
 %.ino: CPPCHECK_CONF=-DFERRET_HARDWARE_ARDUINO

@@ -11174,7 +11174,10 @@ RUN rm -rf cppcheck-1.87 1.87.zip
 # Setup Platform Build Requirements
 RUN apt-get install zip reprepro -y
 
-RUN echo 'export PS1="[\u@docker] \W # "' >> /root/.bashrc
+# Setup Platform Env Requirements
+RUN apt-get install valgrind -y
+
+RUN echo 'export PS1="\e[0;31mλ \e[m"' >> /root/.bashrc
 #+end_src
 
 *** deb-package-conf

@@ -7816,13 +7816,24 @@ files in a portable manner.
         }
        return __result;"))
 
+(defn file-seq-flat [s]
+  (lazy-seq
+   (if (not (empty? s))
+     (if (not (string? (first s)))
+       (concat (file-seq-flat (first s)) (file-seq-flat (rest s)))
+       (cons (first s) (file-seq-flat (rest s)))))))
+
+(defn file-seq-walk [dir]
+  (map (fn [f]
+         (let [file (new-string dir "/" f)]
+           (if (open-dir file)
+             (cons file (file-seq-walk file))
+             file)))
+       (open-dir dir)))
+
 (defn file-seq [dir]
-  (->> (open-dir dir)
-       (map (fn [f]
-              (let [file (new-string dir "/" f)]
-                (if (open-dir file)
-                  (cons file (file-seq file))
-                  file))))))
+  (file-seq-flat
+   (file-seq-walk dir)))
 #+end_src
 
 *** multicast-socket

@@ -77,7 +77,7 @@ bin/ferret: project.clj
 
 %.cxx: %.cpp
 	$(CXX) $(CPPFLAGS) -x c++ $< -o $@
-	$@ 1 2
+	valgrind --quiet --leak-check=full --error-exitcode=1 --track-origins=yes ./$@ 1 2
 
 %.ino: CPPCHECK_CONF=-DFERRET_HARDWARE_ARDUINO
 %.ino: %.cpp

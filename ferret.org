@@ -7775,6 +7775,14 @@ files in a portable manner.
          closedir(d);
         }
        return __result;"))
+
+(defn file-seq [dir]
+  (->> (open-dir dir)
+       (map (fn [f]
+              (let [file (new-string dir "/" f)]
+                (if (open-dir file)
+                  (cons file (file-seq file))
+                  file))))))
 #+end_src
 
 *** multicast-socket

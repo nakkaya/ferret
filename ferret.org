@@ -2335,6 +2335,8 @@ count, when it reaches zero it will automatically free the object.
     bool operator==(ref other) const { return equals(other); }
 
     bool operator!=(ref other) const { return !equals(other); }
+
+    void* operator new(size_t, void* ptr){ return ptr; }
     
     operator bool() const;
 
@@ -2867,6 +2869,22 @@ cache their values unless forced using [[doall]].
 
 Creates a view of an array.
 
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest array-seq-test
+  (is (= (cxx "int buff[3] = {1,2,3};
+               return obj<array_seq<int, number>>(buff, size_t(3));")
+         (list 1 2 3))))
+#+end_src
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest dense-list-test
+  (is (= (cxx "return runtime::dense_list
+                   (obj<number>(42), obj<number>(43));")
+         (list 42 43))))
+#+end_src
+
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defobject array_sequence "array_sequence_o.h")
@@ -2929,6 +2947,134 @@ public:
     return runtime::list();
   }
 };
+#+end_src
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/array_sequence_o.h
+template <>
+class array<var> {
+  size_t  _size{0};
+
+  var* allocate(){
+    var* storage = static_cast<var*>(FERRET_ALLOCATOR::allocate(_size * sizeof(var))) ;
+    for(size_t i = 0; i < _size; i++)
+      new (&storage[i]) var();
+    return storage;
+  }
+
+public:
+
+  var* data {nullptr};
+
+  explicit inline array(size_t s = 0) : _size(s), data(allocate()) { }
+
+  inline array(array&& m) :
+    _size(m.size()), data(m.data) { m.data = nullptr; }
+
+  inline array(array& m) : _size(m.size()), data(allocate()) {
+    for(size_t i = 0; i < _size; i++)
+      data[i] = m.data[i];
+  }
+
+  ~array(){
+    for(size_t i = 0; i < size(); i++)
+      (&data[i])->~var();
+    FERRET_ALLOCATOR::free(data);
+  }
+
+  inline array& operator=(array&& x){
+    data = x.data;
+    _size = x._size;
+    x.data = nullptr;
+    return *this;
+  }
+
+  inline var& operator [](size_t idx)      { return data[idx]; }
+  inline var operator [](size_t idx) const { return data[idx]; }
+
+  inline var*    begin() const { return &data[0];      }
+  inline var*    end()   const { return &data[_size];  }
+  inline size_t  size()  const { return _size;         }
+};
+#+end_src
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/array_sequence_o.h
+typedef array<var> var_array_t;
+typedef value<var_array_t> var_array;
+typedef array_seq<var,var> var_array_seq;
+
+template<>
+class array_seq<var,var> : public object , public seekable_i {
+  size_t pos{0};
+
+  inline static void into_aux(ref){ }
+
+  template<typename... Args>
+  inline static void into_aux(ref arr, ref first, Args... rest){
+    auto& data = var_array::to_reference(arr);
+    data[data.size() - sizeof...(rest) - 1] = first;
+    into_aux(arr, rest...);
+  }
+
+public:
+  var storage;
+
+  explicit array_seq(var b, size_t p = 0) : pos(p), storage(b){ }
+
+  type_t type() const final { return type_id<array_seq>; }
+
+  bool equals(ref o) const final {
+    return seekable_i::equals(var((object*)this), o);
+  }
+
+#if !defined(FERRET_DISABLE_STD_OUT)
+  void stream_console() const final {
+    runtime::print('(');
+    var xs = var((object*) this);
+
+    runtime::first(xs).stream_console();
+
+    for_each(i, runtime::rest(xs)){
+      runtime::print(' ');
+      i.stream_console();
+    }
+    runtime::print(')');
+  }
+#endif
+
+  virtual seekable_i* cast_seekable_i() { return this; }
+
+  var cons(ref x) final {
+    return obj<sequence>(x, var(this));
+  }
+
+  var first() final {
+    var_array_t& b = var_array::to_reference(storage);
+    return b[pos];
+  }
+
+  var rest() final {
+    var_array_t& b = var_array::to_reference(storage);
+
+    if (pos < b.size() - 1)
+      return obj<array_seq>(storage, pos + 1);
+
+    return runtime::list();
+  }
+
+  template<typename... Args>
+  static inline var into(Args... rest){
+    var arr = obj<var_array>(sizeof...(rest));
+    into_aux(arr, rest...);
+    return obj<var_array_seq>(arr);
+  }
+};
+
+namespace runtime{
+  template<typename... Args>
+  static inline var dense_list(Args... rest){
+    return var_array_seq::into(rest...);
+  }
+}
 #+end_src
 
 **** D-List

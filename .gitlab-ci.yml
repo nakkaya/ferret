@@ -1,13 +1,5 @@
-image: docker:latest
-
-services:
-  - docker:dind
-
-before_script:
-  - apk update
-  - apk add make
-  - apk add util-linux
+image: nakkaya/ferret-build
 
 compile:
   script:
-    - script -e -q -c "make docker-test-release"
+    - script -e -q -c "make test-release"

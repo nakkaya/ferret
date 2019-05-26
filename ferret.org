@@ -709,7 +709,7 @@ modules and concatenate the required runtime from [[*Core][Core]].
     (->> (-> form
              (import-modules-all options)
              (expand-reader-macros))
-         (shake-concat (read-clojure-file "core.clj"))
+         (shake-concat (read-clojure-file "ferret/core.clj"))
          ;; tag form with the build info
          (cons `(~'native-define ~(try
                                     (let [version (io/read-file-from-url "build.info")]
@@ -748,7 +748,7 @@ Prepare form =f= for macro expansion,
 #+end_src
 
 Macro expansion is done by reading all the macros present in
-=src/lib/core.clj= and combining them with user defined macros. They
+=src/lib/ferret/core.clj= and combining them with user defined macros. They
 are evaluated in a temporary namespace, using =parser/transform= we iterate
 all the macros used in the code that we are compiling and expand them
 in the temporary namespace then the node is replaced with its expanded
@@ -757,7 +757,7 @@ form.
 #+name: core-compiler-macro-expansion
 #+begin_src clojure :tangle no
   (defn expand-macros-single [form]
-    (let [core-macros (->> (read-clojure-file "core.clj")
+    (let [core-macros (->> (read-clojure-file "ferret/core.clj")
                            (filter (parser/form? 'defmacro)))
           core-macro-symbols (into #{} (map second core-macros))
           form-macros (->> (filter (parser/form? 'defmacro) form)
@@ -771,9 +771,9 @@ form.
       (create-ns temp-ns)
       (binding [*ns* (the-ns temp-ns)]
         (refer 'clojure.core :exclude (concat macro-symbols ['fn 'def]))
-        (use '[ferret.io :only [exit-failure]])
-        (use '[ferret.core :only [symbol-conversion]])
-        (use '[ferret.parser :only [new-fir-fn]])
+        (use '[compiler.io :only [exit-failure]])
+        (use '[compiler.core :only [symbol-conversion]])
+        (use '[compiler.parser :only [new-fir-fn]])
         
         (doseq [m (concat core-macros form-macros)]
           (eval m)))
@@ -10684,7 +10684,7 @@ Create some dummy libs under /test/modules/,
   - *Hardware Support* - On an unknown arch Ferret will run in safe
     mode. See [[Hardware / Operating System Support]].
      - Support for user supplied machine architectures.
-     - =defnative= calls in =ferret.core= are arch dependent.
+     - =defnative= calls in =compiler.core= are arch dependent.
        - Aggregate =on= sections from multiple modules.
        - Autogenerate combined =defnative=.
      - Runtime contains arch specific =ifdefs=
@@ -10912,17 +10912,17 @@ Create some dummy libs under /test/modules/,
 
     :repl-options {:host "0.0.0.0"
                    :port 7888
-                   :init-ns ferret.core}
+                   :init-ns compiler.core}
 
     :source-paths ["src/compiler"
                    "src/runtime"
-                   "src/lib/"]
+                   "src/lib"]
     :test-paths ["test/compiler/"]
     :filespecs [{:type :bytes :path "build.info"
                  :bytes ~(.getBytes "<<ferret-version()>>")}]
     
-    :main ferret.core
-    :aot [ferret.core]
+    :main compiler.core
+    :aot [compiler.core]
     :jar-name "interim.jar"
     :uberjar-name "ferret.jar")
 #+end_src 
@@ -10930,13 +10930,13 @@ Create some dummy libs under /test/modules/,
 ** src/
 *** compiler/core.clj
 
-#+begin_src clojure :noweb yes :mkdirp yes :tangle src/compiler/ferret/core.clj
-  (ns ferret.core
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/compiler/compiler/core.clj
+  (ns compiler.core
     (:refer-clojure :exclude [compile])
     (:gen-class)
     (:use [clojure.java.io])
-    (:require [ferret.io :as io]
-              [ferret.parser :as parser]
+    (:require [compiler.io :as io]
+              [compiler.parser :as parser]
               [clojure.set :as set]
               [flatland.ordered.map :as ordered-map]
               [fast-zip.core :as zip]
@@ -10947,7 +10947,7 @@ Create some dummy libs under /test/modules/,
               [clj-jgit.porcelain :as jgit]
               [clojure.tools.cli :refer [parse-opts]]
               [watchtower.core :as watcher])
-    (:use [ferret [template :only [render-template]]]
+    (:use [compiler [template :only [render-template]]]
           [clojure.java.shell]
           [clojure.tools [logging :only [warn info]]]))
 
@@ -10969,11 +10969,11 @@ Create some dummy libs under /test/modules/,
 
 *** compiler/parser.clj
 
-#+begin_src clojure :noweb yes :mkdirp yes :tangle src/compiler/ferret/parser.clj
-  (ns ferret.parser
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/compiler/compiler/parser.clj
+  (ns compiler.parser
     (:refer-clojure :exclude [drop peek])
     (:gen-class)
-    (:require [ferret.io :as io]
+    (:require [compiler.io :as io]
               [fast-zip.core :as zip]
               [clojure.walk :as walk]))
 
@@ -10982,8 +10982,8 @@ Create some dummy libs under /test/modules/,
 
 *** compiler/io.clj
 
-#+begin_src clojure :noweb yes :mkdirp yes :tangle src/compiler/ferret/io.clj
-  (ns ferret.io
+#+begin_src clojure :noweb yes :mkdirp yes :tangle src/compiler/compiler/io.clj
+  (ns compiler.io
     (:gen-class)
     (:use [clojure.java.io]
           [clojure.tools [logging :only [warn info]]])
@@ -10995,8 +10995,8 @@ Create some dummy libs under /test/modules/,
 
 *** compiler/template.clj
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/compiler/ferret/template.clj
-  (ns ferret.template
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/compiler/compiler/template.clj
+  (ns compiler.template
     (:import (org.antlr.stringtemplate StringTemplateGroup StringTemplate)))
 
   (defn indexed
@@ -11161,7 +11161,7 @@ Create some dummy libs under /test/modules/,
 
 *** lib/core.clj
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle src/lib/core.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/lib/ferret/core.clj
   <<runtime-clojure-threading-macros>>
   <<runtime-clojure-fn-macros>>
   <<runtime-clojure-interfaces>>
@@ -11179,8 +11179,8 @@ Create some dummy libs under /test/modules/,
 #+begin_src clojure :noweb yes :mkdirp yes :tangle test/compiler/ferret.clj
   (ns ferret
     (:refer-clojure :exclude [compile])
-    (:use [ferret.core] :reload)
-    (:require [ferret.parser :as parser])
+    (:use [compiler.core] :reload)
+    (:require [compiler.parser :as parser])
     (:use [clojure.test]
           [clojure.java.shell]
           [clojure.tools [logging :only [warn info]]]))

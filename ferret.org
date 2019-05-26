@@ -2906,6 +2906,8 @@ public:
 
   explicit array_seq(var b, size_t p = 0) : pos(p), storage(b){ }
 
+  explicit array_seq(size_t size) : pos(0), storage(obj<value_t>(size)){ }
+
   type_t type() const final { return type_id<array_seq>; }
 
   bool equals(ref o) const final {
@@ -7541,20 +7543,24 @@ Reads the next line from default I/O stream.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defnative slurp [^c_str f]
-    (on "defined FERRET_STD_LIB"
-        ("fstream")
-        "std::ifstream ifs(f, std::ios::in | std::ios::binary | std::ios::ate);
-   
-         if (!ifs.good())
-           return nil();
-   
-         std::ifstream::pos_type file_size = ifs.tellg();
-         ifs.seekg(0, std::ios::beg);
+(defnative slurp [^c_str f]
+  (on "defined FERRET_STD_LIB"
+      ("fstream")
+      "std::ifstream ifs(f, std::ios::in | std::ios::binary | std::ios::ate);
 
-         std::vector<char> bytes(file_size);
-         ifs.read(bytes.data(), file_size);
-         return obj<string>(std::string(bytes.data(), file_size));"))
+       if (!ifs.good())
+         return nil();
+
+       std::ifstream::pos_type file_size = ifs.tellg();
+       ifs.seekg(0, std::ios::beg);
+
+       var data = obj<array_seq<byte, number>>(size_t(file_size));
+       var storage = (data.cast<array_seq<byte, number>>()->storage);
+       auto& arr = value<array<byte>>::to_reference(storage).data;
+
+       ifs.read((char*)arr, file_size);
+
+       return obj<string>(data);"))
 #+end_src
 
 *** sh

@@ -6304,6 +6304,22 @@ one time.
   (defn doall [s] "return runtime::doall(s)")
 #+end_src
 
+*** flatten
+
+Takes any nested combination of sequential things and returns their
+contents as a single, flat sequence.  =(flatten nil)= returns an empty
+sequence.
+
+#+name: runtime-clojure-core
+#+begin_src clojure :tangle no :noweb yes
+(defn flatten [s]
+  (lazy-seq
+   (if (not (empty? s))
+     (if (seqable? (first s))
+       (concat (flatten (first s)) (flatten (rest s)))
+       (cons (first s) (flatten (rest s)))))))
+#+end_src
+
 ** Math
 *** zero?
 
@@ -10053,6 +10069,8 @@ int main() {
     (is (= 3 (count (filter false? (list true false true false false)))))
     (is (= 2 (count (filter (fn [x] (not (false? x))) (list true false true false false)))))
     (is (empty? (filter true? (list false false))))
+
+    (is (= (list 1 2 3 4 5) (flatten (list 1 2 (list 3) 4 5))))
 
     (let [sum (cxx "var alist = runtime::list(obj<number>(1),obj<number>(2),obj<number>(3));
                     number_t sum = 0;

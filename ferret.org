@@ -10923,6 +10923,9 @@ Create some dummy libs under /test/modules/,
     
     :main compiler.core
     :aot [compiler.core]
+
+    :target-path "bin/target/"
+
     :jar-name "interim.jar"
     :uberjar-name "ferret.jar")
 #+end_src 

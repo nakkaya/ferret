@@ -32,7 +32,7 @@ define static_check
 endef
 
 clean:
-	rm -rf resources/ src/ test/ project.clj target/ bin/ docs/ release/ core*
+	rm -rf resources/ src/ test/ project.clj bin/ docs/ release/ core*
 
 # tangle compiler
 project.clj: ferret.org
@@ -55,9 +55,9 @@ project.clj: ferret.org
 bin/ferret: project.clj
 	mkdir -p bin/
 	lein uberjar
-	cat resources/jar-sh-header target/ferret.jar > bin/ferret
+	cat resources/jar-sh-header bin/target/ferret.jar > bin/ferret
 	chmod +x bin/ferret
-	mv target/ferret.jar bin/ferret.jar
+	mv bin/target/ferret.jar bin/ferret.jar
 
 # tell make how to compile Ferret lisp to C++
 %.cpp: %.clj

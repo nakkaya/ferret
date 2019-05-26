@@ -7722,6 +7722,61 @@ Wraps mlockall - locks the address space of process.
         (handle-payload                                                   sync-header)))))
 #+end_src
 
+*** file
+
+=ferret.io.file= includes functions for creating and manipulating
+files in a portable manner.
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/io/file.clj
+(require '[ferret.io.file :as f])
+
+(assert (true?  (f/exists "project.clj")))
+(assert (false? (f/exists "dummy_file.clj")))
+
+(assert (true?  (f/mkdir "src/dummy_directory")))
+(assert (false? (f/mkdir "src")))
+
+(assert (= (list ) (f/open-dir "src/dummy_directory")))
+(assert (nil?      (f/open-dir "project.clj")))
+#+end_src
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle src/lib/ferret/io/file.clj
+(defnative exists [^c_str file]
+  (on "defined FERRET_STD_LIB"
+      ("unistd.h")
+      "if (access( file, F_OK ) != -1)
+        return cached::true_o;
+       return cached::false_o;"))
+
+(defnative mkdir [^c_str dir]
+  (on "defined FERRET_STD_LIB"
+      ("sys/stat.h"
+       "sys/types.h")
+      "int result = mkdir(dir, 0755);
+       if (result == 0)
+         return cached::true_o;
+       return cached::false_o;"))
+
+(defnative open-dir [^c_str directory]
+  (on "defined FERRET_STD_LIB"
+      ("dirent.h"
+       "string.h")
+      "DIR *d;
+       struct dirent *dir;
+       d = opendir(directory);
+       if (d) {
+         __result = runtime::list();
+         while ((dir = readdir(d)) != NULL) {
+           if (!strcmp(dir->d_name, \".\") || !strcmp(dir->d_name, \"..\")){
+             continue;
+           }
+           __result = runtime::cons(obj<string>(dir->d_name), __result);
+         }
+         closedir(d);
+        }
+       return __result;"))
+#+end_src
+
 *** multicast-socket
 
 The multicast datagram socket class is useful for sending and

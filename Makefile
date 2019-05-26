@@ -98,6 +98,7 @@ CORE_TESTS = test/core/module.clj                     \
              test/core/allocator_api.clj              \
              test/core/core.clj                       \
              test/core/fixed_num.clj                  \
+             test/core/io/file.clj                    \
              test/core/net/multicast.clj              \
              test/core/io/serial.clj                  \
              test/core/concurrency.clj

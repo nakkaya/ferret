@@ -5,7 +5,7 @@ VERSION = ${MAJOR_VERSION}.${MINOR_VERSION}
 
 .DEFAULT_GOAL := bin/ferret
 .PHONY: clean repl test-compiler test-core test-all test-release deb deb-repo clojars docs release docker-build docker-bash docker-release docker-test
-.PRECIOUS: %.cpp %.gcc %.clang %.ino
+.DELETE_ON_ERROR:
 
 CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
               -Wconversion -Wpointer-arith -Wmissing-braces          \
@@ -60,7 +60,7 @@ bin/ferret: project.clj
 	mv bin/target/ferret.jar bin/ferret.jar
 
 # tell make how to compile Ferret lisp to C++
-%.cpp: %.clj
+%.cpp: %.clj bin/ferret
 	bin/ferret -i $<
 	$(call static_check,$@)
 

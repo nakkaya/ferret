@@ -2858,11 +2858,14 @@ cache their values unless forced using [[doall]].
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defn new-lazy-seq [f]
-    "return obj<lazy_sequence>(f);")
+(defn new-lazy-seq
+  ([thunk]
+   "return obj<lazy_sequence>(thunk);")
+  ([data thunk]
+   "return obj<lazy_sequence>(data, thunk);"))
 
-  (defmacro lazy-seq [& body]
-    `(new-lazy-seq (fn [] ~@body)))
+(defmacro lazy-seq [& body]
+  `(new-lazy-seq (fn [] ~@body)))
 #+end_src
 
 **** Array Sequence
@@ -7837,15 +7840,16 @@ files in a portable manner.
 (defn seq-flat [s]
   (lazy-seq
    (if (not (empty? s))
-     (if (not (string? (first s)))
-       (concat (seq-flat (first s)) (seq-flat (rest s)))
-       (cons (first s) (seq-flat (rest s)))))))
+     (let [[head & tail] s]
+       (if (not (string? head))
+         (concat (seq-flat head) (seq-flat tail))
+         (cons head (seq-flat tail)))))))
 
 (defn seq-walk [dir]
   (map (fn [f]
          (let [file (new-string dir "/" f)]
            (if (open-dir file)
-             (cons file (seq-walk file))
+             (new-lazy-seq file #(seq-walk file))
              file)))
        (open-dir dir)))
 

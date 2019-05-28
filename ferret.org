@@ -7778,25 +7778,12 @@ files in a portable manner.
 
 (assert (= (list ) (f/open-dir "src/dummy_directory")))
 (assert (nil?      (f/open-dir "project.clj")))
+
+
+(assert (true?  (f/rmdir "src/dummy_directory")))
 #+end_src
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle src/lib/ferret/io/file.clj
-(defnative exists [^c_str file]
-  (on "defined FERRET_STD_LIB"
-      ("unistd.h")
-      "if (access( file, F_OK ) != -1)
-        return cached::true_o;
-       return cached::false_o;"))
-
-(defnative mkdir [^c_str dir]
-  (on "defined FERRET_STD_LIB"
-      ("sys/stat.h"
-       "sys/types.h")
-      "int result = mkdir(dir, 0755);
-       if (result == 0)
-         return cached::true_o;
-       return cached::false_o;"))
-
 (defnative open-dir [^c_str directory]
   (on "defined FERRET_STD_LIB"
       ("dirent.h"
@@ -7816,18 +7803,49 @@ files in a portable manner.
         }
        return __result;"))
 
-(defn file-seq-flat [s]
+(defnative mkdir [^c_str dir]
+  (on "defined FERRET_STD_LIB"
+      ("sys/stat.h"
+       "sys/types.h")
+      "int result = mkdir(dir, 0755);
+       if (result == 0)
+         return cached::true_o;
+       return cached::false_o;"))
+
+(defnative rmdir [^c_str dir]
+  (on "defined FERRET_STD_LIB"
+      ("unistd.h")
+      "int result = rmdir(dir);
+       if (result == 0)
+         return cached::true_o;
+       return cached::false_o;"))
+
+(defnative exists [^c_str file]
+  (on "defined FERRET_STD_LIB"
+      ("unistd.h")
+      "if (access( file, F_OK ) != -1)
+        return cached::true_o;
+       return cached::false_o;"))
+
+(defnative remove [^c_str file]
+  (on "defined FERRET_STD_LIB"
+      "int result = remove(file);
+       if (result == 0)
+         return cached::true_o;
+       return cached::false_o;"))
+
+(defn seq-flat [s]
   (lazy-seq
    (if (not (empty? s))
      (if (not (string? (first s)))
-       (concat (file-seq-flat (first s)) (file-seq-flat (rest s)))
-       (cons (first s) (file-seq-flat (rest s)))))))
+       (concat (seq-flat (first s)) (seq-flat (rest s)))
+       (cons (first s) (seq-flat (rest s)))))))
 
-(defn file-seq-walk [dir]
+(defn seq-walk [dir]
   (map (fn [f]
          (let [file (new-string dir "/" f)]
            (if (open-dir file)
-             (cons file (file-seq-walk file))
+             (cons file (seq-walk file))
              file)))
        (open-dir dir)))
 

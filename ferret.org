@@ -7849,9 +7849,9 @@ files in a portable manner.
              file)))
        (open-dir dir)))
 
-(defn file-seq [dir]
-  (file-seq-flat
-   (file-seq-walk dir)))
+(defn seq [dir]
+  (seq-flat
+   (seq-walk dir)))
 #+end_src
 
 *** multicast-socket

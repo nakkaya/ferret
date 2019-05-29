@@ -103,16 +103,16 @@ CORE_TESTS = test/core/module.clj                     \
              test/core/io/serial.clj                  \
              test/core/concurrency.clj
 
-EMBEDDED_TESTS = test/embedded/blink/blink.clj              \
-	         test/embedded/blink-multi/blink-multi.clj  \
-		 test/embedded/bounce_pin/bounce_pin.clj    \
-	         test/embedded/interrupt/interrupt.clj
+ARDUINO_TESTS = test/arduino/blink/blink.clj              \
+		test/arduino/blink-multi/blink-multi.clj  \
+		test/arduino/bounce_pin/bounce_pin.clj    \
+	        test/arduino/interrupt/interrupt.clj
 
 # assign tests to compilers
 CLANG_OBJS = $(NATIVE_TESTS:.cpp=.clang)   $(CORE_TESTS:.clj=.clang)
 GCC_OBJS   = $(NATIVE_TESTS:.cpp=.gcc)     $(CORE_TESTS:.clj=.gcc)
 CXX_OBJS   = $(NATIVE_TESTS:.cpp=.cxx)     $(CORE_TESTS:.clj=.cxx)
-INO_OBJS   = $(EMBEDDED_TESTS:.clj=.ino)
+INO_OBJS   = $(ARDUINO_TESTS:.clj=.ino)
 
 test-compiler: project.clj
 	lein test
@@ -161,9 +161,9 @@ DOCKER_RUN = docker run --rm -i \
 docker-build: project.clj
 	cd resources/ferret-build/ && \
 	   docker build -t nakkaya/ferret-build:latest -t nakkaya/ferret-build:${VERSION} .
-	docker push nakkaya/ferret-build:${VERSION}
-	docker push nakkaya/ferret-build:latest
-docker-bash:
+#	docker push nakkaya/ferret-build:${VERSION}
+#	docker push nakkaya/ferret-build:latest
+env:
 	 ${DOCKER_RUN} /bin/bash
 docker-release:
 	 ${DOCKER_RUN} /bin/bash -c 'make release'

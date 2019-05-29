@@ -120,7 +120,7 @@ variable on the resulting *cpp* file.
 Following shows a blink example for Arduino. (See section [[Arduino
 Boards]] for more info on how to use Ferret lisp on Arduino boards.) 
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle test/embedded/blink/blink.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/arduino/blink/blink.clj
   ;;; blink.clj
   (require '[ferret.arduino :as gpio])
 
@@ -143,7 +143,7 @@ different frequencies (Yellow LED at 5 hz Blue LED at 20 hz). It uses
 a memory pool of 512 bytes allocated at compile time instead of
 calling malloc/free at runtime.
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle test/embedded/blink-multi/blink-multi.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/arduino/blink-multi/blink-multi.clj
   (configure-runtime! FERRET_MEMORY_POOL_SIZE 512
                       FERRET_MEMORY_POOL_PAGE_TYPE byte)
 
@@ -8788,7 +8788,7 @@ Sets the size (in bits) of the value returned by *analog-read*.
 Bounce object can be used to reliably read push buttons or mechanical
 sensors which have contacts that "chatter" or "bounce".
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle test/embedded/bounce_pin/bounce_pin.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/arduino/bounce_pin/bounce_pin.clj
   (require '[ferret.arduino :as gpio])
 
   (def button (gpio/new-bounce 7 250))
@@ -8903,7 +8903,7 @@ cycle) on a pin.
 Registers an interrupt function for the given pin and mode. See
 [[https://www.arduino.cc/en/Reference/AttachInterrupt][attachInterrupt()]] for more information.
 
-#+begin_src clojure :mkdirp yes :noweb yes :tangle test/embedded/interrupt/interrupt.clj
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/arduino/interrupt/interrupt.clj
   (require '[ferret.arduino :as gpio])
 
   (def input-pin  3)
@@ -11460,6 +11460,7 @@ RUN wget http://downloads.arduino.cc/arduino-1.8.7-linux64.tar.xz
 RUN tar xf arduino-1.8.7-linux64.tar.xz
 RUN mv arduino-1.8.7 /usr/local/share/arduino
 RUN ln -s /usr/local/share/arduino/arduino /usr/local/bin/arduino
+RUN ln -s /usr/local/share/arduino/arduino-builder /usr/local/bin/arduino-builder
 RUN rm -rf arduino-1.8.7-linux64.tar.xz
 
 # x86

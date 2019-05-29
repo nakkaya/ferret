@@ -9417,7 +9417,7 @@ Valgrind options,
 ** Native
 *** Fixed Point
 
-#+begin_src c++ :noweb yes :mkdirp yes :tangle test/native/fixed_real.cpp
+#+begin_src c++ :noweb yes :mkdirp yes :tangle test/runtime/fixed_real.cpp
   #include <cassert>
   #include <runtime.h>
 
@@ -9494,7 +9494,7 @@ Valgrind options,
 
 *** Matrices
 
-#+begin_src c++ :noweb yes :mkdirp yes :tangle test/native/matrix.cpp
+#+begin_src c++ :noweb yes :mkdirp yes :tangle test/runtime/matrix.cpp
   #include <cassert>
   #include <runtime.h>
 
@@ -9507,7 +9507,7 @@ Valgrind options,
 
 *** Array
 
-#+begin_src c++ :noweb yes :mkdirp yes :tangle test/native/array.cpp
+#+begin_src c++ :noweb yes :mkdirp yes :tangle test/runtime/array.cpp
   #include <cassert>
   #include <runtime.h>
 
@@ -9544,7 +9544,7 @@ Valgrind options,
 
 *** Bitset
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle test/native/bitset.cpp
+#+begin_src c++ :mkdirp yes :noweb yes :tangle test/runtime/bitset.cpp
 #include <cassert>
 #include <runtime.h>
 
@@ -9635,7 +9635,7 @@ int main() {
 
 *** Memory Pool
 
-#+begin_src c++ :mkdirp yes :noweb yes :tangle test/native/memory_pool.cpp
+#+begin_src c++ :mkdirp yes :noweb yes :tangle test/runtime/memory_pool.cpp
 #define FERRET_MEMORY_POOL_SIZE 4_MB
 #define FERRET_BITSET_WORD_TYPE unsigned int
 

@@ -85,11 +85,11 @@ bin/ferret: project.clj
 	arduino --verify --board arduino:avr:uno $@
 
 # list of unit tests to run againts the current build
-NATIVE_TESTS = test/native/fixed_real.cpp                  \
-               test/native/matrix.cpp                      \
-               test/native/bitset.cpp                      \
-               test/native/memory_pool.cpp                 \
-               test/native/array.cpp
+NATIVE_TESTS = test/runtime/fixed_real.cpp                  \
+               test/runtime/matrix.cpp                      \
+               test/runtime/bitset.cpp                      \
+               test/runtime/memory_pool.cpp                 \
+               test/runtime/array.cpp
 
 CORE_TESTS = test/core/module.clj                     \
 	     test/core/module_unit_test.clj           \

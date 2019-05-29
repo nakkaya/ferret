@@ -87,9 +87,9 @@ bin/ferret: project.clj
 # list of unit tests to run againts the current build
 NATIVE_TESTS = test/native/fixed_real.cpp                  \
                test/native/matrix.cpp                      \
-               test/native/container_array.cpp             \
                test/native/bitset.cpp                      \
-               test/native/memory_pool.cpp
+               test/native/memory_pool.cpp                 \
+               test/native/array.cpp
 
 CORE_TESTS = test/core/module.clj                     \
 	     test/core/module_unit_test.clj           \

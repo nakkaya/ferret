@@ -9507,7 +9507,7 @@ Valgrind options,
 
 *** Array
 
-#+begin_src c++ :noweb yes :mkdirp yes :tangle test/native/container_array.cpp
+#+begin_src c++ :noweb yes :mkdirp yes :tangle test/native/array.cpp
   #include <cassert>
   #include <runtime.h>
 

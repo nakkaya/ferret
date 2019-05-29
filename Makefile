@@ -4,7 +4,7 @@ MINOR_VERSION = $(shell git rev-list ${MAJOR_VERSION}.. --count)
 VERSION = ${MAJOR_VERSION}.${MINOR_VERSION}
 
 .DEFAULT_GOAL := bin/ferret
-.PHONY: clean repl test-compiler test-core test-all test-release deb deb-repo clojars docs release docker-build docker-bash docker-release docker-test
+.PHONY: clean repl test-compiler test deb deb-repo clojars docs release docker-build docker-bash docker-release docker-test
 .DELETE_ON_ERROR:
 
 CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
@@ -13,10 +13,7 @@ CPPWARNINGS = -pedantic -Werror -Wall -Wextra                        \
 	      -Wsign-conversion -ggdb
 
 CPPFLAGS = -std=c++11 -fno-rtti ${CPPWARNINGS} -pthread -I src/runtime/
-
-# only enable sanitizers during release test
-test-release: CPP_SANITIZE_FLAGS += -fsanitize=undefined,address,leak
-
+CPP_SANITIZE_FLAGS += -fsanitize=undefined,address,leak
 CPPCHECK_CONF = -DFERRET_STD_LIB
 
 define static_check
@@ -60,27 +57,29 @@ bin/ferret: project.clj
 	mv bin/target/ferret.jar bin/ferret.jar
 
 # tell make how to compile Ferret lisp to C++
-%.cpp: %.clj bin/ferret
+%.cpp: %.clj
 	bin/ferret -i $<
-	$(call static_check,$@)
+
+%.cppcheck: %.cpp
+	$(call static_check,$<)
 
 # each compiler/framework to be tested get an extensiton. 
 # i.e all cpp files compiled with g++ will have .gcc extension
 
-%.gcc: %.cpp
+%.gcc: %.cpp %.cppcheck
 	g++ $(CPPFLAGS) $(CPP_SANITIZE_FLAGS) -x c++ $< -o $@
 	$@ 1 2
 
-%.clang: %.cpp
+%.clang: %.cpp %.cppcheck
 	clang++ $(CPPFLAGS) -x c++ $< -o $@
 	valgrind --quiet --leak-check=full --error-exitcode=1 --track-origins=yes $@ 1 2
 
-%.cxx: %.cpp
+%.cxx: %.cpp %.cppcheck
 	$(CXX) $(CPPFLAGS) -x c++ $< -o $@
 	valgrind --quiet --leak-check=full --error-exitcode=1 --track-origins=yes ./$@ 1 2
 
 %.ino: CPPCHECK_CONF=-DFERRET_HARDWARE_ARDUINO
-%.ino: %.cpp
+%.ino: %.cpp %.cppcheck
 	mv $< $@
 	arduino --verify --board arduino:avr:uno $@
 
@@ -116,10 +115,7 @@ INO_OBJS   = $(ARDUINO_TESTS:.clj=.ino)
 
 test-compiler: project.clj
 	lein test
-test-core: bin/ferret $(CXX_OBJS)
-test-embedded: bin/ferret $(INO_OBJS)
-test-all: bin/ferret test-compiler $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
-test-release: test-all
+test: bin/ferret test-compiler $(GCC_OBJS) $(CLANG_OBJS) $(INO_OBJS)
 
 # rules for preparing a release
 deb:    bin/ferret
@@ -143,7 +139,7 @@ docs:   project.clj
 	mkdir -p docs/
 	mv ferret-manual.html docs/
 	rm clojure-mode-extra-font-locking.el
-release: clean test-release deb-repo docs clojars
+release: clean test deb-repo docs clojars
 	mkdir -p release/builds/
 	mv bin/ferret* release/builds/
 	cp release/builds/ferret.jar release/builds/ferret-`git rev-parse --short HEAD`.jar
@@ -161,13 +157,11 @@ DOCKER_RUN = docker run --rm -i \
 docker-build: project.clj
 	cd resources/ferret-build/ && \
 	   docker build -t nakkaya/ferret-build:latest -t nakkaya/ferret-build:${VERSION} .
-#	docker push nakkaya/ferret-build:${VERSION}
-#	docker push nakkaya/ferret-build:latest
+	docker push nakkaya/ferret-build:${VERSION}
+	docker push nakkaya/ferret-build:latest
 env:
 	 ${DOCKER_RUN} /bin/bash
 docker-release:
 	 ${DOCKER_RUN} /bin/bash -c 'make release'
 docker-test:
-	 ${DOCKER_RUN} /bin/bash -c 'make test-all'
-docker-test-release:
-	 ${DOCKER_RUN} /bin/bash -c 'make test-release'
+	 ${DOCKER_RUN} /bin/bash -c 'make test'

@@ -2,4 +2,4 @@ image: nakkaya/ferret-build
 
 compile:
   script:
-    - script -e -q -c "make test-release"
+    - script -e -q -c "make test"

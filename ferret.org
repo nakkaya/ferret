@@ -7777,6 +7777,8 @@ files in a portable manner.
 (assert (false? (f/exists "dummy_file.clj")))
 
 (assert (true?  (f/mkdir "src/dummy_directory")))
+(assert (true?  (and (seqable? (f/seq "src/dummy_directory"))
+                     (empty?   (f/seq "src/dummy_directory")))))
 (assert (false? (f/mkdir "src")))
 
 (assert (= (list ) (f/open-dir "src/dummy_directory")))

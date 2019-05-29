@@ -90,17 +90,20 @@ NATIVE_TESTS = test/runtime/fixed_real.cpp                  \
                test/runtime/memory_pool.cpp                 \
                test/runtime/array.cpp
 
-CORE_TESTS = test/core/module.clj                     \
+CORE_TESTS = test/core/allocator_api.clj              \
+             test/core/seqable.clj                    \
+             test/core/seqable_lazy.clj               \
+             test/core/objects.clj                    \
+             test/core/core.clj                       \
+             test/core/fixed_num.clj                  \
+             test/core/concurrency.clj                \
+             test/core/module.clj                     \
 	     test/core/module_unit_test.clj           \
              test/core/module_import_empty_aux_a.clj  \
              test/core/module_import_empty_aux_b.clj  \
-             test/core/allocator_api.clj              \
-             test/core/core.clj                       \
-             test/core/fixed_num.clj                  \
              test/core/io/file.clj                    \
-             test/core/net/multicast.clj              \
              test/core/io/serial.clj                  \
-             test/core/concurrency.clj
+             test/core/net/multicast.clj
 
 ARDUINO_TESTS = test/arduino/blink/blink.clj              \
 		test/arduino/blink-multi/blink-multi.clj  \

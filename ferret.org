@@ -3631,16 +3631,7 @@ thread to =future=,
     var fn;
     std::future<var> task;
 
-    class rc_guard{
-      object *obj;
-    public:
-      explicit rc_guard(const rc_guard &) = delete;
-      explicit rc_guard(object *o) : obj(o) { };
-      ~rc_guard() { obj->dec_ref(); }
-    };
-
-    var exec() {
-      rc_guard g(this);
+    inline var exec() {
       return run(fn);
     }
     
@@ -3648,7 +3639,7 @@ thread to =future=,
 
     explicit async(ref f) :
       cached(false), value(nil()), fn(f), 
-      task(std::async(std::launch::async, [this](){ return exec(); })){ inc_ref(); }
+      task(std::async(std::launch::async, [this](){ return exec(); })){ }
 
     type_t type() const final { return type_id<async>; }
 

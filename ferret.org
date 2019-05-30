@@ -3111,6 +3111,38 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
   ((key1 key2 ...) val1 val2 ...)
 #+END_EXAMPLE
 
+#+name: ferret-unit-test-objects
+#+begin_src clojure
+  (deftest d-list-test
+    (let [m (new-d-list 0 (list 0 1)
+                        1 (list 1 2))
+          mr {:a 1 :b 2}
+          mn {1 2 3 4}]
+
+      (is (= {1 2}                         {1 2}))
+      (is (not= mn                         {1 2}))
+      (is (= (list 0 1)                    (keys m)))
+      (is (= (list (list 0 1) (list 1 2))  (vals m)))
+      (is (= (list 1 2)                    (m 1)))
+      (is (= m                             m))
+      (is (= (list 0)                      (keys (dissoc m 1))))
+      (is (= mr                            mr))
+      (is (= (list :a :b)                  (keys mr)))
+      (is (= (list 1  2)                   (vals mr)))
+      (is (= 1                             (:a mr)))
+      (is (= 1                             (get mr :a 10)))
+      (is (= 10                            (get mr :c 10)))
+      (is (= 1                             (mr :a)))
+      (is (= 1                             (mr :a 10)))
+      (is (= 10                            (mr :c 10)))
+      (is (= 1                             (:a mr)))
+      (is (= 1                             (:a mr 10)))
+      (is (= 10                            (:c mr 10)))
+      (is (= 6                             (->> mn
+                                                (map second)
+                                                (apply +))))))
+#+end_src
+
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
   (defobject d-list "d_list_o.h")
@@ -10471,40 +10503,6 @@ int main() {
       (is (empty? @lst))
       (is (not (empty? @acc)))
       (is (= (list 5 4 3 2 1) @acc))))
-#+end_src
-
-*** Associative
-
-#+name: ferret-unit-tests
-#+begin_src clojure
-  (deftest d-list-test
-    (let [m (new-d-list 0 (list 0 1)
-                        1 (list 1 2))
-          mr {:a 1 :b 2}
-          mn {1 2 3 4}]
-
-      (is (= {1 2}                         {1 2}))
-      (is (not= mn                         {1 2}))
-      (is (= (list 0 1)                    (keys m)))
-      (is (= (list (list 0 1) (list 1 2))  (vals m)))
-      (is (= (list 1 2)                    (m 1)))
-      (is (= m                             m))
-      (is (= (list 0)                      (keys (dissoc m 1))))
-      (is (= mr                            mr))
-      (is (= (list :a :b)                  (keys mr)))
-      (is (= (list 1  2)                   (vals mr)))
-      (is (= 1                             (:a mr)))
-      (is (= 1                             (get mr :a 10)))
-      (is (= 10                            (get mr :c 10)))
-      (is (= 1                             (mr :a)))
-      (is (= 1                             (mr :a 10)))
-      (is (= 10                            (mr :c 10)))
-      (is (= 1                             (:a mr)))
-      (is (= 1                             (:a mr 10)))
-      (is (= 10                            (:c mr 10)))
-      (is (= 6                             (->> mn
-                                                (map second)
-                                                (apply +))))))
 #+end_src
 
 *** Math

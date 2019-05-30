@@ -7422,6 +7422,14 @@ Converts =matrix= to a =lazy-seq=.
 
 Return current time in milliseconds,
 
+#+name: ferret-unit-test-time
+#+begin_src clojure :tangle no
+(deftest millis-test
+  (let [now (millis)]
+    (sleep 150)
+    (is (>= (- (millis) now) 100))))
+ #+end_src
+
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defnative millis []
@@ -7610,6 +7618,33 @@ statistics.
 (forever
  (throttled-ping))    
 #+end_src
+
+#+name: ferret-unit-test-time
+#+begin_src clojure :tangle no
+(defn ping [] true)
+
+(deftest fn-throttler-test
+  (let [throttled-ping (fn-throttler ping 1 :second :blocking)
+        begin (millis)]
+
+    (throttled-ping)
+    (throttled-ping)
+    (throttled-ping)
+
+    (is (> (- (millis) begin) 2000))
+    (is (throttled-ping)))
+
+
+  (let [throttled-ping (fn-throttler ping 1 :second :non-blocking)
+        begin (millis)]
+
+    (throttled-ping)
+    (throttled-ping)
+    (throttled-ping)
+
+    (is (nil? (throttled-ping)))
+    (is (< (- (millis) begin) 1000))))
+ #+end_src
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
@@ -8169,66 +8204,6 @@ Wraps mlockall - locks the address space of process.
 #+begin_src clojure :tangle no
 (defn system-halt [code]
   (forever (sleep 1000)))
-#+end_src
-
-*** byte-stream-encoder/decoder
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defn byte-stream-encoder [write]
-    (fn [bytes]
-      (let [size (count bytes)
-            CS   (reduce bit-xor size bytes)]
-        (write 0X06)
-        (write 0X85)
-        (write size)
-        (doseq [b bytes] 
-          (write b))
-        (write CS))))
-#+end_src
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
-  (defn byte-stream-header-ready [read in-waiting]
-    (and (>= (in-waiting) 3) (= (read) 0X06) (= (read) 0X85)))
-
-  (defn byte-stream-payload-ready [size in-waiting]
-    (>= (in-waiting) (inc @size)))
-
-  (defn byte-stream-handle-payload [read ^number_t size handler]
-    "number_t cs_calculated = size;
-     var payload_rev;
-
-     for(number_t i = 0 ; i < size; i++){
-       ref v = run(read);
-       cs_calculated ^= number::to<number_t>(v);
-       payload_rev = runtime::cons(v,payload_rev);
-     }
-
-     number_t cs_read = number::to<number_t>(run(read));
-
-     if (cs_calculated == cs_read){
-       var payload;
-
-       for_each(i, payload_rev)
-         payload = runtime::cons(i,payload);
-       
-       run(handler,payload);
-     }")
-
-  (defn byte-stream-decoder [read in-waiting handler]
-    (let [size (atom nil)]
-      (fsm 
-       (states
-        (sync-header)
-        (read-size        (reset! size (read)))
-        (wait-payload)
-        (handle-payload   (byte-stream-handle-payload read @size handler)))
-       (transitions
-        (sync-header     #(byte-stream-header-ready read in-waiting)      read-size)
-        (read-size                                                        wait-payload)
-        (wait-payload    #(byte-stream-payload-ready size in-waiting)     handle-payload)
-        (handle-payload                                                   sync-header)))))
 #+end_src
 
 *** file
@@ -10660,80 +10635,6 @@ int main() {
       (is (= 2 b))))
 #+end_src
 
-*** Timing
-
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
-  (deftest timing-test
-    (let [now (millis)]
-      (sleep 150)
-      (is (>= (- (millis) now) 100))))
-
-  (defn ping [] true)
-
-  (deftest fn-throttler-test
-    (let [throttled-ping (fn-throttler ping 1 :second :blocking)
-          begin (millis)]
-      (throttled-ping)
-      (throttled-ping)
-      (throttled-ping)
-      (is (> (- (millis) begin) 2000))
-      (is (throttled-ping)))
-
-
-    (let [throttled-ping (fn-throttler ping 1 :second :non-blocking)
-          begin (millis)]
-      (throttled-ping)
-      (throttled-ping)
-      (throttled-ping)
-      (is (nil? (throttled-ping)))
-      (is (< (- (millis) begin) 1000))))
-#+end_src
-
-*** I/O
-
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
-  (def byte-stream-state (atom nil))
-
-  (defn byte-sample-read-stream [buf]
-    (let [buffer (atom buf)]
-      (list
-       (fn []
-         (let [f (first (deref buffer))]
-           (swap! buffer rest)
-           f))
-       (fn []
-         (count (deref buffer)))
-       (fn [vals]
-         (reset! byte-stream-state vals)))))
-
-  (defn byte-sample-write-stream []
-    (let [buffer (atom (list))]
-      (list
-       (fn [v]
-         (swap! buffer conj v))
-       (fn []
-         (reverse (deref buffer))))))
-
-  (deftest byte-stream-test
-    (let [[writer get-buffer] (byte-sample-write-stream)
-          encoder (byte-stream-encoder writer)
-          data (list (list 1 2 3 4)
-                     (list 5 6 7 8))]
-      (doseq [d data] 
-        (encoder d))
-
-      (let [[read in-waiting handler] (byte-sample-read-stream (get-buffer))
-            decoder (byte-stream-decoder read in-waiting handler)]
-        (dotimes [i 4]
-          (decoder))
-        (is (= (list 1 2 3 4) @byte-stream-state))
-        (dotimes [i 4]
-          (decoder))
-        (is (= (list 5 6 7 8) @byte-stream-state)))))
- #+end_src
- 
 *** Control
 
 #+name: ferret-unit-tests
@@ -11587,6 +11488,14 @@ Create some dummy libs under /test/modules/,
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/concurrency.clj
   <<ferret-unit-test-concurrency>>
+
+  (run-all-tests)
+#+end_src
+
+*** core/timing.clj
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/timing.clj
+  <<ferret-unit-test-time>>
 
   (run-all-tests)
 #+end_src

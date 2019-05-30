@@ -970,6 +970,52 @@ the free variable problem.
             (define-fn fns env name args body)))))))
 #+end_src
 
+#+name: clojure-unit-tests
+#+begin_src clojure :tangle no
+  (deftest test-fn->lift
+    (let [prg-a (compile '((defn one-plus-one []
+                             (+ 1 1))
+
+                           (while true
+                             (+ 1 1))) {})
+          prg-b (fn->lift
+                 '(fn* outer [a]
+                       (fn* inner-a [b]
+                            (+ a b))
+                       (fn* inner-b [c] c)))
+
+          prg-c (fn->lift
+                 '((fn* inner-a [a]
+                        ((fn* inner-b [b]
+                              ((fn* inner-c [c] (+ b c))
+                               3))
+                         2))
+                   1))
+          prg-d (fn->lift
+                 '((fn* inner-a [a]
+                        ((fn* inner-b [b]
+                              ((fn* inner-c [c] (+ b))
+                               3))
+                         2))
+                   1))]
+      ;;while shoud use one-plus-one in its body
+      ;;check fn-defined?
+      (is (= 2 (count (parser/peek prg-a (fn [f] (= 'one_plus_one f))))))
+
+      (is (= 1 (->> (fn [f] (= '(fir-defn-heap inner-a (a) [b] (+ a b)) f))
+                    (parser/peek prg-b)
+                    count)))
+      (is (= 1 (->> (fn [f] (= '(fir-defn-heap inner-b () [c] c) f))
+                    (parser/peek prg-b)
+                    count)))
+      (is (= 1 (->> (fn [f] (= '(fir-defn-heap inner-c (b) [c] (+ b c)) f))
+                    (parser/peek prg-c)
+                    count)))
+      (is (= 1 (->> (fn [f] (= '(fir-defn-heap inner-c (b) [_] (+ b)) f))
+                    (parser/peek prg-d)
+                    count)))))
+#+end_src
+
 *** Symbol Conversion
 
 Some symbols valid in lisp are not valid C++ identifiers. This
@@ -1057,6 +1103,21 @@ metadata of the object to =:volatile= =true=,
                 inlined fn-table))))
 #+end_src
 
+#+name: clojure-unit-tests
+#+begin_src clojure :tangle no
+  (deftest test-fn->inline
+    (let [prg-a (compile '((defn  fn-inline [x] x)
+                           (defn ^{:volatile true} fn-no-inline [y] y)
+                           (fn-inline 42)
+                           (fn-no-inline 42)) {})]
+      (is (= 1 (->> (fn [f] (= '(fn_no_inline 42) f))
+                    (parser/peek prg-a)
+                    count)))
+      (is (= 1 (->> (fn [f] (= '((fir_fn_stack fn_inline) 42) f))
+                    (parser/peek prg-a)
+                    count)))))
+#+end_src
+
 **** Tree Shaking
 
 Concats two forms. Shakes the first form by removing any symbols not
@@ -1099,6 +1160,53 @@ defined, in the case of =println= it will pull =apply=, =print= and
                                             built-in fns non-shakeable))) %))))
 #+end_src
 
+#+name: clojure-unit-tests
+#+begin_src clojure :tangle no
+  (deftest three-shaking
+    (is (= '((defn c [] 1)
+             (defn b [] (c))
+             (defn a [] (b))
+             (a))
+           (shake-concat '((defn no-call-a [])
+                           (defnative no-call-b [] (on "" ""))
+                           (defn c [] 1)
+                           (defn b [] (c))
+                           (defn a [] (b)))
+                         '((a)))))
+
+    (is (= '((defn y [])
+             (let [a 1]
+               (defn b []))
+             (println (b) (y)))
+           (shake-concat '((defn x [] )
+                           (defn y [] )
+                           (let [a 1]
+                             (defn b [] )
+                             (defn c [] a)))
+                         '((println (b) (y))))))
+
+    (is (= '((defn p-create []) (defn p-update []))
+           (take 2 (shake-concat '((defn p-create [])
+                                   (defn p-update [])
+                                   (defmacro pc [& options]
+                                     `(let [controller# (p-create)]
+                                       (fn [input#] (p-update)))))
+                                 '((pc))))))
+
+    (is (= '(defn new-lazy-seq [f] )
+           (first (shake-concat '((defn new-lazy-seq [f] )
+                                  (defmacro lazy-seq [& body]
+                                    `(new-lazy-seq (fn [] ~@body)))
+                                  (defn range
+                                    ([high]
+                                     (range 0 high))
+                                    ([low high]
+                                     (if (< low high)
+                                       (cons low (lazy-seq
+                                                  (range (inc low) high)))))))
+                                '((range 10)))))))
+#+end_src
+
 **** Escape Analysis
 
 
@@ -1111,6 +1219,29 @@ defined, in the case of =println= it will pull =apply=, =print= and
     (->> (escape-fn-calls form)
          (escape-fn-dispatch)
          (escape-fns)))
+#+end_src
+
+#+name: clojure-unit-tests
+#+begin_src clojure :tangle no
+  (deftest test-escape-analysis
+    (let [prg-a (compile '((defn self [x] x)
+                           (self 42)) {})
+          prg-b (compile '((defn self [x] x)
+                           (self self)) {})
+
+          prg-c (compile '((defn multi ([x] x))) {})]
+
+      (is (not (empty? (parser/peek prg-a (parser/form? 'fir_defn_stack)))))
+      (is (not (empty? (parser/peek
+                        prg-a (fn [f] (= '(fir_fn_stack self) f))))))
+
+      (is (not (empty? (parser/peek prg-b (parser/form? 'fir_defn_heap)))))
+      (is (not (empty? (parser/peek
+                        prg-b (fn [f] (= '((fir_fn_stack self) (fir_fn_heap self)) f))))))
+
+      (is (= (->> (parser/peek prg-c (parser/form? 'fir_defn_arity))
+                  first second first second second)
+             (->> (parser/peek prg-c (parser/form? 'fir_defn_stack)) first second)))))
 #+end_src
 
 ***** Function Calls
@@ -4230,6 +4361,91 @@ Memory pool has several advantages, it will avoid fragmentation,
 function related to each other will always keep their data close
 to each other in the array which improves data locality.
 
+#+begin_src c++ :mkdirp yes :noweb yes :tangle test/runtime/memory_pool.cpp
+#define FERRET_MEMORY_POOL_SIZE 4_MB
+#define FERRET_BITSET_WORD_TYPE unsigned int
+
+#include <cassert>
+#include <runtime.h>
+
+int main() {
+  using namespace ferret::memory;
+  using namespace allocator;
+
+  assert(0  == align_req(0,8));
+  assert(7  == align_req(1,8));
+  assert(0  == align_req(8,8));
+
+  assert(0  == align_of(0,8));
+  assert(8  == align_of(1,8));
+  assert(8  == align_of(8,8));
+
+  alignas(16) int buff [4];
+  assert(0  == align_req<int16_t>(buff));
+  assert(reinterpret_cast<std::uintptr_t>(buff) == align_of<int16_t>(buff));
+
+  size_t byte_s = sizeof(ferret::byte);
+
+  memory_pool<ferret::byte, 8, unsigned char> nano_pool;
+
+  void* a = nano_pool.allocate(byte_s);
+  assert(nullptr  != a);
+  assert(2        == nano_pool.used.ffr(0));
+  assert(nullptr  != nano_pool.allocate(byte_s));
+  assert(4        == nano_pool.used.ffr(0));
+
+  void* c = nano_pool.allocate(byte_s);
+
+  assert(nullptr  != c);
+  assert(6        == nano_pool.used.ffr(0));
+  assert(nullptr  != nano_pool.allocate(byte_s));
+
+  nano_pool.free(c);
+
+  assert(4        == nano_pool.used.ffr(0));
+  assert(6        == nano_pool.used.ffs(4));
+  assert(nullptr  != nano_pool.allocate(byte_s));
+
+  memory_pool<ferret::byte, 16, unsigned char> tiny_pool;
+
+  assert(0        == tiny_pool.used.ffr(0));
+  assert(nullptr  != tiny_pool.allocate(byte_s * 2));
+  assert(3        == tiny_pool.used.ffr(0));
+
+  void* p = tiny_pool.allocate(byte_s * 4);
+
+  assert(nullptr  != p);
+  assert(8        == tiny_pool.used.ffr(0));
+
+  tiny_pool.free(p);
+
+  assert(3        == tiny_pool.used.ffr(0));
+  assert(nullptr  == tiny_pool.allocate(byte_s * 40));
+  assert(nullptr  != tiny_pool.allocate(byte_s * 6));
+  assert(nullptr  != tiny_pool.allocate(byte_s * 1));
+  assert(nullptr  != tiny_pool.allocate(byte_s * 1));
+  assert(nullptr  == tiny_pool.allocate(byte_s * 10));
+
+  memory_pool<uint64_t, 256> big_pool;
+
+  assert(0        == big_pool.used.ffr(0));
+
+  p = big_pool.allocate(1);
+
+  assert(nullptr  != p);
+
+  assert(2        == big_pool.used.ffr(0));
+
+  big_pool.free(p);
+
+  assert(0        == big_pool.used.ffr(0));
+  assert(nullptr  == big_pool.allocate(2048));
+  assert(0        == big_pool.used.ffr(0));
+
+  return 0;
+}
+#+end_src
+
 #+name: runtime-native-allocator-pool-implementation
 #+begin_src c++ :tangle no
   #ifdef FERRET_MEMORY_POOL_SIZE
@@ -4666,6 +4882,81 @@ accuracy using 6 bits for fraction.
   (configure-runtime! FERRET_REAL_TYPE "ferret::fixed_real<32,0.01_QN>")
 #+end_src
 
+#+begin_src clojure :noweb yes :mkdirp yes :tangle test/core/fixed_num.clj
+  (configure-runtime! FERRET_REAL_TYPE    "ferret::fixed_real<24,16>"
+                      FERRET_REAL_EPSILON 0.0001)
+
+  (cxx "static_assert(sizeof(int24_t) == 3 * sizeof(byte), \"\");")
+  (cxx "static_assert(sizeof(int24_t) ==     sizeof(real_t), \"\");")
+
+  (deftest math
+    (is (=  3    (+  1.25   1.75)))
+    (is (=  0.5  (- -1.25  -1.75)))
+    (is (=  255  (+  254    1)))
+    (is (=  255  (+  253.4  1.6)))
+    (is (= -255  (- -254    1))))
+
+  (run-all-tests)
+#+end_src
+
+#+begin_src c++ :noweb yes :mkdirp yes :tangle test/runtime/fixed_real.cpp
+  #include <cassert>
+  #include <runtime.h>
+
+  int main() {
+    typedef ferret::fixed_real<32,8> fix_32;
+    typedef ferret::fixed_real<64,8> fix_64;
+    
+    // Test Casting
+    assert((char)          fix_32(char(25))  == char(25));
+    assert((int)           fix_32(int(1024)) == int(1024));
+    assert((long)          fix_64(long(25))  == long(25));
+    assert((unsigned long) fix_64(2500UL)    == 2500UL);
+
+    long max_int = std::numeric_limits<int>::max() + 1024L;
+    assert((long)fix_64(max_int) == ((long)std::numeric_limits<int>::max() + 1024L));
+
+    // Test Arithmetic
+    fix_32 x;
+    fix_32 y;
+    x = 10;
+    y = 0.250;
+    assert(10.25 == (double)(x + y));
+
+    x = fix_32(0);
+    for(int i = 0; i < 100; i++)
+      x += fix_32(0.0625);
+    assert((double)x == 6.25);
+
+    x = fix_32(22.75);
+    y = fix_32(12.5);
+    assert((double)(x + y) == 35.25);
+
+    x = fix_32(22.75);
+    y = fix_32(22.5);
+    assert((double)(x - y) ==  0.25);
+    assert((double)(y - x) == -0.25);
+
+    x = fix_32(-0.25);
+    y = fix_32(4);
+    assert((double)(x / y) ==  -0.0625);
+
+    x = fix_32(-0.0625);
+    y = fix_32(-10);
+    assert((double)(x - y) ==  9.9375);
+
+    x = fix_32(9.9375);
+    y = fix_32(-3);
+    assert((double)(x * y) ==  -29.8125);
+
+    x = fix_32(-29.8125);
+    y = fix_32(0.1875);
+    assert((double)(x - y) ==  -30);
+
+    return 0;
+  }
+#+end_src
+
 #+name: runtime-native-fixed-point-real
 #+begin_src c++ :tangle no
   #if !defined(__clang__)
@@ -4758,31 +5049,38 @@ accuracy using 6 bits for fraction.
 
 A matrix is a two-dimensional array often used for linear algebra.
 
-#+name: runtime-native-matrix-test
-#+begin_src c++ :tangle no
-//initializers
-assert((matrix::zeros(2,2)  == matrix::into<2,2>(0,0,0,0)));
-assert((matrix::ones(2,2)   == matrix::into<2,2>(1,1,1,1)));
-assert((matrix::eye(2)      == matrix::into<2,2>(1,0,0,1)));
-assert((matrix::full(2,2,4) == matrix::into<2,2>(4,4,4,4)));
+#+begin_src c++ :noweb yes :mkdirp yes :tangle test/runtime/matrix.cpp
+#include <cassert>
+#include <runtime.h>
 
-//shape
-assert((matrix::row_count(matrix::zeros(2,3))    == 2));
-assert((matrix::column_count(matrix::zeros(2,3)) == 3));
+int main() {
+  using namespace ferret;
+    
+  //initializers
+  assert((matrix::zeros(2,2)  == matrix::into<2,2>(0,0,0,0)));
+  assert((matrix::ones(2,2)   == matrix::into<2,2>(1,1,1,1)));
+  assert((matrix::eye(2)      == matrix::into<2,2>(1,0,0,1)));
+  assert((matrix::full(2,2,4) == matrix::into<2,2>(4,4,4,4)));
 
-//operations
-matrix ones  = matrix::ones(2,2);
-matrix zeros = matrix::zeros(2,2);
-matrix twos  = matrix::full(2,2,2);
+  //shape
+  assert((matrix::row_count(matrix::zeros(2,3))    == 2));
+  assert((matrix::column_count(matrix::zeros(2,3)) == 3));
 
-assert((ones - ones == zeros));
-assert((ones + ones == twos));
-assert((ones * 2    == twos));
+  //operations
+  matrix ones  = matrix::ones(2,2);
+  matrix zeros = matrix::zeros(2,2);
+  matrix twos  = matrix::full(2,2,2);
 
-auto v3d = matrix::into<1,3>(0, 10, 0);
+  assert((ones - ones == zeros));
+  assert((ones + ones == twos));
+  assert((ones * 2    == twos));
 
-assert((matrix::norm_euclidean(v3d) == 10));
-assert((matrix::normalise(v3d)      == matrix::into<1,3>(0, 1, 0)));
+  auto v3d = matrix::into<1,3>(0, 10, 0);
+
+  assert((matrix::norm_euclidean(v3d) == 10));
+  assert((matrix::normalise(v3d)      == matrix::into<1,3>(0, 1, 0)));
+  return 0;
+}
 #+end_src
 
 #+name: runtime-native-matrix
@@ -5141,6 +5439,41 @@ provides its own types that are portable across architectures.
 
 =array= is a container that encapsulates fixed size arrays.
 
+#+begin_src c++ :noweb yes :mkdirp yes :tangle test/runtime/array.cpp
+  #include <cassert>
+  #include <runtime.h>
+
+  int main() {
+    using namespace ferret;
+
+    array<char> buffer(16);
+    assert((buffer.size() == 16));
+
+    array<char> str("abcde",5);
+    assert((str[0] == 'a'));
+    assert((str[1] == 'b'));
+    assert((str[4] == 'e'));
+
+    array<int> numbers {1, 2, 3, 4, 5};
+    assert((numbers[0] == 1));
+    assert((numbers[1] == 2));
+    assert((numbers[2] == 3));
+    assert((numbers[3] == 4));
+    assert((numbers[4] == 5));
+
+    // cppcheck-suppress useStlAlgorithm
+    for (int& x : numbers) { x++; }
+   
+    assert((numbers[0] == 2));
+    assert((numbers[1] == 3));
+    assert((numbers[2] == 4));
+    assert((numbers[3] == 5));
+    assert((numbers[4] == 6));
+    
+    return 0;
+  }
+#+end_src
+
 #+name: runtime-native-array
 #+begin_src c++ :tangle no
 template <typename T>
@@ -5205,6 +5538,95 @@ public:
 *** bitset
 
 =bitset= represents a fixed-size sequence of N bits.
+
+#+begin_src c++ :mkdirp yes :noweb yes :tangle test/runtime/bitset.cpp
+#include <cassert>
+#include <runtime.h>
+
+int main() {
+  using namespace ferret;
+
+  assert(FERRET_BITSET_USE_COMPILER_INTRINSICS == true);
+  
+  bitset<32> bs_a;
+  assert(32 == bs_a.ffs(0));
+  for(size_t i = 0; i < 2; i++)  bs_a.set(i);
+  assert(0  == bs_a.ffs(0));
+  assert(1  == bs_a.ffs(1));
+  for(size_t i = 7; i < 16; i++) bs_a.set(i);
+  assert(2  == bs_a.ffr(0));
+  assert(5  == bs_a.ffr(5));
+  assert(16 == bs_a.ffr(10));
+  assert(32 == bs_a.ffs(31));
+
+  bitset<64> bs_b;
+  assert(0  == bs_b.ffr(0));
+  assert(64 == bs_b.ffs(0));
+  for(size_t i = 0; i < 8; i++)   bs_b.set(i);
+  assert(0  == bs_b.ffs(0));
+  assert(5  == bs_b.ffs(5));
+  assert(8  == bs_b.ffr(5));
+  for(size_t i = 16; i < 48; i++) bs_b.set(i);
+  assert(16 == bs_b.ffs(8));
+  assert(48 == bs_b.ffr(16));
+
+  bitset<1024> bs_c;
+  assert(0     == bs_c.ffr(0));
+  assert(1024  == bs_c.ffs(0));
+  for(size_t i = 0; i < 32; i++)  bs_c.set(i);
+  assert(0     == bs_c.ffs(0));
+  assert(32    == bs_c.ffr(0));
+  for(size_t i = 256; i < 512; i++) bs_c.set(i);
+  assert(256   == bs_c.ffs(256));
+  assert(512   == bs_c.ffr(256));
+  for(size_t i = 768; i < 1024; i++) bs_c.set(i);
+  assert(1024  == bs_c.ffr(768));
+
+  bitset<1024> bs_d;
+  assert(0    == bs_d.ffr(0));
+  bs_d.flip(0);
+  assert(1    == bs_d.ffr(0));
+  bs_d.flip(0);
+  assert(0    == bs_d.ffr(0));
+
+  assert(1024 == bs_d.ffs(0));
+  bs_d.set(0, 1024);
+  assert(0 == bs_d.ffs(0));
+  bs_d.reset(0, 1024);
+  assert(1024 == bs_d.ffs(0));
+  bs_d.flip(0, 1024);
+  assert(0 == bs_d.ffs(0));
+  bs_d.flip(0, 1024);
+  assert(1024 == bs_d.ffs(0));
+
+  bs_d.set(256,512);
+  bs_d.set(768,1024);
+
+  assert(512  == bs_d.ffr(256));
+  assert(256  == bs_d.ffs(256));
+  assert(1024 == bs_d.ffr(768));
+  assert(768  == bs_d.ffs(768));
+
+  bs_d.reset(0,1024);
+  for(size_t i = 0; i < 87; i++)  bs_d.set(i);
+  for(size_t i = 90; i < 94; i++)  bs_d.set(i);
+  for(size_t i = 106; i < 111; i++)  bs_d.set(i);
+  for(size_t i = 136; i < 149; i++)  bs_d.set(i);
+
+  assert(106 == bs_d.ffs(94,100));
+
+  assert((15    == bitset<8,unsigned char>::bit_block(0,4)));
+  assert((15    == bitset<32,unsigned int>::bit_block(0,4)));
+  assert((60    == bitset<32,unsigned int>::bit_block(2,4)));
+  assert((1024  == bitset<32,unsigned int>::bit_block(10,1)));
+  assert((3072  == bitset<32,unsigned int>::bit_block(10,2)));
+  assert((98304 == bitset<32,unsigned int>::bit_block(15,2)));
+  assert((-1U   == bitset<32,unsigned int>::bit_block(0,60)));
+  assert((-1U   == bitset<32,unsigned int>::bit_block(0,32)));
+
+  return 0;
+}
+#+end_src
 
 #+name: runtime-native-containers
 #+begin_src c++ :tangle no
@@ -7263,6 +7685,114 @@ Returns a random integer between 0 (inclusive) and n (exclusive).
   (defn rand-int
     [x]
     (floor (rand x)))
+#+end_src
+
+*** Tests
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+  (deftest number-test
+    (is (= 0.5       1/2))
+    (is (= 0.33333   1/3))
+    (is (= 3501      0xDAD))
+    (is (= 2748      0xABC)))
+
+  (deftest math-test
+    (is (= 0.6        (+ 0.3 0.3)))
+    (is (= 0          (+ )))
+    (is (= 1          (+ 1)))
+    (is (= 10         (+ 1 2 3 4)))
+    (is (= 10         (+ 1 2.0 3 4)))
+    (is (= -1         (- 1)))
+    (is (= 0          (- 4 2 2)))
+    (is (= 0          (- 4 2 2.0)))
+    (is (= 1          (* )))
+    (is (= 8          (* 2 2 2)))
+    (is (= 8          (* 2.0 2 2)))
+    (is (= 1          (/ 1)))
+    (is (= 0.5        (/ 2)))
+    (is (= 1          (/ 4 2 2)))
+    (is (= 1          (/ 4 2 2.0)))
+    
+    (is (= 1          (floor 1.1)))
+    (is (= 1          (floor 1.5)))
+    (is (= 1          (floor 1.9)))
+    (is (= 0          (mod 2 2)))
+    (is (= 0          (mod 4 2)))
+    (is (= 1          (mod 5 2)))
+    (is (= 1          (mod 8 7)))
+    (is (= 1          (min 1)))
+    (is (= 1          (min 2 1)))
+    (is (= 1          (min 3 5 7 1)))
+    (is (= 1          (max 1)))
+    (is (= 2          (max 2 1)))
+    (is (= 7          (max 3 5 7 1)))
+    
+    (is (= 100        (scale 10 0 10 0 100)))
+    (is (= 50         (scale 5 0 10 0 100)))
+    (is (= 0          (scale 0 0 10 0 100)))
+    (is (= 5          (clamp 10 0 5)))
+    (is (= 10         (clamp 10 0 20)))
+    (is (= 0          (clamp 10 -10 0)))
+    (is (= -10        (clamp -100 -10 0)))
+
+    (is (= 0          (decode-int16 (encode-int16 0))))
+    (is (= 512        (decode-int16 (encode-int16 512))))
+    (is (= 1024       (decode-int16 (encode-int16 1024))))
+    (is (= 2048       (decode-int16 (encode-int16 2048))))
+    (is (= 32000      (decode-int16 (encode-int16 32000))))
+
+    (is (= 0          (decode-float (encode-float 0))))
+    (is (= 512        (decode-float (encode-float 512))))
+    (is (= 1024       (decode-float (encode-float 1024))))
+    (is (= 2048       (decode-float (encode-float 2048))))
+    (is (= 32000      (decode-float (encode-float 32000))))
+    (is (= 512        (decode-float (list 0 0 0 68 42))))
+    
+
+    (is (= true       (not (nil? (rand)))))
+    (is (= true       (not (nil? (rand 15)))))
+
+    (is (= -5         (bit-not  4)))
+    (is (= -1         (bit-not  0)))
+    (is (= 7          (bit-or   4 3)))
+    (is (= 1          (bit-or   0 1)))
+    (is (= 0          (bit-and  4 3)))
+    (is (= 0          (bit-and  0 1)))
+    (is (= 0          (bit-xor  4 4)))
+    (is (= 1          (bit-xor  1 0)))
+    (is (= 8          (bit-shift-left 4 1)))
+    (is (= 16         (bit-shift-left 4 2)))
+    (is (= 2          (bit-shift-right 4 1)))
+    (is (= 1          (bit-shift-right 4 2)))
+
+    (is (= 1          (bit-extract 1781 0 2)))
+    (is (= 2          (bit-extract 1781 1 2)))
+    (is (= 245        (bit-extract 1781 0 8)))
+    (is (= 15         (bit-extract 1781 4 4)))
+    (is (= 111        (bit-extract 1781 4 8)))
+    (is (= 20         (bit-extract 500  0 5)))
+    (is (= 15         (bit-extract 500  5 6)))
+
+    (is (= 0xAC3A     (bit-override 0xAAAA 0x0C30 4 8)))
+    (is (= 0xBBCC     (bit-override 0xBBBB 0xAACC 0 8)))
+    (is (= 0xBACB     (bit-override 0xBBBB 0xAACC 4 8)))
+    (is (= 0xBBBB     (bit-override 0xAAAA 0xBBBB 0 16)))
+    
+    
+    (is (= 32         (sqrt 1024)))
+    (is (= 2          (sqrt 4)))
+    (is (= 8          (pow 2 3)))
+    (is (= 16         (pow 2 4)))
+    (is (= 1          (cos 0)))
+    (is (= -0.99999   (cos 3.145)))
+    (is (= 0          (sin 0)))
+    (is (= -0.00340   (sin 3.145)))
+    (is (= 0.98279    (atan2 45 30)))
+    (is (= 180.19522  (to-degrees 3.145)))
+    (is (= 3.14159    (to-radians 180)))
+
+    (is (= 2.30258    (log 10)))
+    (is (= 2          (log10 100))))
 #+end_src
 
 ** Matrices
@@ -9564,6 +10094,16 @@ elapsing, or "timing out".
 
 Evaluates expr and aborts if it does not evaluate to logical true.
 
+#+name: clojure-unit-tests
+#+begin_src clojure :tangle no
+(defn aborted? [return-code]
+  (= 134 return-code))
+
+(deftest test-unit-test
+  (is (aborted? (check-form '((assert (= 2 1))))))
+  (is (zero?    (check-form '((assert (= 2 1))) {:release true}))))
+#+end_src
+
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
 (defn assert-aux [f cb]
@@ -9585,6 +10125,28 @@ Evaluates expr and aborts if it does not evaluate to logical true.
 
 Support for Clojure style unit testing. See [[Unit Testing]] for more
 information.
+
+#+name: clojure-unit-tests
+#+begin_src clojure :tangle no
+(defn aborted? [return-code]
+  (= 134 return-code))
+
+(deftest test-unit-test
+  (is (zero?    (check-form '((run-all-tests)))))
+  (is (aborted? (check-form '((deftest some-test
+                                (is (= 2 3)))
+                              (run-all-tests)))))
+  (is (zero?    (check-form '((deftest some-test
+                                (is (= 2 2)))
+                              (run-all-tests)))))
+  (is (aborted? (check-form '((deftest some-test
+                                (is (= 5 (apply + (list 1 2 3)))))
+                              (run-all-tests)))))
+
+  (is (zero?    (check-form '((deftest some-test
+                                (is (= 6 (apply + (list 1 2 3)))))
+                              (run-all-tests))))))
+#+end_src
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
@@ -9721,477 +10283,6 @@ Valgrind options,
  - --leak-check=full
  - --error-exitcode=1
  - --track-origins=yes
-
-** Compiler
-*** Three Shaking
-
-#+name: clojure-unit-tests
-#+begin_src clojure :tangle no
-  (deftest three-shaking
-    (is (= '((defn c [] 1)
-             (defn b [] (c))
-             (defn a [] (b))
-             (a))
-           (shake-concat '((defn no-call-a [])
-                           (defnative no-call-b [] (on "" ""))
-                           (defn c [] 1)
-                           (defn b [] (c))
-                           (defn a [] (b)))
-                         '((a)))))
-    
-    (is (= '((defn y [])
-             (let [a 1]
-               (defn b []))
-             (println (b) (y)))
-           (shake-concat '((defn x [] )
-                           (defn y [] )
-                           (let [a 1]
-                             (defn b [] )
-                             (defn c [] a)))
-                         '((println (b) (y))))))
-    
-    (is (= '((defn p-create []) (defn p-update []))
-           (take 2 (shake-concat '((defn p-create [])
-                                   (defn p-update [])
-                                   (defmacro pc [& options]
-                                     `(let [controller# (p-create)]
-                                       (fn [input#] (p-update)))))
-                                 '((pc))))))
-    
-    (is (= '(defn new-lazy-seq [f] )
-           (first (shake-concat '((defn new-lazy-seq [f] )
-                                  (defmacro lazy-seq [& body]
-                                    `(new-lazy-seq (fn [] ~@body)))
-                                  (defn range
-                                    ([high]
-                                     (range 0 high))
-                                    ([low high]
-                                     (if (< low high)
-                                       (cons low (lazy-seq
-                                                  (range (inc low) high)))))))
-                                '((range 10)))))))
-#+end_src
-
-*** Function Transforms
-
-#+name: clojure-unit-tests
-#+begin_src clojure :tangle no
-  (deftest test-fn->lift
-    (let [prg-a (compile '((defn one-plus-one []
-                             (+ 1 1))
-
-                           (while true
-                             (+ 1 1))) {})
-          prg-b (fn->lift
-                 '(fn* outer [a]
-                       (fn* inner-a [b]
-                            (+ a b))
-                       (fn* inner-b [c] c)))
-
-          prg-c (fn->lift
-                 '((fn* inner-a [a]
-                        ((fn* inner-b [b]
-                              ((fn* inner-c [c] (+ b c))
-                               3))
-                         2))
-                   1))
-          prg-d (fn->lift
-                 '((fn* inner-a [a]
-                        ((fn* inner-b [b]
-                              ((fn* inner-c [c] (+ b))
-                               3))
-                         2))
-                   1))]
-      ;;while shoud use one-plus-one in its body
-      ;;check fn-defined?
-      (is (= 2 (count (parser/peek prg-a (fn [f] (= 'one_plus_one f))))))
-
-      (is (= 1 (->> (fn [f] (= '(fir-defn-heap inner-a (a) [b] (+ a b)) f))
-                    (parser/peek prg-b)
-                    count)))
-      (is (= 1 (->> (fn [f] (= '(fir-defn-heap inner-b () [c] c) f))
-                    (parser/peek prg-b)
-                    count)))
-      (is (= 1 (->> (fn [f] (= '(fir-defn-heap inner-c (b) [c] (+ b c)) f))
-                    (parser/peek prg-c)
-                    count)))
-      (is (= 1 (->> (fn [f] (= '(fir-defn-heap inner-c (b) [_] (+ b)) f))
-                    (parser/peek prg-d)
-                    count)))))
-#+end_src
-
-#+name: clojure-unit-tests
-#+begin_src clojure :tangle no
-  (deftest test-fn->inline
-    (let [prg-a (compile '((defn  fn-inline [x] x)
-                           (defn ^{:volatile true} fn-no-inline [y] y)
-                           (fn-inline 42)
-                           (fn-no-inline 42)) {})]
-      (is (= 1 (->> (fn [f] (= '(fn_no_inline 42) f))
-                    (parser/peek prg-a)
-                    count)))
-      (is (= 1 (->> (fn [f] (= '((fir_fn_stack fn_inline) 42) f))
-                    (parser/peek prg-a)
-                    count)))))
-#+end_src
-
-*** Escape Analysis
-
-#+name: clojure-unit-tests
-#+begin_src clojure :tangle no
-  (deftest test-escape-analysis
-    (let [prg-a (compile '((defn self [x] x)
-                           (self 42)) {})
-          prg-b (compile '((defn self [x] x)
-                           (self self)) {})
-
-          prg-c (compile '((defn multi ([x] x))) {})]
-
-      (is (not (empty? (parser/peek prg-a (parser/form? 'fir_defn_stack)))))
-      (is (not (empty? (parser/peek
-                        prg-a (fn [f] (= '(fir_fn_stack self) f))))))
-      
-      (is (not (empty? (parser/peek prg-b (parser/form? 'fir_defn_heap)))))
-      (is (not (empty? (parser/peek
-                        prg-b (fn [f] (= '((fir_fn_stack self) (fir_fn_heap self)) f))))))
-
-      (is (= (->> (parser/peek prg-c (parser/form? 'fir_defn_arity))
-                  first second first second second)
-             (->> (parser/peek prg-c (parser/form? 'fir_defn_stack)) first second)))))
-#+end_src
-
-*** Unit Testing
-
-#+name: clojure-unit-tests
-#+begin_src clojure :tangle no
-  (deftest testing-unit-test
-    (is (= 134 (check-form '((assert (= 2 1))))))
-    (is (= 0 (check-form '((assert (= 2 1))) {:release true})))
-    (is (= 0 (check-form '((run-all-tests)))))
-
-    (is (= 134 (check-form '((deftest some-test
-                               (is (= 2 3)))
-                             (run-all-tests)))))
-
-
-    (is (= 0 (check-form '((deftest some-test
-                             (is (= 2 2)))
-                           (run-all-tests)))))
-
-    (is (= 134 (check-form '((deftest some-test
-                               (is (= 5 (apply + (list 1 2 3)))))
-                             (run-all-tests)))))
-
-    (is (= 0 (check-form '((deftest some-test
-                             (is (= 6 (apply + (list 1 2 3)))))
-                           (run-all-tests))))))
-#+end_src
-
-** Native
-*** Fixed Point
-
-#+begin_src c++ :noweb yes :mkdirp yes :tangle test/runtime/fixed_real.cpp
-  #include <cassert>
-  #include <runtime.h>
-
-  int main() {
-    typedef ferret::fixed_real<32,8> fix_32;
-    typedef ferret::fixed_real<64,8> fix_64;
-    
-    // Test Casting
-    assert((char)          fix_32(char(25))  == char(25));
-    assert((int)           fix_32(int(1024)) == int(1024));
-    assert((long)          fix_64(long(25))  == long(25));
-    assert((unsigned long) fix_64(2500UL)    == 2500UL);
-
-    long max_int = std::numeric_limits<int>::max() + 1024L;
-    assert((long)fix_64(max_int) == ((long)std::numeric_limits<int>::max() + 1024L));
-
-    // Test Arithmetic
-    fix_32 x;
-    fix_32 y;
-    x = 10;
-    y = 0.250;
-    assert(10.25 == (double)(x + y));
-
-    x = fix_32(0);
-    for(int i = 0; i < 100; i++)
-      x += fix_32(0.0625);
-    assert((double)x == 6.25);
-
-    x = fix_32(22.75);
-    y = fix_32(12.5);
-    assert((double)(x + y) == 35.25);
-
-    x = fix_32(22.75);
-    y = fix_32(22.5);
-    assert((double)(x - y) ==  0.25);
-    assert((double)(y - x) == -0.25);
-
-    x = fix_32(-0.25);
-    y = fix_32(4);
-    assert((double)(x / y) ==  -0.0625);
-
-    x = fix_32(-0.0625);
-    y = fix_32(-10);
-    assert((double)(x - y) ==  9.9375);
-
-    x = fix_32(9.9375);
-    y = fix_32(-3);
-    assert((double)(x * y) ==  -29.8125);
-
-    x = fix_32(-29.8125);
-    y = fix_32(0.1875);
-    assert((double)(x - y) ==  -30);
-
-    return 0;
-  }
-#+end_src
-
-#+begin_src clojure :noweb yes :mkdirp yes :tangle test/core/fixed_num.clj
-  (configure-runtime! FERRET_REAL_TYPE    "ferret::fixed_real<24,16>"
-                      FERRET_REAL_EPSILON 0.0001)
-
-  (cxx "static_assert(sizeof(int24_t) == 3 * sizeof(byte), \"\");")
-  (cxx "static_assert(sizeof(int24_t) ==     sizeof(real_t), \"\");")
-
-  (deftest math
-    (is (=  3    (+  1.25   1.75)))
-    (is (=  0.5  (- -1.25  -1.75)))
-    (is (=  255  (+  254    1)))
-    (is (=  255  (+  253.4  1.6)))
-    (is (= -255  (- -254    1))))
-
-  (run-all-tests)
-#+end_src
-
-*** Matrices
-
-#+begin_src c++ :noweb yes :mkdirp yes :tangle test/runtime/matrix.cpp
-  #include <cassert>
-  #include <runtime.h>
-
-  int main() {
-    using namespace ferret;
-    <<runtime-native-matrix-test>>
-    return 0;
-  }
-#+end_src
-
-*** Array
-
-#+begin_src c++ :noweb yes :mkdirp yes :tangle test/runtime/array.cpp
-  #include <cassert>
-  #include <runtime.h>
-
-  int main() {
-    using namespace ferret;
-
-    array<char> buffer(16);
-    assert((buffer.size() == 16));
-
-    array<char> str("abcde",5);
-    assert((str[0] == 'a'));
-    assert((str[1] == 'b'));
-    assert((str[4] == 'e'));
-
-    array<int> numbers {1, 2, 3, 4, 5};
-    assert((numbers[0] == 1));
-    assert((numbers[1] == 2));
-    assert((numbers[2] == 3));
-    assert((numbers[3] == 4));
-    assert((numbers[4] == 5));
-
-    // cppcheck-suppress useStlAlgorithm
-    for (int& x : numbers) { x++; }
-   
-    assert((numbers[0] == 2));
-    assert((numbers[1] == 3));
-    assert((numbers[2] == 4));
-    assert((numbers[3] == 5));
-    assert((numbers[4] == 6));
-    
-    return 0;
-  }
-#+end_src
-
-*** Bitset
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle test/runtime/bitset.cpp
-#include <cassert>
-#include <runtime.h>
-
-int main() {
-  using namespace ferret;
-
-  assert(FERRET_BITSET_USE_COMPILER_INTRINSICS == true);
-  
-  bitset<32> bs_a;
-  assert(32 == bs_a.ffs(0));
-  for(size_t i = 0; i < 2; i++)  bs_a.set(i);
-  assert(0  == bs_a.ffs(0));
-  assert(1  == bs_a.ffs(1));
-  for(size_t i = 7; i < 16; i++) bs_a.set(i);
-  assert(2  == bs_a.ffr(0));
-  assert(5  == bs_a.ffr(5));
-  assert(16 == bs_a.ffr(10));
-  assert(32 == bs_a.ffs(31));
-
-  bitset<64> bs_b;
-  assert(0  == bs_b.ffr(0));
-  assert(64 == bs_b.ffs(0));
-  for(size_t i = 0; i < 8; i++)   bs_b.set(i);
-  assert(0  == bs_b.ffs(0));
-  assert(5  == bs_b.ffs(5));
-  assert(8  == bs_b.ffr(5));
-  for(size_t i = 16; i < 48; i++) bs_b.set(i);
-  assert(16 == bs_b.ffs(8));
-  assert(48 == bs_b.ffr(16));
-
-  bitset<1024> bs_c;
-  assert(0     == bs_c.ffr(0));
-  assert(1024  == bs_c.ffs(0));
-  for(size_t i = 0; i < 32; i++)  bs_c.set(i);
-  assert(0     == bs_c.ffs(0));
-  assert(32    == bs_c.ffr(0));
-  for(size_t i = 256; i < 512; i++) bs_c.set(i);
-  assert(256   == bs_c.ffs(256));
-  assert(512   == bs_c.ffr(256));
-  for(size_t i = 768; i < 1024; i++) bs_c.set(i);
-  assert(1024  == bs_c.ffr(768));
-
-  bitset<1024> bs_d;
-  assert(0    == bs_d.ffr(0));
-  bs_d.flip(0);
-  assert(1    == bs_d.ffr(0));
-  bs_d.flip(0);
-  assert(0    == bs_d.ffr(0));
-
-  assert(1024 == bs_d.ffs(0));
-  bs_d.set(0, 1024);
-  assert(0 == bs_d.ffs(0));
-  bs_d.reset(0, 1024);
-  assert(1024 == bs_d.ffs(0));
-  bs_d.flip(0, 1024);
-  assert(0 == bs_d.ffs(0));
-  bs_d.flip(0, 1024);
-  assert(1024 == bs_d.ffs(0));
-
-  bs_d.set(256,512);
-  bs_d.set(768,1024);
-
-  assert(512  == bs_d.ffr(256));
-  assert(256  == bs_d.ffs(256));
-  assert(1024 == bs_d.ffr(768));
-  assert(768  == bs_d.ffs(768));
-
-  bs_d.reset(0,1024);
-  for(size_t i = 0; i < 87; i++)  bs_d.set(i);
-  for(size_t i = 90; i < 94; i++)  bs_d.set(i);
-  for(size_t i = 106; i < 111; i++)  bs_d.set(i);
-  for(size_t i = 136; i < 149; i++)  bs_d.set(i);
-
-  assert(106 == bs_d.ffs(94,100));
-
-  assert((15    == bitset<8,unsigned char>::bit_block(0,4)));
-  assert((15    == bitset<32,unsigned int>::bit_block(0,4)));
-  assert((60    == bitset<32,unsigned int>::bit_block(2,4)));
-  assert((1024  == bitset<32,unsigned int>::bit_block(10,1)));
-  assert((3072  == bitset<32,unsigned int>::bit_block(10,2)));
-  assert((98304 == bitset<32,unsigned int>::bit_block(15,2)));
-  assert((-1U   == bitset<32,unsigned int>::bit_block(0,60)));
-  assert((-1U   == bitset<32,unsigned int>::bit_block(0,32)));
-
-  return 0;
-}
-#+end_src
-
-*** Memory Pool
-
-#+begin_src c++ :mkdirp yes :noweb yes :tangle test/runtime/memory_pool.cpp
-#define FERRET_MEMORY_POOL_SIZE 4_MB
-#define FERRET_BITSET_WORD_TYPE unsigned int
-
-#include <cassert>
-#include <runtime.h>
-
-int main() {
-  using namespace ferret::memory;
-  using namespace allocator;
-
-  assert(0  == align_req(0,8));
-  assert(7  == align_req(1,8));
-  assert(0  == align_req(8,8));
-
-  assert(0  == align_of(0,8));
-  assert(8  == align_of(1,8));
-  assert(8  == align_of(8,8));
-
-  alignas(16) int buff [4];
-  assert(0  == align_req<int16_t>(buff));
-  assert(reinterpret_cast<std::uintptr_t>(buff) == align_of<int16_t>(buff));
-
-  size_t byte_s = sizeof(ferret::byte);
-
-  memory_pool<ferret::byte, 8, unsigned char> nano_pool;
-
-  void* a = nano_pool.allocate(byte_s);
-  assert(nullptr  != a);
-  assert(2        == nano_pool.used.ffr(0));
-  assert(nullptr  != nano_pool.allocate(byte_s));
-  assert(4        == nano_pool.used.ffr(0));
-
-  void* c = nano_pool.allocate(byte_s);
-
-  assert(nullptr  != c);
-  assert(6        == nano_pool.used.ffr(0));
-  assert(nullptr  != nano_pool.allocate(byte_s));
-
-  nano_pool.free(c);
-
-  assert(4        == nano_pool.used.ffr(0));
-  assert(6        == nano_pool.used.ffs(4));
-  assert(nullptr  != nano_pool.allocate(byte_s));
-
-  memory_pool<ferret::byte, 16, unsigned char> tiny_pool;
-
-  assert(0        == tiny_pool.used.ffr(0));
-  assert(nullptr  != tiny_pool.allocate(byte_s * 2));
-  assert(3        == tiny_pool.used.ffr(0));
-
-  void* p = tiny_pool.allocate(byte_s * 4);
-
-  assert(nullptr  != p);
-  assert(8        == tiny_pool.used.ffr(0));
-
-  tiny_pool.free(p);
-
-  assert(3        == tiny_pool.used.ffr(0));
-  assert(nullptr  == tiny_pool.allocate(byte_s * 40));
-  assert(nullptr  != tiny_pool.allocate(byte_s * 6));
-  assert(nullptr  != tiny_pool.allocate(byte_s * 1));
-  assert(nullptr  != tiny_pool.allocate(byte_s * 1));
-  assert(nullptr  == tiny_pool.allocate(byte_s * 10));
-
-  memory_pool<uint64_t, 256> big_pool;
-
-  assert(0        == big_pool.used.ffr(0));
-
-  p = big_pool.allocate(1);
-
-  assert(nullptr  != p);
-
-  assert(2        == big_pool.used.ffr(0));
-
-  big_pool.free(p);
-
-  assert(0        == big_pool.used.ffr(0));
-  assert(nullptr  == big_pool.allocate(2048));
-  assert(0        == big_pool.used.ffr(0));
-
-  return 0;
-}
-#+end_src
 
 ** Core
 *** Functions
@@ -10505,134 +10596,6 @@ int main() {
       (is (= (list 5 4 3 2 1) @acc))))
 #+end_src
 
-*** Math
-
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
-  (deftest number-test
-    (is (= 0.5       1/2))
-    (is (= 0.33333   1/3))
-    (is (= 3501      0xDAD))
-    (is (= 2748      0xABC)))
-
-  (deftest math-test
-    (is (= 0.6        (+ 0.3 0.3)))
-    (is (= 0          (+ )))
-    (is (= 1          (+ 1)))
-    (is (= 10         (+ 1 2 3 4)))
-    (is (= 10         (+ 1 2.0 3 4)))
-    (is (= -1         (- 1)))
-    (is (= 0          (- 4 2 2)))
-    (is (= 0          (- 4 2 2.0)))
-    (is (= 1          (* )))
-    (is (= 8          (* 2 2 2)))
-    (is (= 8          (* 2.0 2 2)))
-    (is (= 1          (/ 1)))
-    (is (= 0.5        (/ 2)))
-    (is (= 1          (/ 4 2 2)))
-    (is (= 1          (/ 4 2 2.0)))
-    
-    (is (= 1          (floor 1.1)))
-    (is (= 1          (floor 1.5)))
-    (is (= 1          (floor 1.9)))
-    (is (= 0          (mod 2 2)))
-    (is (= 0          (mod 4 2)))
-    (is (= 1          (mod 5 2)))
-    (is (= 1          (mod 8 7)))
-    (is (= 1          (min 1)))
-    (is (= 1          (min 2 1)))
-    (is (= 1          (min 3 5 7 1)))
-    (is (= 1          (max 1)))
-    (is (= 2          (max 2 1)))
-    (is (= 7          (max 3 5 7 1)))
-    
-    (is (= 100        (scale 10 0 10 0 100)))
-    (is (= 50         (scale 5 0 10 0 100)))
-    (is (= 0          (scale 0 0 10 0 100)))
-    (is (= 5          (clamp 10 0 5)))
-    (is (= 10         (clamp 10 0 20)))
-    (is (= 0          (clamp 10 -10 0)))
-    (is (= -10        (clamp -100 -10 0)))
-
-    (is (= 0          (decode-int16 (encode-int16 0))))
-    (is (= 512        (decode-int16 (encode-int16 512))))
-    (is (= 1024       (decode-int16 (encode-int16 1024))))
-    (is (= 2048       (decode-int16 (encode-int16 2048))))
-    (is (= 32000      (decode-int16 (encode-int16 32000))))
-
-    (is (= 0          (decode-float (encode-float 0))))
-    (is (= 512        (decode-float (encode-float 512))))
-    (is (= 1024       (decode-float (encode-float 1024))))
-    (is (= 2048       (decode-float (encode-float 2048))))
-    (is (= 32000      (decode-float (encode-float 32000))))
-    (is (= 512        (decode-float (list 0 0 0 68 42))))
-    
-
-    (is (= true       (not (nil? (rand)))))
-    (is (= true       (not (nil? (rand 15)))))
-
-    (is (= -5         (bit-not  4)))
-    (is (= -1         (bit-not  0)))
-    (is (= 7          (bit-or   4 3)))
-    (is (= 1          (bit-or   0 1)))
-    (is (= 0          (bit-and  4 3)))
-    (is (= 0          (bit-and  0 1)))
-    (is (= 0          (bit-xor  4 4)))
-    (is (= 1          (bit-xor  1 0)))
-    (is (= 8          (bit-shift-left 4 1)))
-    (is (= 16         (bit-shift-left 4 2)))
-    (is (= 2          (bit-shift-right 4 1)))
-    (is (= 1          (bit-shift-right 4 2)))
-
-    (is (= 1          (bit-extract 1781 0 2)))
-    (is (= 2          (bit-extract 1781 1 2)))
-    (is (= 245        (bit-extract 1781 0 8)))
-    (is (= 15         (bit-extract 1781 4 4)))
-    (is (= 111        (bit-extract 1781 4 8)))
-    (is (= 20         (bit-extract 500  0 5)))
-    (is (= 15         (bit-extract 500  5 6)))
-
-    (is (= 0xAC3A     (bit-override 0xAAAA 0x0C30 4 8)))
-    (is (= 0xBBCC     (bit-override 0xBBBB 0xAACC 0 8)))
-    (is (= 0xBACB     (bit-override 0xBBBB 0xAACC 4 8)))
-    (is (= 0xBBBB     (bit-override 0xAAAA 0xBBBB 0 16)))
-    
-    
-    (is (= 32         (sqrt 1024)))
-    (is (= 2          (sqrt 4)))
-    (is (= 8          (pow 2 3)))
-    (is (= 16         (pow 2 4)))
-    (is (= 1          (cos 0)))
-    (is (= -0.99999   (cos 3.145)))
-    (is (= 0          (sin 0)))
-    (is (= -0.00340   (sin 3.145)))
-    (is (= 0.98279    (atan2 45 30)))
-    (is (= 180.19522  (to-degrees 3.145)))
-    (is (= 3.14159    (to-radians 180)))
-
-    (is (= 2.30258    (log 10)))
-    (is (= 2          (log10 100)))
-
-    (let [a 1
-          b 2]
-      (+ 1 a)
-      (+ b a)
-      (is (= 1 a))
-      (is (= 2 b))
-      (* 2 a)
-      (* b a)
-      (is (= 1 a))
-      (is (= 2 b))
-      (/ 2 a)
-      (/ b a)
-      (is (= 1 a))
-      (is (= 2 b))
-      (- 2 a)
-      (- b a)
-      (is (= 1 a))
-      (is (= 2 b))))
-#+end_src
-
 *** Control
 
 #+name: ferret-unit-tests
@@ -10776,133 +10739,6 @@ int main() {
       (dotimes [_ 8]
         (machine))))
 #+end_src
-
-*** Modules
-
-Run import tests. 
-
-#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/module.clj
-  (require '[modules.module-a :as mod-a]
-           '[modules.module-b :as mod-b])
-
-  (deftest module-test-load-as
-    (is (= 10  (mod-a/helper-a)))
-    (is (= 1   (mod-a/helper-b)))
-    (is (= 10  ((mod-a/ten-fn))))
-    (is (= 11  ((mod-b/eleven-fn))))
-    (is (= 1   (mod-a/helper-c)))
-    (is (= 42  (mod-b/macro-call)))
-    (is (= :b  (:a (mod-a/some-d-list))))
-    (is (= 42  (mod-b/native-single-argument 42))))
-
-  (require 'modules.module-a
-           'modules.module-b)
-
-  (require '[modules.module-c :as mod-c]
-           'modules.module-d)
-
-  (deftest module-test-load
-    (is (= 10  (modules.module-a/helper-a)))
-    (is (= 1   (modules.module-a/helper-b)))
-    (is (= 10  ((modules.module-a/ten-fn))))
-    (is (= 11  ((modules.module-b/eleven-fn))))
-    (is (= 1   (modules.module-a/helper-c)))
-    (is (= 42  (modules.module-b/macro-call)))
-    (is (= 25  (cxx " return obj<number>(dummy_native_fn());")))
-    (is (= 2   (cxx "return obj<number>((number_t)std::sqrt(4));"))))
-
-  (run-all-tests)
-#+end_src
-
-**** Dummy Modules
-
-Create some dummy programs under /test/,
-
-#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/module_unit_test.clj
-  (require 'modules.module-e)
-
-  (deftest simple-module-test
-    (is (= 1  (modules.module-e/foo))))
-
-  (run-all-tests)
-#+end_src
-
-#+begin_src clojure :mkdirp yes :tangle test/core/module_import_empty_aux_a.clj
-  (require '[modules.module-a :as mod-a])
-#+end_src 
-
-#+begin_src clojure :mkdirp yes :tangle test/core/module_import_empty_aux_b.clj
-  (require '[modules.module-a :as mod-a])
-  (require '[modules.module-b :as mod-b])
-
-  (native-declare "const int XYZ_SIZE = 123;")
-  (native-declare "int xyz_arr[XYZ_SIZE];")
-#+end_src 
-
-Create some dummy libs under /test/modules/,
-
-#+begin_src clojure :mkdirp yes :tangle test/core/modules/module-a.clj
-  (configure-runtime! FERRET_PROGRAM_MAIN "ferret::program_no_exec()")
-
-  (defn helper-a [] 10)
-
-  (defmacro ten-fn [] `(fn [] 10))
-
-  (defmacro helper-b []
-    (reduce (fn [a b] (+ a b)) (list 1 2 3))
-    1)
-
-  (defn helper-c []
-    (helper-b))
-
-  (defn update-aux []
-    )
-
-  (def update-data
-    (fn-throttler update-aux 1000 :second :blocking))
-
-  (defn some-d-list [] {:a :b :c :d})
-#+end_src 
-
-#+begin_src clojure :mkdirp yes :tangle test/core/modules/module-b.clj
-  (require '[modules.module-c :as mod-c])
-
-  (defn helper-b []
-    (mod-c/helper-c))
-
-  (defn eleven-fn []
-    (mod-c/eleven-fn))
-
-  (defnative native-single-argument [x]
-    (on "defined FERRET_STD_LIB"
-        ("utility") ;; dummy include
-        "return obj<number>(number::to<number_t>(x));"))
-
-  (defnative macro-aux []
-    (on "defined FERRET_STD_LIB"
-        "__result = obj<number>(42);"))
-
-  (defmacro macro-call []
-    `(do (~'macro-aux)))
-#+end_src 
-
-#+begin_src clojure :mkdirp yes :tangle test/core/modules/module-c.clj
-  (native-header "cmath")
-
-  (defn helper-c []
-    (print "Module C"))
-
-  (defmacro eleven-fn []
-    `(fn [] 11))
-#+end_src 
-
-#+begin_src clojure :mkdirp yes :tangle test/core/modules/module-d.clj
-  (native-declare "int dummy_native_fn(){ return 25; }")
-#+end_src 
-
-#+begin_src clojure :mkdirp yes :tangle test/core/modules/module-e.clj
-  (defn foo [] 1)
-#+end_src 
 
 * Roadmap
 ** Compiler
@@ -11497,6 +11333,133 @@ Create some dummy libs under /test/modules/,
 
   (run-all-tests)
 #+end_src
+
+*** core/module.clj
+
+Run import tests. 
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/module.clj
+  (require '[modules.module-a :as mod-a]
+           '[modules.module-b :as mod-b])
+
+  (deftest module-test-load-as
+    (is (= 10  (mod-a/helper-a)))
+    (is (= 1   (mod-a/helper-b)))
+    (is (= 10  ((mod-a/ten-fn))))
+    (is (= 11  ((mod-b/eleven-fn))))
+    (is (= 1   (mod-a/helper-c)))
+    (is (= 42  (mod-b/macro-call)))
+    (is (= :b  (:a (mod-a/some-d-list))))
+    (is (= 42  (mod-b/native-single-argument 42))))
+
+  (require 'modules.module-a
+           'modules.module-b)
+
+  (require '[modules.module-c :as mod-c]
+           'modules.module-d)
+
+  (deftest module-test-load
+    (is (= 10  (modules.module-a/helper-a)))
+    (is (= 1   (modules.module-a/helper-b)))
+    (is (= 10  ((modules.module-a/ten-fn))))
+    (is (= 11  ((modules.module-b/eleven-fn))))
+    (is (= 1   (modules.module-a/helper-c)))
+    (is (= 42  (modules.module-b/macro-call)))
+    (is (= 25  (cxx " return obj<number>(dummy_native_fn());")))
+    (is (= 2   (cxx "return obj<number>((number_t)std::sqrt(4));"))))
+
+  (run-all-tests)
+#+end_src
+
+**** Dummy Modules
+
+Create some dummy programs under /test/,
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/module_unit_test.clj
+  (require 'modules.module-e)
+
+  (deftest simple-module-test
+    (is (= 1  (modules.module-e/foo))))
+
+  (run-all-tests)
+#+end_src
+
+#+begin_src clojure :mkdirp yes :tangle test/core/module_import_empty_aux_a.clj
+  (require '[modules.module-a :as mod-a])
+#+end_src 
+
+#+begin_src clojure :mkdirp yes :tangle test/core/module_import_empty_aux_b.clj
+  (require '[modules.module-a :as mod-a])
+  (require '[modules.module-b :as mod-b])
+
+  (native-declare "const int XYZ_SIZE = 123;")
+  (native-declare "int xyz_arr[XYZ_SIZE];")
+#+end_src 
+
+Create some dummy libs under /test/modules/,
+
+#+begin_src clojure :mkdirp yes :tangle test/core/modules/module-a.clj
+  (configure-runtime! FERRET_PROGRAM_MAIN "ferret::program_no_exec()")
+
+  (defn helper-a [] 10)
+
+  (defmacro ten-fn [] `(fn [] 10))
+
+  (defmacro helper-b []
+    (reduce (fn [a b] (+ a b)) (list 1 2 3))
+    1)
+
+  (defn helper-c []
+    (helper-b))
+
+  (defn update-aux []
+    )
+
+  (def update-data
+    (fn-throttler update-aux 1000 :second :blocking))
+
+  (defn some-d-list [] {:a :b :c :d})
+#+end_src 
+
+#+begin_src clojure :mkdirp yes :tangle test/core/modules/module-b.clj
+  (require '[modules.module-c :as mod-c])
+
+  (defn helper-b []
+    (mod-c/helper-c))
+
+  (defn eleven-fn []
+    (mod-c/eleven-fn))
+
+  (defnative native-single-argument [x]
+    (on "defined FERRET_STD_LIB"
+        ("utility") ;; dummy include
+        "return obj<number>(number::to<number_t>(x));"))
+
+  (defnative macro-aux []
+    (on "defined FERRET_STD_LIB"
+        "__result = obj<number>(42);"))
+
+  (defmacro macro-call []
+    `(do (~'macro-aux)))
+#+end_src 
+
+#+begin_src clojure :mkdirp yes :tangle test/core/modules/module-c.clj
+  (native-header "cmath")
+
+  (defn helper-c []
+    (print "Module C"))
+
+  (defmacro eleven-fn []
+    `(fn [] 11))
+#+end_src 
+
+#+begin_src clojure :mkdirp yes :tangle test/core/modules/module-d.clj
+  (native-declare "int dummy_native_fn(){ return 25; }")
+#+end_src 
+
+#+begin_src clojure :mkdirp yes :tangle test/core/modules/module-e.clj
+  (defn foo [] 1)
+#+end_src 
 
 ** resources/
 *** tangle-docs

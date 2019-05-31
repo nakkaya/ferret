@@ -823,6 +823,41 @@ after transformation becomes,
   ((fn* [a__1548] ((fn* [b__1549] (+ a__1548 b__1549)) 2)) 1)
 #+end_src
 
+#+name: ferret-unit-tests
+#+begin_src clojure :tangle no
+(deftest let-test
+  (let [args (list "1" "2")]
+    (is (= args (rest *command-line-args*))))
+
+  (let [a 1]
+    (is (= 1 a)))
+
+  (let [a 1
+        a 3]
+    (is (= 3 a)))
+  
+  (let [a 1
+        b 2]
+    (is (= 3 (+ a b))))
+
+  (let [a 1
+        b 2
+        c 3]
+    (is (= 6 (+ a b c))))
+
+  (let [a 1
+        b 2]
+    (let []
+      (is (= 3 (+ a b)))))
+
+  (let [x 42]
+    (defn let-over-lambda [] x))
+
+  (is (= 42 (let-over-lambda))))
+
+
+#+end_src
+
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn let-closure [bindings body]
@@ -883,9 +918,24 @@ they can be referenced at runtime. The closure conversion
 transformation modifies function definitions as necessary to create new
 closures.
 
+#+name: ferret-unit-tests
 #+begin_src clojure :tangle no
-  (defn make-adder [x]
-    (fn [n] (+ x n)))
+(defn make-adder [x]
+  (fn [n] (+ x n)))
+
+(def adder
+  (make-adder 1))
+
+(def fibo
+  (fn [n]
+    (if (< n 2)
+      1
+      (+ (fibo (- n 1))
+         (fibo (- n 2))))))
+
+(deftest fn->list-test
+  (is (= 10 (adder 9)))
+  (is (= 89 (fibo 10))))
 #+end_src
 
 in the above snippet =x= is a free variable, when the function
@@ -1745,6 +1795,87 @@ with calls to native implementations resulting in much smaller code.
 
 Initialize function arguments. Clojure style sequential destructuring
 is supported.
+
+#+name: ferret-unit-tests
+#+begin_src clojure :tangle no
+  (defn destructure-test-1 [[a b c]]
+    (list a b c))
+
+  (defn destructure-test-2 [[a [b] c]]
+    b)
+
+  (defn destructure-test-3 [[a [_ b] c]]
+    b)
+
+  (defn destructure-test-4 [& a]
+    a)
+
+  (defn destructure-test-5 []
+    (let [[a b c] (list 1 2 3)]
+      (list a b c)))
+
+  (defn destructure-test-6 []
+    (let [[_ _ a] (list 1 2 3)]
+      a))
+
+  (defn destructure-test-7 [a b & [c d]]
+    (list c d))
+
+  (defn destructure-test-8 [{a :a} b {c :c}]
+    (list a b c))
+
+  (deftest destructuring-test
+    (is (= 3                   (count (destructure-test-1 (list 1 2 3)))))
+    (is (= 2                   (destructure-test-2 (list 1 (list 2) 3))))
+    (is (= 3                   (destructure-test-3 (list 1 (list 2 3) 3))))
+    (is (= (list (list 1 2 3)) (destructure-test-4 (list 1 2 3))))
+    (is (= (list 1 2 3)        (destructure-test-8 {:a 1} 2 {:c 3})))
+
+    (let [a (list 1 2 3 4)
+          [b c & r] a]
+
+      (is (= 1          b))
+      (is (= 2          c))
+      (is (= (list 3 4) r)))
+
+    (let [a 1 b 2
+          [c & r] (list 4 5)]
+      
+      (is (= 1 a))
+      (is (= 2 b))
+      (is (= 4 c))
+      (is (= (list 5) r)))
+
+    (let [[a & r] (list 1 2 3)
+          rr (rest r)]
+      (is (= (list 3) rr)))
+    
+    (is (= (list 1 2 3) (destructure-test-5)))
+    (is (= 3            (destructure-test-6)))
+    (is (= (list 3 4)   (destructure-test-7 1 2 3 4)))
+
+    (let [[a & b :as all-list]   (list 1 2 3)
+          [c     :as other-list] all-list]
+      (is (= 1            a))
+      (is (= (list 2 3)   b))
+      (is (= (list 1 2 3) all-list))
+      (is (= 1            c))
+      (is (= (list 1 2 3) other-list)))
+    
+    (let [[_ _ a] (list 1 2 3)
+          [_ b] (list 4 5 6)]
+      (is (= 3 a))
+      (is (= 5 b)))
+
+    (let [a (list 1 2 3)
+          [b c d e f g] a]
+      (is (= 1   b))
+      (is (= 2   c))
+      (is (= 3   d))
+      (is (= nil e))
+      (is (= nil f))
+      (is (= nil g))))
+#+end_src
 
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
@@ -6150,6 +6281,7 @@ Native headers can be imported using,
 
 Top level statements can be declared using,
 
+#+name: ferret-unit-tests
 #+begin_src clojure
   (native-declare "int i = 0;")
 #+end_src
@@ -6157,6 +6289,7 @@ Top level statements can be declared using,
 Ferret objects can be created using the =obj= function. If a function
 only contains a string such as, 
 
+#+name: ferret-unit-tests
 #+begin_src clojure
   (defn inc-int [] "__result =  obj<number>(i++);")
 #+end_src
@@ -6164,9 +6297,11 @@ only contains a string such as,
 It is assumed to be a native function string, it is taken as C++
 code. You can then use it like any other ferret function.
 
+#+name: ferret-unit-tests
 #+begin_src clojure
-  (while (< (inc-int) 10)
-    (print 1))
+(deftest inc-int-test
+  (is (= 0 (inc-int)))
+  (is (= 1 (inc-int))))
 #+end_src
 
 Another option is to use the =cxx= macro,
@@ -6179,7 +6314,7 @@ Ferret objects can be converted to/from their native counter parts,
 i.e a Ferret sequence can be converted to =std::vector= to be sorted
 by =std::sort= using a Ferret function,
 
-#+name: ffi-test-helper
+#+name: ferret-unit-tests
 #+begin_src clojure
   (defn my-sort [f seq]
     "std_vector vec = sequence::to<std_vector>(seq);
@@ -6187,33 +6322,35 @@ by =std::sort= using a Ferret function,
      __result = sequence::from<std_vector>(vec);")
 #+end_src
 
+#+name: ferret-unit-tests
 #+begin_src clojure
-  (my-sort > (list 1 3 2)) ;; (1.0000 2.0000 3.0000)
-  (my-sort < (list 1 3 2)) ;; (3.0000 2.0000 1.0000)
+(deftest my-sort-test
+  (is (= (list 3 2 1) (my-sort > (list 1 3 2))))
+  (is (= (list 1 2 3) (my-sort < (list 1 3 2)))))
 #+end_src
 
-#+name: ffi-test-helper
+#+name: ferret-unit-tests
 #+begin_src clojure
-  (defn my-find [item seq]
-    "std_vector vec = sequence::to<std_vector>(seq);
-     std_vector::iterator it = find (vec.begin(), vec.end(), item);
+(defn my-find [item seq]
+  "std_vector vec = sequence::to<std_vector>(seq);
+   std_vector::iterator it = find (vec.begin(), vec.end(), item);
 
-     if(it != vec.end())
-       __result = cached::true_o;")
-#+end_src
+   if(it != vec.end())
+     __result = cached::true_o;")
 
-#+begin_src clojure
-  (my-find (list 1 2) (list (list 1 2)
-                            (list 2 3)
-                            (list 4 5)))
-
-  ;; true
-
-  (my-find (list 5 5) (list (list 1 2)
-                            (list 2 3)
-                            (list 4 5)))
-
-  ;; false
+(deftest my-find-test
+  (is (=  nil   (my-find (list 5 5)
+                         (list (list 1 2)
+                               (list 2 3)
+                               (list 4 5)))))
+  (is (=  true  (my-find (list 1 2)
+                         (list (list 1 2)
+                               (list 2 3)
+                               (list 4 5)))))
+  (is (=  true  (my-find (list 4 5)
+                         (list (list 1 2)
+                               (list 2 3)
+                               (list 4 5))))))
 #+end_src
 
 In addition to =defn= form there is also a =defnative= form which
@@ -6272,6 +6409,13 @@ applications.
 ** Logic
 *** true?
 
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest true?-test
+  (is (= true  (true? true)))
+  (is (= false (true? false))))
+#+end_src
+
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
   (defn true? [x]
@@ -6282,6 +6426,13 @@ applications.
 
 *** false?
 
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest false?-test
+  (is (= false (false? true)))
+  (is (= true  (false? false))))
+#+end_src
+
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
   (defn false? [x]
@@ -6291,6 +6442,14 @@ applications.
 #+end_src
 
 *** nil?
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest nil?-test
+  (is (= false (= nil 1)))
+  (is (= false (= 1 nil)))
+  (is (= true  (= nil nil))))
+#+end_src
 
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
@@ -6310,6 +6469,19 @@ applications.
 #+end_src
 
 *** =
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest =-test
+  (is (= true   (= true true)))
+  (is (= false  (not (= true true))))
+  (is (= false  (not 1)))
+  (is (= true   (= 2)))
+  (is (= false  (= 2 3)))
+  (is (= true   (= 2 2 2 2)))
+  (is (= true   (= 2 2.0 2)))
+  (is (= false  (= 2 2 2 2 3 5))))
+#+end_src
 
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
@@ -6345,6 +6517,13 @@ Tests if 2 arguments are the same object.
 
 *** <
 
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest <-test
+  (is (= true  (< 2)))
+  (is (= true  (< 2 3 4 5))))
+#+end_src
+
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
 (defn < [& args]
@@ -6360,6 +6539,14 @@ Tests if 2 arguments are the same object.
 #+end_src
 
 *** >
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest >-test
+  (is (= true  (> 2)))
+  (is (= false (> 2 3 4 5)))
+  (is (= true  (> 6 5 4 3))))
+#+end_src
 
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
@@ -6377,6 +6564,14 @@ Tests if 2 arguments are the same object.
 
 *** >=
 
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest >=-test
+  (is (= true  (>= 2)))
+  (is (= true  (>= 5 4 3 2 2 2)))
+  (is (= false (>= 5 1 3 2 2 2))))
+#+end_src
+
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
 (defn >= [& args]
@@ -6392,6 +6587,14 @@ Tests if 2 arguments are the same object.
 #+end_src
 
 *** <=
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest <=-test
+  (is (= true  (<= 2)))
+  (is (= true  (<= 2 2 3 4 5)))
+  (is (= false (<= 2 2 1 3 4))))
+#+end_src
 
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
@@ -6409,6 +6612,19 @@ Tests if 2 arguments are the same object.
 
 *** and
 
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest and-test
+  (is (= true  (let [a 1]
+                 (and (> a 0) (< a 10)))))
+
+  (is (= false (let [a 11]
+                 (and (> a 0) (< a 10)))))
+
+  (is (= true  (and true  (identity true))))
+  (is (= false (and true  (identity false)))))
+#+end_src
+
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
   (defmacro and
@@ -6420,6 +6636,13 @@ Tests if 2 arguments are the same object.
 
 *** or
 
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest or-test
+  (is (= true  (or  true  (identity false))))
+  (is (= false (or  false (identity false)))))
+#+end_src
+
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
   (defmacro or
@@ -6430,7 +6653,30 @@ Tests if 2 arguments are the same object.
 #+end_src
 
 ** Flow
+*** if
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest if-test
+  (is (= 2     (if 1
+                 2)))
+  (is (= 1     (if (zero? 0)
+                 1 -1)))
+  (is (= -1    (if (zero? 1)
+                 1 -1)))
+  
+  (is (= 2     (if nil
+                 1 2))))
+#+end_src
+
 *** when
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest when-test
+  (is (= 1     (when (< 2 3) 1)))
+  (is (= 2     (when true    2))))
+#+end_src
 
 #+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
@@ -6439,6 +6685,20 @@ Tests if 2 arguments are the same object.
 #+end_src
 
 *** cond
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+(defn pos-neg-or-zero [n]
+  (cond
+    (< n 0) -1
+    (> n 0)  1
+    :else    0))
+
+(deftest cond-test
+  (is (= -1  (pos-neg-or-zero -5)))
+  (is (=  1  (pos-neg-or-zero  5)))
+  (is (=  0  (pos-neg-or-zero  0))))
+#+end_src
 
 #+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
@@ -6472,6 +6732,21 @@ side-effect will cause =test= to become =false/nil=. Returns =nil=.
 Repeatedly executes body while test expression is true, evaluating the
 body with binding-form bound to the value of test. 
 
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest while-let-test
+  (let [lst (atom (list 1 2 3 4 5))
+        acc (atom )]
+    
+    (while-let [item (first @lst)]
+      (swap! lst rest)
+      (swap! acc conj item))
+
+    (is (empty? @lst))
+    (is (not (empty? @acc)))
+    (is (= (list 5 4 3 2 1) @acc))))
+#+end_src
+
 #+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
   (defn _while-let_ [pred fn]
@@ -6494,6 +6769,14 @@ body with binding-form bound to the value of test.
 
 *** if-let
 
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest if-let-test
+  (is (= nil   (if-let [a nil] a)))
+  (is (= 5     (if-let [a 5]   a)))
+  (is (= 2     (if-let [[_ a]  (list 1 2)] a))))
+#+end_src
+
 #+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
   (defmacro if-let
@@ -6511,6 +6794,14 @@ body with binding-form bound to the value of test.
 *** when-let
 
 When test is true, evaluates body with binding-form bound to the value of test.
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest when-let-test
+  (is (= nil   (when-let [a nil] a)))
+  (is (= 5     (when-let [a 5]   a)))
+  (is (= 2     (when-let [[_ a]  (list 1 2)] a))))
+#+end_src
 
 #+name: runtime-clojure-conditional-operators
 #+begin_src clojure :tangle no
@@ -7238,7 +7529,26 @@ sequence.
 #+end_src
 
 ** Math
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest number-test
+  (is (= 0.5       1/2))
+  (is (= 0.33333   1/3))
+  (is (= 3501      0xDAD))
+  (is (= 2748      0xABC)))
+#+end_src
+
 *** zero?
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest zero?-test
+  (is (= true  (zero? 0)))
+  (is (= false (zero? 10)))
+  (is (= true  (zero? (- 1 1))))
+  (is (= true  (zero? (- 1.2 1.2))))
+  (is (= true  (zero? (+ 1.2 -1.2)))))
+#+end_src
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
@@ -7248,6 +7558,14 @@ sequence.
 
 *** pos?
 
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest pos?-test
+  (is (= true  (pos? 1)))
+  (is (= true  (pos? 0.2)))
+  (is (= false (pos? 0))))
+#+end_src
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn pos? [x]
@@ -7255,6 +7573,13 @@ sequence.
 #+end_src
 
 *** neg?
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+(deftest neg?-test
+  (is (= false (neg? 1)))
+  (is (= true  (neg? -1))))
+#+end_src
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
@@ -7265,6 +7590,15 @@ sequence.
 *** +
 
 Returns the sum of nums. =(+ )= returns 0.
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest add-test
+  (is (= 0.6        (+ 0.3 0.3)))
+  (is (= 0          (+ )))
+  (is (= 1          (+ 1)))
+  (is (= 10         (+ 1 2 3 4)))
+  (is (= 10         (+ 1 2.0 3 4))))
+#+end_src
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
@@ -7280,6 +7614,13 @@ Returns the sum of nums. =(+ )= returns 0.
 *** -
 
 Subtracts nums and returns the result.
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest sub-test
+  (is (= -1         (- 1)))
+  (is (= 0          (- 4 2 2)))
+  (is (= 0          (- 4 2 2.0))))
+#+end_src
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
@@ -7303,6 +7644,13 @@ Subtracts nums and returns the result.
 
 Returns the product of nums. =(* )= returns 1.
 
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest mul-test
+  (is (= 1          (* )))
+  (is (= 8          (* 2 2 2)))
+  (is (= 8          (* 2.0 2 2))))
+#+end_src
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
 (defn * [& args]
@@ -7318,6 +7666,14 @@ Returns the product of nums. =(* )= returns 1.
 
 If no denominators are supplied, returns =1 / numerator=, else returns
 numerator divided by all of the denominators.
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest div-test
+  (is (= 1          (/ 1)))
+  (is (= 0.5        (/ 2)))
+  (is (= 1          (/ 4 2 2)))
+  (is (= 1          (/ 4 2 2.0))))
+#+end_src
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
@@ -7355,6 +7711,16 @@ numerator divided by all of the denominators.
 
 *** min / max
 
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest min-max-test
+  (is (= 1          (min 1)))
+  (is (= 1          (min 2 1)))
+  (is (= 1          (min 3 5 7 1)))
+  (is (= 1          (max 1)))
+  (is (= 2          (max 2 1)))
+  (is (= 7          (max 3 5 7 1))))
+#+end_src
+
 Returns the least of the nums.
 
 #+name: runtime-clojure-math
@@ -7387,6 +7753,14 @@ Returns the greatest of the nums.
 
 *** mod
 
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest mod-test
+  (is (= 0          (mod 2 2)))
+  (is (= 0          (mod 4 2)))
+  (is (= 1          (mod 5 2)))
+  (is (= 1          (mod 8 7))))
+#+end_src
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn mod [num div] 
@@ -7398,12 +7772,26 @@ Returns the greatest of the nums.
 
 *** floor
 
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest floor-test
+  (is (= 1          (floor 1.1)))
+  (is (= 1          (floor 1.5)))
+  (is (= 1          (floor 1.9))))
+#+end_src
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn floor [^number_t x] "return obj<number>(x);")
 #+end_src
 
 *** scale
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest scale-test
+  (is (= 100        (scale 10 0 10 0 100)))
+  (is (= 50         (scale 5 0 10 0 100)))
+  (is (= 0          (scale 0 0 10 0 100))))
+#+end_src
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
@@ -7412,6 +7800,14 @@ Returns the greatest of the nums.
 #+end_src
 
 *** clamp
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest clamp-test
+  (is (= 5          (clamp 10 0 5)))
+  (is (= 10         (clamp 10 0 20)))
+  (is (= 0          (clamp 10 -10 0)))
+  (is (= -10        (clamp -100 -10 0))))
+#+end_src
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
@@ -7424,12 +7820,24 @@ Returns the greatest of the nums.
 
 *** bit-and
 
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest bit-and-test
+  (is (= 0          (bit-and  4 3)))
+  (is (= 0          (bit-and  0 1))))
+#+end_src
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn bit-and [^number_t x ^number_t y] "return obj<number>((x & y));")
 #+end_src
 
 *** bit-not
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest bit-not-test
+  (is (= -5         (bit-not  4)))
+  (is (= -1         (bit-not  0))))
+#+end_src
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
@@ -7438,12 +7846,24 @@ Returns the greatest of the nums.
 
 *** bit-or
 
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest bit-or-test
+  (is (= 7          (bit-or   4 3)))
+  (is (= 1          (bit-or   0 1))))
+#+end_src
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn bit-or [^number_t x ^number_t y] "return obj<number>((x | y ));")
 #+end_src
 
 *** bit-xor
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest bit-xor-test
+  (is (= 0          (bit-xor  4 4)))
+  (is (= 1          (bit-xor  1 0))))
+#+end_src
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
@@ -7452,12 +7872,24 @@ Returns the greatest of the nums.
 
 *** bit-shift-left
 
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest bit-shift-left-test
+  (is (= 8          (bit-shift-left 4 1)))
+  (is (= 16         (bit-shift-left 4 2))))
+#+end_src
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn bit-shift-left [^number_t x ^number_t n] "return obj<number>((x << n ));")
 #+end_src
 
 *** bit-shift-right
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest bit-shift-right-test
+  (is (= 2          (bit-shift-right 4 1)))
+  (is (= 1          (bit-shift-right 4 2))))
+#+end_src
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
@@ -7467,6 +7899,17 @@ Returns the greatest of the nums.
 *** bit-extract
 
 From =x= extract =k= bits starting from position =p=.
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest bit-extract-test
+  (is (= 1          (bit-extract 1781 0 2)))
+  (is (= 2          (bit-extract 1781 1 2)))
+  (is (= 245        (bit-extract 1781 0 8)))
+  (is (= 15         (bit-extract 1781 4 4)))
+  (is (= 111        (bit-extract 1781 4 8)))
+  (is (= 20         (bit-extract 500  0 5)))
+  (is (= 15         (bit-extract 500  5 6))))
+#+end_src
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
@@ -7478,6 +7921,14 @@ From =x= extract =k= bits starting from position =p=.
 
 Override =len= bits in =dst= starting from =pos= using bits from =src=.
 
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest bit-override-test
+  (is (= 0xAC3A     (bit-override 0xAAAA 0x0C30 4 8)))
+  (is (= 0xBBCC     (bit-override 0xBBBB 0xAACC 0 8)))
+  (is (= 0xBACB     (bit-override 0xBBBB 0xAACC 4 8)))
+  (is (= 0xBBBB     (bit-override 0xAAAA 0xBBBB 0 16))))
+#+end_src
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn bit-override [^number_t dst ^number_t src ^number_t pos ^number_t len]
@@ -7486,7 +7937,16 @@ Override =len= bits in =dst= starting from =pos= using bits from =src=.
      return obj<number>(num);")
 #+end_src
 
-*** encode-int16
+*** encode/decode-int16
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest encode-decode-int16-test
+  (is (= 0          (decode-int16 (encode-int16 0))))
+  (is (= 512        (decode-int16 (encode-int16 512))))
+  (is (= 1024       (decode-int16 (encode-int16 1024))))
+  (is (= 2048       (decode-int16 (encode-int16 2048))))
+  (is (= 32000      (decode-int16 (encode-int16 32000)))))
+#+end_src
 
 Split a number into bytes.
 
@@ -7498,8 +7958,6 @@ Split a number into bytes.
      for (int i = (sizeof(int16_t) -1); i >= 0; i--)
        __result = runtime::cons(obj<number>((number_t)p[i]),__result);")
 #+end_src
-
-*** decode-int16
 
 Combine a list of bytes to a number.
 
@@ -7518,7 +7976,17 @@ Combine a list of bytes to a number.
      return obj<number>(val);")
 #+end_src
 
-*** encode-float
+*** encode/decode-float
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest encode-decode-float-test
+  (is (= 0          (decode-float (encode-float 0))))
+  (is (= 512        (decode-float (encode-float 512))))
+  (is (= 1024       (decode-float (encode-float 1024))))
+  (is (= 2048       (decode-float (encode-float 2048))))
+  (is (= 32000      (decode-float (encode-float 32000))))
+  (is (= 512        (decode-float (list 0 0 0 68 42)))))
+#+end_src
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
@@ -7529,8 +7997,6 @@ Combine a list of bytes to a number.
      for (int i = (sizeof(float) -1); i >= 0; i--)
        __result = runtime::cons(obj<number>(p[i]),__result);")
 #+end_src
-
-*** decode-float
 
 Combine a list of bytes to a number.
 
@@ -7558,6 +8024,12 @@ Combine a list of bytes to a number.
 
 Square root.
 
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest sqrt-test
+  (is (= 32         (sqrt 1024)))
+  (is (= 2          (sqrt 4))))
+#+end_src
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn sqrt [^real_t s]
@@ -7567,6 +8039,12 @@ Square root.
 *** pow
 
 Returns base raised to the power exponent:
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest pow-test
+  (is (= 8          (pow 2 3)))
+  (is (= 16         (pow 2 4))))
+#+end_src
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
@@ -7578,6 +8056,12 @@ Returns base raised to the power exponent:
 
 Returns the cosine of an angle of x radians.
 
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest cos-test
+  (is (= 1          (cos 0)))
+  (is (= -0.99999   (cos 3.145))))
+#+end_src
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn cos [^real_t s]
@@ -7587,6 +8071,12 @@ Returns the cosine of an angle of x radians.
 *** sin
 
 Returns the sine of an angle of x radians.
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest sin-test
+  (is (= 0          (sin 0)))
+  (is (= -0.00340   (sin 3.145))))
+#+end_src
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
@@ -7608,6 +8098,11 @@ Returns the sine of an angle of x radians.
 
 Returns the principal value of the arc tangent of y/x, expressed in radians.
 
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest aton2-test
+  (is (= 0.98279    (atan2 45 30))))
+#+end_src
+
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
   (defn atan2 [^real_t x ^real_t y]
@@ -7615,6 +8110,12 @@ Returns the principal value of the arc tangent of y/x, expressed in radians.
 #+end_src
 
 *** log / log10
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest log-test
+  (is (= 2.30258    (log 10)))
+  (is (= 2          (log10 100))))
+#+end_src
 
 Returns the natural logarithm of x.
 
@@ -7632,7 +8133,13 @@ Returns the natural logarithm of x.
     "return obj<number>(::log10(x));")
 #+end_src
 
-*** to-degrees
+*** to-degrees/radians
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest to-degrees-radians-test
+  (is (= 180.19522  (to-degrees 3.145)))
+  (is (= 3.14159    (to-radians 180))))
+#+end_src
 
 Converts an angle measured in radians to an approximately equivalent
 angle measured in degrees.
@@ -7642,8 +8149,6 @@ angle measured in degrees.
   (defn to-degrees [^real_t x]
     "return obj<number>((x * 180.0 / 1_pi));")
 #+end_src
-
-*** to-radians
 
 Converts an angle measured in degrees to an approximately equivalent
 angle measured in radians.
@@ -7658,6 +8163,12 @@ angle measured in radians.
 
 Returns a random floating point number between 0 (inclusive) and n
 (default 1) (exclusive).
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+(deftest random-test
+  (is (= true       (not (nil? (rand)))))
+  (is (= true       (not (nil? (rand 15))))))
+#+end_src
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
@@ -7685,114 +8196,6 @@ Returns a random integer between 0 (inclusive) and n (exclusive).
   (defn rand-int
     [x]
     (floor (rand x)))
-#+end_src
-
-*** Tests
-
-#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
-  (deftest number-test
-    (is (= 0.5       1/2))
-    (is (= 0.33333   1/3))
-    (is (= 3501      0xDAD))
-    (is (= 2748      0xABC)))
-
-  (deftest math-test
-    (is (= 0.6        (+ 0.3 0.3)))
-    (is (= 0          (+ )))
-    (is (= 1          (+ 1)))
-    (is (= 10         (+ 1 2 3 4)))
-    (is (= 10         (+ 1 2.0 3 4)))
-    (is (= -1         (- 1)))
-    (is (= 0          (- 4 2 2)))
-    (is (= 0          (- 4 2 2.0)))
-    (is (= 1          (* )))
-    (is (= 8          (* 2 2 2)))
-    (is (= 8          (* 2.0 2 2)))
-    (is (= 1          (/ 1)))
-    (is (= 0.5        (/ 2)))
-    (is (= 1          (/ 4 2 2)))
-    (is (= 1          (/ 4 2 2.0)))
-    
-    (is (= 1          (floor 1.1)))
-    (is (= 1          (floor 1.5)))
-    (is (= 1          (floor 1.9)))
-    (is (= 0          (mod 2 2)))
-    (is (= 0          (mod 4 2)))
-    (is (= 1          (mod 5 2)))
-    (is (= 1          (mod 8 7)))
-    (is (= 1          (min 1)))
-    (is (= 1          (min 2 1)))
-    (is (= 1          (min 3 5 7 1)))
-    (is (= 1          (max 1)))
-    (is (= 2          (max 2 1)))
-    (is (= 7          (max 3 5 7 1)))
-    
-    (is (= 100        (scale 10 0 10 0 100)))
-    (is (= 50         (scale 5 0 10 0 100)))
-    (is (= 0          (scale 0 0 10 0 100)))
-    (is (= 5          (clamp 10 0 5)))
-    (is (= 10         (clamp 10 0 20)))
-    (is (= 0          (clamp 10 -10 0)))
-    (is (= -10        (clamp -100 -10 0)))
-
-    (is (= 0          (decode-int16 (encode-int16 0))))
-    (is (= 512        (decode-int16 (encode-int16 512))))
-    (is (= 1024       (decode-int16 (encode-int16 1024))))
-    (is (= 2048       (decode-int16 (encode-int16 2048))))
-    (is (= 32000      (decode-int16 (encode-int16 32000))))
-
-    (is (= 0          (decode-float (encode-float 0))))
-    (is (= 512        (decode-float (encode-float 512))))
-    (is (= 1024       (decode-float (encode-float 1024))))
-    (is (= 2048       (decode-float (encode-float 2048))))
-    (is (= 32000      (decode-float (encode-float 32000))))
-    (is (= 512        (decode-float (list 0 0 0 68 42))))
-    
-
-    (is (= true       (not (nil? (rand)))))
-    (is (= true       (not (nil? (rand 15)))))
-
-    (is (= -5         (bit-not  4)))
-    (is (= -1         (bit-not  0)))
-    (is (= 7          (bit-or   4 3)))
-    (is (= 1          (bit-or   0 1)))
-    (is (= 0          (bit-and  4 3)))
-    (is (= 0          (bit-and  0 1)))
-    (is (= 0          (bit-xor  4 4)))
-    (is (= 1          (bit-xor  1 0)))
-    (is (= 8          (bit-shift-left 4 1)))
-    (is (= 16         (bit-shift-left 4 2)))
-    (is (= 2          (bit-shift-right 4 1)))
-    (is (= 1          (bit-shift-right 4 2)))
-
-    (is (= 1          (bit-extract 1781 0 2)))
-    (is (= 2          (bit-extract 1781 1 2)))
-    (is (= 245        (bit-extract 1781 0 8)))
-    (is (= 15         (bit-extract 1781 4 4)))
-    (is (= 111        (bit-extract 1781 4 8)))
-    (is (= 20         (bit-extract 500  0 5)))
-    (is (= 15         (bit-extract 500  5 6)))
-
-    (is (= 0xAC3A     (bit-override 0xAAAA 0x0C30 4 8)))
-    (is (= 0xBBCC     (bit-override 0xBBBB 0xAACC 0 8)))
-    (is (= 0xBACB     (bit-override 0xBBBB 0xAACC 4 8)))
-    (is (= 0xBBBB     (bit-override 0xAAAA 0xBBBB 0 16)))
-    
-    
-    (is (= 32         (sqrt 1024)))
-    (is (= 2          (sqrt 4)))
-    (is (= 8          (pow 2 3)))
-    (is (= 16         (pow 2 4)))
-    (is (= 1          (cos 0)))
-    (is (= -0.99999   (cos 3.145)))
-    (is (= 0          (sin 0)))
-    (is (= -0.00340   (sin 3.145)))
-    (is (= 0.98279    (atan2 45 30)))
-    (is (= 180.19522  (to-degrees 3.145)))
-    (is (= 3.14159    (to-radians 180)))
-
-    (is (= 2.30258    (log 10)))
-    (is (= 2          (log10 100))))
 #+end_src
 
 ** Matrices
@@ -7844,7 +8247,7 @@ dimensions.
 
 #+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn zeros [^number_t r, ^number_t c]
-  "return obj<matrix_t>(matrix::zeros(r,c));")
+  "return obj<matrix_t>(matrix::zeros((size_t)r, (size_t)c));")
 #+end_src
 
 *** ones
@@ -7949,7 +8352,7 @@ Mutates a scalar value in a matrix at the specified position.
 
 #+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
 (defn mset! [^matrix u ^number_t r ^number_t c ^number_t v]
-  "u(r,c,v);")
+  "u((size_t)r, (size_t)c, (size_t)v);")
 #+end_src
 
 *** mget
@@ -8439,6 +8842,44 @@ and then dispatches on the number of arguments to each implementation.
     ([a b [c d] & e] 4))
 #+end_src
 
+#+name: ferret-unit-tests
+#+begin_src clojure :tangle no
+(deftest fn-test
+  (let [f1 (fn [])
+        f2 (fn [])
+
+        m-func (fn
+                 ([a] 1)
+                 ([a b] 2)
+                 ([a b c] 3))
+
+        n-func (do (fn
+                     ([]    0)
+                     ([x]   1)
+                     ([x y] 2)))]
+    
+    (is (= true  (= f1 f1)))
+    (is (= false (= f1 f2)))
+
+    (is (= 1 (m-func 1)))
+    (is (= 2 (m-func 1 2)))
+    (is (= 3 (m-func 1 2 3)))
+
+    (is (= 0 (n-func)))
+    (is (= 1 (n-func 1)))
+    (is (= 2 (n-func 1 2)))
+
+    (is (= 3      (#(+ 1 2))))
+    (is (= 11     ((fn [n] (+ n 1)) 10)))
+    (is (= 3      (((fn [n] (fn [n] n)) 3) 3))))
+
+  (is (= (list 5 6 7 8 9)
+         ((fn recursive-range [x y]
+            (if (< x y)
+              (cons x (recursive-range (inc x) y))))
+          5 10))))
+#+end_src
+
 Functions may also define a variable number of arguments - this is
 known as a "variadic" function. The variable arguments must occur at
 the end of the argument list. They will be collected in a sequence for
@@ -8575,6 +9016,20 @@ last item in second form, etc.
 Evaluates x then calls all of the methods and functions with the
 value of x supplied at the front of the given arguments.  The forms
 are evaluated in order.  Returns x.
+
+#+name: ferret-unit-tests
+#+begin_src clojure
+(require '[ferret.matrix :as m])
+
+(deftest doto-test
+    (let [mat (m/zeros 2 2)]
+      (doto mat
+        (m/mset! 0 0 1)
+        (m/mset! 0 1 1)
+        (m/mset! 1 0 1)
+        (m/mset! 1 1 1))
+      (is (= (list 1 1 1 1) (m/seq mat)))))
+#+end_src
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
@@ -9398,21 +9853,38 @@ Once opened, port is ready for =read=/=write=.
 This macro allows users to define state machines using the following
 DSL,
 
+#+name: ferret-unit-tests
 #+begin_src clojure :tangle no
-  (def two-state-machine
-    (fsm 
-     (states
-      (off :off)
-      (on  :on))
-     (transitions
-      (off (fn [] true) on)
-      (on  (fn [] true) off))))
+(def light-switch
+  (fsm
+   (states
+    (off :off)
+    (on  :on))
+   (transitions
+    (off (fn [] true) on)
+    (on  (fn [] true) off))))
 
-  (dotimes [i 10]
-    (let [state (two-state-machine)]
-      (if (= state :off)
-        (println "Off")
-        (println "On"))))
+(deftest light-switch-test
+  (is (= :off  (light-switch)))
+  (is (= :on   (light-switch)))
+  (is (= :off  (light-switch)))
+  (is (= :on   (light-switch))))
+
+(deftest state-machine-test
+  (let [machine (fsm
+                 (states
+                  (setup :setup)
+                  (done  :done))
+
+                 (transitions
+                  (setup (fn [] true) done)))]
+
+    (is (= :setup (machine)))
+    (is (= :done  (machine)))
+    (is (= :done  (machine)))
+
+    (dotimes [_ 10]
+      (machine))))
 #+end_src
 
 Each transition takes a list of =fn=, =state= pairs first function that
@@ -9501,16 +9973,31 @@ that can make that happen (the "Output".) The PID then adjusts the
 output trying to make the input equal the setpoint.
 #+END_QUOTE
 
+#+name: ferret-unit-tests
 #+begin_src clojure :tangle no
-  (def controller (pid-controller :kp 0.5
-                                  :ki 0
-                                  :kd 0
-                                  :set-point 5 ;; or a fn
-                                  ;;in min - in max - out min - out max
-                                  :bounds [0 10 0 10]
-                                  :continuous false))
+(deftest pid-controller-test
+  (let [controller (pid-controller :kp 1
+                                   :ki 1
+                                   :kd 0
+                                   :set-point 5
+                                   :bounds [0 10 0 20]
+                                   :continuous false)]
 
-  (println "Control" (controller 0))
+    (is (= 10 (controller 0)))
+    (is (= 15 (controller 0)))
+    (is (= 20 (controller 0)))
+    (is (= 20 (controller 0))))
+
+  (let [sp-fn (fn [] 5)
+        controller (pid-controller :kp 1
+                                   :ki 0
+                                   :kd 1
+                                   :set-point sp-fn
+                                   :bounds [0 10 0 20]
+                                   :continuous false)]
+
+    (is (= 10 (controller 0)))
+    (is (= 5  (controller 0)))))
 #+end_src
 
 Ported from,
@@ -9679,6 +10166,16 @@ filter) to approximate a K sample first order IIR filter to
 approximate a K sample moving average. This filter approximates a
 moving average of the last K samples by setting the value of alpha to
 1/K.
+
+#+name: ferret-unit-tests
+#+begin_src clojure :tangle no
+(deftest moving-average-filter-test
+  (let [f (new-moving-average-filter 0.1)]
+
+    (is (= 1.00 (f 10)))
+    (is (= 1.90 (f 10)))
+    (is (= 2.71 (f 10)))))
+#+end_src
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
@@ -10283,462 +10780,6 @@ Valgrind options,
  - --leak-check=full
  - --error-exitcode=1
  - --track-origins=yes
-
-** Core
-*** Functions
-
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
-  (def make-adder
-    (fn [n]
-      (fn [x] (+ x n))))
-
-  (def adder
-    (make-adder 1))
-
-  (def fibo
-    (fn [n]
-      (if (< n 2)
-        1
-        (+ (fibo (- n 1))
-           (fibo (- n 2))))))
-
-  (deftest fn-test
-    (let [f1 (fn [])
-          f2 (fn [])
-          m-func (fn
-                   ([a] 1)
-                   ([a b] 2)
-                   ([a b c] 3))
-          n-func (do (fn
-                       ([]    0)
-                       ([x]   1)
-                       ([x y] 2)))]
-      
-      (is (= true  (= f1 f1)))
-      (is (= false (= f1 f2)))
-      (is (= true  (= f1 (do f1))))
-      (is (= false (= f2 (do f1))))
-      (is (= 1 (m-func 1)))
-      (is (= 2 (m-func 1 2)))
-      (is (= 3 (m-func 1 2 3)))
-      (is (= 0 (n-func)))
-      (is (= 1 (n-func 1)))
-      (is (= 2 (n-func 1 2)))
-
-      (is (= 3      (#(+ 1 2))))
-      (is (= 11     ((fn [n] (+ n 1)) 10)))
-      (is (= 3      (((fn [n] (fn [n] n)) 3) 3)))))
-
-  (deftest special-forms-test
-    (let [args (list "1" "2")]
-      (is (= args (rest *command-line-args*))))
-
-    (let [a 1]
-      (is (= 1 a)))
-
-    (let [a 1
-          a 3]
-      (is (= 3 a)))
-    
-    (let [a 1
-          b 2]
-      (is (= 3 (+ a b))))
-
-    (let [a 1
-          b 2
-          c 3]
-      (is (= 6 (+ a b c))))
-
-    (let [a 1
-          b 2]
-      (let []
-        (is (= 3 (+ a b)))))
-    
-    (is (= 10 (adder 9)))
-    (is (= 89 (fibo 10))))
-
-  (let [x 42]
-    (defn let-over-lambda [] x))
-
-  (is (= 42 (let-over-lambda)))
-
-  (is (= (list 5 6 7 8 9)
-         ((fn recursive-range [x y]
-            (if (< x y)
-              (cons x (recursive-range (inc x) y))))
-          5 10)))
-#+end_src
-
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
-  (defn destructure-test-1 [[a b c]]
-    (list a b c))
-
-  (defn destructure-test-2 [[a [b] c]]
-    b)
-
-  (defn destructure-test-3 [[a [_ b] c]]
-    b)
-
-  (defn destructure-test-4 [& a]
-    a)
-
-  (defn destructure-test-5 []
-    (let [[a b c] (list 1 2 3)]
-      (list a b c)))
-
-  (defn destructure-test-6 []
-    (let [[_ _ a] (list 1 2 3)]
-      a))
-
-  (defn destructure-test-7 [a b & [c d]]
-    (list c d))
-
-  (defn destructure-test-8 [{a :a} b {c :c}]
-    (list a b c))
-
-  (deftest destructuring-test
-    (is (= 3                   (count (destructure-test-1 (list 1 2 3)))))
-    (is (= 2                   (destructure-test-2 (list 1 (list 2) 3))))
-    (is (= 3                   (destructure-test-3 (list 1 (list 2 3) 3))))
-    (is (= (list (list 1 2 3)) (destructure-test-4 (list 1 2 3))))
-    (is (= (list 1 2 3)        (destructure-test-8 {:a 1} 2 {:c 3})))
-
-    (let [a (list 1 2 3 4)
-          [b c & r] a]
-
-      (is (= 1          b))
-      (is (= 2          c))
-      (is (= (list 3 4) r)))
-
-    (let [a 1 b 2
-          [c & r] (list 4 5)]
-      
-      (is (= 1 a))
-      (is (= 2 b))
-      (is (= 4 c))
-      (is (= (list 5) r)))
-
-    (let [[a & r] (list 1 2 3)
-          rr (rest r)]
-      (is (= (list 3) rr)))
-    
-    (is (= (list 1 2 3) (destructure-test-5)))
-    (is (= 3            (destructure-test-6)))
-    (is (= (list 3 4)   (destructure-test-7 1 2 3 4)))
-
-    (let [[a & b :as all-list]   (list 1 2 3)
-          [c     :as other-list] all-list]
-      (is (= 1            a))
-      (is (= (list 2 3)   b))
-      (is (= (list 1 2 3) all-list))
-      (is (= 1            c))
-      (is (= (list 1 2 3) other-list)))
-    
-    (let [[_ _ a] (list 1 2 3)
-          [_ b] (list 4 5 6)]
-      (is (= 3 a))
-      (is (= 5 b)))
-
-    (let [a (list 1 2 3)
-          [b c d e f g] a]
-      (is (= 1   b))
-      (is (= 2   c))
-      (is (= 3   d))
-      (is (= nil e))
-      (is (= nil f))
-      (is (= nil g))))
-#+end_src
-
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
-  (native-declare "ferret::number_t i = 0;")
-
-  (defn inc-int []
-    "__result =  obj<number>(i++);")
-
-  (deftest ffi-test
-    (is (= true  ((fn [a b] "return obj<boolean>((a == b))") (list 1 2) (list 1 2))))
-    (is (= false ((fn [a b] "return obj<boolean>((a != b))") (list 1 2) (list 1 2))))
-    (is (= true  ((fn [a b] "return obj<boolean>((a != b))") (list 1 2) 1)))
-    (is (= false ((fn [a b] "return obj<boolean>((a == b))") 1          (list 1 2))))
-
-    (is (= 0 (inc-int)))
-    (is (= 1 (inc-int)))
-
-    (is (=  nil   (my-find (list 5 5) (list (list 1 2)
-                                            (list 2 3)
-                                            (list 4 5)))))
-    (is (=  true  (my-find (list 1 2) (list (list 1 2)
-                                            (list 2 3)
-                                            (list 4 5)))))
-    (is (=  true  (my-find (list 4 5) (list (list 1 2)
-                                            (list 2 3)
-                                            (list 4 5)))))
-    
-    (is (= (list 3 2 1) (my-sort > (list 1 3 2))))
-    (is (= (list 1 2 3) (my-sort < (list 1 3 2)))))
-#+end_src
-
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
-  (deftest doto-test
-    (let [st (atom )
-          add (fn [s v]
-                (swap! s conj v))]
-      (doto st
-        (add 1)
-        (add 2)
-        (add 3))
-      (is (= (list 3 2 1) @st))))
-#+end_src
-
-*** Logic
-
-#+name: ferret-unit-tests
-#+begin_src clojure
-  (defn pos-neg-or-zero [n]
-    (cond
-      (< n 0) -1
-      (> n 0)  1
-      :else    0))
-
-  (deftest logical-operators-test
-    (is (= true  (< 2)))
-    (is (= true  (< 2 3 4 5)))
-    (is (= true  (> 2)))
-    (is (= false (> 2 3 4 5)))
-    (is (= true  (> 6 5 4 3)))
-    (is (= true  (>= 2)))
-    (is (= true  (>= 5 4 3 2 2 2)))
-    (is (= false (>= 5 1 3 2 2 2)))
-    (is (= true  (<= 2)))
-    (is (= true  (<= 2 2 3 4 5)))
-    (is (= false (<= 2 2 1 3 4)))
-    (is (= true  (= 2)))
-    (is (= false (= 2 3)))
-    (is (= true  (= 2 2 2 2)))
-    (is (= true  (= 2 2.0 2)))
-    (is (= false (= 2 2 2 2 3 5)))
-    (is (= true  (= (list 1 2) (list 1 2))))
-    (is (= false (= (list 1 2) (list 1 3))))
-    (is (= true  (= true true)))
-    (is (= false (not (= true true))))
-    (is (= false (not 1)))
-
-    (let [a (fn [x] (+ 1 x))
-          b (fn [x] (inc x))]
-      (is (= true  (= a a)))
-      (is (= false (= a b)))
-      (is (= true  (= nil ((fn [] )))))
-      (is (= true  (= nil ((fn [x y] ) 1 2)))))
-
-    (is (= -1  (pos-neg-or-zero -5)))
-    (is (=  1  (pos-neg-or-zero  5)))
-    (is (=  0  (pos-neg-or-zero  0)))
-
-    (is (= true  (true? true)))
-    (is (= false (true? false)))
-    (is (= false (false? true)))
-    (is (= true  (false? false)))
-    (is (= false (= nil 1)))
-    (is (= false (= 1 nil)))
-    (is (= true  (= nil nil)))
-
-    (is (= true  (pos? 1)))
-    (is (= true  (pos? 0.2)))
-    (is (= false (pos? 0)))
-    (is (= false (neg? 1)))
-    (is (= true  (neg? -1)))
-    (is (= true  (zero? 0)))
-    (is (= false (zero? 10)))
-    (is (= true  (zero? (- 1 1))))
-    (is (= true  (zero? (- 1.2 1.2))))
-    (is (= true  (zero? (+ 1.2 -1.2)))))
-#+end_src
-
-*** Flow
-
-#+name: ferret-unit-tests
-#+begin_src clojure
-  (deftest conditionals-test
-    (is (= 2     (if 1 2)))
-    (is (= 1     (if (zero? 0) 1 -1)))
-    (is (= -1    (if (zero? 1) 1 -1)))
-    (is (= 2     (when true 2)))
-    (is (= 2     (if nil 1 2)))
-    (is (= nil   (if-let [a nil] a)))
-    (is (= 5     (if-let [a 5] a)))
-    (is (= 2     (if-let [[_ a] (list 1 2)] a)))
-    (is (= nil   (when-let [a nil] a)))
-    (is (= 5     (when-let [a 5] a)))
-    (is (= 2     (when-let [[_ a] (list 1 2)] a)))
-
-    (is (= 1     (when (< 2 3) 1)))
-    (is (= true  (let [a 1] (and (> a 0) (< a 10)))))
-    (is (= false (let [a 11] (and (> a 0) (< a 10)))))
-    (is (= true  (and true  (identity true))))
-    (is (= false (and true  (identity false))))
-    (is (= true  (or  true  (identity false))))
-    (is (= false (or  false (identity false))))
-
-
-    (let [lst (atom (list 1 2 3 4 5))
-          acc (atom )]
-      
-      (while-let [item (first @lst)]
-        (swap! lst rest)
-        (swap! acc conj item))
-
-      (is (empty? @lst))
-      (is (not (empty? @acc)))
-      (is (= (list 5 4 3 2 1) @acc))))
-#+end_src
-
-*** Control
-
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
-  (deftest moving-average-filter-test
-    (let [f (new-moving-average-filter 0.1)]
-
-      (is (= 1.00 (f 10)))
-      (is (= 1.90 (f 10)))
-      (is (= 2.71 (f 10)))))
-
-  (deftest pid-controller-test
-    (let [controller (pid-controller :kp 1
-                                     :ki 0
-                                     :kd 0
-                                     :set-point 5
-                                     :bounds [0 10 0 10]
-                                     :continuous false)]
-
-      (is (= 5 (controller 0)))
-      (is (= 5 (controller 0))))
-
-    (let [controller (pid-controller :kp 1
-                                     :ki 1
-                                     :kd 0
-                                     :set-point 5
-                                     :bounds [0 10 0 20]
-                                     :continuous false)]
-
-      (is (= 10 (controller 0)))
-      (is (= 15 (controller 0)))
-      (is (= 20 (controller 0)))
-      (is (= 20 (controller 0))))
-
-    (let [controller (pid-controller :kp 1
-                                     :ki 0
-                                     :kd 1
-                                     :set-point 5
-                                     :bounds [0 10 0 20]
-                                     :continuous false)]
-
-      (is (= 10 (controller 0)))
-      (is (= 5 (controller 0))))
-
-    (let [sp-fn (fn [] 5)
-          controller (pid-controller :kp 1
-                                     :ki 0
-                                     :kd 1
-                                     :set-point sp-fn
-                                     :bounds [0 10 0 20]
-                                     :continuous false)]
-
-      (is (= 10 (controller 0)))
-      (is (= 5 (controller 0)))))
-
-  (deftest state-machine-test
-    (let [state (atom 0)
-          machine (fsm
-                   (states
-                    (off (swap! state inc) :off)
-                    (on  (swap! state inc) :on))
-                   (transitions
-                    (off             on)
-                    (on  (fn [] true) off)))]
-      
-      (is (= :off (machine)))
-      (is (= :on  (machine)))
-      
-      (dotimes [_ 8]
-        (machine))
-      
-      (is (= 10 (deref state))))
-
-    (let [state (atom 0)
-          machine (fsm
-                   (states
-                    (a (swap! state inc))
-                    (b (swap! state inc))
-                    (c (swap! state inc))
-                    (no-op (swap! state inc)))
-                   (transitions
-                    (a
-                     (fn [] false) no-op
-                     (fn [] true)  b)
-                    (b c)
-                    (c
-                     (fn [] false) no-op
-                     (fn [] false) no-op
-                     (fn [] true)  a
-                     (fn [] false) no-op)))]
-      (dotimes [_ 10]
-        (machine))
-      (is (= 10 (deref state))))
-
-    (let [state (atom nil)
-          machine (fsm
-                   (states
-                    (a (swap! state conj 1))
-                    (b (swap! state conj 2))
-                    (c (swap! state conj 3))
-                    (no-op ))
-                   (transitions
-                    (a
-                     (fn [] true) b
-                     (fn [] true) c
-                     (fn [] true) no-op)
-                    (b (fn [] true) no-op)
-                    (c (fn [] true) no-op)
-                    (no-op (fn [] true) no-op)))]
-      (dotimes [_ 50]
-        (machine))
-      (is (= (list 2 1) (deref state))))
-
-    (let [value (atom 0)
-          machine (fsm 
-                   (states
-                    (increment (swap! value inc))
-                    (no-op ))
-                   (transitions
-                    (increment
-                     (fn [] true) increment
-                     (fn [] true) no-op)
-                    (no-op
-                     (fn [] true) no-op)))]
-      (machine)
-      (machine)
-      (is (= 2 (deref value))))
-
-    (let [machine (fsm
-                   (states
-                    (setup :setup)
-                    (done  :done))
-                   
-                   (transitions
-                    (setup (fn [] true) done)))]
-      
-      (is (= :setup (machine)))
-      (is (= :done  (machine)))
-      (is (= :done  (machine)))
-      
-      (dotimes [_ 8]
-        (machine))))
-#+end_src
 
 * Roadmap
 ** Compiler

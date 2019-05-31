@@ -7784,38 +7784,44 @@ Returns the greatest of the nums.
   (defn floor [^number_t x] "return obj<number>(x);")
 #+end_src
 
-*** scale
+*** interp
+
+One-dimensional linear interpolation.
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
-(deftest scale-test
-  (is (= 100        (scale 10 0 10 0 100)))
-  (is (= 50         (scale 5 0 10 0 100)))
-  (is (= 0          (scale 0 0 10 0 100))))
+(deftest interp-test
+  (is (= 100  (interp 10 0 10 0 100)))
+  (is (=  80  (interp  8 0 10 0 100)))
+  (is (=  70  (interp  7 0 10 0 100)))
+  (is (=  50  (interp  5 0 10 0 100)))
+  (is (=  20  (interp  2 0 10 0 100)))
+  (is (=   0  (interp  0 0 10 0 100))))
 #+end_src
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn scale [x in-min in-max out-min out-max]
-    (+ (/ (* (- x in-min) (- out-max out-min)) (- in-max in-min)) out-min))
+(defn interp [^real_t x
+              ^real_t in-min ^real_t in-max
+              ^real_t out-min ^real_t out-max]
+  "return obj<number>((x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);")
 #+end_src
 
-*** clamp
+*** clip
+
+Clip (limit) the values in number.
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
-(deftest clamp-test
-  (is (= 5          (clamp 10 0 5)))
-  (is (= 10         (clamp 10 0 20)))
-  (is (= 0          (clamp 10 -10 0)))
-  (is (= -10        (clamp -100 -10 0))))
+(deftest clip-test
+  (is (=   5 (clip   10   0  5)))
+  (is (=  10 (clip   10   0 20)))
+  (is (=   0 (clip   10 -10  0)))
+  (is (= -10 (clip -100 -10  0))))
 #+end_src
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-  (defn clamp [x min max]
-    (cond
-      (> x max) max
-      (< x min) min
-      true x))
+(defn clip [^number_t x ^number_t min ^number_t max]
+  "return obj<number>(runtime::max(runtime::min(max, x), min));")
 #+end_src
 
 *** bit-and

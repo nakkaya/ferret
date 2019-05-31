@@ -1898,6 +1898,7 @@ is supported.
         'bool_t     (str "bool " name " = " "bool(" value ")")
         'real_t     (str "real_t " name " = " "number::to<real_t>(" value ")")
         'number_t   (str "number_t " name " = " "number::to<number_t>(" value ")")
+        'size_t     (str "size_t " name " = " "number::to<size_t>(" value ")")
         'byte       (str "byte " name " = " "number::to<byte>(" value ")")
         'c_str      (str "var " name "_packed = string::pack(" value ");\n"
                          "char* " name " = " "string::c_str(" name "_packed)")
@@ -8252,8 +8253,8 @@ Constructs a new zero-filled numerical matrix with the given
 dimensions.
 
 #+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
-(defn zeros [^number_t r, ^number_t c]
-  "return obj<matrix_t>(matrix::zeros((size_t)r, (size_t)c));")
+(defn zeros [^size_t r, ^size_t c]
+  "return obj<matrix_t>(matrix::zeros(r, c));")
 #+end_src
 
 *** ones
@@ -8262,7 +8263,7 @@ Constructs a new zero-filled numerical matrix with the given
 dimensions.
 
 #+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
-(defn ones [^number_t r, ^number_t c]
+(defn ones [^size_t r, ^size_t c]
   "return obj<matrix_t>(matrix::ones(r,c));")
 #+end_src
 
@@ -8271,7 +8272,7 @@ dimensions.
 Fills a matrix with a single scalar value.
 
 #+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
-(defn full [^number_t r, ^number_t c, ^number_t v]
+(defn full [^size_t r, ^size_t c, ^real_t v]
   "return obj<matrix_t>(matrix::ones(r,c,v));")
 #+end_src
 
@@ -8281,7 +8282,7 @@ Identity matrix. Returns an n-by-n identity matrix with ones on the
 main diagonal and zeros elsewhere.
 
 #+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
-(defn eye [^number_t n]
+(defn eye [^size_t n]
   "return obj<matrix_t>(matrix::eye(n));")
 #+end_src
 
@@ -8357,8 +8358,8 @@ Calcualtes the Euclidean norm of matrix.
 Mutates a scalar value in a matrix at the specified position.
 
 #+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
-(defn mset! [^matrix u ^number_t r ^number_t c ^number_t v]
-  "u((size_t)r, (size_t)c, (size_t)v);")
+(defn mset! [^matrix u ^size_t r ^size_t c ^real_t v]
+  "u(r, c, v);")
 #+end_src
 
 *** mget
@@ -8366,8 +8367,8 @@ Mutates a scalar value in a matrix at the specified position.
 Gets a scalar value from a matrix at the specified position.
 
 #+begin_src clojure :mkdirp yes :tangle src/lib/ferret/matrix.clj
-(defn mget [^matrix u ^number_t r ^number_t c]
-  "return obj<number>(u((size_t)r, (size_t)c));")
+(defn mget [^matrix u ^size_t r ^size_t c]
+  "return obj<number>(u(r, c));")
 #+end_src
 
 *** cout
@@ -9391,9 +9392,9 @@ other members of the group and port.
         return cached::true_o;
       return cached::false_o;")
 
-  (defn byte [data ^number_t curr]
+  (defn byte [data ^size_t curr]
     "datagram_t& buffer = value<datagram_t>::to_reference(data);
-     return obj<number>(buffer[(size_t)curr]);")
+     return obj<number>(buffer[curr]);")
 
   (defn data-seq
     ([[size data]]

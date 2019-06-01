@@ -1112,17 +1112,17 @@ called a new function object is created used and released. If
 performance is more important than memory usage this optimization can
 be disabled using compiler option =--global-functions=. This
 optimization can be turned of on a per =def= basis by setting the
-metadata of the object to =:volatile= =true=,
+metadata of the object to =^volatile= =true=,
 
 #+BEGIN_SRC clojure :tangle no
-  (defn ^{:volatile true} no-inline [] 42)
+  (defn ^volatile no-inline [] 42)
 #+END_SRC
 
 #+name: core-compiler-transformations
 #+begin_src clojure :tangle no
   (defn inline-defn? [f]
     (and (parser/form? 'def f)
-         (-> f second meta :volatile not)
+         (-> f second meta :tag (not= 'volatile))
          (parser/form? 'fir-fn-heap
                        (->> f (drop 2) first))))
 
@@ -1156,8 +1156,8 @@ metadata of the object to =:volatile= =true=,
 #+name: clojure-unit-tests
 #+begin_src clojure :tangle no
   (deftest test-fn->inline
-    (let [prg-a (compile '((defn  fn-inline [x] x)
-                           (defn ^{:volatile true} fn-no-inline [y] y)
+    (let [prg-a (compile '((defn fn-inline [x] x)
+                           (defn ^volatile fn-no-inline [y] y)
                            (fn-inline 42)
                            (fn-no-inline 42)) {})]
       (is (= 1 (->> (fn [f] (= '(fn_no_inline 42) f))
@@ -9862,8 +9862,8 @@ DSL,
 
 #+name: ferret-unit-tests
 #+begin_src clojure :tangle no
-(defn led-off [] :off)
-(defn led-on  [] :on)
+(defn ^volatile led-off [] :off)
+(defn ^volatile led-on  [] :on)
 
 (def light-switch
   (fsm

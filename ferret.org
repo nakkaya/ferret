@@ -9862,14 +9862,13 @@ DSL,
 
 #+name: ferret-unit-tests
 #+begin_src clojure :tangle no
+(defn led-off [] :off)
+(defn led-on  [] :on)
+
 (def light-switch
   (fsm
-   (states
-    (off :off)
-    (on  :on))
-   (transitions
-    (off (fn [] true) on)
-    (on  (fn [] true) off))))
+   (led-off (fn [] true) led-on)
+   (led-on  (fn [] true) led-off)))
 
 (deftest light-switch-test
   (is (= :off  (light-switch)))
@@ -9878,13 +9877,10 @@ DSL,
   (is (= :on   (light-switch))))
 
 (deftest state-machine-test
-  (let [machine (fsm
-                 (states
-                  (setup :setup)
-                  (done  :done))
-
-                 (transitions
-                  (setup (fn [] true) done)))]
+  (let [setup   (fn [] :setup)
+        done    (fn [] :done)
+        machine (fsm
+                 (setup (fn [] true) done))]
 
     (is (= :setup (machine)))
     (is (= :done  (machine)))
@@ -9898,67 +9894,66 @@ Each transition takes a list of =fn=, =state= pairs first function that
 returns true, returns the next state.
 
 #+begin_src c++ :mkdirp yes :tangle src/runtime/fsm_o.h
-  class fsm final : public lambda_i {
-    mutex lock;
-    var env;
-    var state;
-    var transitions;
-  public:
+class fsm final : public lambda_i {
+  mutex lock;
+  var state;
+  var transitions;
+public:
 
-    fsm(ref e, ref t) : env(e), state(runtime::first(e)), transitions(t){ }
+  fsm(ref s, ref t) : state(s), transitions(t){ }
 
-    var invoke(ref) const final {
-      return var((object*)this).cast<fsm>()->yield();
-    }
+  var invoke(ref) const final {
+    return var((object*)this).cast<fsm>()->yield();
+  }
 
-    var yield() {
-      lock_guard guard(lock);
-      var value = run(state);
-      var next = transitions.cast<lambda_i>()->invoke(runtime::list(env, state));
+  var yield() {
+    lock_guard guard(lock);
+    var value;
 
-      if (next.is_nil())
-        next = state;
+    if (state.is_type(type_id<lambda_i>))
+      value = run(state);
+    else
+      value = state;
 
-      state = next;
-      return value;
-    }
+    var next = transitions.cast<lambda_i>()->invoke(runtime::list(state));
+
+    if (next.is_nil())
+      next = state;
+
+    state = next;
+    return value;
+  }
     
-  };
+};
 #+end_src
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defobject fsm "fsm_o.h")
+(defobject fsm "fsm_o.h")
 
-  (defn new-fsm [env transitions]
-    "return obj<fsm>(env, transitions)")
+(defn new-fsm [state transitions]
+  "return obj<fsm>(state, transitions)")
 
-  (defmacro fsm [[_ & states] [_ & transitions]]
-    (let [states (->> (reduce (fn [h v]
-                                (let [[name & body] v]
-                                  (conj h name `(fn [] ~@body))))
-                              [] states)
-                      (apply flatland.ordered.map/ordered-map))
-          fsm-state (gensym)
-          switch (->> (reduce
-                       (fn [h v]
-                         (let [[state & conds] v
-                               at-state `(= ~state ~fsm-state)
-                               jmp (if (= (count conds) 1)
-                                     (first conds)
-                                     (->> (reduce
-                                           (fn [h v]
-                                             (let [[check state] v]
-                                               (conj h `(~check) state)))
-                                           ['cond] (partition 2 conds))
-                                          (apply list)))]
-                           (conj h at-state jmp)))
-                       ['cond] transitions)
-                      (apply list))]
-      `(new-fsm (list ~@(vals states))
-                (fn [[~@(keys states)]
-                    ~fsm-state]
-                  ~switch))))
+(defmacro fsm [& transitions]
+  (let [fsm-state (gensym)
+        switch    (->> (reduce
+                        (fn [h v]
+                          (let [[state & conds] v
+                                at-state `(= ~state ~fsm-state)
+                                jmp (if (= (count conds) 1)
+                                      (first conds)
+                                      (->> (reduce
+                                            (fn [h v]
+                                              (let [[check state] v]
+                                                (conj h `(~check) state)))
+                                            ['cond] (partition 2 conds))
+                                           (apply list)))]
+                            (conj h at-state jmp)))
+                        ['cond] transitions)
+                       (apply list))]
+    `(new-fsm
+      ~(-> transitions first first)
+      (fn [~fsm-state] ~switch))))
 #+end_src
 
 *** PID Control

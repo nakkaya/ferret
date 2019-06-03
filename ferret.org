@@ -10161,8 +10161,7 @@ approximate a K sample moving average. This filter approximates a
 moving average of the last K samples by setting the value of alpha to
 1/K.
 
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/control.clj
 (deftest moving-average-filter-test
   (let [f (new-moving-average-filter 0.1)]
 

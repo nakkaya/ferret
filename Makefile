@@ -99,6 +99,7 @@ CORE_TESTS = test/core/allocator_api.clj              \
              test/core/math.clj                       \
              test/core/concurrency.clj                \
              test/core/timing.clj                     \
+             test/core/control.clj                    \
              test/core/module.clj                     \
 	     test/core/module_unit_test.clj           \
              test/core/module_import_empty_aux_a.clj  \

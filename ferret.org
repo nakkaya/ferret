@@ -9860,8 +9860,7 @@ Once opened, port is ready for =read=/=write=.
 This macro allows users to define state machines using the following
 DSL,
 
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/control.clj
 (defn ^volatile led-off [] :off)
 (defn ^volatile led-on  [] :on)
 
@@ -9870,27 +9869,20 @@ DSL,
    (led-off (fn [] true) led-on)
    (led-on  (fn [] true) led-off)))
 
-(deftest light-switch-test
-  (is (= :off  (light-switch)))
-  (is (= :on   (light-switch)))
-  (is (= :off  (light-switch)))
-  (is (= :on   (light-switch))))
+(def inf-loop
+  (let [setup  (fn [] :setup)
+        exec   (fn [] :exec)]
+    (fsm
+     (setup  exec))))
 
-(deftest state-machine-test
-  (let [setup   (fn [] :setup)
-        done    (fn [] :done)
-        machine (fsm
-                 (setup (fn [] true) done))]
-
-    (is (= :setup (machine)))
-    (is (= :done  (machine)))
-    (is (= :done  (machine)))
-
-    (dotimes [_ 10]
-      (machine))))
+(deftest fsm-test
+  (is (= (list :off :on :off :on)
+         (repeatedly 4 light-switch)))
+  (is (= (list :setup :exec :exec :exec)
+         (repeatedly 4 inf-loop))))
 #+end_src
 
-Each transition takes a list of =fn=, =state= pairs first function that
+Each transition takes a list of =fn=, =state= pairs, first function that
 returns true, returns the next state.
 
 #+begin_src c++ :mkdirp yes :tangle src/runtime/fsm_o.h
@@ -9900,9 +9892,9 @@ class fsm final : public lambda_i {
   var transitions;
 public:
 
-  fsm(ref s, ref t) : state(s), transitions(t){ }
+  inline fsm(ref s, ref t) : state(s), transitions(t){ }
 
-  var invoke(ref) const final {
+  inline var invoke(ref) const final {
     return var((object*)this).cast<fsm>()->yield();
   }
 

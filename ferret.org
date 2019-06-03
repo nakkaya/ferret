@@ -9967,8 +9967,7 @@ that can make that happen (the "Output".) The PID then adjusts the
 output trying to make the input equal the setpoint.
 #+END_QUOTE
 
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/control.clj
 (deftest pid-controller-test
   (let [controller (pid-controller :kp 1
                                    :ki 1

@@ -7249,26 +7249,30 @@ first item for which (pred item) returns logical false.
 #+name: ferret-unit-test-lazy-sequence
 #+begin_src clojure :tangle no
 (deftest concat-test
-  (let [a-list (concat (list 1 2 3) (list 4 5 6))]
+  (let [a-list (concat (list 1 2 3) (list 4 5 6))
+        b-list (concat (list 1 2 3) (list 4 5 6) (list 7 8 9))]
 
-    (is (empty?  (concat)))
-    (is (= 1     (first a-list)))
-    (is (= 4     (first (drop 3 a-list))))
-    (is (= 21    (reduce + a-list)))))
+    (is (empty?   (concat)))
+    (is (= 1      (first a-list)))
+    (is (= 4      (first (drop 3 a-list))))
+    (is (= 21     (reduce + a-list)))
+    (is (= b-list (list 1 2 3 4 5 6 7 8 9)))))
 #+end_src
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn concat
-    ([]
-     (list))
-    ([x]
-     (if (not (empty? x))
-       (cons (first x) (lazy-seq (concat (rest x))))))
-    ([x y]
-     (if (not (empty? x))
-       (cons (first x) (lazy-seq (concat (rest x) y)))
-       (concat y))))
+(defn concat
+  ([]
+   (list))
+  ([x]
+   (if (not (empty? x))
+     (cons (first x) (lazy-seq (concat (rest x))))))
+  ([x y]
+   (if (not (empty? x))
+     (cons (first x) (lazy-seq (concat (rest x) y)))
+     (concat y)))
+  ([x y & more]
+   (concat (concat x y) (apply concat more))))
 #+end_src
 
 *** apply

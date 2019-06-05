@@ -726,14 +726,20 @@ key/value pairs enclosed in braces: ={:a 1 :b 2}=.
 
 #+name: core-compiler-macro-expansion
 #+begin_src clojure :tangle no
-  (defn expand-reader-macros [form]
-    (-> form
-        (parser/transform
-         (parser/form? 'clojure.core/deref)
-         (fn [f] (cons 'deref (rest f))))
-        (parser/transform
-         map?
-         (fn [x] (cons 'fir-new-map (-> x seq flatten))))))
+(defn expand-reader-macros [form]
+  (-> form
+      (parser/transform
+       (parser/form? 'clojure.core/deref)
+       (fn [f] (cons 'deref (rest f))))
+      (parser/transform
+       map?
+       (fn [x]
+         (->> (seq x)
+              (reduce
+               (fn[h [k v]]
+                 (conj h k v)) [])
+              (seq)
+              (cons 'fir-new-map))))))
 #+end_src
 
 Prepare form =f= for macro expansion,

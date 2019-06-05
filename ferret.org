@@ -176,74 +176,6 @@ calling malloc/free at runtime.
   $ ./ferret -i ferret-multi-led.clj -o ferret-multi-led/ferret-multi-led.ino
 #+END_EXAMPLE
 
-** Support
-
- - [[https://groups.google.com/forum/#!forum/ferret-lang][ferret-lang]] - Mailing List
-
-** Examples
-*** Articles
-
- - [[https://nakkaya.com/2017/06/24/ferret-lisp-ffi-notes/][Ferret Lisp FFI Notes]]
- - [[https://news.ycombinator.com/item?id=14951116][Hacker News Thread]] (2017)
- - [[https://news.ycombinator.com/item?id=17644580][Hacker News Thread]] (2018)
-
-*** Projects
-
- - [[https://nakkaya.com/2017/02/15/bare-metal-lisp-rc-control-using-ferret/][Bare Metal Lisp - RC Control using Ferret]]
- - [[http://nakkaya.com/2016/06/10/ferret-a-hard-real-time-clojure-for-lisp-machines/][Ferret - A Hard Real-Time Clojure for Lisp Machines]] -
-   Implementation of a line following robot in Ferret.
- - [[https://github.com/nakkaya/solarcar-tracker][solarcar-tracker]] - A Tracking device for the [[http://solarcar.neu.edu.tr][Ra27 solar car]]. (GPS,
-   IMU etc.) (Raspberry Pi)
- - [[https://github.com/nakkaya/solarcar-turn-indicator][solarcar-turn-indicator]] - Controller for the turn indicator
-   assembly on the [[http://solarcar.neu.edu.tr][Ra27 solar car]]. (Atmega MCU)
- - [[https://github.com/nakkaya/ferret-qt-hello-world][ferret-qt-hello-world]] - QT Hello World FFI Example in Ferret Lisp
-
-*** Wrappers
-
- - [[https://github.com/nakkaya/ferret-L6470-AutoDriver][ferret-L6470-AutoDriver]] - Bindings for SparkFun AutoDriver -
-   Stepper Motor Driver.
- - [[https://github.com/nakkaya/ferret-mosquitto][ferret-mosquitto]] - Ferret bindings for Mosquitto MQTT Client.
- - [[https://github.com/nakkaya/ferret-opencv][ferret-opencv]] - Ferret bindings for OpenCV.
- - [[https://github.com/nakkaya/ferret-genann][ferret-genann]] - Ferret bindings for [[https://codeplea.com/genann][genann]] - simple neural
-   network library in ANSI C.
- - [[https://github.com/nakkaya/ferret-teensy-flight-sim][ferret-teensy-flight-sim]] - Wrapper for Teensy flight sim controls.
- - [[https://github.com/nakkaya/ferret-arduino-keypad][ferret-arduino-keypad]] - Arduino Keypad library bindings.
- - [[https://github.com/nakkaya/ferret-arduino-adafruit-pcd8544][ferret-arduino-adafruit-pcd8544]] - Adafruit Arduino PCD8544 screen
-   library bindings most commonly found in Nokia 5110.
- - [[https://github.com/nakkaya/ferret-boost][ferret-boost]] - Boost bindings.
- - [[https://github.com/nakkaya/ferret-websocket][ferret-websocket]] - WebSocket++ bindigns.
- - [[https://github.com/nakkaya/ferret-logging][ferret-logging]] - easyloggingpp bindigns.
- - [[https://github.com/nakkaya/ferret-great-circle-navigation][ferret-great-circle-navigation]] - Utils for great circle
-   navigation.
-
-** License
-
-BSD 2-Clause License
-
-Copyright (c) 2019, Nurullah Akkaya
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-- Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-- Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 * Overview
 
 Ferret is a functional, lazy language designed to be used in real time
@@ -432,6 +364,23 @@ Write the image,
   dd if=tmp/deploy/images/raspberrypi2/rpi-basic-image-raspberrypi2.rpi-sdimg of=/dev/mmcblk0
 #+END_EXAMPLE
 
+** Support
+
+ - [[https://groups.google.com/forum/#!forum/ferret-lang][ferret-lang]] - Mailing List
+
+** Further Reading
+*** Articles
+
+ - [[https://nakkaya.com/2017/06/24/ferret-lisp-ffi-notes/][Ferret Lisp FFI Notes]]
+ - [[https://news.ycombinator.com/item?id=14951116][Hacker News Thread]] (2017)
+ - [[https://news.ycombinator.com/item?id=17644580][Hacker News Thread]] (2018)
+
+*** Projects
+
+ - [[https://nakkaya.com/2017/02/15/bare-metal-lisp-rc-control-using-ferret/][Bare Metal Lisp - RC Control using Ferret]]
+ - [[http://nakkaya.com/2016/06/10/ferret-a-hard-real-time-clojure-for-lisp-machines/][Ferret - A Hard Real-Time Clojure for Lisp Machines]] -
+   Implementation of a line following robot in Ferret.
+
 ** Building From Sources
 
 All source code for the project is kept in a single =org-mode= file
@@ -491,6 +440,34 @@ A release can be made by running,
 This will compile =ferret= run unit tests against all supported
 compilers/frameworks and generate a =release/= folder containing
 deployment files.
+
+** License
+
+BSD 2-Clause License
+
+Copyright (c) 2019, Nurullah Akkaya
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+- Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+- Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 * Compiler
 

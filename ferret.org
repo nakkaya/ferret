@@ -3363,10 +3363,15 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     (let [m (new-d-list 0 (list 0 1)
                         1 (list 1 2))
           mr {:a 1 :b 2}
-          mn {1 2 3 4}]
+          mn {1 2 3 4}
+          packed-map (cxx "return d_list::into(obj<number>(1),
+                                               obj<number>(2),
+                                               obj<number>(3),
+                                               obj<number>(4));")]
 
-      (is (= {1 2}                         {1 2}))
       (is (not= mn                         {1 2}))
+      (is (= {1 2}                         {1 2}))
+      (is (= mn                            packed-map))
       (is (= (list 0 1)                    (keys m)))
       (is (= (list (list 0 1) (list 1 2))  (vals m)))
       (is (= (list 1 2)                    (m 1)))
@@ -3441,7 +3446,18 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
         
       return runtime::cons(new_keys,new_values);
     }
-    
+
+    inline static void into_aux(ref, ref){ }
+
+    template<typename... Args>
+    inline static void into_aux(ref keys, ref vals, ref key, ref val, Args... rest){
+      auto& _keys = var_array::to_reference(keys);
+      auto& _vals = var_array::to_reference(vals);
+      _keys[_keys.size() - (sizeof...(rest) / 2) - 1] = key;
+      _vals[_vals.size() - (sizeof...(rest) / 2) - 1] = val;
+      into_aux(keys, vals, rest...);
+    }
+
    public:
 
     type_t type() const final { return type_id<d_list>; }
@@ -3520,6 +3536,16 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
         return runtime::list();
       
       return obj<d_list>(runtime::cons(runtime::rest(_keys),runtime::rest(_values)));
+    }
+
+    template<typename... Args>
+    static inline var into(Args... rest){
+      var _keys = obj<var_array>(sizeof...(rest) / 2);
+      var _vals = obj<var_array>(sizeof...(rest) / 2);
+      into_aux(_keys, _vals, rest...);
+
+      return obj<d_list>(obj<var_array_seq>(_keys),
+                         obj<var_array_seq>(_vals));
     }
   };
 

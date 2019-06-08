@@ -2740,7 +2740,7 @@ traditional boolean values.
     if (!is_nil() && !other.is_nil()){
 
       if (runtime::is_seqable(*this) && runtime::is_seqable(other))
-        return get()->equals(other);
+        return seekable_i::equals(*this, other);
       else if (obj->type() != other.get()->type())
         return false;
       else
@@ -2951,10 +2951,6 @@ directly. count is O(n). conj puts the item at the front of the list.
 
     type_t type() const final { return type_id<sequence>; }
 
-    bool equals(ref o) const final {
-      return seekable_i::equals(var((object*)this), o);
-    }
-
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
       runtime::print('(');
@@ -3049,10 +3045,6 @@ cache their values unless forced using [[doall]].
   public:
 
     type_t type() const final { return type_id<lazy_sequence>; }
-
-    bool equals(ref o) const final {
-      return seekable_i::equals(var((object*)this), o);
-    }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
@@ -3175,10 +3167,6 @@ public:
 
   type_t type() const final { return type_id<array_seq>; }
 
-  bool equals(ref o) const final {
-    return seekable_i::equals(var((object*)this), o);
-  }
-
 #if !defined(FERRET_DISABLE_STD_OUT)
   void stream_console() const final {
     runtime::print('(');
@@ -3288,10 +3276,6 @@ public:
   explicit array_seq(var b, size_t p = 0) : pos(p), storage(b){ }
 
   type_t type() const final { return type_id<array_seq>; }
-
-  bool equals(ref o) const final {
-    return seekable_i::equals(var((object*)this), o);
-  }
 
 #if !defined(FERRET_DISABLE_STD_OUT)
   void stream_console() const final {
@@ -3461,10 +3445,6 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
    public:
 
     type_t type() const final { return type_id<d_list>; }
-
-    bool equals(ref o) const final {
-      return seekable_i::equals(var((object*)this), o);
-    }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
@@ -3693,10 +3673,6 @@ class string final : public object, public seekable_i {
 public:
 
   type_t type() const final { return type_id<string>; }
-
-  bool equals(ref other) const final {
-    return seekable_i::equals(var((object*)this), other);
-  }
 
 #if !defined(FERRET_DISABLE_STD_OUT)
   void stream_console() const final {

@@ -3566,9 +3566,7 @@ public:
 
   type_t type() const final { return type_id<keyword>; }
 
-  bool equals(ref o) const final {
-    return (hash == keyword::to<number_t>(o));
-  }
+  bool equals(ref o) const final { return (hash == o.cast<keyword>()->hash); }
 
 #if !defined(FERRET_DISABLE_STD_OUT)
   void stream_console() const final {
@@ -3589,10 +3587,6 @@ public:
     }
 
     return nil();
-  }
-
-  template<typename T> static T to(ref v){
-    return (T)v.cast<keyword>()->hash;
   }
 };
 #+end_src

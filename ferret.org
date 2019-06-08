@@ -3763,6 +3763,19 @@ template <> ::std::string string::to(ref str) {
   return std::string(string::c_str(packed));
 }
 #endif
+
+#ifdef FERRET_HARDWARE_ARDUINO
+template<>
+inline var obj<string>(String s) {
+  void * storage = FERRET_ALLOCATOR::allocate<string>();
+  return var(new(storage) string(s.c_str(), (number_t)s.length()));
+}
+
+template <> String string::to(ref str) {
+  var packed = string::pack(str);
+  return String(string::c_str(packed));
+}
+#endif
 #+end_src
 
 **** Atom

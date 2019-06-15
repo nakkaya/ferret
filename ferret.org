@@ -4092,16 +4092,14 @@ Implementations for the C++ Seekable API,
       return seq.cast<seekable_i>()->cons(x);
     }
 
-    var nth(ref seq, number_t n_index){
-      number_t index = 0;
-      
-      for_each(i, seq){
-       if (n_index == index)
-         return i;
-       index++;
-      }
+    var nth(ref seq, number_t index){
+      if (index < 0)
+        return nil();
 
-      return nil();
+      var ret = seq;
+      for(number_t i = 0; i < index; i++)
+        ret = rt::rest(ret);
+      return rt::first(ret);
     }
 
     var nthrest(ref seq, number_t index){

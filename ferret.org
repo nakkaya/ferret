@@ -1249,9 +1249,9 @@ defined, in the case of =println= it will pull =apply=, =print= and
 #+name: core-compiler-transformations
 #+begin_src clojure
   (defn escape-analysis [form]
-    (->> (escape-fn-calls form)
-         (escape-fn-dispatch)
-         (escape-fns)))
+    (->> form
+         (escape-fn-calls)
+         (escape-fn-inheritance)))
 #+end_src
 
 #+name: clojure-unit-tests
@@ -1279,42 +1279,62 @@ defined, in the case of =println= it will pull =apply=, =print= and
 
 ***** Function Calls
 
-By default Ferret assumes all functions can escape their scope and
-they are allocated on the heap. Functions proven to not escape their
-scope are replaced with stack allocated functions.
+Some function calls can be optimized away depending on the following
+heuristics. User programs has no access to dispatch functions used by
+multi-arity functions. They can be safely escaped and replaced by the
+stack allocated versions. If dispatch functions can be resolved in
+compile time they will be replaced. By default Ferret assumes all
+functions can escape their scope and they are allocated on the
+heap. Functions proven to not escape their scope are replaced with
+stack allocated functions.
 
 #+name: core-compiler-escape-analysis
 #+begin_src clojure
-  (defn escape-fn-calls [form]
-    (parser/transform form
-                      (fn [f]
-                        (and (seq? f)
-                             (parser/form? 'fir-fn-heap (first f))))
-                      (fn [f]
-                        (let [[[_ & fn] & args] f]
-                          `((~'fir-fn-stack ~@fn) ~@args)))))
+(defn escape-fn-calls [form]
+  (let [arity-table (parser/peek
+                     form
+                     (fn [f]
+                       (and (parser/form? 'fir-defn-heap f)
+                            (-> (parser/peek f (parser/form? 'fir-defn-arity))
+                                (empty?)
+                                (not )))))
+        arity-table (reduce
+                     (fn [h [_ name _ _ [_ dispatch]]]
+                       (assoc h name (reduce (fn[h [arity [_ call]]]
+                                               (assoc h arity call))
+                                             {} dispatch)))
+                     {} arity-table)]
+    (-> form
+        ;; resolve arity calls
+        (parser/transform
+         (parser/form? 'fir-defn-arity)
+         (fn [f]
+           (parser/transform f
+                             (parser/form? 'fir-fn-heap)
+                             (fn [[_ & f]]
+                               `(~'fir-fn-stack ~@f)))))
+        (parser/transform
+         (fn [f]
+           (and (seq? f)
+                (parser/form? 'fir-fn-heap (first f))
+                (arity-table (-> f first second))))
+         (fn [f]
+           (let [[[_ fn] & args] f
+                 dispatch ((arity-table fn) (count args))]
+             (if dispatch
+               `((~'fir-fn-heap ~dispatch) ~@args)
+               f))))
+        ;; resolve fn calls
+        (parser/transform
+         (fn [f]
+           (and (seq? f)
+                (parser/form? 'fir-fn-heap (first f))))
+         (fn [f]
+           (let [[[_ & fn] & args] f]
+             `((~'fir-fn-stack ~@fn) ~@args)))))))
 #+end_src
 
-***** Dispatch Functions
-
-User programs has no access to dispatch functions used by multi-arity
-functions. They can be safely escaped and replaced by the stack
-allocated versions.
-
-#+name: core-compiler-escape-analysis
-#+begin_src clojure
-  (defn escape-fn-dispatch [form]
-    (parser/transform
-     form
-     (parser/form? 'fir-defn-arity)
-     (fn [f]
-       (parser/transform f
-                         (parser/form? 'fir-fn-heap)
-                         (fn [[_ & f]]
-                           `(~'fir-fn-stack ~@f))))))
-#+end_src
-
-***** Function Classes
+***** Function Inheritance
 
 Each Ferret =fn= generates a corresponding C++ class that extends a
 Ferret Object. If a function can be proven to be only allocated on the
@@ -1324,7 +1344,7 @@ to inherit from a Ferret Object.
 
 #+name: core-compiler-escape-analysis
 #+begin_src clojure
-  (defn escape-fns [form]
+  (defn escape-fn-inheritance [form]
     (let [heap-fns (->> (parser/peek form (parser/form? 'fir-fn-heap))
                         (map second)
                         (into #{}))

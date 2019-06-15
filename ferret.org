@@ -4183,9 +4183,8 @@ Implementations for the C++ Seekable API,
         var invoke(ref) const final {
           if (is_empty(seq))
             return nil();
-          
-          var tail = obj<lazy_sequence>(obj<walk>(rt::rest(seq)), true);
-          return rt::cons(rt::first(seq), tail);
+
+          return obj<lazy_sequence>(rt::first(seq), obj<walk>(rt::rest(seq)), true);
         }
       };
 
@@ -4198,10 +4197,8 @@ Implementations for the C++ Seekable API,
       public:
         explicit seq(number_t l, number_t h) : low(l), high(h) { }
         var invoke(ref) const final {
-          if (low < high){
-            var tail = obj<lazy_sequence>(obj<seq>((low + 1), high));
-            return rt::cons(obj<number>(low), tail);
-          }
+          if (low < high)
+            return obj<lazy_sequence>(obj<number>(low), obj<seq>((low + 1), high));
           return nil();
         }
       };
@@ -4221,8 +4218,7 @@ Implementations for the C++ Seekable API,
           var head = fn.cast<lambda_i>()->
             invoke(rt::list(rt::first(seq)));
           var thunk = obj<walk>(fn, rt::rest(seq));
-          var tail = obj<lazy_sequence>(thunk);
-          return rt::cons(head, tail);
+          return obj<lazy_sequence>(head, thunk);
         }
       };
       return run(walk(fn, seq));
@@ -8816,10 +8812,8 @@ Returns a =lazy-seq= of tokens in =str= separated by =delimeter=.
          explicit seq(ref str = nil(), ref del = nil()) : s(str), d(del) { }
          var invoke(ref) const final {
            char* token = strtok(NULL, string::c_str(d));
-           if (token != nullptr){
-             var tail = obj<lazy_sequence>(obj<seq>(s, d));
-             return rt::cons(obj<string>(token), tail);
-           }
+           if (token != nullptr)
+             return obj<lazy_sequence>(obj<string>(token),obj<seq>(s, d));
            return nil();
          }
        };
@@ -8827,10 +8821,10 @@ Returns a =lazy-seq= of tokens in =str= separated by =delimeter=.
        char* token = strtok(string::c_str(packed_str), 
                             string::c_str(packed_delimeter)); 
 
-       if (token != nullptr){
-         var tail = obj<lazy_sequence>(obj<seq>(packed_str, packed_delimeter));
-         return rt::cons(obj<string>(token), tail);
-       }
+       if (token != nullptr)
+         return obj<lazy_sequence>(obj<string>(token),
+                                   obj<seq>(packed_str, packed_delimeter));
+
        return nil();"))
 #+end_src
 

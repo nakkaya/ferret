@@ -4045,21 +4045,25 @@ C++ API for the interface,
     template <typename... Args>
     var list(ref first, Args const & ... args);
 
-    bool is_empty(ref seq);
-    var first(ref seq);
-    var rest(ref seq);
-    var cons(ref x, ref seq);
-    var nth(ref seq, number_t index);
-    var nthrest(ref seq, number_t index);
-    size_t count(ref seq);
-    var doall(ref seq);
-    var range(number_t low, number_t high);
-    var map(var fn, var seq);
-    bool is_seqable(ref seq);
+    inline bool is_seqable(ref seq);
+    inline bool is_empty(ref seq);
+
+    inline var first(ref seq);
+    inline var rest(ref seq);
+    inline var cons(ref x, ref seq);
+
+    var nth(var seq, number_t index);
+    var nthrest(var seq, number_t index);
+
+    inline size_t count(ref seq);
+
+    inline var doall(ref seq);
+    inline var range(number_t low, number_t high);
+    inline var map(var fn, var seq);
   }
 
 #define for_each(x,xs) for(var _tail_ = rt::rest(xs), x = rt::first(xs);     \
-                           !_tail_.is_nil();                                           \
+                           !_tail_.is_nil();                                 \
                            x = rt::first(_tail_), _tail_ = rt::rest(_tail_))
 #+end_src
 
@@ -4068,62 +4072,68 @@ Implementations for the C++ Seekable API,
 #+name: runtime-native-implementations
 #+begin_src c++ :tangle no
   namespace runtime{
+    inline bool is_seqable(ref coll){
+      if(coll.cast<seekable_i>())
+        return true;
+      else
+        return false;
+    }
+
     inline bool is_empty(ref seq){
       if (seq.is_nil() || seq.is_type(type_id<empty_sequence>))
         return true;
       return false;
     }
 
-    var first(ref seq){
+    inline var first(ref seq){
       if (is_empty(seq))
         return nil();
       return seq.cast<seekable_i>()->first();
     }
 
-    var rest(ref seq){
+    inline var rest(ref seq){
       if (is_empty(seq))
         return nil();
       return seq.cast<seekable_i>()->rest();
     }
 
-    var cons(ref x, ref seq){
+    inline var cons(ref x, ref seq){
       if (is_empty(seq))
         return rt::list(x);
       return seq.cast<seekable_i>()->cons(x);
     }
 
-    var nth(ref seq, number_t index){
+    var nth(var seq, number_t index){
       if (index < 0)
         return nil();
 
-      var ret = seq;
       for(number_t i = 0; i < index; i++)
-        ret = rt::rest(ret);
-      return rt::first(ret);
+        seq = rt::rest(seq);
+      return rt::first(seq);
     }
 
-    var nthrest(ref seq, number_t index){
-      var ret = seq;
+    var nthrest(var seq, number_t index){
       for(number_t i = 0; i < index; i++)
-        ret = rt::rest(ret);
+        seq = rt::rest(seq);
 
-      if (ret.is_nil())
+      if (seq.is_nil())
         return rt::list(); 
 
-      return ret;
+      return seq;
     }
     
-    size_t count(ref seq){
+    inline size_t count(ref seq){
       size_t acc = 0;
 
-      for_each(v, seq){
-        (void)v;
+      for(var tail = rt::rest(seq);
+          !tail.is_nil();
+          tail = rt::rest(tail))
         acc++;
-      }
+
       return acc;
     }
 
-    var doall(ref seq){
+    inline var doall(ref seq){
       class walk : public lambda_i {
         var seq;
       public:
@@ -4140,7 +4150,7 @@ Implementations for the C++ Seekable API,
       return run(walk(seq));
     }
 
-    var range(number_t low, number_t high){
+    inline var range(number_t low, number_t high){
       class seq : public lambda_i {
         number_t low, high;
       public:
@@ -4156,7 +4166,7 @@ Implementations for the C++ Seekable API,
       return run(seq(low, high));
     }
 
-    var map(var fn, var seq){
+    inline var map(var fn, var seq){
       class walk : public lambda_i {
         var fn;
         var seq;
@@ -4174,13 +4184,6 @@ Implementations for the C++ Seekable API,
         }
       };
       return run(walk(fn, seq));
-    }
-
-    bool is_seqable(ref coll){
-      if(coll.cast<seekable_i>())
-        return true;
-      else
-        return false;
     }
   }
 #+end_src

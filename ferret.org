@@ -11432,6 +11432,20 @@ Valgrind options,
   (run-all-tests)
 #+end_src
 
+*** core/math.clj
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+
+  (run-all-tests)
+#+end_src
+
+*** core/control.clj
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/control.clj
+
+  (run-all-tests)
+#+end_src
+
 *** core/concurrency.clj
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/concurrency.clj

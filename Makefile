@@ -29,7 +29,8 @@ define static_check
 endef
 
 clean:
-	rm -rf resources/ src/ test/ project.clj bin/ docs/ release/ core*
+	@echo [clean]
+	@rm -rf resources/ src/ test/ project.clj bin/ docs/ release/ core*
 
 # tangle compiler
 project.clj: ferret.org

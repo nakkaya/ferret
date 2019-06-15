@@ -35,7 +35,7 @@ clean:
 # tangle compiler
 project.clj: ferret.org
 	@echo [tangle] ferret.org
-	@emacs -nw -Q --batch --eval \
+	@emacs --batch -nw -Q --eval \
 	"(progn                                                     \
            (require 'org)                                           \
            (require 'ob)                                            \
@@ -51,6 +51,7 @@ project.clj: ferret.org
            (org-babel-tangle))"
 
 # run low level unit tests and generate bin/ferret
+bin/ferret: export LEIN_SILENT = true
 bin/ferret: project.clj
 	@echo [build] bin/ferret
 	@mkdir -p bin/

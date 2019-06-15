@@ -33,7 +33,8 @@ clean:
 
 # tangle compiler
 project.clj: ferret.org
-	emacs -nw -Q --batch --eval \
+	@echo [tangle] ferret.org
+	@emacs -nw -Q --batch --eval \
 	"(progn                                                     \
            (require 'org)                                           \
            (require 'ob)                                            \
@@ -50,37 +51,46 @@ project.clj: ferret.org
 
 # run low level unit tests and generate bin/ferret
 bin/ferret: project.clj
-	mkdir -p bin/
-	lein uberjar
-	cat resources/jar-sh-header bin/target/ferret.jar > bin/ferret
-	chmod +x bin/ferret
-	mv bin/target/ferret.jar bin/ferret.jar
+	@echo [build] bin/ferret
+	@mkdir -p bin/
+	@lein uberjar
+	@cat resources/jar-sh-header bin/target/ferret.jar > bin/ferret
+	@chmod +x bin/ferret
+	@mv bin/target/ferret.jar bin/ferret.jar
 
 # tell make how to compile Ferret lisp to C++
 %.cpp: %.clj
-	bin/ferret -i $<
+	@echo [compile] $<
+	@bin/ferret -i $<
 
 %.cppcheck: %.cpp
-	$(call static_check,$<)
+	@echo [static-check] $@
+	@$(call static_check,$<)
 
 # each compiler/framework to be tested get an extensiton. 
 # i.e all cpp files compiled with g++ will have .gcc extension
 
 %.gcc: %.cpp %.cppcheck
-	g++ $(CPPFLAGS) $(CPP_SANITIZE_FLAGS) -x c++ $< -o $@
-	$@ 1 2
+	@echo [gcc] $<
+	@g++ $(CPPFLAGS) $(CPP_SANITIZE_FLAGS) -x c++ $< -o $@
+	@echo [run] $@
+	@$@ 1 2
 
 %.clang: %.cpp %.cppcheck
-	clang++ $(CPPFLAGS) -x c++ $< -o $@
-	valgrind --quiet --leak-check=full --error-exitcode=1 --track-origins=yes $@ 1 2
+	@echo [clang] $<
+	@clang++ $(CPPFLAGS) -x c++ $< -o $@
+	@echo [run] $@
+	@valgrind --quiet --leak-check=full --error-exitcode=1 --track-origins=yes $@ 1 2
 
 %.cxx: %.cpp %.cppcheck
-	$(CXX) $(CPPFLAGS) -x c++ $< -o $@
-	valgrind --quiet --leak-check=full --error-exitcode=1 --track-origins=yes ./$@ 1 2
+	@echo [compile] $<
+	@$(CXX) $(CPPFLAGS) -x c++ $< -o $@
+	@echo [run] $@
+	@valgrind --quiet --leak-check=full --error-exitcode=1 --track-origins=yes ./$@ 1 2
 
 %.ino: CPPCHECK_CONF=-DFERRET_HARDWARE_ARDUINO
 %.ino: %.cpp %.cppcheck
-	mv $< $@
+	@mv $< $@
 	arduino --verify --board arduino:avr:uno $@
 
 # list of unit tests to run againts the current build
@@ -116,7 +126,6 @@ ARDUINO_TESTS = test/arduino/blink/blink.clj              \
 # assign tests to compilers
 CLANG_OBJS = $(NATIVE_TESTS:.cpp=.clang)   $(CORE_TESTS:.clj=.clang)
 GCC_OBJS   = $(NATIVE_TESTS:.cpp=.gcc)     $(CORE_TESTS:.clj=.gcc)
-CXX_OBJS   = $(NATIVE_TESTS:.cpp=.cxx)     $(CORE_TESTS:.clj=.cxx)
 INO_OBJS   = $(ARDUINO_TESTS:.clj=.ino)
 
 test-compiler: project.clj

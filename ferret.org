@@ -3660,10 +3660,15 @@ interpreted as FFI calls.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
-  (defn new-string
-    ([& ss]
-     ((fn [s] "return obj<string>(s);")
-      (reduce (fn [h v] (concat h v)) ss))))
+(defn new-string
+  ([]
+   "")
+  ([x]
+   "return obj<string>(x);")
+  ([x y]
+   (new-string (concat x y)))
+  ([x y & more]
+   (new-string (concat x y) (apply concat more))))
 #+end_src
 
 #+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/string_o.h

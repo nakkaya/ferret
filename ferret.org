@@ -1291,19 +1291,23 @@ stack allocated functions.
 #+name: core-compiler-escape-analysis
 #+begin_src clojure
 (defn escape-fn-calls [form]
-  (let [arity-table (parser/peek
-                     form
-                     (fn [f]
-                       (and (parser/form? 'fir-defn-heap f)
-                            (-> (parser/peek f (parser/form? 'fir-defn-arity))
-                                (empty?)
-                                (not )))))
-        arity-table (reduce
-                     (fn [h [_ name _ _ [_ dispatch]]]
-                       (assoc h name (reduce (fn[h [arity [_ call]]]
-                                               (assoc h arity call))
-                                             {} dispatch)))
-                     {} arity-table)]
+  (let [arity (parser/peek
+               form
+               (fn [f]
+                 (and (parser/form? 'fir-defn-heap f)
+                      (-> (parser/peek f (parser/form? 'fir-defn-arity))
+                          (empty?)
+                          (not )))))
+        arity (reduce
+               (fn [h [_ name _ _ [_ dispatch [_ default]] :as form]]
+                 (let [jmp (if default
+                             {:default default}
+                             {})
+                       jmp (reduce (fn[h [arity [_ call]]]
+                                     (assoc h arity call))
+                                   jmp dispatch)]
+                   (assoc h name jmp)))
+               {} arity)]
     (-> form
         ;; resolve arity calls
         (parser/transform
@@ -1317,13 +1321,14 @@ stack allocated functions.
          (fn [f]
            (and (seq? f)
                 (parser/form? 'fir-fn-heap (first f))
-                (arity-table (-> f first second))))
+                (arity (-> f first second))))
          (fn [f]
            (let [[[_ fn] & args] f
-                 dispatch ((arity-table fn) (count args))]
-             (if dispatch
-               `((~'fir-fn-heap ~dispatch) ~@args)
-               f))))
+                 dispatch ((arity fn) (count args))
+                 default  ((arity fn) :default)]
+             (cond dispatch `((~'fir-fn-heap ~dispatch) ~@args)
+                   default  `((~'fir-fn-heap ~default)  ~@args)
+                   :default f))))
         ;; resolve fn calls
         (parser/transform
          (fn [f]

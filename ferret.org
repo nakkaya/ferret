@@ -1307,7 +1307,13 @@ stack allocated functions.
                                      (assoc h arity call))
                                    jmp dispatch)]
                    (assoc h name jmp)))
-               {} arity)]
+               {} arity)
+        arity-renames (reduce (fn [h [name jmps]]
+                                (reduce
+                                 (fn [h jump]
+                                   (assoc h jump (gensym (str name "__"))))
+                                 h (vals jmps)))
+                              {} arity)]
     (-> form
         ;; resolve arity calls
         (parser/transform
@@ -1329,6 +1335,12 @@ stack allocated functions.
              (cond dispatch `((~'fir-fn-heap ~dispatch) ~@args)
                    default  `((~'fir-fn-heap ~default)  ~@args)
                    :default f))))
+        (parser/transform
+         (fn [f]
+           (and (symbol? f)
+                (arity-renames f)))
+         (fn [f]
+           (arity-renames f)))
         ;; resolve fn calls
         (parser/transform
          (fn [f]

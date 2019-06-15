@@ -1655,8 +1655,8 @@ nodes of the program AST.
                     (map #(emit options % state))
                     (interpose \,))]
       (str "obj<map_t>("
-           "runtime::list(" (apply str keys) "),"
-           "runtime::list(" (apply str vals) "))")))
+           "rt::list(" (apply str keys) "),"
+           "rt::list(" (apply str vals) "))")))
 
   (defmethod emit :regex-pattern [options regex state]
     (emit options
@@ -1698,7 +1698,7 @@ bindings—things which functions cannot do.
     (let [elements  (->> (emit-ast options args state)
                          (interpose \,)
                          (apply str))]
-      (str "runtime::list(" elements ")")))
+      (str "rt::list(" elements ")")))
 
   (defmethod emit 'defobject [options [_ name & spec] state]
     (append-to! state [:objects] (defobject name spec options)))
@@ -1736,13 +1736,13 @@ with calls to native implementations resulting in much smaller code.
 #+name: core-compiler-emitter
 #+begin_src clojure :tangle no
   (defmethod emit 'fir_inline_list [options [_ & args] state]
-    (str "runtime::list(" (apply str (interpose \, (emit-ast options args state))) ")"))
+    (str "rt::list(" (apply str (interpose \, (emit-ast options args state))) ")"))
 
   (defmethod emit 'fir_inline_first [options [_ & seq] state]
-    (str "runtime::first(" (apply str (emit-ast options seq state)) ")"))
+    (str "rt::first(" (apply str (emit-ast options seq state)) ")"))
 
   (defmethod emit 'fir_inline_rest [options [_ & seq] state]
-    (str "runtime::rest(" (apply str (emit-ast options seq state)) ")"))
+    (str "rt::rest(" (apply str (emit-ast options seq state)) ")"))
 #+end_src
 
 *** Functions
@@ -1865,14 +1865,14 @@ is supported.
   (declare destructure-arguments)
 
   (defn destructure-nth-rest [parent pos]
-    (reduce (fn[h v] (str v "(" h ")")) parent (repeat pos "runtime::rest")))
+    (reduce (fn[h v] (str v "(" h ")")) parent (repeat pos "rt::rest")))
 
   (defn destructure-nth [parent pos]
-    (str "runtime::first(" (destructure-nth-rest parent pos) ")"))
+    (str "rt::first(" (destructure-nth-rest parent pos) ")"))
 
   (defn destructure-get [name parent key]
     (str "ref " name " = "
-         parent ".cast<map_t>()->val_at(runtime::list(" (emit nil key nil) "));"))
+         parent ".cast<map_t>()->val_at(rt::list(" (emit nil key nil) "));"))
 
   (defn new-fn-arg [name parent pos]
     (let [value (destructure-nth parent pos)
@@ -2001,7 +2001,7 @@ is supported.
                     (str (new-fn-stack default) ".invoke(_args_)")
                     "nil()")
           switch  (render-template
-                   "switch(runtime::count(_args_)) {
+                   "switch(rt::count(_args_)) {
                     $fns: {fn|
                       case $fn.case$ :
                          return $fn.fn$.invoke(_args_); };separator=\"\n\"$
@@ -2054,7 +2054,7 @@ namespace.)
  - Detect Hardware
  - Include files
  - Ferret Header (src/runtime/runtime.h)
- - Ferret Native Runtime Prototypes (runtime::first, runtime::rest
+ - Ferret Native Runtime Prototypes (rt::first, rt::rest
    etc.)
  - Native Declarations
  - Object Definitions
@@ -2515,9 +2515,9 @@ All our types are derived from the base Object type. Which is a
     
   #if !defined(FERRET_DISABLE_STD_OUT)
     virtual void stream_console() const {
-      runtime::print("var#");
+      rt::print("var#");
       const void* addr = this;
-      runtime::print(addr);
+      rt::print(addr);
     }
   #endif
     
@@ -2591,7 +2591,7 @@ count, when it reaches zero it will automatically free the object.
       if (obj != nullptr )
         obj->stream_console();
       else
-        runtime::print("nil");
+        rt::print("nil");
     }
   #endif
         
@@ -2706,9 +2706,9 @@ traditional boolean values.
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
       if (value)
-        runtime::print("true");
+        rt::print("true");
       else
-        runtime::print("false");
+        rt::print("false");
     }
   #endif
 
@@ -2739,7 +2739,7 @@ traditional boolean values.
 
     if (!is_nil() && !other.is_nil()){
 
-      if (runtime::is_seqable(*this) && runtime::is_seqable(other))
+      if (rt::is_seqable(*this) && rt::is_seqable(other))
         return seekable_i::equals(*this, other);
       else if (obj->type() != other.get()->type())
         return false;
@@ -2898,12 +2898,12 @@ fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
     type_t type() const final { return type_id<number>; }
 
     bool equals(ref o) const final {
-      return (runtime::abs(n - number::to<real_t>(o)) < real_epsilon);
+      return (rt::abs(n - number::to<real_t>(o)) < real_epsilon);
     }
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      runtime::print(n);
+      rt::print(n);
     }
   #endif
 
@@ -2933,7 +2933,7 @@ directly. count is O(n). conj puts the item at the front of the list.
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      runtime::print("()");
+      rt::print("()");
     }
   #endif
   };
@@ -2953,13 +2953,13 @@ directly. count is O(n). conj puts the item at the front of the list.
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      runtime::print('(');
+      rt::print('(');
       data.stream_console();
       for_each(i, next){
-        runtime::print(' ');
+        rt::print(' ');
         i.stream_console();
       }
-      runtime::print(')');
+      rt::print(')');
     }
   #endif
 
@@ -3015,7 +3015,7 @@ directly. count is O(n). conj puts the item at the front of the list.
     std::vector<var>::reverse_iterator rit;
     // cppcheck-suppress postfixOperator
     for(rit = v.rbegin(); rit != v.rend(); rit++)
-      ret = runtime::cons(*rit,ret);
+      ret = rt::cons(*rit,ret);
     return ret;
   }
   #endif
@@ -3049,17 +3049,17 @@ cache their values unless forced using [[doall]].
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
       var coll = var((object*)this);
-      var tail = runtime::rest(coll);
+      var tail = rt::rest(coll);
 
-      runtime::print('(');
+      rt::print('(');
       if (tail)
-        runtime::first(coll).stream_console();
+        rt::first(coll).stream_console();
 
       for_each(i, tail){
-        runtime::print(' ');
+        rt::print(' ');
         i.stream_console();
       }
-      runtime::print(')');
+      rt::print(')');
     }
   #endif
 
@@ -3083,14 +3083,14 @@ cache their values unless forced using [[doall]].
       if (cache){
         if (data.is_nil()){
           seq = run(thunk);
-          data = runtime::first(seq);
-          seq = runtime::rest(seq);
+          data = rt::first(seq);
+          seq = rt::rest(seq);
         }
 
         return data;
       }else{
         if (data.is_nil())
-          return runtime::first(run(thunk));
+          return rt::first(run(thunk));
 
         return data;
       }
@@ -3104,17 +3104,17 @@ cache their values unless forced using [[doall]].
           seq = run(thunk);
 
         if (seq.is_nil())
-          seq = runtime::list();
+          seq = rt::list();
 
         return seq;
       }else{
         var tail = run(thunk);
 
         if (data.is_nil())
-          return runtime::rest(tail);
+          return rt::rest(tail);
 
         if (tail.is_nil())
-          return runtime::list();
+          return rt::list();
 
         return tail;
       }
@@ -3137,7 +3137,7 @@ Creates a view of an array.
 #+name: ferret-unit-tests
 #+begin_src clojure
 (deftest dense-list-test
-  (is (= (cxx "return runtime::dense_list
+  (is (= (cxx "return rt::dense_list
                    (obj<number>(42), obj<number>(43));")
          (list 42 43))))
 #+end_src
@@ -3169,16 +3169,16 @@ public:
 
 #if !defined(FERRET_DISABLE_STD_OUT)
   void stream_console() const final {
-    runtime::print('(');
+    rt::print('(');
     var xs = var((object*) this);
 
-    runtime::first(xs).stream_console();
+    rt::first(xs).stream_console();
     
-    for_each(i, runtime::rest(xs)){
-      runtime::print(' ');
+    for_each(i, rt::rest(xs)){
+      rt::print(' ');
       i.stream_console();
     }
-    runtime::print(')');
+    rt::print(')');
   }
 #endif
 
@@ -3199,7 +3199,7 @@ public:
     if (pos < b.size() - 1)
       return obj<array_seq>(storage, pos + 1);
 
-    return runtime::list();
+    return rt::list();
   }
 };
 #+end_src
@@ -3279,16 +3279,16 @@ public:
 
 #if !defined(FERRET_DISABLE_STD_OUT)
   void stream_console() const final {
-    runtime::print('(');
+    rt::print('(');
     var xs = var((object*) this);
 
-    runtime::first(xs).stream_console();
+    rt::first(xs).stream_console();
 
-    for_each(i, runtime::rest(xs)){
-      runtime::print(' ');
+    for_each(i, rt::rest(xs)){
+      rt::print(' ');
       i.stream_console();
     }
-    runtime::print(')');
+    rt::print(')');
   }
 #endif
 
@@ -3309,7 +3309,7 @@ public:
     if (pos < b.size() - 1)
       return obj<array_seq>(storage, pos + 1);
 
-    return runtime::list();
+    return rt::list();
   }
 
   template<typename... Args>
@@ -3409,8 +3409,8 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     var data;
 
     var dissoc_aux(ref k) const {
-      ref _keys = runtime::first(data);
-      var _values = runtime::rest(data);
+      ref _keys = rt::first(data);
+      var _values = rt::rest(data);
 
       var new_keys;
       var new_values;
@@ -3418,12 +3418,12 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       for_each(i, _keys){
         if ( i == k)
           continue;
-        new_keys = runtime::cons(i, new_keys);
-        new_values = runtime::cons(runtime::first(_values), new_values);
-        _values = runtime::rest(_values);
+        new_keys = rt::cons(i, new_keys);
+        new_values = rt::cons(rt::first(_values), new_values);
+        _values = rt::rest(_values);
       }
         
-      return runtime::cons(new_keys,new_values);
+      return rt::cons(new_keys,new_values);
     }
     
    public:
@@ -3436,16 +3436,16 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     }
   #endif
 
-    explicit d_list() : data(runtime::list(runtime::list())) { }
+    explicit d_list() : data(rt::list(rt::list())) { }
     explicit d_list(ref l) : data(l) { }
     
     var assoc(ref k, ref v) const {
       ref map = dissoc_aux(k);
-      ref _keys = runtime::first(map);
-      ref _values = runtime::rest(map);
+      ref _keys = rt::first(map);
+      ref _values = rt::rest(map);
 
-      return obj<d_list>(runtime::cons(runtime::cons(k,_keys),
-                                       runtime::cons(v,_values)));
+      return obj<d_list>(rt::cons(rt::cons(k,_keys),
+                                       rt::cons(v,_values)));
     }
 
     var dissoc(ref k) const {
@@ -3453,17 +3453,17 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
     }
     
     var val_at(ref args) const {
-      ref key = runtime::first(args);
-      ref not_found = runtime::first(runtime::rest(args));
+      ref key = rt::first(args);
+      ref not_found = rt::first(rt::rest(args));
 
-      ref _keys = runtime::first(data);
-      var _values = runtime::rest(data);
+      ref _keys = rt::first(data);
+      var _values = rt::rest(data);
 
       for_each(i, _keys){
         if (key == i)
-          return runtime::first(_values);
+          return rt::first(_values);
 
-        _values = runtime::rest(_values);
+        _values = rt::rest(_values);
       }
       
       if (!not_found.is_nil()){
@@ -3477,36 +3477,36 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
       return val_at(args);
     }
 
-    var vals () const { return runtime::rest(data);}
-    var keys () const { return runtime::first(data);}
+    var vals () const { return rt::rest(data);}
+    var keys () const { return rt::first(data);}
 
     virtual seekable_i* cast_seekable_i() { return this; }
     
     var cons(ref v) final {
-      return runtime::list(v,data);
+      return rt::list(v,data);
     }
     
     var first() final {
-      ref _keys = runtime::first(data);
-      ref _values = runtime::rest(data);
-      return runtime::list(runtime::first(_keys),runtime::first(_values));
+      ref _keys = rt::first(data);
+      ref _values = rt::rest(data);
+      return rt::list(rt::first(_keys),rt::first(_values));
     }
     
     var rest() final {
-      ref _keys = runtime::first(data);
-      ref _values = runtime::rest(data);
+      ref _keys = rt::first(data);
+      ref _values = rt::rest(data);
 
-      if(runtime::rest(_keys).is_type(type_id<empty_sequence>))
-        return runtime::list();
+      if(rt::rest(_keys).is_type(type_id<empty_sequence>))
+        return rt::list();
       
-      return obj<d_list>(runtime::cons(runtime::rest(_keys),runtime::rest(_values)));
+      return obj<d_list>(rt::cons(rt::rest(_keys),rt::rest(_values)));
     }
   };
 
   template<>
   inline var obj<d_list>(var keys, var vals) {
     void * storage = FERRET_ALLOCATOR::allocate<d_list>();
-    return var(new(storage) d_list(runtime::cons(keys,vals)));
+    return var(new(storage) d_list(rt::cons(keys,vals)));
   }
 
   #if !defined(FERRET_MAP_TYPE)
@@ -3550,8 +3550,8 @@ public:
 
 #if !defined(FERRET_DISABLE_STD_OUT)
   void stream_console() const final {
-    runtime::print("keyword#");
-    runtime::print(hash);
+    rt::print("keyword#");
+    rt::print(hash);
   }
 #endif
 
@@ -3559,8 +3559,8 @@ public:
   explicit keyword(const char * str): hash(hash_key(str)) { }
 
   var invoke(ref args) const final {
-    ref map = runtime::first(args);
-    ref map_args = runtime::cons(var((object*)this), runtime::rest(args));
+    ref map = rt::first(args);
+    ref map_args = rt::cons(var((object*)this), rt::rest(args));
 
     if (map.is_type(type_id<map_t>)){
       return map.cast<map_t>()->val_at(map_args);
@@ -3652,11 +3652,11 @@ public:
   void stream_console() const final {
     var packed = string::pack(var((object*)this));
     char* str = string::c_str(packed);
-    runtime::print(str);
+    rt::print(str);
   }
 #endif
 
-  explicit string() : data(runtime::list()) {} 
+  explicit string() : data(rt::list()) {} 
 
   explicit string(ref s) : data(s) {}
 
@@ -3671,31 +3671,31 @@ public:
   virtual seekable_i* cast_seekable_i() { return this; }
 
   var cons(ref x) final {
-    return obj<string>(runtime::cons(x,data));
+    return obj<string>(rt::cons(x,data));
   }
 
   var first() final {
-    return runtime::first(data);
+    return rt::first(data);
   }
 
   var rest() final {
-    ref r = runtime::rest(data);
+    ref r = rt::rest(data);
 
     if (r.is_type(type_id<array_seq_t>))
-      if (runtime::first(r) == obj<number>(0))
-        return runtime::list();
+      if (rt::first(r) == obj<number>(0))
+        return rt::list();
 
     if (!r.is_type(type_id<empty_sequence>))
       return obj<string>(r);
 
-    return runtime::list();
+    return rt::list();
   }
 
   static var pack(ref s)  {
     if (s.cast<string>()->data.is_type(type_id<array_seq_t>))
       return s.cast<string>()->data;
 
-    size_t size = runtime::count(s);
+    size_t size = rt::count(s);
     var packed_array = obj<value<array_t>>(size + 1);
     auto& packed_data = value<array_t>::to_reference(packed_array).data;
 
@@ -3794,9 +3794,9 @@ or =reset!=. Changes to atoms are always free of race conditions.
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      runtime::print("atom<");
+      rt::print("atom<");
       data.stream_console();
-      runtime::print('>');
+      rt::print('>');
     }
   #endif
 
@@ -3804,7 +3804,7 @@ or =reset!=. Changes to atoms are always free of race conditions.
 
     var swap(ref f, ref args){
       lock_guard guard(lock);
-      data = f.cast<lambda_i>()->invoke(runtime::cons(data, args));
+      data = f.cast<lambda_i>()->invoke(rt::cons(data, args));
       return data;
     }
 
@@ -3906,9 +3906,9 @@ thread to =future=,
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      runtime::print("future<");
+      rt::print("future<");
       fn.stream_console();
-      runtime::print('>');
+      rt::print('>');
     }
   #endif
 
@@ -4021,10 +4021,10 @@ to iterate seekable containers.
 
     static bool equals(var lhs, var rhs) {
 
-      for(;;lhs = runtime::rest(lhs), rhs = runtime::rest(rhs)){
+      for(;;lhs = rt::rest(lhs), rhs = rt::rest(rhs)){
 
-        ref lf = runtime::first(lhs);
-        ref rf = runtime::first(rhs);
+        ref lf = rt::first(lhs);
+        ref rf = rt::first(rhs);
 
         if (lf.is_nil() && rf.is_nil())
           return true;
@@ -4058,9 +4058,9 @@ C++ API for the interface,
     bool is_seqable(ref seq);
   }
 
-#define for_each(x,xs) for(var _tail_ = runtime::rest(xs), x = runtime::first(xs);     \
+#define for_each(x,xs) for(var _tail_ = rt::rest(xs), x = rt::first(xs);     \
                            !_tail_.is_nil();                                           \
-                           x = runtime::first(_tail_), _tail_ = runtime::rest(_tail_))
+                           x = rt::first(_tail_), _tail_ = rt::rest(_tail_))
 #+end_src
 
 Implementations for the C++ Seekable API,
@@ -4088,7 +4088,7 @@ Implementations for the C++ Seekable API,
 
     var cons(ref x, ref seq){
       if (is_empty(seq))
-        return runtime::list(x);
+        return rt::list(x);
       return seq.cast<seekable_i>()->cons(x);
     }
 
@@ -4107,10 +4107,10 @@ Implementations for the C++ Seekable API,
     var nthrest(ref seq, number_t index){
       var ret = seq;
       for(number_t i = 0; i < index; i++)
-        ret = runtime::rest(ret);
+        ret = rt::rest(ret);
 
       if (ret.is_nil())
-        return runtime::list(); 
+        return rt::list(); 
 
       return ret;
     }
@@ -4134,8 +4134,8 @@ Implementations for the C++ Seekable API,
           if (is_empty(seq))
             return nil();
           
-          var tail = obj<lazy_sequence>(obj<walk>(runtime::rest(seq)), true);
-          return runtime::cons(runtime::first(seq), tail);
+          var tail = obj<lazy_sequence>(obj<walk>(rt::rest(seq)), true);
+          return rt::cons(rt::first(seq), tail);
         }
       };
 
@@ -4150,7 +4150,7 @@ Implementations for the C++ Seekable API,
         var invoke(ref) const final {
           if (low < high){
             var tail = obj<lazy_sequence>(obj<seq>((low + 1), high));
-            return runtime::cons(obj<number>(low), tail);
+            return rt::cons(obj<number>(low), tail);
           }
           return nil();
         }
@@ -4169,10 +4169,10 @@ Implementations for the C++ Seekable API,
             return nil();
 
           var head = fn.cast<lambda_i>()->
-            invoke(runtime::list(runtime::first(seq)));
-          var thunk = obj<walk>(fn, runtime::rest(seq));
+            invoke(rt::list(rt::first(seq)));
+          var thunk = obj<walk>(fn, rt::rest(seq));
           var tail = obj<lazy_sequence>(thunk);
-          return runtime::cons(head, tail);
+          return rt::cons(head, tail);
         }
       };
       return run(walk(fn, seq));
@@ -4228,7 +4228,7 @@ Function invocation,
 #+begin_src c++ :tangle no
   template<typename T, typename... Args>
   inline var run(T const & fn, Args const & ... args) {
-    return fn.invoke(runtime::list(args...));
+    return fn.invoke(rt::list(args...));
   }
 
   template<typename T>
@@ -4243,17 +4243,17 @@ Function invocation,
 
   template<typename... Args>
   inline var run(ref fn, Args const & ... args) {
-    return fn.cast<lambda_i>()->invoke(runtime::list(args...));
+    return fn.cast<lambda_i>()->invoke(rt::list(args...));
   }
 
   namespace runtime {
     inline var apply(ref f, ref argv){
-      if (runtime::rest(argv).is_type(type_id<empty_sequence>))
-        return f.cast<lambda_i>()->invoke(runtime::first(argv));
+      if (rt::rest(argv).is_type(type_id<empty_sequence>))
+        return f.cast<lambda_i>()->invoke(rt::first(argv));
 
       struct{
         var operator()(ref seq) const {
-          ref head = runtime::first(seq);
+          ref head = rt::first(seq);
 
           if (head.is_nil())
             return cached::empty_sequence_o;
@@ -4261,7 +4261,7 @@ Function invocation,
           if (head.cast<seekable_i>())
             return head;
 
-          return runtime::cons(head, (*this)(runtime::rest(seq)));
+          return rt::cons(head, (*this)(rt::rest(seq)));
         }
       } spread;
       
@@ -4793,7 +4793,7 @@ Helper functions for user defined allocators.
 
     template <typename... Ts>
     constexpr size_t max_sizeof() {
-      return runtime::max(sizeof(Ts)...);
+      return rt::max(sizeof(Ts)...);
     }
   }
 #+end_src 
@@ -6143,11 +6143,11 @@ right after =program::main()=.
     {     
       using namespace ferret;
       FERRET_ALLOCATOR::init();
-      runtime::init();
+      rt::init();
 
      #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_CLI_ARGS)
       for (int i = argc - 1; i > -1 ; i--)
-        _star_command_line_args_star_ =  runtime::cons(obj<string>(argv[i]),_star_command_line_args_star_);
+        _star_command_line_args_star_ =  rt::cons(obj<string>(argv[i]),_star_command_line_args_star_);
      #endif
 
       $file$::main();
@@ -6171,7 +6171,7 @@ procedure.
     void setup(){
       using namespace ferret;
       FERRET_ALLOCATOR::init();
-      runtime::init();
+      rt::init();
 
       #if defined(FERRET_PROGRAM_MAIN)
         $file$::main();
@@ -6351,7 +6351,7 @@ systems. Reverse is also possible, since all built in data structures
 are immutable you can freely call Ferret code from C++,
 
 #+begin_src c++
-  var alist = runtime::list(obj<number>(1),obj<number>(2),obj<number>(3));
+  var alist = rt::list(obj<number>(1),obj<number>(2),obj<number>(3));
 
   int sum = 0;
   for_each(it, alist){
@@ -6453,8 +6453,8 @@ applications.
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
   (defn = [& args]
-    "var curr = runtime::first(args);
-     for_each(it, runtime::rest(args)){
+    "var curr = rt::first(args);
+     for_each(it, rt::rest(args)){
       if (curr != it)
         return cached::false_o;
       curr = it;
@@ -6494,9 +6494,9 @@ Tests if 2 arguments are the same object.
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
 (defn < [& args]
-  "var a = runtime::first(args);
+  "var a = rt::first(args);
 
-   for_each(b, runtime::rest(args)){
+   for_each(b, rt::rest(args)){
     if (number::to<real_t>(a) >= number::to<real_t>(b))
       return cached::false_o;
     a = b;
@@ -6518,9 +6518,9 @@ Tests if 2 arguments are the same object.
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
 (defn > [& args]
-  "var a = runtime::first(args);
+  "var a = rt::first(args);
 
-   for_each(b, runtime::rest(args)){
+   for_each(b, rt::rest(args)){
     if (number::to<real_t>(a) <= number::to<real_t>(b))
       return cached::false_o;
     a = b;
@@ -6542,9 +6542,9 @@ Tests if 2 arguments are the same object.
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
 (defn >= [& args]
-  "var a = runtime::first(args);
+  "var a = rt::first(args);
 
-   for_each(b, runtime::rest(args)){
+   for_each(b, rt::rest(args)){
     if (number::to<real_t>(a) < number::to<real_t>(b))
       return cached::false_o;
     a = b;
@@ -6566,9 +6566,9 @@ Tests if 2 arguments are the same object.
 #+name: runtime-clojure-logical-operators
 #+begin_src clojure :tangle no
 (defn <= [& args]
-  "var a = runtime::first(args);
+  "var a = rt::first(args);
 
-   for_each(b, runtime::rest(args)){
+   for_each(b, rt::rest(args)){
     if (number::to<real_t>(a) > number::to<real_t>(b))
       return cached::false_o;
     a = b;
@@ -6852,7 +6852,7 @@ Returns =true= if =seq= has no items.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
 (defn empty? [seq]
-  "if(runtime::rest(seq).is_nil())
+  "if(rt::rest(seq).is_nil())
      return cached::true_o;
    return cached::false_o;")
 #+end_src
@@ -6870,7 +6870,7 @@ Return true if the =x= implements =seekable_i=.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
 (defn seqable? [coll]
-  "if (runtime::is_seqable(coll))
+  "if (rt::is_seqable(coll))
      return cached::true_o;
    return cached::false_o;")
 #+end_src
@@ -6891,7 +6891,7 @@ Returns a new seq where x is the first element and seq is the rest.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn cons [x seq] "return runtime::cons(x, seq);")
+  (defn cons [x seq] "return rt::cons(x, seq);")
 #+end_src
 
 *** first
@@ -6908,7 +6908,7 @@ Returns the first item in the collection.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn first [x]
-    "return runtime::first(x);")
+    "return rt::first(x);")
 #+end_src
 
 *** second
@@ -6924,7 +6924,7 @@ Returns the first item in the collection.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn second [x]
-    "return runtime::first(runtime::rest(x));")
+    "return rt::first(rt::rest(x));")
 #+end_src
 
 *** rest
@@ -6941,7 +6941,7 @@ Returns a possibly empty seq of the items after the first.
 
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
-  (defn rest [x] "return runtime::rest(x);")
+  (defn rest [x] "return rt::rest(x);")
 #+end_src
 
 *** nth
@@ -6961,7 +6961,7 @@ Returns the value at the index.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
 (defn nth [coll ^number_t index]
-  "return runtime::nth(coll,index);")
+  "return rt::nth(coll,index);")
 #+end_src
 
 *** nthrest
@@ -6979,7 +6979,7 @@ Returns the nth rest of coll, coll when n is 0.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn nthrest [coll ^number_t n]
-    "return runtime::nthrest(coll,n);")
+    "return rt::nthrest(coll,n);")
 #+end_src
 
 *** count
@@ -6996,7 +6996,7 @@ Returns the number of items in the collection. (count nil) returns
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-(defn count [s] "return obj<number>(runtime::count(s))")
+(defn count [s] "return obj<number>(rt::count(s))")
 #+end_src
 
 *** lazy-seq
@@ -7057,7 +7057,7 @@ Returns the number of items in the collection. (count nil) returns
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
   (defn map [f coll]
-    "return runtime::map(f, coll)")
+    "return rt::map(f, coll)")
 #+end_src
 
 *** reduce
@@ -7100,7 +7100,7 @@ Returns the number of items in the collection. (count nil) returns
   ([high]
    (range 0 high))
   ([^number_t low ^number_t high]
-   "return runtime::range(low, high)"))
+   "return rt::range(low, high)"))
 #+end_src
 
 *** take
@@ -7199,7 +7199,7 @@ first item for which (pred item) returns logical false.
   (defn drop-while-aux [p c]
     "__result = c;
      while(run(p,__result))
-       __result = runtime::rest(__result);")
+       __result = rt::rest(__result);")
 
   (defn drop-while [pred coll]
     (lazy-seq
@@ -7257,7 +7257,7 @@ arguments to =argv=.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
   (defn apply [f & argv]
-    "return runtime::apply(f,argv);")
+    "return rt::apply(f,argv);")
 #+end_src
 
 *** conj
@@ -7474,7 +7474,7 @@ one time.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no :noweb yes
-  (defn doall [s] "return runtime::doall(s)")
+  (defn doall [s] "return rt::doall(s)")
 #+end_src
 
 *** flatten
@@ -7596,11 +7596,11 @@ Subtracts nums and returns the result.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
 (defn - [& args]
-  "__result = runtime::first(args);
+  "__result = rt::first(args);
    real_t value = number::to<real_t>(__result);
    size_t count = 1;
 
-   for_each(i, runtime::rest(args)){
+   for_each(i, rt::rest(args)){
     value = (value - number::to<real_t>(i));
     count++;
    }
@@ -7649,11 +7649,11 @@ numerator divided by all of the denominators.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
 (defn / [& args]
-  "__result = runtime::first(args);
+  "__result = rt::first(args);
    real_t value = number::to<real_t>(__result);
    size_t count = 1;
 
-   for_each(i, runtime::rest(args)){
+   for_each(i, rt::rest(args)){
     value = (value / number::to<real_t>(i));
     count++;
    }
@@ -7697,8 +7697,8 @@ Returns the least of the nums.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
 (defn min [& args]
-  "__result = runtime::first(args);
-   for_each(i, runtime::rest(args))
+  "__result = rt::first(args);
+   for_each(i, rt::rest(args))
     if (number::to<real_t>(__result) > number::to<real_t>(i))
      __result = i;")
 #+end_src
@@ -7708,8 +7708,8 @@ Returns the greatest of the nums.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
 (defn max [& args]
-  "__result = runtime::first(args);
-   for_each(i, runtime::rest(args))
+  "__result = rt::first(args);
+   for_each(i, rt::rest(args))
     if (number::to<real_t>(__result) < number::to<real_t>(i))
      __result = i;")
 #+end_src
@@ -7792,7 +7792,7 @@ Clip (limit) the values in number.
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
 (defn clip [^number_t x ^number_t min ^number_t max]
-  "return obj<number>(runtime::max(runtime::min(max, x), min));")
+  "return obj<number>(rt::max(rt::min(max, x), min));")
 #+end_src
 
 *** bit-and
@@ -7933,7 +7933,7 @@ Split a number into bytes.
     "int16_t val = number::to<int16_t>(n);
      byte *p = (byte*)&val;
      for (int i = (sizeof(int16_t) -1); i >= 0; i--)
-       __result = runtime::cons(obj<number>((number_t)p[i]),__result);")
+       __result = rt::cons(obj<number>((number_t)p[i]),__result);")
 #+end_src
 
 Combine a list of bytes to a number.
@@ -7972,7 +7972,7 @@ Combine a list of bytes to a number.
      float val = number::to<float>(n);
      byte *p = (byte*)&val;
      for (int i = (sizeof(float) -1); i >= 0; i--)
-       __result = runtime::cons(obj<number>(p[i]),__result);")
+       __result = rt::cons(obj<number>(p[i]),__result);")
 #+end_src
 
 Combine a list of bytes to a number.
@@ -8472,8 +8472,8 @@ Port of Teensy elapsedMicros API,
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const {
-      runtime::print("micros#");
-      runtime::print(elapsed());
+      rt::print("micros#");
+      rt::print(elapsed());
     }
   #endif
 
@@ -8514,7 +8514,7 @@ statistics.
       real_t elapsed = timer.elapsed() / real_t(1000.0);
 
       #if defined(FERRET_BENCHMARK_VERBOSE)
-         runtime::println(elapsed);
+         rt::println(elapsed);
       #endif
 
       sum += elapsed;
@@ -8528,20 +8528,20 @@ statistics.
       real_t mean = (real_t)(sum / n);
       real_t stdev = (real_t)sqrt((sum_sq / n) - (mean * mean));
 
-      runtime::print(\"\\t mean: \");
-      runtime::println(mean);
+      rt::print(\"\\t mean: \");
+      rt::println(mean);
 
-      runtime::print(\"\\tstdev: \");
-      runtime::println(stdev);
+      rt::print(\"\\tstdev: \");
+      rt::println(stdev);
 
-      runtime::print(\"\\t  min: \");
-      runtime::println(min);
+      rt::print(\"\\t  min: \");
+      rt::println(min);
 
-      runtime::print(\"\\t  max: \");
-      runtime::println(max);
+      rt::print(\"\\t  max: \");
+      rt::println(max);
 
-      runtime::print(\"\\trange: \");
-      runtime::println((max - min));"))
+      rt::print(\"\\trange: \");
+      rt::println((max - min));"))
 #+end_src
 
 *** fn-throttler
@@ -8629,7 +8629,7 @@ class fn_throttler : public lambda_i {
 
     if (timer.is_elapsed(rate)){
       timer.reset();
-      return runtime::apply(fn, args);
+      return rt::apply(fn, args);
     }
     
     return nil();
@@ -8679,8 +8679,8 @@ and returns its value as a Ferret =number=.
      real_t factor = 1;
      real_t value = 0;
 
-     if (number::to<byte>(runtime::first(seq)) == '-'){
-       seq = runtime::rest(seq);
+     if (number::to<byte>(rt::first(seq)) == '-'){
+       seq = rt::rest(seq);
        factor = -1;
      }
 
@@ -8732,17 +8732,17 @@ Converts a Ferret =number= to a Ferret =string=,
      f = (f - n) + 10;
      for (int i = real_precision; i >= 1; i--){
         number_t ch = ((number_t)(f * ::pow(10, i)) % 10) + '0';
-        s = runtime::cons(obj<number>(ch), s);
+        s = rt::cons(obj<number>(ch), s);
      }
 
-     s = runtime::cons(obj<number>('.'), s);
+     s = rt::cons(obj<number>('.'), s);
 
      do {
-       s = runtime::cons(obj<number>(n % 10 + '0'), s);
+       s = rt::cons(obj<number>(n % 10 + '0'), s);
       } while ((n /= 10) > 0);
 
      if (sign < 0)
-       s = runtime::cons(obj<number>('-'), s);
+       s = rt::cons(obj<number>('-'), s);
 
      return obj<string>(s);")
 #+end_src
@@ -8775,7 +8775,7 @@ Returns a =lazy-seq= of tokens in =str= separated by =delimeter=.
            char* token = strtok(NULL, string::c_str(d));
            if (token != nullptr){
              var tail = obj<lazy_sequence>(obj<seq>(s, d));
-             return runtime::cons(obj<string>(token), tail);
+             return rt::cons(obj<string>(token), tail);
            }
            return nil();
          }
@@ -8786,7 +8786,7 @@ Returns a =lazy-seq= of tokens in =str= separated by =delimeter=.
 
        if (token != nullptr){
          var tail = obj<lazy_sequence>(obj<seq>(packed_str, packed_delimeter));
-         return runtime::cons(obj<string>(token), tail);
+         return rt::cons(obj<string>(token), tail);
        }
        return nil();"))
 #+end_src
@@ -9043,11 +9043,11 @@ Prints the object(s) to =STD_OUT=.
     (on "!defined(FERRET_DISABLE_STD_OUT)"
         "if (more.is_nil())
            return nil();
-         ref f = runtime::first(more);
+         ref f = rt::first(more);
          f.stream_console();
-         ref r = runtime::rest(more);
+         ref r = rt::rest(more);
          for_each(it, r){
-          runtime::print(' ');
+          rt::print(' ');
           it.stream_console();
          }
          return nil();"))
@@ -9061,7 +9061,7 @@ Same as print followed by (newline).
 #+begin_src clojure :tangle no
 (defn println [& more]
   (apply print more)
-  (cxx "runtime::print((char)0xA);"))
+  (cxx "rt::print((char)0xA);"))
 #+end_src
 
 *** get-char
@@ -9073,7 +9073,7 @@ Reads the next line from default I/O stream.
 #+begin_src clojure :tangle no
   (defn read-line []
     "char buf[FERRET_IO_STREAM_SIZE] = {0};
-     runtime::read_line(buf, FERRET_IO_STREAM_SIZE);
+     rt::read_line(buf, FERRET_IO_STREAM_SIZE);
      return obj<string>(buf);")
 #+end_src
 
@@ -9232,12 +9232,12 @@ files in a portable manner.
        struct dirent *dir;
        d = opendir(directory);
        if (d) {
-         __result = runtime::list();
+         __result = rt::list();
          while ((dir = readdir(d)) != NULL) {
            if (!strcmp(dir->d_name, \".\") || !strcmp(dir->d_name, \"..\")){
              continue;
            }
-           __result = runtime::cons(obj<string>(dir->d_name), __result);
+           __result = rt::cons(obj<string>(dir->d_name), __result);
          }
          closedir(d);
         }
@@ -9619,11 +9619,11 @@ other members of the group and port.
 
   #if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      runtime::print("multicast_socket<");
-      runtime::print(ip);
-      runtime::print(' ');
-      runtime::print(port);
-      runtime::print('>');
+      rt::print("multicast_socket<");
+      rt::print(ip);
+      rt::print(' ');
+      rt::print(port);
+      rt::print('>');
     }
   #endif
 
@@ -9650,7 +9650,7 @@ other members of the group and port.
       var buffer = obj<value<datagram_t>>(max_data_gram_size);
       number_t read = (number_t)net.recv(src_addr, value<datagram_t>::to_reference(buffer));
 
-      return runtime::list(obj<number>(read), buffer);
+      return rt::list(obj<number>(read), buffer);
     }
   };
 #+end_src
@@ -9877,7 +9877,7 @@ public:
     else
       value = state;
 
-    var next = transitions.cast<lambda_i>()->invoke(runtime::list(state));
+    var next = transitions.cast<lambda_i>()->invoke(rt::list(state));
 
     if (next.is_nil())
       next = state;
@@ -10031,7 +10031,7 @@ Ported from,
 
       // If continuous is set to true allow wrap around
       if (continuous) {
-        if (runtime::abs(error) > ((maximum_input - minimum_input) / real_t(2))) {
+        if (rt::abs(error) > ((maximum_input - minimum_input) / real_t(2))) {
           if (error > real_t(0)) {
             error = (error - maximum_input) + minimum_input;
           } else {
@@ -10099,7 +10099,7 @@ Ported from,
           ->set_setpoint(run(setpoint_fn));
       
       return var((object*)this).cast<pid_controller<T>>()
-        ->step(runtime::first(args));
+        ->step(rt::first(args));
     }
   };
 
@@ -10166,7 +10166,7 @@ moving average of the last K samples by setting the value of alpha to
 
     var invoke(ref args) const final {
       return var((object*)this).cast<moving_average_filter<T>>()
-        ->step(number::to<T>(runtime::first(args)));
+        ->step(number::to<T>(rt::first(args)));
     }
   };
 #+end_src
@@ -10572,8 +10572,8 @@ Bindings for Arduino core for ESP32 WiFi chip.
     if (var params = run(opts, obj<keyword>(1313))){
        url += \"?\";
        for_each(param, params){
-          auto key = string::to<String>(runtime::first(param));
-          auto val = string::to<String>(runtime::first(runtime::rest(param)));
+          auto key = string::to<String>(rt::first(param));
+          auto val = string::to<String>(rt::first(rt::rest(param)));
           url += key + \"=\"+ val + \"&\";
        }
     }
@@ -10586,7 +10586,7 @@ Bindings for Arduino core for ESP32 WiFi chip.
       data = obj<string>(http.getString().c_str());
 
     http.end();
-    return runtime::list(obj<number>(http_status), data);"))
+    return rt::list(obj<number>(http_status), data);"))
 
 (defn http-post
   ([url]
@@ -10598,8 +10598,8 @@ Bindings for Arduino core for ESP32 WiFi chip.
     //check :headers
     if (var headers = run(opts, obj<keyword>(790))){
        for_each(header, headers){
-          auto key = string::to<String>(runtime::first(header));
-          auto val = string::to<String>(runtime::first(runtime::rest(header)));
+          auto key = string::to<String>(rt::first(header));
+          auto val = string::to<String>(rt::first(rt::rest(header)));
           http.addHeader(key,val);
        }
     }
@@ -10611,7 +10611,7 @@ Bindings for Arduino core for ESP32 WiFi chip.
       data = obj<string>(http.getString().c_str());
 
     http.end();
-    return runtime::list(obj<number>(http_status), data);"))
+    return rt::list(obj<number>(http_status), data);"))
 #+end_src
 
 ** Testing
@@ -11255,6 +11255,8 @@ Valgrind options,
   <<runtime-native-hardware-setup>>
 
   namespace ferret{
+    namespace runtime {}
+    namespace rt = runtime;
     // Types
     <<runtime-native-type>>
     // Concurrency

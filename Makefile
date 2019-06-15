@@ -48,7 +48,7 @@ project.clj: ferret.org
             (org-babel-do-load-languages                            \
               'org-babel-load-languages '((shell . t))))            \
            (find-file \"ferret.org\")                               \
-           (org-babel-tangle))"
+           (org-babel-tangle))" 2>&1 >/dev/null | grep 'Tangle'
 
 # run low level unit tests and generate bin/ferret
 bin/ferret: export LEIN_SILENT = true

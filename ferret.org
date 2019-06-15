@@ -9889,10 +9889,15 @@ DSL,
      (setup  exec))))
 
 (deftest fsm-test
-  (is (= (list :off :on :off :on)
-         (repeatedly 4 light-switch)))
-  (is (= (list :setup :exec :exec :exec)
-         (repeatedly 4 inf-loop))))
+  (is (= :off (light-switch)))
+  (is (= :on  (light-switch)))
+  (is (= :off (light-switch)))
+  (is (= :on  (light-switch)))
+
+  (is (= :setup (inf-loop)))
+  (is (= :exec  (inf-loop)))
+  (is (= :exec  (inf-loop)))
+  (is (= :exec  (inf-loop))))
 #+end_src
 
 Each transition takes a list of =fn=, =state= pairs, first function that

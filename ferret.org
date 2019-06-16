@@ -4078,11 +4078,12 @@ C++ API for the interface,
     var list(ref first, Args const & ... args);
 
     inline bool is_seqable(ref seq);
-    inline bool is_empty(ref seq);
 
     inline var first(ref seq);
     inline var rest(ref seq);
     inline var cons(ref x, ref seq);
+
+    inline bool is_empty(ref seq);
 
     var nth(var seq, number_t index);
     var nthrest(var seq, number_t index);
@@ -4111,28 +4112,28 @@ Implementations for the C++ Seekable API,
         return false;
     }
 
-    inline bool is_empty(ref seq){
-      if (seq.is_nil() || seq.is_type(type_id<empty_sequence>))
-        return true;
-      return false;
-    }
-
     inline var first(ref seq){
-      if (is_empty(seq))
+      if (seq.is_nil() || seq.is_type(type_id<empty_sequence>))
         return nil();
       return seq.cast<seekable_i>()->first();
     }
 
     inline var rest(ref seq){
-      if (is_empty(seq))
+      if (seq.is_nil() || seq.is_type(type_id<empty_sequence>))
         return nil();
       return seq.cast<seekable_i>()->rest();
     }
 
     inline var cons(ref x, ref seq){
-      if (is_empty(seq))
+      if (seq.is_nil() || seq.is_type(type_id<empty_sequence>))
         return rt::list(x);
       return seq.cast<seekable_i>()->cons(x);
+    }
+
+    inline bool is_empty(ref seq){
+      if (rt::rest(seq).is_nil())
+        return true;
+      return false;
     }
 
     var nth(var seq, number_t index){
@@ -6881,7 +6882,7 @@ Returns =true= if =seq= has no items.
 #+name: runtime-clojure-sequence
 #+begin_src clojure :tangle no
 (defn empty? [seq]
-  "if(rt::rest(seq).is_nil())
+  "if(rt::is_empty(seq))
      return cached::true_o;
    return cached::false_o;")
 #+end_src

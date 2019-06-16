@@ -3067,7 +3067,7 @@ Ferret supports lazily evaluated sequences. This means that sequence
 elements are not available ahead of time and produced as the result of
 a computation. The computation is performed as needed when lazy
 sequence is iterated. By default Ferret =lazy_sequence=s does not
-cache their values unless forced using [[doall]].
+cache their values unless forced using =lazy-seq-cache=.
 
 #+name: runtime-clojure-objects
 #+begin_src clojure :tangle no
@@ -3147,6 +3147,23 @@ public:
       return rt::list();
 
     return tail;
+  }
+
+  static var from(ref seq) {
+    class walk : public lambda_i {
+      var seq;
+    public:
+      explicit walk(ref s) : seq(s) { }
+      var invoke(ref) const final {
+        var tail = rt::rest(seq);
+        if (tail.is_nil())
+          return nil();
+
+        return obj<lazy_sequence>(rt::first(seq), obj<walk>(tail), true);
+      }
+    };
+
+    return obj<lazy_sequence>(obj<walk>(seq), true);
   }
 };
 #+end_src
@@ -4088,7 +4105,6 @@ C++ API for the interface,
 
     inline size_t count(ref seq);
 
-    inline var doall(ref seq);
     inline var range(number_t low, number_t high);
   }
 
@@ -4155,23 +4171,6 @@ Implementations for the C++ Seekable API,
         acc++;
 
       return acc;
-    }
-
-    inline var doall(ref seq) {
-      class walk : public lambda_i {
-        var seq;
-      public:
-        explicit walk(ref s) : seq(s) { }
-        var invoke(ref) const final {
-          var tail = rt::rest(seq);
-          if (tail.is_nil())
-            return nil();
-
-          return obj<lazy_sequence>(rt::first(seq), obj<walk>(tail), true);
-        }
-      };
-
-      return obj<lazy_sequence>(obj<walk>(seq), true);
     }
 
     inline var range(number_t low, number_t high){
@@ -7025,6 +7024,9 @@ Returns the number of items in the collection. (count nil) returns
 
 (defmacro lazy-seq [& body]
   `(new-lazy-seq (fn [] ~@body)))
+
+(defn lazy-seq-cache [seq]
+  "return lazy_sequence::from(seq);")
 #+end_src
 
 *** map
@@ -7331,7 +7333,7 @@ returns logical =true=.
   (is (= 1 (first (repeatedly 3 (fn [] 1)))))
   (is (= 3 (count (repeatedly 3 (fn [] 1)))))
 
-  (is (= 3 (count (doall (repeatedly 3 (fn [] 1))))))
+  (is (= 3 (count (lazy-seq-cache (repeatedly 3 (fn [] 1))))))
   
   (is (= 2 (->> (repeatedly 3 (fn [] 1))
                 (map inc)
@@ -7343,7 +7345,7 @@ returns logical =true=.
                 reverse
                 first)))
 
-  (let [xs (doall (repeatedly #(rand)))]
+  (let [xs (lazy-seq-cache (repeatedly #(rand)))]
     (is (= (take 5 xs) (take 5 xs)))))
 #+end_src
 
@@ -7448,20 +7450,6 @@ Returns a lazy seq of the first item in each coll, then the second etc.
                (seqable? s2))
       (cons (first s1) (cons (first s2)
                              (interleave (rest s1) (rest s2))))))))
-#+end_src
-
-*** doall
-
-When lazy sequences are produced via functions that have side effects,
-any effects other than those needed to produce the first element in
-the seq do not occur until the seq is consumed. doall can be used to
-force any effects. Walks through the successive nexts of the seq, and
-caches the result, thus causing the entire seq to reside in memory at
-one time.
-
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no :noweb yes
-  (defn doall [s] "return rt::doall(s)")
 #+end_src
 
 *** flatten

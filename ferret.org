@@ -6739,8 +6739,7 @@ body with binding-form bound to the value of test.
       (swap! lst rest)
       (swap! acc conj item))
 
-    (is (empty? @lst))
-    (is (not (empty? @acc)))
+    (is (= (list ) @lst))
     (is (= (list 5 4 3 2 1) @acc))))
 #+end_src
 
@@ -6865,24 +6864,6 @@ Returns true if =x= implements [[Sequence]].
 #+begin_src clojure :tangle no
 (defn list? [x]
   "if (x.is_type(type_id<sequence>))
-     return cached::true_o;
-   return cached::false_o;")
-#+end_src
-
-*** empty?
-
-Returns =true= if =seq= has no items.
-
-#+name: ferret-unit-test-sequence
-#+begin_src clojure :tangle no
-(deftest empty?-test
-  (is (empty? (list ))))
-#+end_src
-
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
-(defn empty? [seq]
-  "if(rt::is_empty(seq))
      return cached::true_o;
    return cached::false_o;")
 #+end_src
@@ -7048,7 +7029,7 @@ Returns the number of items in the collection. (count nil) returns
     (cons b (fib-seq b (+ a b))))))
 
 (deftest lazy-seq-test
-  (is (empty? (lazy-seq )))
+  (is (= 0 (count (lazy-seq ))))
   (is (= (list 1 2)  (cons 1 (cons 2 (lazy-seq )))))
 
   (is (= 10    (first (ints-from 10))))
@@ -7243,7 +7224,7 @@ first item for which (pred item) returns logical false.
   (let [a-list (concat (list 1 2 3) (list 4 5 6))
         b-list (concat (list 1 2 3) (list 4 5 6) (list 7 8 9))]
 
-    (is (empty?   (concat)))
+    (is (= 0      (count (concat ))))
     (is (= 1      (first a-list)))
     (is (= 4      (first (drop 3 a-list))))
     (is (= 21     (reduce + a-list)))
@@ -7346,8 +7327,9 @@ returns logical =true=.
                  (filter (fn [x] (not (false? x))))
                  (count ))))
 
-  (is (empty?  (->> (list false false)
-                    (filter true?)))))
+  (is (= 0  (->> (list false false)
+                 (filter true?)
+                 (count)))))
 #+end_src
 
 #+name: runtime-clojure-core
@@ -9235,8 +9217,7 @@ files in a portable manner.
 (assert (false? (f/exists "dummy_file.clj")))
 
 (assert (true?  (f/mkdir "src/dummy_directory")))
-(assert (true?  (and (seqable? (f/seq "src/dummy_directory"))
-                     (empty?   (f/seq "src/dummy_directory")))))
+(assert (true?  (seqable? (f/seq "src/dummy_directory"))))
 (assert (false? (f/mkdir "src")))
 
 (assert (= (list ) (f/open-dir "src/dummy_directory")))
@@ -9299,7 +9280,7 @@ files in a portable manner.
 
 (defn seq-flat [s]
   (lazy-seq
-   (if (not (empty? s))
+   (if (seqable? s)
      (let [[head & tail] s]
        (if (not (string? head))
          (concat (seq-flat head) (seq-flat tail))

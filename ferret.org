@@ -7182,10 +7182,11 @@ Returns the number of items in the collection. (count nil) returns
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn take-while [pred s]
-    (if (and (not (empty? s))
-             (pred (first s)))
-      (cons (first s) (lazy-seq (take-while pred (rest s))))))
+(defn take-while [pred s]
+  (lazy-seq
+   (if (and (seqable? s)
+            (pred (first s)))
+     (cons (first s) (take-while pred (rest s))))))
 #+end_src
 
 *** drop
@@ -7204,11 +7205,8 @@ Returns a lazy sequence of all but the first n items in coll.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn drop [n coll]
-    (if (and (pos? n)
-             (not (empty? coll)))
-      (drop (dec n) (rest coll))
-      coll))
+(defn drop [^number_t n coll]
+  "return rt::nthrest(coll, n);")
 #+end_src
 
 *** drop-while
@@ -7484,13 +7482,13 @@ Returns a lazy seq of the first item in each coll, then the second etc.
 
 #+name: runtime-clojure-core
 #+begin_src clojure
-  (defn interleave
-    ([s1 s2]
-     (lazy-seq
-      (when (and (not (empty? s1))
-                 (not (empty? s2)))
-        (cons (first s1) (cons (first s2) 
-                               (interleave (rest s1) (rest s2))))))))    
+(defn interleave
+  ([s1 s2]
+   (lazy-seq
+    (when (and (seqable? s1)
+               (seqable? s2))
+      (cons (first s1) (cons (first s2)
+                             (interleave (rest s1) (rest s2))))))))
 #+end_src
 
 *** doall
@@ -7523,7 +7521,7 @@ sequence.
 #+begin_src clojure :tangle no :noweb yes
 (defn flatten [s]
   (lazy-seq
-   (if (not (empty? s))
+   (if (seqable? s)
      (if (seqable? (first s))
        (concat (flatten (first s)) (flatten (rest s)))
        (cons (first s) (flatten (rest s)))))))

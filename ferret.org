@@ -2988,17 +2988,11 @@ directly. count is O(n). conj puts the item at the front of the list.
 
     type_t type() const final { return type_id<sequence>; }
 
-  #if !defined(FERRET_DISABLE_STD_OUT)
+#if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      rt::print('(');
-      data.stream_console();
-      for_each(i, next){
-        rt::print(' ');
-        i.stream_console();
-      }
-      rt::print(')');
+      seekable_i::stream_console(var((object*)this));
     }
-  #endif
+#endif
 
     explicit sequence(ref d = nil(), ref n = nil()) : next(n), data(d) {} 
 
@@ -3083,22 +3077,11 @@ cache their values unless forced using [[doall]].
 
     type_t type() const final { return type_id<lazy_sequence>; }
 
-  #if !defined(FERRET_DISABLE_STD_OUT)
+#if !defined(FERRET_DISABLE_STD_OUT)
     void stream_console() const final {
-      var coll = var((object*)this);
-      var tail = rt::rest(coll);
-
-      rt::print('(');
-      if (tail)
-        rt::first(coll).stream_console();
-
-      for_each(i, tail){
-        rt::print(' ');
-        i.stream_console();
-      }
-      rt::print(')');
+      seekable_i::stream_console(var((object*)this));
     }
-  #endif
+#endif
 
     explicit lazy_sequence(ref t, bool c = false) : cache(c), thunk(t) {} 
     explicit lazy_sequence(ref d, ref t, bool c = false) : cache(c), thunk(t), data(d) {} 
@@ -3205,18 +3188,9 @@ public:
   type_t type() const final { return type_id<array_seq>; }
 
 #if !defined(FERRET_DISABLE_STD_OUT)
-  void stream_console() const final {
-    rt::print('(');
-    var xs = var((object*) this);
-
-    rt::first(xs).stream_console();
-    
-    for_each(i, rt::rest(xs)){
-      rt::print(' ');
-      i.stream_console();
+    void stream_console() const final {
+      seekable_i::stream_console(var((object*)this));
     }
-    rt::print(')');
-  }
 #endif
 
   virtual seekable_i* cast_seekable_i() { return this; }
@@ -3315,18 +3289,9 @@ public:
   type_t type() const final { return type_id<array_seq>; }
 
 #if !defined(FERRET_DISABLE_STD_OUT)
-  void stream_console() const final {
-    rt::print('(');
-    var xs = var((object*) this);
-
-    rt::first(xs).stream_console();
-
-    for_each(i, rt::rest(xs)){
-      rt::print(' ');
-      i.stream_console();
+    void stream_console() const final {
+      seekable_i::stream_console(var((object*)this));
     }
-    rt::print(')');
-  }
 #endif
 
   virtual seekable_i* cast_seekable_i() { return this; }
@@ -4060,6 +4025,22 @@ to iterate seekable containers.
     virtual var cons(ref x) = 0;
     virtual var first() = 0;
     virtual var rest() = 0;
+
+#if !defined(FERRET_DISABLE_STD_OUT)
+    static void stream_console(ref coll) {
+      var tail = rt::rest(coll);
+
+      rt::print('(');
+      if (tail)
+        rt::first(coll).stream_console();
+
+      for_each(i, tail){
+        rt::print(' ');
+        i.stream_console();
+      }
+      rt::print(')');
+    }
+#endif
 
     static bool equals(var lhs, var rhs) {
 

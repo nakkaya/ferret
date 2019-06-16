@@ -4083,8 +4083,6 @@ C++ API for the interface,
     inline var rest(ref seq);
     inline var cons(ref x, ref seq);
 
-    inline bool is_empty(ref seq);
-
     var nth(var seq, number_t index);
     var nthrest(var seq, number_t index);
 
@@ -4104,7 +4102,7 @@ Implementations for the C++ Seekable API,
 
 #+name: runtime-native-implementations
 #+begin_src c++ :tangle no
-  namespace runtime{
+  namespace runtime {
     inline bool is_seqable(ref coll){
       if(coll.cast<seekable_i>())
         return true;
@@ -4128,12 +4126,6 @@ Implementations for the C++ Seekable API,
       if (seq.is_nil() || seq.is_type(type_id<empty_sequence>))
         return rt::list(x);
       return seq.cast<seekable_i>()->cons(x);
-    }
-
-    inline bool is_empty(ref seq){
-      if (rt::rest(seq).is_nil())
-        return true;
-      return false;
     }
 
     var nth(var seq, number_t index){
@@ -4166,20 +4158,21 @@ Implementations for the C++ Seekable API,
       return acc;
     }
 
-    inline var doall(ref seq){
+    inline var doall(ref seq) {
       class walk : public lambda_i {
         var seq;
       public:
         explicit walk(ref s) : seq(s) { }
         var invoke(ref) const final {
-          if (is_empty(seq))
+          var tail = rt::rest(seq);
+          if (tail.is_nil())
             return nil();
 
-          return obj<lazy_sequence>(rt::first(seq), obj<walk>(rt::rest(seq)), true);
+          return obj<lazy_sequence>(rt::first(seq), obj<walk>(tail), true);
         }
       };
 
-      return run(walk(seq));
+      return obj<lazy_sequence>(obj<walk>(seq), true);
     }
 
     inline var range(number_t low, number_t high){
@@ -4193,26 +4186,27 @@ Implementations for the C++ Seekable API,
           return nil();
         }
       };
-      return run(seq(low, high));
+      return obj<lazy_sequence>(obj<seq>(low, high));
     }
 
-    inline var map(var fn, var seq){
+    inline var map(var fn, var seq) {
       class walk : public lambda_i {
         var fn;
         var seq;
       public:
         explicit walk(var f, var c) : fn(f), seq(c) { }
         var invoke(ref) const final {
-          if (is_empty(seq))
+          var tail = rt::rest(seq);
+          if (tail.is_nil())
             return nil();
 
           var head = fn.cast<lambda_i>()->
             invoke(rt::list(rt::first(seq)));
-          var thunk = obj<walk>(fn, rt::rest(seq));
+          var thunk = obj<walk>(fn, tail);
           return obj<lazy_sequence>(head, thunk);
         }
       };
-      return run(walk(fn, seq));
+      return obj<lazy_sequence>(obj<walk>(fn, seq));
     }
   }
 #+end_src

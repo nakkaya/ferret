@@ -3001,22 +3001,27 @@ directly. count is O(n). conj puts the item at the front of the list.
     var cons(ref x) final {
       return obj<sequence>(x, var(this));
     }
+
     var first() final {
       return data;
     }
+
     var rest() final {
       return next;
     }
+
     template <typename T>
     static T to(ref){
       T::unimplemented_function;
     }
+
     template <typename T>
     static var from(T){
       T::unimplemented_function; return nil();
     }
 
   };
+
   namespace runtime {
     inline var list() { 
       return cached::empty_sequence_o;

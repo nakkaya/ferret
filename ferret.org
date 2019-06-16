@@ -7162,11 +7162,12 @@ Returns the number of items in the collection. (count nil) returns
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn take [n coll]
-    (if (not (empty? coll))
-      (if (> n 0)
-        (cons (first coll)
-              (lazy-seq (take (- n 1) (rest coll)))))))
+(defn take [n coll]
+  (lazy-seq
+   (if (seqable? coll)
+     (if (> n 0)
+       (cons (first coll)
+             (take (- n 1) (rest coll)))))))
 #+end_src
 
 *** take-while
@@ -7231,11 +7232,7 @@ first item for which (pred item) returns logical false.
 
   (defn drop-while [pred coll]
     (lazy-seq
-     (drop-while-aux
-         (fn [c]
-           (and (not (empty? c))
-                (pred (first c))))
-       coll)))
+     (drop-while-aux #(and (seqable? %) (pred (first %))) coll)))
 #+end_src
 
 *** concat
@@ -7259,10 +7256,10 @@ first item for which (pred item) returns logical false.
   ([]
    (list))
   ([x]
-   (if (not (empty? x))
+   (if (seqable? x)
      (cons (first x) (lazy-seq (concat (rest x))))))
   ([x y]
-   (if (not (empty? x))
+   (if (seqable? x)
      (cons (first x) (lazy-seq (concat (rest x) y)))
      (concat y)))
   ([x y & more]
@@ -7357,7 +7354,7 @@ returns logical =true=.
 #+begin_src clojure :tangle no
 (defn filter [pred coll]
   (lazy-seq
-   (if (not (empty? coll))
+   (if (seqable? coll)
      (let [[f & r] coll]
        (if (pred f)
          (cons f (filter pred r))
@@ -7429,22 +7426,22 @@ returns logical =true=.
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn partition
-    ([n coll]
-     (partition n n coll))
-    ([n step coll]
-     (lazy-seq
-      (if (not (empty? coll))
-        (let [p (take n coll)]
-          (when (= n (count p))
-            (cons p (partition n step (nthrest coll step))))))))
-    ([n step pad coll]
-     (lazy-seq
-      (if (not (empty? coll))
-        (let [p (take n coll)]
-          (if (= n (count p))
-            (cons p (partition n step pad (nthrest coll step)))
-            (list (take n (concat p pad)))))))))
+(defn partition
+  ([n coll]
+   (partition n n coll))
+  ([n step coll]
+   (lazy-seq
+    (if (seqable? coll)
+      (let [p (take n coll)]
+        (when (= n (count p))
+          (cons p (partition n step (nthrest coll step))))))))
+  ([n step pad coll]
+   (lazy-seq
+    (if (seqable? coll)
+      (let [p (take n coll)]
+        (if (= n (count p))
+          (cons p (partition n step pad (nthrest coll step)))
+          (list (take n (concat p pad)))))))))
 #+end_src
 
 *** every?

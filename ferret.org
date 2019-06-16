@@ -4090,7 +4090,6 @@ C++ API for the interface,
 
     inline var doall(ref seq);
     inline var range(number_t low, number_t high);
-    inline var map(var fn, var seq);
   }
 
 #define for_each(x,xs) for(var _tail_ = rt::rest(xs), x = rt::first(xs);     \
@@ -4187,26 +4186,6 @@ Implementations for the C++ Seekable API,
         }
       };
       return obj<lazy_sequence>(obj<seq>(low, high));
-    }
-
-    inline var map(var fn, var seq) {
-      class walk : public lambda_i {
-        var fn;
-        var seq;
-      public:
-        explicit walk(var f, var c) : fn(f), seq(c) { }
-        var invoke(ref) const final {
-          var tail = rt::rest(seq);
-          if (tail.is_nil())
-            return nil();
-
-          var head = fn.cast<lambda_i>()->
-            invoke(rt::list(rt::first(seq)));
-          var thunk = obj<walk>(fn, tail);
-          return obj<lazy_sequence>(head, thunk);
-        }
-      };
-      return obj<lazy_sequence>(obj<walk>(fn, seq));
     }
   }
 #+end_src
@@ -7050,6 +7029,10 @@ Returns the number of items in the collection. (count nil) returns
 
 *** map
 
+Returns a lazy sequence consisting of the result of applying f to the
+first item of the coll, followed by applying f to the second item in
+the coll, until the colls is exhausted.
+
 #+name: ferret-unit-test-lazy-sequence
 #+begin_src clojure :tangle no
 (deftest map-test
@@ -7061,8 +7044,11 @@ Returns the number of items in the collection. (count nil) returns
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-  (defn map [f coll]
-    "return rt::map(f, coll)")
+(defn map [f coll]
+  (lazy-seq
+   (if (seqable? coll)
+     (cons (f (first coll))
+           (map f (rest coll))))))
 #+end_src
 
 *** reduce

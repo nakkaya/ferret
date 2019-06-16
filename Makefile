@@ -63,10 +63,10 @@ bin/ferret: project.clj
 # tell make how to compile Ferret lisp to C++
 %.cpp: %.clj
 	@echo [compile] $<
-	@bin/ferret -i $<
+	@bin/ferret --silent -i $<
 
 %.cppcheck: %.cpp
-	@echo [static-check] $@
+	@echo [static-check] $<
 	@$(call static_check,$<)
 
 # each compiler/framework to be tested get an extensiton. 

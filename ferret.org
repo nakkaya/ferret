@@ -2403,6 +2403,7 @@ namespace.)
         [nil  "--disable-formatting" "Disables Output File Formatting Using clang-format"]
         [nil  "--global-functions"   "Disables inline-global-fns Optimization"]
         [nil  "--ast"                "Print Intermediate AST"]
+        [nil  "--silent"             "Silent or quiet mode"]
         ["-h" "--help"               "Print Help"]])
    #+end_src
 
@@ -2410,46 +2411,49 @@ namespace.)
 
    #+name: core-compiler-main
    #+begin_src clojure
-     (defn -main [& args]
-       (try
-         (let [args (parse-opts args program-options)
-               {:keys [help input deps watch-input]} (:options args)]
+(defn -main [& args]
+  (try
+    (let [args (parse-opts args program-options)
+          {:keys [help input deps watch-input silent]} (:options args)]
 
-           (when help
-             (try
-               (let [version (io/read-file "build.info")]
-                 (print "ferret-lisp" version))
-               (catch Exception e
-                 (print "ferret-lisp")))
-             (println )
-             (println )
-             (println (:summary args))
-             (io/exit-success))
+      (when help
+        (try
+          (let [version (io/read-file "build.info")]
+            (print "ferret-lisp" version))
+          (catch Exception e
+            (print "ferret-lisp")))
+        (println )
+        (println )
+        (println (:summary args))
+        (io/exit-success))
 
-           (when (not (io/file-exists input))
-             (warn "no input file")
-             (io/exit-failure))
+      (when silent
+        (System/setProperty "org.slf4j.simpleLogger.defaultLogLevel" "warn"))
 
-           (let [specs (build-specs input args)]
+      (when (not (io/file-exists input))
+        (warn "no input file")
+        (io/exit-failure))
 
-             (when deps
-               (try
-                 (checkout-deps (:path (specs)))
-                 (catch Exception e
-                   (io/exit-failure)))
-               (io/exit-success))
-             
-             (if (not watch-input)
-               (build-solution specs)
-               (do (watcher/watcher [input]
-                                    (watcher/rate 1000)
-                                    (watcher/on-change
-                                     (fn [_] (build-solution specs))))
-                   @(promise)))
-             (shutdown-agents))
-           (io/exit-success))
-         (catch Exception e
-           (stacktrace/print-stack-trace e 10))))
+      (let [specs (build-specs input args)]
+
+        (when deps
+          (try
+            (checkout-deps (:path (specs)))
+            (catch Exception e
+              (io/exit-failure)))
+          (io/exit-success))
+
+        (if (not watch-input)
+          (build-solution specs)
+          (do (watcher/watcher [input]
+                               (watcher/rate 1000)
+                               (watcher/on-change
+                                (fn [_] (build-solution specs))))
+              @(promise)))
+        (shutdown-agents))
+      (io/exit-success))
+    (catch Exception e
+      (stacktrace/print-stack-trace e 10))))
    #+end_src
 
 ** I/O

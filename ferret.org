@@ -10369,8 +10369,8 @@ Registers an interrupt function for the given pin and mode. See
          (def ~isr-fn  ~callback)
          (def ~isr-pin ~pin)
          (cxx
-          ~(str "::pinMode(" isr-pin " , INPUT_PULLUP);\n"
-                "auto isr_pin = digitalPinToInterrupt(" isr-pin ");\n"
+          ~(str "::pinMode(number::to<int>(" isr-pin ") , INPUT_PULLUP);\n"
+                "auto isr_pin = digitalPinToInterrupt(number::to<int>(" isr-pin "));\n"
                 "::attachInterrupt(isr_pin, [](){ run(" isr-fn ");}, " mode ");")))))
 #+end_src
 

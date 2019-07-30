@@ -10158,8 +10158,13 @@ Configures the specified pin to behave either as an input or an
 output.
 
 #+begin_src clojure :mkdirp yes :tangle src/lib/ferret/arduino.clj
-(defn pin-mode [^number_t pin mode]
-  "::pinMode(pin, (mode == obj<keyword>(\":input\")) ? INPUT : OUTPUT);")
+(defmacro pin-mode [pin mode]
+  (let [mode    (-> mode name .toUpperCase)
+        isr-pin (gensym)]
+    `(do
+       (def ~isr-pin ~pin)
+       (cxx
+        ~(str "::pinMode(number::to<int>(" isr-pin ") , " mode ");")))))
 #+end_src
 
 *** digital-write

@@ -7766,7 +7766,7 @@ Clip (limit) the values in number.
 
 #+name: runtime-clojure-math
 #+begin_src clojure :tangle no :noweb yes
-(defn clip [^number_t x ^number_t min ^number_t max]
+(defn clip [^real_t x ^real_t min ^real_t max]
   "return obj<number>(rt::max(rt::min(max, x), min));")
 #+end_src
 

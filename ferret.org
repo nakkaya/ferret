@@ -7770,6 +7770,24 @@ Clip (limit) the values in number.
   "return obj<number>(rt::max(rt::min(max, x), min));")
 #+end_src
 
+*** abs
+
+ Returns the absolute value of a number.
+
+#+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj
+  (deftest abs-test
+    (is (=   42 (abs -42)))
+    (is (=   42 (abs  42)))
+    (is (=   42.42 (abs -42.42)))
+    (is (=   42.42 (abs  42.42))))
+#+end_src
+
+#+name: runtime-clojure-math
+#+begin_src clojure :tangle no :noweb yes
+(defn abs [^real_t x]
+  "return obj<number>(rt::abs(x));")
+#+end_src
+
 *** bit-and
 
 #+begin_src clojure :mkdirp yes :noweb yes :tangle test/core/math.clj

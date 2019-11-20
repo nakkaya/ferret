@@ -9024,6 +9024,11 @@ Ignores body, yields nil.
 #+end_src
 
 ** I/O
+*** command-line-args
+
+Variable =*command-line-args*= contains the sequence of the supplied
+command line arguments, or nil if none were supplied.
+
 *** print
 
 Prints the object(s) to =STD_OUT=.

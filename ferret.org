@@ -7031,9 +7031,10 @@ Returns the number of items in the collection. (count nil) returns
 
 *** map
 
-Returns a lazy sequence consisting of the result of applying f to the
-first item of the coll, followed by applying f to the second item in
-the coll, until the colls is exhausted.
+Returns a lazy sequence consisting of the result of applying f to
+the set of first items of each coll, followed by applying f to the
+set of second items in each coll, until any one of the colls is
+exhausted.
 
 #+name: ferret-unit-test-lazy-sequence
 #+begin_src clojure :tangle no
@@ -7041,16 +7042,23 @@ the coll, until the colls is exhausted.
   (is (= 2   (first (map inc (list 1 2 3)))))
   (is (= 0   (first (map dec (list 1 2 3)))))
   (is (= 4   (first (map (fn [x] (+ 3 x)) (list 1 2 3)))))
-  (is (= 3   (count (map inc (list 1 2 3))))))
+  (is (= 3   (count (map inc (list 1 2 3)))))
+  (is (= (list 2 4 6) (map + (list 1 2 3) (list 1 2 3))
 #+end_src
 
 #+name: runtime-clojure-core
 #+begin_src clojure :tangle no
-(defn map [f coll]
-  (lazy-seq
-   (if (seqable? coll)
-     (cons (f (first coll))
-           (map f (rest coll))))))
+(defn map
+  ([f coll]
+   (lazy-seq
+    (if (seqable? coll)
+      (cons (f (first coll))
+          (map f (rest coll))))))
+  ([f & cols]
+   (lazy-seq
+    (if (every? seqable? cols)
+      (cons (apply f (map first cols))
+            (apply map f (map rest cols)))))))
 #+end_src
 
 *** reduce

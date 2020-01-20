@@ -7043,7 +7043,7 @@ exhausted.
   (is (= 0   (first (map dec (list 1 2 3)))))
   (is (= 4   (first (map (fn [x] (+ 3 x)) (list 1 2 3)))))
   (is (= 3   (count (map inc (list 1 2 3)))))
-  (is (= (list 2 4 6) (map + (list 1 2 3) (list 1 2 3))
+  (is (= (list 2 4 6) (map + (list 1 2 3) (list 1 2 3)))))
 #+end_src
 
 #+name: runtime-clojure-core

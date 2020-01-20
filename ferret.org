@@ -497,8 +497,7 @@ are passed to the code generation phase. Each transformation makes a
 separate pass over the form, this makes the compiler easier to
 maintain.
 
-#+name: core-compiler-emitter
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-emitter
   (defn compile [form options]
     (->> (ferret-runtime options form)
          (remove-assertions options)
@@ -545,8 +544,7 @@ argument.
        :commit "8c8c0890194a0b98130a3d4d78b71c99b833b12a")
 #+END_SRC
 
-#+name: core-compiler-checkout-deps
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-checkout-deps
   (defn checkout-deps [path]
     (when (io/file-exists (str path "/deps.clj"))
       (let [deps (-> (read-clojure-file "deps.clj")
@@ -571,8 +569,7 @@ Compiler will look for a file under current working directory called,
 front of the current form with symbols renamed from =some-fn= to
 =io/some-function=.
 
-#+name: core-compiler-transformations
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-transformations
   (defn import-modules-select-require [form]
     (let [norm-require (fn [f]
                          (if (symbol? f)
@@ -595,8 +592,7 @@ front of the current form with symbols renamed from =some-fn= to
 Extract the list of packages and aliases from the form. Returns a map
 of =mod / aliases= pairs.
 
-#+name: core-compiler-transformations
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-transformations
   (defn import-modules-load-modules [package-list options]
     (->> package-list
          (reduce (fn[h [m aliases]]
@@ -629,8 +625,7 @@ all its symbols are replaced with its module name except =core=
 functions. Module names acts as namespaces. Returns a form that the is
 concatenation of all modules listed in form.
 
-#+name: core-compiler-transformations
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-transformations
   (defn import-modules-convert-alias-to-module [package-list form]
     (let [alias-to-mod (reduce (fn[h [mod aliases]]
                                  (reduce (fn[h v] (assoc h v mod)) h aliases))
@@ -648,8 +643,7 @@ Convert all aliased symbols in the form to their fully qualified
 modules names. So =helper-a= defined in module =util.db= becomes
 =util_db_helper-a=.
 
-#+name: core-compiler-transformations
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-transformations
   (defn import-modules [form options]
     (let [package-list (import-modules-select-require form)
           form         (parser/drop form (parser/form? 'require))
@@ -680,8 +674,7 @@ modules names. So =helper-a= defined in module =util.db= becomes
 Generates the required runtime for the form by importing the required
 modules and concatenate the required runtime from [[*Core][Core]].
 
-#+name: core-compiler-transformations
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-transformations
   (defn ferret-runtime [options form]
     (->> (-> form
              (import-modules-all options)
@@ -701,8 +694,7 @@ Process some supported reader macros, =@= and =#(some-fn)= and convert
 =map= reader forms to Ferret =d-list=.  Maps are zero or more
 key/value pairs enclosed in braces: ={:a 1 :b 2}=.
 
-#+name: core-compiler-macro-expansion
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-macro-expansion
 (defn expand-reader-macros [form]
   (-> form
       (parser/transform
@@ -721,8 +713,7 @@ key/value pairs enclosed in braces: ={:a 1 :b 2}=.
 
 Prepare form =f= for macro expansion,
 
-#+name: core-compiler-macro-expansion
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-macro-expansion
   (defn macro-normalize [f]
     (parser/transform f
                       (parser/form? 'let)
@@ -737,8 +728,7 @@ all the macros used in the code that we are compiling and expand them
 in the temporary namespace then the node is replaced with its expanded
 form.
 
-#+name: core-compiler-macro-expansion
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-macro-expansion
   (defn expand-macros-single [form]
     (let [core-macros (->> (read-clojure-file "ferret/core.clj")
                            (filter (parser/form? 'defmacro)))
@@ -806,8 +796,7 @@ after transformation becomes,
   ((fn* [a__1548] ((fn* [b__1549] (+ a__1548 b__1549)) 2)) 1)
 #+end_src
 
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-tests
 (deftest let-test
   (let [args (list "1" "2")]
     (is (= args (rest *command-line-args*))))
@@ -841,8 +830,7 @@ after transformation becomes,
 
 #+end_src
 
-#+name: core-compiler-transformations
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-transformations
   (defn let-closure [bindings body]
     (if (empty? bindings)
       `((~'fir-let-fn () ~@body))
@@ -885,8 +873,7 @@ that takes no parameters and executed in place.
   ((fn [] (+ 1 1)))
 #+end_src
 
-#+name: core-compiler-transformations
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-transformations
   (defn do->fn [form]
     (parser/transform form
                       (parser/form? 'do)
@@ -901,8 +888,7 @@ they can be referenced at runtime. The closure conversion
 transformation modifies function definitions as necessary to create new
 closures.
 
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-tests
 (defn make-adder [x]
   (fn [n] (+ x n)))
 
@@ -947,8 +933,7 @@ constructor. Since every thing is already converted to fns this
 mechanism allows variables to be referenced down the line and solves
 the free variable problem.
 
-#+name: core-compiler-transformations 
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-transformations 
   (defn fn-defined? [fns env args body]
     (if-let [fn-name (@fns (concat [env args] body))]
       (apply list 'fir-fn-heap fn-name env)))
@@ -1003,8 +988,7 @@ the free variable problem.
             (define-fn fns env name args body)))))))
 #+end_src
 
-#+name: clojure-unit-tests
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref clojure-unit-tests
   (deftest test-fn->lift
     (let [prg-a (compile '((defn one-plus-one []
                              (+ 1 1))
@@ -1055,8 +1039,7 @@ Some symbols valid in lisp are not valid C++ identifiers. This
 transformation converts all symbols that are not legal C++ identifiers
 into legal ones.
 
-#+name: core-compiler-transformations
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-transformations
   (defn escape-cpp-symbol [s]
     (clojure.string/escape
      (str s)
@@ -1073,8 +1056,7 @@ into legal ones.
 
 *** Remove Assertions
 
-#+name: core-compiler-transformations
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-transformations
   (defn remove-assertions [options form]
     (if (:release options)
       (do (info "option => release mode")
@@ -1101,8 +1083,7 @@ metadata of the object to =^volatile= =true=,
   (defn ^volatile no-inline [] 42)
 #+END_SRC
 
-#+name: core-compiler-transformations
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-transformations
   (defn inline-defn? [f]
     (and (parser/form? 'def f)
          (-> f second meta :tag (not= 'volatile))
@@ -1136,8 +1117,7 @@ metadata of the object to =^volatile= =true=,
                 inlined fn-table))))
 #+end_src
 
-#+name: clojure-unit-tests
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref clojure-unit-tests
   (deftest test-fn->inline
     (let [prg-a (compile '((defn fn-inline [x] x)
                            (defn ^volatile fn-no-inline [y] y)
@@ -1163,8 +1143,7 @@ C++ file, but if you use it, it and everything it uses will be
 defined, in the case of =println= it will pull =apply=, =print= and
 =newline= with it.
 
-#+name: core-compiler-tree-shaking
-#+begin_src clojure
+#+begin_src clojure :noweb-ref core-compiler-tree-shaking
   (defn shake-concat
     ([header form]
      (let [shakeable? (fn [f]
@@ -1193,8 +1172,7 @@ defined, in the case of =println= it will pull =apply=, =print= and
                                             built-in fns non-shakeable))) %))))
 #+end_src
 
-#+name: clojure-unit-tests
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref clojure-unit-tests
   (deftest three-shaking
     (is (= '((defn c [] 1)
              (defn b [] (c))
@@ -1246,16 +1224,14 @@ defined, in the case of =println= it will pull =apply=, =print= and
      Determines that a certain allocation never escapes the local
      function. This means that allocation can be done on the stack.
 
-#+name: core-compiler-transformations
-#+begin_src clojure
+#+begin_src clojure :noweb-ref core-compiler-transformations
   (defn escape-analysis [form]
     (->> form
          (escape-fn-calls)
          (escape-fn-inheritance)))
 #+end_src
 
-#+name: clojure-unit-tests
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref clojure-unit-tests
   (deftest test-escape-analysis
     (let [prg-a (compile '((defn self [x] x)
                            (self 42)) {})
@@ -1288,8 +1264,7 @@ functions can escape their scope and they are allocated on the
 heap. Functions proven to not escape their scope are replaced with
 stack allocated functions.
 
-#+name: core-compiler-escape-analysis
-#+begin_src clojure
+#+begin_src clojure :noweb-ref core-compiler-escape-analysis
 (defn escape-fn-calls [form]
   (let [arity (parser/peek
                form
@@ -1359,8 +1334,7 @@ stack in all uses of the said function, it can be replaced with a C++
 POD type. This saves program space since said function does not need
 to inherit from a Ferret Object.
 
-#+name: core-compiler-escape-analysis
-#+begin_src clojure
+#+begin_src clojure :noweb-ref core-compiler-escape-analysis
   (defn escape-fn-inheritance [form]
     (let [heap-fns (->> (parser/peek form (parser/form? 'fir-fn-heap))
                         (map second)
@@ -1382,8 +1356,7 @@ to inherit from a Ferret Object.
 
 Ferret programs are read using the Clojure reader via =read-string=,
 
-#+name: core-file-io
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-file-io
   (defn read-clojure-file [f]
     (let [ns (gensym)
           ns-str (str ns)]
@@ -1415,8 +1388,7 @@ are selected using =form?= function.
   ;; true
 #+end_src
 
-#+name: core-compiler-parser
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-parser
   (defn form?
     ([s]
      #(form? s %))
@@ -1427,16 +1399,14 @@ are selected using =form?= function.
 
 Returns the set of symbols used in the form.
 
-#+name: core-compiler-parser
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-parser
   (defn symbol-set [form]
     (->> form flatten (filter symbol?) (into #{})))
 #+end_src
 
 Splits a function form into compnents.
 
-#+name: core-compiler-parser
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-parser
   (defn split-fn [sig]
     (let [name (if (symbol? (second sig)) (second sig) nil)
           sig  (if name (clojure.core/drop 2 sig) (rest sig))
@@ -1446,8 +1416,7 @@ Splits a function form into compnents.
 
 Predicate for checking if function body is a FFI call or not.
 
-#+name: core-compiler-parser
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-parser
   (defn ffi-fn? [body]
     (and (not (nil? body))
          (not (empty? body))
@@ -1458,8 +1427,7 @@ Predicate for checking if function body is a FFI call or not.
 Predicate for checking if a symbol in =fn= arguments is a valid symbol
 or not.
 
-#+name: core-compiler-parser
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-parser
   (defn fn-arg-symbol? [s]
     (and (symbol? s)
          (not= s '&)
@@ -1477,8 +1445,7 @@ predicate returns true. =peek= is used to peek at sections of
 the form, does not alter the form only returns the list of nodes
 matching the predicate.
 
-#+name: core-compiler-parser
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-parser
   (defn transform [tree pred f]
     (walk/prewalk (fn [form]
                     (if (pred form)
@@ -1529,8 +1496,7 @@ already defined variable names.
   (fn [a__1510 b__1511] (list a__1510 b__1511))
 #+end_src
 
-#+name: core-compiler-parser
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-parser
   (defn new-symbol [& parts]
     (let [parts (map #(.replace (str %) "." "_") parts)]
       (symbol (apply str parts))))
@@ -1593,8 +1559,7 @@ done by running =emit= on the final intermediate representation.
   ;;"((<,b,a) ? a : b)"
 #+end_src
 
-#+name: core-compiler-emitter
-#+begin_src clojure :tangle no  
+#+begin_src clojure :tangle no   :noweb-ref core-compiler-emitter
   (defmulti emit (fn [_ f _]
                    (cond (parser/form? '(fir_fn_stack list) f)   'fir_inline_list
                          (parser/form? '(fir_fn_stack first) f)  'fir_inline_first
@@ -1636,16 +1601,14 @@ done by running =emit= on the final intermediate representation.
 Code generation for a Ferret program is done by running =emit= on all
 nodes of the program AST.
 
-#+name: core-compiler-helpers
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-helpers
   (defn append-to! [r ks v]
     (let [cv (reduce (fn[h v] (v h)) @r ks)]
       (swap! r assoc-in ks (conj cv v))
       ""))
 #+end_src
 
-#+name: core-compiler-emitter
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-emitter
   (defn emit-source [form options]
     (let [state (atom {:native-headers []
                        :native-declarations []
@@ -1662,8 +1625,7 @@ nodes of the program AST.
 
 *** Object Types
 
-#+name: core-compiler-emitter
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-emitter
   (defmethod emit :symbol [_ form state] (str form))
 
   (defmethod emit :string [_ form state]
@@ -1709,8 +1671,7 @@ evaluation rules and are understood directly by the compiler. Most
 special forms define control structures or perform variable
 bindings—things which functions cannot do.
 
-#+name: core-compiler-emitter
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-emitter
   (defmethod emit 'def [options [_ name & form] state]
     (append-to! state [:symbol-table] name)
     (str "(" name " = " (apply str (emit-ast options form state)) ")"))
@@ -1770,8 +1731,7 @@ Inline primitive sequence operations. Some sequence operations such as
 executing a Ferret =fn= for these operations, these can be replaced
 with calls to native implementations resulting in much smaller code.
 
-#+name: core-compiler-emitter
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-emitter
   (defmethod emit 'fir_inline_list [options [_ & args] state]
     (str "rt::list(" (apply str (interpose \, (emit-ast options args state))) ")"))
 
@@ -1784,8 +1744,7 @@ with calls to native implementations resulting in much smaller code.
 
 *** Functions
 
-#+name: core-compiler-emitter
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-emitter
   (defn norm-fn-env [env]
     (->> env
          (flatten)
@@ -1816,8 +1775,7 @@ with calls to native implementations resulting in much smaller code.
 Initialize function arguments. Clojure style sequential destructuring
 is supported.
 
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-tests
   (defn destructure-test-1 [[a b c]]
     (list a b c))
 
@@ -1897,8 +1855,7 @@ is supported.
       (is (= nil g))))
 #+end_src
 
-#+name: core-compiler-emitter
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-emitter
   (declare destructure-arguments)
 
   (defn destructure-nth-rest [parent pos]
@@ -1982,8 +1939,7 @@ is supported.
        [args var-args as-arg])))
 #+end_src
 
-#+name: core-compiler-emitter
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-emitter
   (defmethod emit :invoke-fn [options [fn & args] state]
     (invoke-fn (emit options fn state) (emit-ast options args state)))
 
@@ -2031,8 +1987,7 @@ is supported.
                                      (assoc :stack true))))
 #+end_src
 
-#+name: core-compiler-emitter
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-emitter
   (defmethod emit 'fir_defn_arity [_ [_ switch default] state]
     (let [default (if default
                     (str (new-fn-stack default) ".invoke(_args_)")
@@ -2047,8 +2002,7 @@ is supported.
       [switch default]))
 #+end_src
 
-#+name: core-compiler-emitter
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-compiler-emitter
   (defn lambda-definitions [fns]
     (render-template
      "$fns: {fn|
@@ -2102,8 +2056,7 @@ namespace.)
  - Ferret Main
  - Hardware Dependent Main Functions
 
-#+name: core-compiler-emitter
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref core-compiler-emitter
   (defn program-template [source options]
     (let [{:keys [body lambdas symbol-table native-headers objects
                   native-declarations native-defines]} source
@@ -2190,8 +2143,7 @@ namespace.)
 
    Default compile options, 
 
-  #+name: core-compiler-main
-  #+begin_src clojure
+  #+begin_src clojure :noweb-ref core-compiler-main
     (defn compile-options [& [options]]
       (merge {:compiler "g++"
               :compiler-options ["-std=c++11"]
@@ -2211,8 +2163,7 @@ namespace.)
    it. =configure-ferret!= macro can embed build options into C++
    files. These can be used later when build the binary.
 
-  #+name: core-compiler-main
-  #+begin_src clojure
+  #+begin_src clojure :noweb-ref core-compiler-main
     (defn compile-options-parse-source [file]
       (try
         (let [program (slurp file)
@@ -2244,8 +2195,7 @@ namespace.)
    Takes the compiler CLI arguments and a file name, returns a map of
    build options.
 
-  #+name: core-compiler-main
-  #+begin_src clojure
+  #+begin_src clojure :noweb-ref core-compiler-main
     (defn build-specs [input args]
       (fn []
         (let [args             (fn [k]
@@ -2288,8 +2238,7 @@ namespace.)
 
    Compile the form to C++,
 
-  #+name: core-compiler-main
-  #+begin_src clojure
+  #+begin_src clojure :noweb-ref core-compiler-main
     (defn compile->cpp [form options]
       (let [file-name (cpp-file-name options)
             source    (emit-source form options)
@@ -2304,8 +2253,7 @@ namespace.)
     Pick compiler to use. If set, use the value of =CXX= environment
     variable, if not set use the default compiler =gcc=,
 
-  #+name: core-compiler-main
-  #+begin_src clojure
+  #+begin_src clojure :noweb-ref core-compiler-main
     (defn cxx-compiler [options]
       (let [compiler    (if (System/getenv "CXX")
                           (System/getenv "CXX")
@@ -2318,8 +2266,7 @@ namespace.)
 
     Compiler build command,
 
-  #+name: core-compiler-main
-  #+begin_src clojure
+  #+begin_src clojure :noweb-ref core-compiler-main
     (defn cxx-command [options]
       (if (:command options)
         (flatten ["/usr/bin/env" "sh" "-c" (:command options)])
@@ -2337,8 +2284,7 @@ namespace.)
 
    Run the compiler on the generated source and create the binary,
 
-  #+name: core-compiler-main
-  #+begin_src clojure
+  #+begin_src clojure :noweb-ref core-compiler-main
     (defn compile->binary [options]
       (let [command (cxx-command options)]
         (info "building" "=>" (apply str (interpose " " command)))
@@ -2361,8 +2307,7 @@ namespace.)
 
     Compile and build program,
 
-   #+name: core-compiler-main
-   #+begin_src clojure
+   #+begin_src clojure :noweb-ref core-compiler-main
      (defn clang-format [options]
        (let [file (cpp-file-name options)
              source (try (with-sh-dir "./"
@@ -2390,8 +2335,7 @@ namespace.)
 
     Compiler options,
 
-   #+name: core-compiler-main
-   #+begin_src clojure
+   #+begin_src clojure :noweb-ref core-compiler-main
      (def program-options
        [["-i" "--input FILE"         "Input File" :default "./core.clj"]
         ["-o" "--output FILE"        "Output C++ File"]
@@ -2409,8 +2353,7 @@ namespace.)
 
    Compiler /main/,
 
-   #+name: core-compiler-main
-   #+begin_src clojure
+   #+begin_src clojure :noweb-ref core-compiler-main
 (defn -main [& args]
   (try
     (let [args (parse-opts args program-options)
@@ -2460,8 +2403,7 @@ namespace.)
 
 Common I/O operations.
 
-#+name: core-main-io
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref core-main-io
   (def extension-cpp "cpp")
 
   (defn os-name []
@@ -2534,8 +2476,7 @@ All our types are derived from the base Object type. Which is a
 [[Reference Counting]] for available reference counting policies and
 [[Memory Allocation]] for available allocation policies.
 
-#+name: runtime-native-object
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-object
   template<typename>
   void type_id(){}
 
@@ -2577,8 +2518,7 @@ A =pointer_t= holds a pointer to a Ferret object. Default =pointer_t=
 does nothing and delegates all requests to a regular =object *=.  See
 [[Pointers]] for rationale.
 
-#+name: runtime-native-object
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-object
 #if !defined(FERRET_POINTER_T)
   #define FERRET_POINTER_T memory::pointer<object>
 #endif
@@ -2590,8 +2530,7 @@ A =var= holds a pointer to an object, everything is passed around as
 =vars= it is responsible for incrementing/decrementing the reference
 count, when it reaches zero it will automatically free the object.
 
-#+name: runtime-native-object
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-object
   class var{
   public:
     explicit inline var(object* o = nullptr) : obj(o) { inc_ref(); }
@@ -2704,8 +2643,7 @@ new =var= containing a pointer to an [[Object System][Object]]. =nil= is represe
   var some_nil = nil();
 #+end_src
 
-#+name: runtime-native-object
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-object
   template<typename FT, typename... Args>
   inline var obj(Args... args) {
     void * storage = FERRET_ALLOCATOR::allocate<FT>();
@@ -2717,8 +2655,7 @@ new =var= containing a pointer to an [[Object System][Object]]. =nil= is represe
   }
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defn identity [x] x)
 #+end_src
 
@@ -2728,8 +2665,7 @@ new =var= containing a pointer to an [[Object System][Object]]. =nil= is represe
 The boolean type has two values, false and true, which represent the
 traditional boolean values.
 
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
   (defobject boolean "boolean_o.h")
 #+end_src
 
@@ -2801,8 +2737,7 @@ A =pointer= object keeps a reference to a C++ pointer.
   int *ptr = pointer::to_pointer<int>(ptr);
 #+end_src
 
-#+name: ferret-unit-test-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-objects
 (deftest pointer-test
   (let [a-ptr (cxx "return obj<pointer>(nullptr);")
         b-ptr (cxx "return obj<pointer>(new int);")
@@ -2817,8 +2752,7 @@ A =pointer= object keeps a reference to a C++ pointer.
     (gc b-ptr)))
 #+end_src
 
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
   (defobject pointer "pointer_o.h")
 #+end_src
 
@@ -2848,8 +2782,7 @@ A =pointer= object keeps a reference to a C++ pointer.
 A =value= object keeps a native object. Useful when working with
 modern C++ libraries that use smart pointers for memory management.
 
-#+name: ferret-unit-test-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-objects
 (native-declare "class data{
                      int x;
                    public: 
@@ -2883,8 +2816,7 @@ modern C++ libraries that use smart pointers for memory management.
                          (get-data obj-24))))))
 #+end_src
 
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
   (defobject value "value_o.h")
 #+end_src
 
@@ -2926,8 +2858,7 @@ numbers. Ferret has no integer type. On systems without hardware
 support for floating point Ferret programs can be configured to use
 fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
 
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
   (defobject number "number_o.h")
 #+end_src
 
@@ -2961,8 +2892,7 @@ fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
 Sequences are collections. They implement the seekable interface
 directly. count is O(n). conj puts the item at the front of the list.
 
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
   (defobject empty_sequence "empty_sequence_o.h")
   (defobject sequence "sequence_o.h")
 #+end_src
@@ -3069,8 +2999,7 @@ a computation. The computation is performed as needed when lazy
 sequence is iterated. By default Ferret =lazy_sequence=s does not
 cache their values unless forced using =lazy-seq-cache=.
 
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
   (defobject lazy_sequence "lazy_sequence_o.h")
 #+end_src
 
@@ -3172,24 +3101,21 @@ public:
 
 Creates a view of an array.
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest array-seq-test
   (is (= (cxx "int buff[3] = {1,2,3};
                return obj<array_seq<int, number>>(buff, size_t(3));")
          (list 1 2 3))))
 #+end_src
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest dense-list-test
   (is (= (cxx "return rt::dense_list
                    (obj<number>(42), obj<number>(43));")
          (list 42 43))))
 #+end_src
 
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
   (defobject array_sequence "array_sequence_o.h")
 #+end_src
 
@@ -3369,8 +3295,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
   ((key1 key2 ...) val1 val2 ...)
 #+END_EXAMPLE
 
-#+name: ferret-unit-test-objects
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-test-objects
   (deftest d-list-test
     (let [m (new-d-list 0 (list 0 1)
                         1 (list 1 2))
@@ -3401,8 +3326,7 @@ A D-list is a cons of a list of keys and a list of values, i.e.:
                                                 (apply +))))))
 #+end_src
 
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
   (defobject d-list "d_list_o.h")
 
   (defn new-d-list-aux [keys vals]
@@ -3549,16 +3473,14 @@ Keywords are symbolic identifiers that evaluate to themselves. They
 provide very fast equality tests. A =keyword= holds a simple hash of
 the keyword as =number_t=.
 
-#+name: ferret-unit-test-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-objects
 (deftest keyword-test
   (is (= true  (= :test  :test)))
   (is (= false (= :test  :other_test)))
   (is (= true  (= :space (cxx "return obj<keyword>(\":space\")")))))
 #+end_src
 
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
   (defobject keyword "keyword_o.h")
 #+end_src
 
@@ -3606,13 +3528,11 @@ representing a character in the string. This scheme uses more memory
 but provides low memory fragmentation and ability to use sequence
 operations on strings.
 
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
   (defobject string "string_o.h")
 #+end_src
 
-#+name: ferret-unit-test-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-objects
 (deftest string-test
   (let [s1       "Some String"
         s1-added "ASome String"
@@ -3649,8 +3569,7 @@ strings from functions. Due to the way FFI interface is designed
 strings can not be returned from functions because they are
 interpreted as FFI calls.
 
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
 (defn new-string
   ([]
    "")
@@ -3789,8 +3708,7 @@ structures.  You create an atom with =atom=, and can access its state
 with =deref/@=.  To change the value of an atom, you can use =swap!=
 or =reset!=. Changes to atoms are always free of race conditions.
 
-#+name: ferret-unit-test-concurrency
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-concurrency
 (deftest atom-test
   (let [a (atom nil)
         b (atom nil)]
@@ -3811,8 +3729,7 @@ or =reset!=. Changes to atoms are always free of race conditions.
     (is (= false        (= a 3.14)))))
 #+end_src
 
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
   (defobject atomic "atomic_o.h")
 #+end_src
 
@@ -3856,8 +3773,7 @@ or =reset!=. Changes to atoms are always free of race conditions.
 
 Operations on =atoms=
 
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
   (defn atom [x]
     "return obj<atomic>(x)")
 
@@ -3875,8 +3791,7 @@ invoke the body in another thread, and will cache the result and
 return it on all subsequent calls to =deref=. If the computation has
 not yet finished, calls to =deref= will block.
 
-#+name: ferret-unit-test-concurrency
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-concurrency
 (deftest future-test
   (is (= 42    @(future (+ 41 1))))
   (is (= 42    @(future (sleep 100) (+ 40 2))))
@@ -3891,8 +3806,7 @@ not yet finished, calls to =deref= will block.
   (is (= 42    @(thread #(+ 41 1)))))
 #+end_src
 
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
   (defobject async "async_o.h")
 
   (defmacro future [& body]
@@ -3910,8 +3824,7 @@ not yet finished, calls to =deref= will block.
 Divert *depricated* thread macro which runs the given lambda in a
 thread to =future=,
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defn thread [f]
     "return obj<async>(f);")
 #+end_src
@@ -3975,8 +3888,7 @@ the body only the first time it is forced (with =force= or =deref=),
 and will cache the result and return it on all subsequent force
 calls.
 
-#+name: ferret-unit-test-concurrency
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-concurrency
 (deftest delay-test
   (let [d (delay   (+ 1 1))]
 
@@ -3986,8 +3898,7 @@ calls.
     (is (= 42      (force (delay 42))))))
 #+end_src
 
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
   (defobject delayed "delayed_o.h")
 
   (defn _delay_ [f]
@@ -4039,8 +3950,7 @@ collections and callability.
 All sequence functions (first, second, rest etc.) use this interface
 to iterate seekable containers.
 
-#+name: runtime-clojure-interfaces
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-interfaces
   (defobject seekable_i "seekable_i.h")
 #+end_src
 
@@ -4087,8 +3997,7 @@ to iterate seekable containers.
 
 C++ API for the interface,
 
-#+name: runtime-native-prototypes
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-prototypes
   namespace runtime {
     var list(ref v);
     template <typename... Args>
@@ -4115,8 +4024,7 @@ C++ API for the interface,
 
 Implementations for the C++ Seekable API,
 
-#+name: runtime-native-implementations
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-implementations
   namespace runtime {
     inline bool is_seqable(ref coll){
       if(coll.cast<seekable_i>())
@@ -4196,8 +4104,7 @@ executed via =invoke= method that takes a sequence of vars as argument
 or =nil()= if there are non, this allows us to execute them in a
 uniform fashion.
 
-#+name: runtime-clojure-interfaces
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-interfaces
   (defobject lambda_i "lambda_i.h")
 #+end_src
 
@@ -4210,8 +4117,7 @@ uniform fashion.
 
 Function invocation,
 
-#+name: runtime-native-prototypes
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-prototypes
   template<typename T, typename... Args>
   inline var run(T const & fn, Args const & ... args);
         
@@ -4226,8 +4132,7 @@ Function invocation,
   }
 #+end_src
 
-#+name: runtime-native-implementations
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-implementations
   template<typename T, typename... Args>
   inline var run(T const & fn, Args const & ... args) {
     return fn.invoke(rt::list(args...));
@@ -4274,8 +4179,7 @@ Function invocation,
 
 **** Deref
 
-#+name: runtime-clojure-interfaces
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-interfaces
   (defobject deref_i "deref_i.h")
 #+end_src
 
@@ -4289,8 +4193,7 @@ Function invocation,
 
 Operations on =deref_i=
 
-#+name: runtime-clojure-interfaces
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-interfaces
   (defn deref [a]
     "return a.cast<deref_i>()->deref();")
 #+end_src
@@ -4368,8 +4271,7 @@ pointer types below. Default =pointer_t= does nothing and delegates
 all requests to a regular =object *=. Using this scheme allows
 optional use of tagged pointers on systems that support them.
 
-#+name: runtime-native-pointers
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-pointers
 namespace memory {
   template <typename T>
   class pointer{
@@ -4413,8 +4315,7 @@ size for the block which will be represented by a single bit. This
 will be the size of the parameter around which the allocator has been
 parameterized. Thus, close to optimal performance will result.
 
-#+name: runtime-native-allocator-pool
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-allocator-pool
   #if defined(FERRET_MEMORY_POOL_SIZE) && !defined(FERRET_ALLOCATOR)
 
    #define FERRET_ALLOCATOR memory::allocator::pool
@@ -4546,8 +4447,7 @@ int main() {
 }
 #+end_src
 
-#+name: runtime-native-allocator-pool-implementation
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-allocator-pool-implementation
   #ifdef FERRET_MEMORY_POOL_SIZE
   namespace memory{
     namespace allocator{
@@ -4615,8 +4515,7 @@ Code must be linked against the GC library. On most UNIX platforms,
 depending on how the collector is built, this will be gc.a or
 libgc.{a,so}.
 
-#+name: runtime-native-allocators
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-allocators
   #ifdef FERRET_MEMORY_BOEHM_GC
 
   #define FERRET_ALLOCATOR memory::allocator::gc
@@ -4655,8 +4554,7 @@ libgc.{a,so}.
 [[Object]]s are allocated from system implementation. (Default memory
 allocator used.)
 
-#+name: runtime-native-allocators
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-allocators
   #if !defined(FERRET_ALLOCATOR)
 
   #define FERRET_ALLOCATOR memory::allocator::system
@@ -4685,8 +4583,7 @@ allocator used.)
 
 Synchronizes access to other allocators.
 
-#+name: runtime-native-allocators
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-allocators
   namespace memory{
     namespace allocator{
       class synchronized{
@@ -4714,8 +4611,7 @@ Synchronizes access to other allocators.
 
 Enable synchronized access,
 
-#+name: runtime-native-allocators
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-allocators
   #if  !defined(FERRET_DISABLE_MULTI_THREADING)
 
     #if defined(FERRET_MEMORY_POOL_SIZE) || defined(FERRET_HARDWARE_ARDUINO)
@@ -4768,8 +4664,7 @@ used by including the header files.
 
 Helper functions for user defined allocators.
 
-#+name: runtime-native-allocator-helpers
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-allocator-helpers
   namespace memory{
     inline size_t align_of(uintptr_t size, size_t align){
       return (size + align - 1) & ~(align - 1);
@@ -4806,8 +4701,7 @@ Helper functions for user defined allocators.
 can be proven to not escape its scope, storage for it can be allocated
 on the *stack* instead of the heap.
 
-#+name: runtime-native-allocator-alloca
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-allocator-alloca
 #undef alloca
 
 template<typename T>
@@ -4839,8 +4733,7 @@ counting policies.
  - =rc= - Non Atomic reference counting. (using =unsigned int=)
  - =no_rc= - No reference counting.
 
-#+name: runtime-native-reference-counting
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-reference-counting
   #if !defined(FERRET_RC_POLICY)
   namespace memory {
     namespace gc {
@@ -4894,8 +4787,7 @@ floating point numbers. By default these are double precision floating
 point numbers. However Ferret programs can easily be recompiled to
 support any real number type the system supports.
 
-#+name: runtime-native-number-config-macros
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-number-config-macros
   #if !defined(FERRET_NUMBER_TYPE)
      #define FERRET_NUMBER_TYPE int
   #endif
@@ -4922,8 +4814,7 @@ support any real number type the system supports.
 
 Math functions.
 
-#+name: runtime-native-math
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-math
   namespace runtime{
     #undef min
     #undef max
@@ -5057,8 +4948,7 @@ accuracy using 6 bits for fraction.
   }
 #+end_src
 
-#+name: runtime-native-fixed-point-real
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-fixed-point-real
   #if !defined(__clang__)
   constexpr auto operator "" _QN(long double x) -> int {
     return (int)::floor(::log(1.0/(double)x)/::log(2));
@@ -5183,8 +5073,7 @@ int main() {
 }
 #+end_src
 
-#+name: runtime-native-matrix
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-matrix
 class matrix {
   //row-major
   array<real_t> data;
@@ -5373,8 +5262,7 @@ public:
 
 Math related string literals.
 
-#+name: runtime-native-number-literals
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-number-literals
   constexpr auto operator "" _MB( unsigned long long const x ) -> long {
     return 1024L * 1024L * (long)x;
   }
@@ -5410,8 +5298,7 @@ provides its own types that are portable across architectures.
 
 =byte= is a collection of bits.
 
-#+name: runtime-native-type
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-type
   typedef uint8_t byte;
 #+end_src
 
@@ -5419,8 +5306,7 @@ provides its own types that are portable across architectures.
 
 24 bit *Little-endian* integer type.
 
-#+name: runtime-native-type
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-type
   #pragma pack(push, 1)
   class int24_t {
   protected:
@@ -5574,8 +5460,7 @@ provides its own types that are portable across architectures.
   }
 #+end_src
 
-#+name: runtime-native-array
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-array
 template <typename T>
 class array {
   size_t  _size{0};
@@ -5728,8 +5613,7 @@ int main() {
 }
 #+end_src
 
-#+name: runtime-native-containers
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-containers
 #undef bit
 
 #if !defined(FERRET_BITSET_WORD_TYPE)
@@ -5895,8 +5779,7 @@ Locking abstractions for various platforms. They are disabled when
 running single threaded or on an embedded platform. (=FERRET_STD_LIB=
 not defined.)
 
-#+name: runtime-native-hardware-concurrency
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-hardware-concurrency
   #if defined(FERRET_DISABLE_MULTI_THREADING)
     class mutex {
     public:
@@ -5938,8 +5821,7 @@ Check for supported hardware or platform. If running on a known
 hardware or platform break out of *Safe Mode* and set a flag
 indicating platform.
 
-#+name: runtime-native-hardware-setup
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-hardware-setup
   # define FERRET_CONFIG_SAFE_MODE TRUE
 
   #if !defined(FERRET_SAFE_MODE)
@@ -5976,8 +5858,7 @@ indicating platform.
 
 *** Import libraries
 
-#+name: runtime-native-hardware-setup
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-hardware-setup
   #ifdef FERRET_STD_LIB
    #include <iostream>
    #include <iomanip>
@@ -6014,8 +5895,7 @@ indicating platform.
 
 Default UART rate (if supported),
 
-#+name: runtime-native-hardware-initialize
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-hardware-initialize
   #if !defined(FERRET_UART_RATE)
     # define FERRET_UART_RATE 9600
   #endif
@@ -6024,8 +5904,7 @@ Default UART rate (if supported),
 Default stream size, represents the number of characters transferred
 in an I/O operation or the size of an I/O buffer.
 
-#+name: runtime-native-hardware-initialize
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-hardware-initialize
   #if !defined(FERRET_IO_STREAM_SIZE)
     # define FERRET_IO_STREAM_SIZE 80
   #endif
@@ -6033,8 +5912,7 @@ in an I/O operation or the size of an I/O buffer.
 
 Setup dummy IO,
 
-#+name: runtime-native-hardware-initialize
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-hardware-initialize
   #if defined(FERRET_DISABLE_STD_OUT)
      namespace runtime{
        void init(){ }
@@ -6047,8 +5925,7 @@ Setup dummy IO,
 
 Setup IO for general purpose OS,
 
-#+name: runtime-native-hardware-initialize
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-hardware-initialize
   #if defined(FERRET_STD_LIB) && !defined(FERRET_DISABLE_STD_OUT)
     namespace runtime{
       void init(){}
@@ -6070,8 +5947,7 @@ Setup IO for general purpose OS,
 
 Setup IO for Arduino boards,
 
-#+name: runtime-native-hardware-initialize
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-hardware-initialize
   #if defined(FERRET_HARDWARE_ARDUINO) && !defined(FERRET_DISABLE_STD_OUT) 
     namespace runtime{
       void init(){ FERRET_HARDWARE_ARDUINO_UART_PORT.begin(FERRET_UART_RATE); }
@@ -6111,8 +5987,7 @@ Setup IO for Arduino boards,
 Prints data to the output stream as human-readable ASCII text followed
 by a newline character (=ASCII 10=, or =\n=).
 
-#+name: runtime-native-hardware-initialize
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-hardware-initialize
   #if !defined(FERRET_DISABLE_STD_OUT)
      namespace runtime{
        template <typename T>
@@ -6134,8 +6009,7 @@ source file into a virgin interpreter and then terminating its
 execution. If =FERRET_PROGRAM_MAIN= is defined, it will be called
 right after =program::main()=.
 
-#+name: runtime-native-program-run-std-main
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-program-run-std-main
   #if !defined(FERRET_DISABLE_STD_MAIN)
    #if defined(FERRET_DISABLE_CLI_ARGS) || !defined(FERRET_STD_LIB)
     int main()
@@ -6167,8 +6041,7 @@ When a supported Arduino board is [[Detect Hardware][detected]]. Instead of usin
 standard =main= function, Ferret uses Arduino compatible boot
 procedure. 
 
-#+name: runtime-native-program-arduino
-#+begin_src c++ :tangle no
+#+begin_src c++ :tangle no :noweb-ref runtime-native-program-arduino
   #if defined(FERRET_HARDWARE_ARDUINO)
     void setup(){
       using namespace ferret;
@@ -6250,24 +6123,21 @@ Native headers can be imported using,
 
 Top level statements can be declared using,
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
   (native-declare "int i = 0;")
 #+end_src
 
 Ferret objects can be created using the =obj= function. If a function
 only contains a string such as, 
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
   (defn inc-int [] "__result =  obj<number>(i++);")
 #+end_src
 
 It is assumed to be a native function string, it is taken as C++
 code. You can then use it like any other ferret function.
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest inc-int-test
   (is (= 0 (inc-int)))
   (is (= 1 (inc-int))))
@@ -6283,23 +6153,20 @@ Ferret objects can be converted to/from their native counter parts,
 i.e a Ferret sequence can be converted to =std::vector= to be sorted
 by =std::sort= using a Ferret function,
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
   (defn my-sort [f seq]
     "std_vector vec = sequence::to<std_vector>(seq);
      std::sort(vec.begin(), vec.end(), [f](var a, var b) { return run(f,a,b); });
      __result = sequence::from<std_vector>(vec);")
 #+end_src
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest my-sort-test
   (is (= (list 3 2 1) (my-sort > (list 1 3 2))))
   (is (= (list 1 2 3) (my-sort < (list 1 3 2)))))
 #+end_src
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (defn my-find [item seq]
   "std_vector vec = sequence::to<std_vector>(seq);
    std_vector::iterator it = find (vec.begin(), vec.end(), item);
@@ -6326,8 +6193,7 @@ In addition to =defn= form there is also a =defnative= form which
 allows you to define different function bodies for different =#define=
 directives,
 
-#+name: runtime-clojure-core
-#+begin_src clojure
+#+begin_src clojure :noweb-ref runtime-clojure-core
   (defnative get-char []
     (on "defined FERRET_STD_LIB"
         "return obj<number>(getchar());"))
@@ -6338,8 +6204,7 @@ return the result of =getchar= as a =number= , on ANY other system it
 will produce a compiler error. You can have multiple =on= blocks per
 =defnative=,
 
-#+name: runtime-clojure-core
-#+begin_src clojure
+#+begin_src clojure :noweb-ref runtime-clojure-core
   (defnative sleep [^number_t t]
     (on "defined FERRET_STD_LIB"
         "auto duration = ::std::chrono::milliseconds(t);
@@ -6378,15 +6243,13 @@ applications.
 ** Logic
 *** true?
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest true?-test
   (is (= true  (true? true)))
   (is (= false (true? false))))
 #+end_src
 
-#+name: runtime-clojure-logical-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-logical-operators
   (defn true? [x]
     "if (x)
        return cached::true_o;
@@ -6395,15 +6258,13 @@ applications.
 
 *** false?
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest false?-test
   (is (= false (false? true)))
   (is (= true  (false? false))))
 #+end_src
 
-#+name: runtime-clojure-logical-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-logical-operators
   (defn false? [x]
     "if (!x)
        return cached::true_o;
@@ -6412,16 +6273,14 @@ applications.
 
 *** nil?
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest nil?-test
   (is (= false (= nil 1)))
   (is (= false (= 1 nil)))
   (is (= true  (= nil nil))))
 #+end_src
 
-#+name: runtime-clojure-logical-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-logical-operators
 (defn nil? [x]
   "if (x.is_nil())
        return cached::true_o;
@@ -6429,8 +6288,7 @@ applications.
 #+end_src
 *** not
 
-#+name: runtime-clojure-logical-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-logical-operators
   (defn not [x]
     "if (x)
        return cached::false_o;
@@ -6439,8 +6297,7 @@ applications.
 
 *** =
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest =-test
   (is (= true   (= true true)))
   (is (= false  (not (= true true))))
@@ -6452,8 +6309,7 @@ applications.
   (is (= false  (= 2 2 2 2 3 5))))
 #+end_src
 
-#+name: runtime-clojure-logical-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-logical-operators
   (defn = [& args]
     "var curr = rt::first(args);
      for_each(it, rt::rest(args)){
@@ -6466,8 +6322,7 @@ applications.
 
 *** not=
 
-#+name: runtime-clojure-logical-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-logical-operators
   (defmacro not= [& test]
     `(not (= ~@test)))
 #+end_src
@@ -6476,8 +6331,7 @@ applications.
 
 Tests if 2 arguments are the same object.
 
-#+name: runtime-clojure-logical-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-logical-operators
   (defn identical? [x y]
     "if(x.get() == y.get())
       return cached::true_o;
@@ -6486,15 +6340,13 @@ Tests if 2 arguments are the same object.
 
 *** <
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest <-test
   (is (= true  (< 2)))
   (is (= true  (< 2 3 4 5))))
 #+end_src
 
-#+name: runtime-clojure-logical-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-logical-operators
 (defn < [& args]
   "var a = rt::first(args);
 
@@ -6509,16 +6361,14 @@ Tests if 2 arguments are the same object.
 
 *** >
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest >-test
   (is (= true  (> 2)))
   (is (= false (> 2 3 4 5)))
   (is (= true  (> 6 5 4 3))))
 #+end_src
 
-#+name: runtime-clojure-logical-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-logical-operators
 (defn > [& args]
   "var a = rt::first(args);
 
@@ -6533,16 +6383,14 @@ Tests if 2 arguments are the same object.
 
 *** >=
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest >=-test
   (is (= true  (>= 2)))
   (is (= true  (>= 5 4 3 2 2 2)))
   (is (= false (>= 5 1 3 2 2 2))))
 #+end_src
 
-#+name: runtime-clojure-logical-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-logical-operators
 (defn >= [& args]
   "var a = rt::first(args);
 
@@ -6557,16 +6405,14 @@ Tests if 2 arguments are the same object.
 
 *** <=
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest <=-test
   (is (= true  (<= 2)))
   (is (= true  (<= 2 2 3 4 5)))
   (is (= false (<= 2 2 1 3 4))))
 #+end_src
 
-#+name: runtime-clojure-logical-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-logical-operators
 (defn <= [& args]
   "var a = rt::first(args);
 
@@ -6581,8 +6427,7 @@ Tests if 2 arguments are the same object.
 
 *** and
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest and-test
   (is (= true  (let [a 1]
                  (and (> a 0) (< a 10)))))
@@ -6594,8 +6439,7 @@ Tests if 2 arguments are the same object.
   (is (= false (and true  (identity false)))))
 #+end_src
 
-#+name: runtime-clojure-logical-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-logical-operators
   (defmacro and
     ([] true)
     ([x] x)
@@ -6605,15 +6449,13 @@ Tests if 2 arguments are the same object.
 
 *** or
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest or-test
   (is (= true  (or  true  (identity false))))
   (is (= false (or  false (identity false)))))
 #+end_src
 
-#+name: runtime-clojure-logical-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-logical-operators
   (defmacro or
     ([] nil)
     ([x] x)
@@ -6624,8 +6466,7 @@ Tests if 2 arguments are the same object.
 ** Flow
 *** if
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest if-test
   (is (= 2     (if 1
                  2)))
@@ -6640,23 +6481,20 @@ Tests if 2 arguments are the same object.
 
 *** when
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest when-test
   (is (= 1     (when (< 2 3) 1)))
   (is (= 2     (when true    2))))
 #+end_src
 
-#+name: runtime-clojure-conditional-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-conditional-operators
   (defmacro when [test & body]
     `(if ~test (do ~@body)))
 #+end_src
 
 *** cond
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (defn pos-neg-or-zero [n]
   (cond
     (< n 0) -1
@@ -6669,8 +6507,7 @@ Tests if 2 arguments are the same object.
   (is (=  0  (pos-neg-or-zero  0))))
 #+end_src
 
-#+name: runtime-clojure-conditional-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-conditional-operators
   (defmacro cond [& clauses]
     (when clauses
       `(if ~(first clauses)
@@ -6686,8 +6523,7 @@ Tests if 2 arguments are the same object.
 Repeatedly executes =body= while =test= is true. Presumes some
 side-effect will cause =test= to become =false/nil=. Returns =nil=.
 
-#+name: runtime-clojure-conditional-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-conditional-operators
   (defn _while_ [pred fn]
     "while(run(pred))
        run(fn);")
@@ -6701,8 +6537,7 @@ side-effect will cause =test= to become =false/nil=. Returns =nil=.
 Repeatedly executes body while test expression is true, evaluating the
 body with binding-form bound to the value of test. 
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest while-let-test
   (let [lst (atom (list 1 2 3 4 5))
         acc (atom )]
@@ -6715,8 +6550,7 @@ body with binding-form bound to the value of test.
     (is (= (list 5 4 3 2 1) @acc))))
 #+end_src
 
-#+name: runtime-clojure-conditional-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-conditional-operators
   (defn _while-let_ [pred fn]
     "var v;
      while((v = run(pred)))
@@ -6729,24 +6563,21 @@ body with binding-form bound to the value of test.
 
 *** forever
 
-#+name: runtime-clojure-conditional-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-conditional-operators
   (defmacro forever [& body]
     `(while true ~@body))
 #+end_src
 
 *** if-let
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest if-let-test
   (is (= nil   (if-let [a nil] a)))
   (is (= 5     (if-let [a 5]   a)))
   (is (= 2     (if-let [[_ a]  (list 1 2)] a))))
 #+end_src
 
-#+name: runtime-clojure-conditional-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-conditional-operators
   (defmacro if-let
     ([bindings then]
      `(if-let ~bindings ~then nil))
@@ -6763,16 +6594,14 @@ body with binding-form bound to the value of test.
 
 When test is true, evaluates body with binding-form bound to the value of test.
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest when-let-test
   (is (= nil   (when-let [a nil] a)))
   (is (= 5     (when-let [a 5]   a)))
   (is (= 2     (when-let [[_ a]  (list 1 2)] a))))
 #+end_src
 
-#+name: runtime-clojure-conditional-operators
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-conditional-operators
   (defmacro when-let
     [bindings & body]
     (let [form (bindings 0) tst (bindings 1)]
@@ -6785,8 +6614,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 ** Iteration
 *** doseq
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defmacro doseq [binding & body]
     `(_doseq_ ~(second binding)
               (fn [~(first binding)] ~@body)))
@@ -6796,8 +6624,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 *** dotimes
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defmacro dotimes [binding & body]
     `(_dotimes_ ~(second binding)
                 (fn [~(first binding)] ~@body)))
@@ -6810,8 +6637,7 @@ When test is true, evaluates body with binding-form bound to the value of test.
 
 Creates a new list. See also [[Special%20Forms][Spacial Forms]].
 
-#+name: ferret-unit-test-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-sequence
 (deftest list-test
   (is (= true  (= (list )       (list ))))
   (is (= false (= (list )       (list 1 2 3))))
@@ -6823,8 +6649,7 @@ Creates a new list. See also [[Special%20Forms][Spacial Forms]].
   (is (= false (= (list 1 1 3)  (list 1 2 3)))))
 #+end_src
 
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-sequence
   (defn list [& xs] "return xs;")
 #+end_src
 
@@ -6832,8 +6657,7 @@ Creates a new list. See also [[Special%20Forms][Spacial Forms]].
 
 Returns true if =x= implements [[Sequence]].
 
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-sequence
 (defn list? [x]
   "if (x.is_type(type_id<sequence>))
      return cached::true_o;
@@ -6844,14 +6668,12 @@ Returns true if =x= implements [[Sequence]].
 
 Return true if the =x= implements =seekable_i=.
 
-#+name: ferret-unit-test-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-sequence
 (deftest seqable?-test
   (is (seqable? (list 1 2 3))))
 #+end_src
 
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-sequence
 (defn seqable? [coll]
   "if (rt::is_seqable(coll))
      return cached::true_o;
@@ -6862,8 +6684,7 @@ Return true if the =x= implements =seekable_i=.
 
 Returns a new seq where x is the first element and seq is the rest.
 
-#+name: ferret-unit-test-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-sequence
 (deftest cons-test
   (is (= (list 1)           (cons 1 nil)))
   (is (= (list nil)         (cons nil nil)))
@@ -6872,8 +6693,7 @@ Returns a new seq where x is the first element and seq is the rest.
   (is (= 3                  (first (cons 3 (rest (rest (list 1 2 3 4))))))))
 #+end_src
 
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-sequence
   (defn cons [x seq] "return rt::cons(x, seq);")
 #+end_src
 
@@ -6881,15 +6701,13 @@ Returns a new seq where x is the first element and seq is the rest.
 
 Returns the first item in the collection.
 
-#+name: ferret-unit-test-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-sequence
 (deftest first-test
   (is (= 1   (first (list 1 2 3 4))))
   (is (nil?  (first (rest (rest (list)))))))
 #+end_src
 
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-sequence
   (defn first [x]
     "return rt::first(x);")
 #+end_src
@@ -6898,14 +6716,12 @@ Returns the first item in the collection.
 
 Returns the first item in the collection.
 
-#+name: ferret-unit-test-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-sequence
 (deftest second-test
   (is (= 2 (second (list 1 2 3 4)))))
 #+end_src
 
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-sequence
   (defn second [x]
     "return rt::first(rt::rest(x));")
 #+end_src
@@ -6914,16 +6730,14 @@ Returns the first item in the collection.
 
 Returns a possibly empty seq of the items after the first.
 
-#+name: ferret-unit-test-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-sequence
 (deftest rest-test
   (is (= (list 2 3 4)  (rest (list 1 2 3 4))))
   (is (= (list 3 4)    (rest (rest (list 1 2 3 4))))))
 #+end_src
 
 
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-sequence
   (defn rest [x] "return rt::rest(x);")
 #+end_src
 
@@ -6931,8 +6745,7 @@ Returns a possibly empty seq of the items after the first.
 
 Returns the value at the index.
 
-#+name: ferret-unit-test-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-sequence
 (deftest nth-test
   (is (= 1   (nth (list 1 2 3)  0)))
   (is (= 2   (nth (list 1 2 3)  1)))
@@ -6941,8 +6754,7 @@ Returns the value at the index.
   (is (= nil (nth (list 1 2 3) -10))))
 #+end_src
 
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-sequence
 (defn nth [coll ^number_t index]
   "return rt::nth(coll,index);")
 #+end_src
@@ -6951,16 +6763,14 @@ Returns the value at the index.
 
 Returns the nth rest of coll, coll when n is 0.
 
-#+name: ferret-unit-test-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-sequence
 (deftest nthrest-test
   (is (= (list 0 1 2 3 4 5 6 7 8 9)  (nthrest (range 10) 0)))
   (is (= (list )                     (nthrest (range 10) 20)))
   (is (= (list 5 6 7 8 9)            (nthrest (range 10) 5))))
 #+end_src
 
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-sequence
   (defn nthrest [coll ^number_t n]
     "return rt::nthrest(coll,n);")
 #+end_src
@@ -6970,22 +6780,19 @@ Returns the nth rest of coll, coll when n is 0.
 Returns the number of items in the collection. (count nil) returns
 0.
 
-#+name: ferret-unit-test-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-sequence
 (deftest count-test
   (is (= 0  (count (list ))))
   (is (= 4  (count (list 1 2 3 4)))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
 (defn count [s] "return obj<number>(rt::count(s))")
 #+end_src
 
 *** lazy-seq
 
-#+name: ferret-unit-test-lazy-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-lazy-sequence
 (defn lazy-countdown [n]
   (if (>= n 0)
     (cons n (lazy-seq (lazy-countdown (- n 1))))))
@@ -7014,8 +6821,7 @@ Returns the number of items in the collection. (count nil) returns
   (is (= 11    (count (lazy-countdown 10)))))
 #+end_src
 
-#+name: runtime-clojure-objects
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
 (defn new-lazy-seq
   ([thunk]
    "return obj<lazy_sequence>(thunk);")
@@ -7036,8 +6842,7 @@ the set of first items of each coll, followed by applying f to the
 set of second items in each coll, until any one of the colls is
 exhausted.
 
-#+name: ferret-unit-test-lazy-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-lazy-sequence
 (deftest map-test
   (is (= 2   (first (map inc (list 1 2 3)))))
   (is (= 0   (first (map dec (list 1 2 3)))))
@@ -7046,8 +6851,7 @@ exhausted.
   (is (= (list 2 4 6) (map + (list 1 2 3) (list 1 2 3)))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defn map
   ([f coll]
    (lazy-seq
@@ -7063,16 +6867,14 @@ exhausted.
 
 *** reduce
 
-#+name: ferret-unit-test-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-sequence
 (deftest reduce-test
   (is (= 21               (reduce + (list 1 2 3 4 5 6))))
   (is (= (list 6 5 4 3 2) (reduce (fn [h v] (conj h (inc v))) (list) (list 1 2 3 4 5))))
   (is (= (list 4 3 2 1 0) (reduce (fn [h v] (conj h (dec v))) (list) (list 1 2 3 4 5)))))
 #+end_src
 
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-sequence
   (defn reduce
     ([f xs]
      (reduce f (first xs) (rest xs)))
@@ -7084,8 +6886,7 @@ exhausted.
 
 *** range
 
-#+name: ferret-unit-test-lazy-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-lazy-sequence
 (deftest range-test
   (is (= false (= (range 10) (range 15))))
   (is (= false (= (range 15) (range 10))))
@@ -7095,8 +6896,7 @@ exhausted.
   (is (= 5   (count   (range 5)))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defn range
   ([high]
    (range 0 high))
@@ -7106,8 +6906,7 @@ exhausted.
 
 *** take
 
-#+name: ferret-unit-test-lazy-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-lazy-sequence
 (deftest take-test
   (is (= 2   (->> (map inc (list 1 2 3))
                   (take 2)
@@ -7131,8 +6930,7 @@ exhausted.
   (= 12               (apply + (take 5 (fib-seq)))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defn take [n coll]
   (lazy-seq
    (if (seqable? coll)
@@ -7143,8 +6941,7 @@ exhausted.
 
 *** take-while
 
-#+name: ferret-unit-test-lazy-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-lazy-sequence
 (deftest take-while-test
   (is (= (list -2 -1)          (take-while neg? (list -2 -1 0 1 2 3))))
   (is (= (list -2 -1 0 1 2)    (take-while #(< % 3) (list -2 -1 0 1 2 3))))
@@ -7152,8 +6949,7 @@ exhausted.
   (is (= (list -2 -1 0 1 2 3)  (take-while #(<= % 4) (list -2 -1 0 1 2 3)))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defn take-while [pred s]
   (lazy-seq
    (if (and (seqable? s)
@@ -7165,8 +6961,7 @@ exhausted.
 
 Returns a lazy sequence of all but the first n items in coll.
 
-#+name: ferret-unit-test-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-sequence
 (deftest drop-test
   (is (= (list 1 2 3 4) (drop 0 (list 1 2 3 4))))
   (is (= (list 2 3 4)   (drop 1 (list 1 2 3 4))))
@@ -7175,8 +6970,7 @@ Returns a lazy sequence of all but the first n items in coll.
   (is (= (list )        (drop 5 (list 1 2 3 4)))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defn drop [^number_t n coll]
   "return rt::nthrest(coll, n);")
 #+end_src
@@ -7186,16 +6980,14 @@ Returns a lazy sequence of all but the first n items in coll.
 Returns a lazy sequence of the items in coll starting from the
 first item for which (pred item) returns logical false.
 
-#+name: ferret-unit-test-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-sequence
 (deftest drop-while-test
   (let [my-list (list 1 2 3 4 5 6)]
     (is (= (list 3 4 5 6) (drop-while #(> 3 %)  my-list)))
     (is (= (list 4 5 6)   (drop-while #(>= 3 %) my-list)))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defn drop-while-aux [p c]
     "__result = c;
      while(run(p,__result))
@@ -7208,8 +7000,7 @@ first item for which (pred item) returns logical false.
 
 *** concat
 
-#+name: ferret-unit-test-lazy-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-lazy-sequence
 (deftest concat-test
   (let [a-list (concat (list 1 2 3) (list 4 5 6))
         b-list (concat (list 1 2 3) (list 4 5 6) (list 7 8 9))]
@@ -7221,8 +7012,7 @@ first item for which (pred item) returns logical false.
     (is (= b-list (list 1 2 3 4 5 6 7 8 9)))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defn concat
   ([]
    (list))
@@ -7242,45 +7032,39 @@ first item for which (pred item) returns logical false.
 Applies fn =f= to the argument list formed by prepending intervening
 arguments to =argv=.
 
-#+name: ferret-unit-test-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-sequence
 (deftest apply-test
   (is (= 21 (apply +       (list 1 2 3 4 5 6))))
   (is (= 9  (apply + 1 2   (list 1 2 3))))
   (is (= 12 (apply + 1 2 3 (list 1 2 3)))))
 #+end_src
 
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-sequence
   (defn apply [f & argv]
     "return rt::apply(f,argv);")
 #+end_src
 
 *** conj
 
-#+name: ferret-unit-test-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-sequence
 (deftest conj-test
   (is (= (list 4 3 2 1 1 2) (conj (list 1 2) 1 2 3 4)))
   (is (= (list 4 3 2 1)     (conj nil 1 2 3 4))))
 #+end_src
 
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-sequence
   (defn conj [coll & xs]
     (reduce (fn[h v] (cons v h)) (if (nil? coll) (list) coll) xs))
 #+end_src
 
 *** reverse
 
-#+name: ferret-unit-test-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-sequence
 (deftest reverse-test
   (is (= (list 6 5 4 3 2 1) (reverse (list 1 2 3 4 5 6)))))
 #+end_src
 
-#+name: runtime-clojure-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-sequence
   (defn reverse [s]
     (reduce (fn[h v] (cons v h)) (list) s))
 #+end_src
@@ -7290,8 +7074,7 @@ arguments to =argv=.
 Returns a lazy sequence of the items in =coll= for which =(pred item)=
 returns logical =true=.
 
-#+name: ferret-unit-test-lazy-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-lazy-sequence
 (deftest filter-test
   (is (= 1  (->> (list false false true)
                  (filter true?)
@@ -7322,8 +7105,7 @@ returns logical =true=.
                  (count)))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defn filter [pred coll]
   (lazy-seq
    (if (seqable? coll)
@@ -7335,8 +7117,7 @@ returns logical =true=.
 
 *** repeatedly
 
-#+name: ferret-unit-test-lazy-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-lazy-sequence
 (deftest repeatedly-test
   (is (= 1 (first (repeatedly 3 (fn [] 1)))))
   (is (= 3 (count (repeatedly 3 (fn [] 1)))))
@@ -7357,8 +7138,7 @@ returns logical =true=.
     (is (= (take 5 xs) (take 5 xs)))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defn repeatedly
   ([f]   (lazy-seq (cons (f) (repeatedly f))))
   ([n f] (take n (repeatedly f))))
@@ -7366,8 +7146,7 @@ returns logical =true=.
 
 *** partition
 
-#+name: ferret-unit-test-lazy-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-lazy-sequence
 (deftest partition-test
   (is (= (list (list 0 1 2 3)
                (list 4 5 6 7))
@@ -7396,8 +7175,7 @@ returns logical =true=.
 #+end_src
 
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defn partition
   ([n coll]
    (partition n n coll))
@@ -7421,15 +7199,13 @@ returns logical =true=.
 Returns true if (pred x) is logical true for every x in coll, else
 false.
 
-#+name: ferret-unit-test-lazy-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-lazy-sequence
 (deftest every?-test
   (is (= false (every? false? (list true false))))
   (is (= true  (every? false? (list false false)))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure
+#+begin_src clojure :noweb-ref runtime-clojure-core
   (defn every? [pred coll]
     "for_each(i, coll){
        if (!run(pred, i))
@@ -7442,15 +7218,13 @@ false.
 
 Returns a lazy seq of the first item in each coll, then the second etc.
 
-#+name: ferret-unit-test-lazy-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-lazy-sequence
 (deftest interleave-test
   (is (= (list 1 3 2 4) (interleave (list 1 2) (list 3 4))))
   (is (= (list 1 3)     (interleave (list 1 2) (list 3)))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure
+#+begin_src clojure :noweb-ref runtime-clojure-core
 (defn interleave
   ([s1 s2]
    (lazy-seq
@@ -7466,14 +7240,12 @@ Takes any nested combination of sequential things and returns their
 contents as a single, flat sequence.  =(flatten nil)= returns an empty
 sequence.
 
-#+name: ferret-unit-test-lazy-sequence
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-lazy-sequence
 (deftest flatten-test
   (is (= (list 1 2 3 4 5) (flatten (list 1 2 (list 3) 4 5)))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-core
 (defn flatten [s]
   (lazy-seq
    (if (seqable? s)
@@ -7494,8 +7266,7 @@ sequence.
 
 *** zero?
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest zero?-test
   (is (= true  (zero? 0)))
   (is (= false (zero? 10)))
@@ -7504,39 +7275,34 @@ sequence.
   (is (= true  (zero? (+ 1.2 -1.2)))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn zero? [x]
     (= x 0))
 #+end_src
 
 *** pos?
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest pos?-test
   (is (= true  (pos? 1)))
   (is (= true  (pos? 0.2)))
   (is (= false (pos? 0))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn pos? [x]
     (> x 0))
 #+end_src
 
 *** neg?
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (deftest neg?-test
   (is (= false (neg? 1)))
   (is (= true  (neg? -1))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn neg? [x]
     (< x 0))
 #+end_src
@@ -7554,8 +7320,7 @@ Returns the sum of nums. =(+ )= returns 0.
   (is (= 10         (+ 1 2.0 3 4))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
 (defn + [& args]
   "real_t value(0.0);
 
@@ -7576,8 +7341,7 @@ Subtracts nums and returns the result.
   (is (= 0          (- 4 2 2.0))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
 (defn - [& args]
   "__result = rt::first(args);
    real_t value = number::to<real_t>(__result);
@@ -7605,8 +7369,7 @@ Returns the product of nums. =(* )= returns 1.
   (is (= 8          (* 2.0 2 2))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
 (defn * [& args]
   "real_t value(1.0);
 
@@ -7629,8 +7392,7 @@ numerator divided by all of the denominators.
   (is (= 1          (/ 4 2 2.0))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
 (defn / [& args]
   "__result = rt::first(args);
    real_t value = number::to<real_t>(__result);
@@ -7649,16 +7411,14 @@ numerator divided by all of the denominators.
 
 *** inc
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn inc [x]
     (+ x 1))
 #+end_src
 
 *** dec
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn dec [x]
     (- x 1))
 #+end_src
@@ -7677,8 +7437,7 @@ numerator divided by all of the denominators.
 
 Returns the least of the nums.
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
 (defn min [& args]
   "__result = rt::first(args);
    for_each(i, rt::rest(args))
@@ -7688,8 +7447,7 @@ Returns the least of the nums.
 
 Returns the greatest of the nums.
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
 (defn max [& args]
   "__result = rt::first(args);
    for_each(i, rt::rest(args))
@@ -7699,8 +7457,7 @@ Returns the greatest of the nums.
 
 *** rem
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn rem [^number_t num ^number_t div]
     "return obj<number>((num % div));")
 #+end_src
@@ -7715,8 +7472,7 @@ Returns the greatest of the nums.
   (is (= 1          (mod 8 7))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn mod [num div] 
     (let [m (rem num div)] 
       (if (or (zero? m) (= (pos? num) (pos? div)))
@@ -7733,8 +7489,7 @@ Returns the greatest of the nums.
   (is (= 1          (floor 1.9))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn floor [^number_t x] "return obj<number>(x);")
 #+end_src
 
@@ -7752,8 +7507,7 @@ One-dimensional linear interpolation.
   (is (=   0  (interp  0 0 10 0 100))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
 (defn interp [^real_t x
               ^real_t in-min ^real_t in-max
               ^real_t out-min ^real_t out-max]
@@ -7772,8 +7526,7 @@ Clip (limit) the values in number.
   (is (= -10 (clip -100 -10  0))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
 (defn clip [^real_t x ^real_t min ^real_t max]
   "return obj<number>(rt::max(rt::min(max, x), min));")
 #+end_src
@@ -7790,8 +7543,7 @@ Clip (limit) the values in number.
     (is (=   42.42 (abs  42.42))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
 (defn abs [^real_t x]
   "return obj<number>(rt::abs(x));")
 #+end_src
@@ -7804,8 +7556,7 @@ Clip (limit) the values in number.
   (is (= 0          (bit-and  0 1))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn bit-and [^number_t x ^number_t y] "return obj<number>((x & y));")
 #+end_src
 
@@ -7817,8 +7568,7 @@ Clip (limit) the values in number.
   (is (= -1         (bit-not  0))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn bit-not [^number_t x] "return obj<number>(~x);")
 #+end_src
 
@@ -7830,8 +7580,7 @@ Clip (limit) the values in number.
   (is (= 1          (bit-or   0 1))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn bit-or [^number_t x ^number_t y] "return obj<number>((x | y ));")
 #+end_src
 
@@ -7843,8 +7592,7 @@ Clip (limit) the values in number.
   (is (= 1          (bit-xor  1 0))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn bit-xor [^number_t x ^number_t y] "return obj<number>((x ^ y ));")
 #+end_src
 
@@ -7856,8 +7604,7 @@ Clip (limit) the values in number.
   (is (= 16         (bit-shift-left 4 2))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn bit-shift-left [^number_t x ^number_t n] "return obj<number>((x << n ));")
 #+end_src
 
@@ -7869,8 +7616,7 @@ Clip (limit) the values in number.
   (is (= 1          (bit-shift-right 4 2))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn bit-shift-right [^number_t x ^number_t n] "return obj<number>((x >> n ));")
 #+end_src
 
@@ -7889,8 +7635,7 @@ From =x= extract =k= bits starting from position =p=.
   (is (= 15         (bit-extract 500  5 6))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn bit-extract [^number_t x ^number_t p ^number_t k]
     "__result = obj<number>((x >> p) & ((1 << k) - 1));")
 #+end_src
@@ -7907,8 +7652,7 @@ Override =len= bits in =dst= starting from =pos= using bits from =src=.
   (is (= 0xBBBB     (bit-override 0xAAAA 0xBBBB 0 16))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn bit-override [^number_t dst ^number_t src ^number_t pos ^number_t len]
     "number_t mask = (((number_t)1 << len) - 1) << pos;
      number_t num = (dst & ~mask) | (src & mask);
@@ -7928,8 +7672,7 @@ Override =len= bits in =dst= starting from =pos= using bits from =src=.
 
 Split a number into bytes.
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn encode-int16 [n] 
     "int16_t val = number::to<int16_t>(n);
      byte *p = (byte*)&val;
@@ -7939,8 +7682,7 @@ Split a number into bytes.
 
 Combine a list of bytes to a number.
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn decode-int16 [s]
     "int16_t val = 0;
      byte *p = (byte*)&val; 
@@ -7966,8 +7708,7 @@ Combine a list of bytes to a number.
   (is (= 512        (decode-float (list 0 0 0 68 42)))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn encode-float [n] 
     "static_assert(sizeof(float) == 4 * sizeof(byte), \"\");
      float val = number::to<float>(n);
@@ -7978,8 +7719,7 @@ Combine a list of bytes to a number.
 
 Combine a list of bytes to a number.
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn decode-float [s]
     "union {
       float f;
@@ -8008,8 +7748,7 @@ Square root.
   (is (= 2          (sqrt 4))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn sqrt [^real_t s]
     "return obj<number>(::sqrt(s));")
 #+end_src
@@ -8024,8 +7763,7 @@ Returns base raised to the power exponent:
   (is (= 16         (pow 2 4))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn pow [^real_t b ^real_t e]
     "return obj<number>(::pow(b, e));")
 #+end_src
@@ -8040,8 +7778,7 @@ Returns the cosine of an angle of x radians.
   (is (= -0.99999   (cos 3.145))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn cos [^real_t s]
     "return obj<number>(::cos(s));")
 #+end_src
@@ -8056,8 +7793,7 @@ Returns the sine of an angle of x radians.
   (is (= -0.00340   (sin 3.145))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn sin [^real_t s]
     "return obj<number>(::sin(s));")
 #+end_src
@@ -8066,8 +7802,7 @@ Returns the sine of an angle of x radians.
 
  Returns the principal value of the arc sine of x, expressed in radians.
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn asin [^real_t x]
     "return obj<number>(::asin(x));")
 #+end_src
@@ -8081,8 +7816,7 @@ Returns the principal value of the arc tangent of y/x, expressed in radians.
   (is (= 0.98279    (atan2 45 30))))
 #+end_src
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn atan2 [^real_t x ^real_t y]
     "return obj<number>(::atan2(x,y));")
 #+end_src
@@ -8097,16 +7831,14 @@ Returns the principal value of the arc tangent of y/x, expressed in radians.
 
 Returns the natural logarithm of x.
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn log [^real_t x]
     "return obj<number>(::log(x));")
 #+end_src
 
 Returns the natural logarithm of x.
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn log10 [^real_t x]
     "return obj<number>(::log10(x));")
 #+end_src
@@ -8122,8 +7854,7 @@ Returns the natural logarithm of x.
 Converts an angle measured in radians to an approximately equivalent
 angle measured in degrees.
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn to-degrees [^real_t x]
     "return obj<number>((x * 180.0 / 1_pi));")
 #+end_src
@@ -8131,8 +7862,7 @@ angle measured in degrees.
 Converts an angle measured in degrees to an approximately equivalent
 angle measured in radians.
 
-#+name: runtime-clojure-math
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-math
   (defn to-radians [^real_t x]
     "return obj<number>((x * 1_pi / 180.0));")
 #+end_src
@@ -8148,8 +7878,7 @@ Returns a random floating point number between 0 (inclusive) and n
   (is (= true       (not (nil? (rand 15))))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defnative rand-aux []
     (on "defined FERRET_STD_LIB"
         ("random")
@@ -8169,8 +7898,7 @@ Returns a random floating point number between 0 (inclusive) and n
 
 Returns a random integer between 0 (inclusive) and n (exclusive).
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defn rand-int
     [x]
     (floor (rand x)))
@@ -8178,8 +7906,7 @@ Returns a random integer between 0 (inclusive) and n (exclusive).
 
 ** Matrices
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (require '[ferret.matrix :as m])
 
 (def pi 3.1415)
@@ -8365,16 +8092,14 @@ Converts =matrix= to a =lazy-seq=.
 
 Return current time in milliseconds,
 
-#+name: ferret-unit-test-time
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-time
 (deftest millis-test
   (let [now (millis)]
     (sleep 150)
     (is (>= (- (millis) now) 100))))
  #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defnative millis []
     (on "defined FERRET_STD_LIB"
         "auto now = ::std::chrono::system_clock::now();
@@ -8389,8 +8114,7 @@ Return current time in milliseconds,
 
 Return current time in microseconds,
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defnative micros []
     (on "defined FERRET_STD_LIB"
         "auto now = ::std::chrono::high_resolution_clock::now();
@@ -8409,8 +8133,7 @@ Sleep current thread for *t* milliseconds,
 
 Sleep current thread for *t* microseconds,
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-core
   (defnative sleep-micros [^number_t t]
     (on "defined FERRET_STD_LIB"
         "auto duration = ::std::chrono::microseconds(t);
@@ -8423,8 +8146,7 @@ Sleep current thread for *t* microseconds,
 
 Port of Teensy elapsedMicros API,
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no :noweb yes
+#+begin_src clojure :tangle no :noweb yes :noweb-ref runtime-clojure-core
   (defobject elapsed_micros "elapsed_micros_o.h")
 
   (defn new-elapsed-micros []
@@ -8493,8 +8215,7 @@ statistics.
 (benchmark #(reduce + (range 1000)) 10000)
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defn benchmark
   ([f]
    (benchmark f 100))
@@ -8562,8 +8283,7 @@ statistics.
  (throttled-ping))    
 #+end_src
 
-#+name: ferret-unit-test-time
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-time
 (defn ping [] true)
 
 (deftest fn-throttler-test
@@ -8589,8 +8309,7 @@ statistics.
     (is (< (- (millis) begin) 1000))))
  #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defobject fn_throttler_o "fn_throttler_o.h")
 
 (defn new-fn-throttler [f ^real_t rate ^bolean block]
@@ -8652,8 +8371,7 @@ public:
 
 Return =true= if =s= is a =string=.
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defn string? [s]
   "if (s.is_type(type_id<string>))
      return cached::true_o;
@@ -8665,16 +8383,14 @@ Return =true= if =s= is a =string=.
 Parses the Ferret =string= =str=, interpreting its content as a number
 and returns its value as a Ferret =number=.
 
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-tests
 (deftest ston-test
   (is (=  1234.1234 (ston  "1234.1234")))
   (is (= -1234.1234 (ston "-1234.1234")))
   (is (=  1234.1234 (ston  "1 2 3 4. 1 2 3 4 "))))
  #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defn ston [str]
     "var seq = str;
      real_t factor = 1;
@@ -8709,16 +8425,14 @@ and returns its value as a Ferret =number=.
 
 Converts a Ferret =number= to a Ferret =string=,
 
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-tests
 (deftest ntos-test
   (is (=  (ntos -12.34)      (new-string "-12.3400")))
   (is (=  (ntos  12.001)     (new-string "12.0010")))
   (is (=  (ntos  154.132341) (new-string "154.1323"))))
  #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defn ntos [^real_t f]
     "number_t n = (number_t)f;
      number_t sign;
@@ -8752,15 +8466,13 @@ Converts a Ferret =number= to a Ferret =string=,
 
 Returns a =lazy-seq= of tokens in =str= separated by =delimeter=.
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (assert (= (str-tok "- This, a sample string." " ,.-")
            (list "This" "a" "sample" "string")))
 #+end_src
 
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defnative str-tok [str delimeter]
   (on "defined FERRET_RUNTIME_H"
       ("string.h")
@@ -8801,8 +8513,7 @@ Define a =fn=,
 
 Define a =fn= and bind =name= to it,
 
-#+name: runtime-clojure-fn-macros
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-fn-macros
   (defmacro defn [name & body]
     `(def ~name (fn ~@body)))
 #+end_src
@@ -8818,8 +8529,7 @@ and then dispatches on the number of arguments to each implementation.
     ([a b [c d] & e] 4))
 #+end_src
 
-#+name: ferret-unit-tests
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-tests
 (deftest fn-test
   (let [f1 (fn [])
         f2 (fn [])
@@ -8871,8 +8581,7 @@ The beginning of the variable arguments is marked with =&=
 See [[Accessing C,C++ Libraries]] for information on how to use Ferret
 with external libraries.
 
-#+name: runtime-clojure-fn-macros
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-fn-macros
   (defmacro fn [& sig]
     (let [name (if (symbol? (first sig)) (first sig) nil)
           body (if name (rest sig) sig)]
@@ -8901,8 +8610,7 @@ with external libraries.
 
 A simple macro for calling inline C++,
 
-#+name: runtime-clojure-fn-macros
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-fn-macros
   (defmacro cxx [& body]
     (let [body (apply str body)]
       `((fn [] ~body))))
@@ -8913,8 +8621,7 @@ A simple macro for calling inline C++,
 Allows a function to be defined for multiple platforms see [[Accessing C,C++ Libraries]] for
 examples.
 
-#+name: runtime-clojure-fn-macros
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-fn-macros
   (defmacro defnative [name args & form]
     (let [includes (->> (filter #(seq? (nth % 2)) form)
                         (map #(cons (nth % 1) (apply list (nth % 2))))
@@ -8954,8 +8661,7 @@ second item in the first form, making a list of it if it is not a
 list already. If there are more forms, inserts the first form as the
 second item in second form, etc.
 
-#+name: runtime-clojure-threading-macros
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-threading-macros
   (defmacro -> [x & forms]
     (loop [x x, forms forms]
       (if forms
@@ -8974,8 +8680,7 @@ last item in the first form, making a list of it if it is not a
 list already. If there are more forms, inserts the first form as the
 last item in second form, etc.
 
-#+name: runtime-clojure-threading-macros
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-threading-macros
   (defmacro ->> [x & forms]
     (loop [x x, forms forms]
       (if forms
@@ -8993,8 +8698,7 @@ Evaluates x then calls all of the methods and functions with the
 value of x supplied at the front of the given arguments.  The forms
 are evaluated in order.  Returns x.
 
-#+name: ferret-unit-tests
-#+begin_src clojure
+#+begin_src clojure :noweb-ref ferret-unit-tests
 (require '[ferret.matrix :as m])
 
 (deftest doto-test
@@ -9007,8 +8711,7 @@ are evaluated in order.  Returns x.
       (is (= (list 1 1 1 1) (m/seq mat)))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defmacro doto
     [x & forms]
     (let [gx (gensym)]
@@ -9025,8 +8728,7 @@ are evaluated in order.  Returns x.
 
 Ignores body, yields nil.
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defmacro comment
   [& body])
 #+end_src
@@ -9041,8 +8743,7 @@ command line arguments, or nil if none were supplied.
 
 Prints the object(s) to =STD_OUT=.
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defnative print [& more]
     (on "!defined(FERRET_DISABLE_STD_OUT)"
         "if (more.is_nil())
@@ -9061,8 +8762,7 @@ Prints the object(s) to =STD_OUT=.
 
 Same as print followed by (newline).
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defn println [& more]
   (apply print more)
   (cxx "rt::print((char)0xA);"))
@@ -9073,8 +8773,7 @@ Same as print followed by (newline).
 
 Reads the next line from default I/O stream.
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defn read-line []
     "char buf[FERRET_IO_STREAM_SIZE] = {0};
      rt::read_line(buf, FERRET_IO_STREAM_SIZE);
@@ -9083,8 +8782,7 @@ Reads the next line from default I/O stream.
 
 *** slurp
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defnative slurp [^c_str f]
   (on "defined FERRET_STD_LIB"
       ("fstream")
@@ -9107,8 +8805,7 @@ Reads the next line from default I/O stream.
 
 *** sh
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defnative sh [^c_str cmd]
     (on "defined FERRET_STD_LIB"
         ("memory")
@@ -9127,8 +8824,7 @@ Reads the next line from default I/O stream.
 
 Wraps mlockall - locks the address space of process.
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defnative lock-memory []
     (on "defined FERRET_STD_LIB"
         ("sys/mman.h")
@@ -9137,8 +8833,7 @@ Wraps mlockall - locks the address space of process.
 
 *** pr-object-sizes
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defn pr-object-sizes []
     (println "Machine Types")
     (println "\t*void:\t\t\t" (cxx "return obj<number>(sizeof(void*));"))
@@ -9169,8 +8864,7 @@ Wraps mlockall - locks the address space of process.
 
 *** memory-pool-free-space
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defnative memory-pool-free-space []
     (on "defined FERRET_MEMORY_POOL_SIZE"
         "size_t acc = 0;
@@ -9182,24 +8876,21 @@ Wraps mlockall - locks the address space of process.
 
 *** system-exit
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defn system-exit []
     "::exit(0);")
 #+end_src
 
 *** system-abort
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defn system-abort []
     "::abort();")
 #+end_src
 
 *** system-halt
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defn system-halt [code]
   (forever (sleep 1000)))
 #+end_src
@@ -9897,8 +9588,7 @@ public:
 };
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defobject fsm "fsm_o.h")
 
 (defn new-fsm [state transitions]
@@ -9988,8 +9678,7 @@ Ported from,
    */
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defobject pid_controller "pid_controller_o.h")
 #+end_src
 
@@ -10113,8 +9802,7 @@ Ported from,
 
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defn new-pid-controller [^real_t kp ^real_t ki ^real_t kd
                           ^real_t i-min ^real_t i-max
                           ^real_t o-min ^real_t o-max
@@ -10147,8 +9835,7 @@ moving average of the last K samples by setting the value of alpha to
     (is (= 2.71 (f 10)))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defobject moving_average_filter "moving_average_filter_o.h")
 
   (defn new-moving-average-filter [^real_t a]
@@ -10632,8 +10319,7 @@ Bindings for Arduino core for ESP32 WiFi chip.
 
 Evaluates expr and aborts if it does not evaluate to logical true.
 
-#+name: clojure-unit-tests
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref clojure-unit-tests
 (defn aborted? [return-code]
   (= 134 return-code))
 
@@ -10642,8 +10328,7 @@ Evaluates expr and aborts if it does not evaluate to logical true.
   (is (zero?    (check-form '((assert (= 2 1))) {:release true}))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defn assert-aux [f cb]
   (when (not (f))
     (cb)))
@@ -10664,8 +10349,7 @@ Evaluates expr and aborts if it does not evaluate to logical true.
 Support for Clojure style unit testing. See [[Unit Testing]] for more
 information.
 
-#+name: clojure-unit-tests
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref clojure-unit-tests
 (defn aborted? [return-code]
   (= 134 return-code))
 
@@ -10686,8 +10370,7 @@ information.
                               (run-all-tests))))))
 #+end_src
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
 (defn is-aux-expect [ex-fb form-fn form-str]
   (let [expect (ex-fb)
         got  (form-fn)]
@@ -10720,8 +10403,7 @@ information.
 
 Configure Ferret Runtime options. See table in [[Configuration]] section.
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defmacro configure-runtime! [& body]
     `(native-define ~(->> (partition 2 body)
                           (map #(str "#define " (first %) " " (second %) "\n"))
@@ -10732,8 +10414,7 @@ Configure Ferret Runtime options. See table in [[Configuration]] section.
 
 Embed compilations options.
 
-#+name: runtime-clojure-core
-#+begin_src clojure :tangle no
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
   (defmacro configure-ferret! [& body]
     `(native-define ~(str "// build-conf-begin\n"
                           "//" (str (apply hash-map body)) "\n"

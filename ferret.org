@@ -10421,6 +10421,14 @@ Embed compilations options.
                           "// build-conf-end\n")))
 #+end_src
 
+*** for
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
+      (defmacro for [bindings & body]
+        (if (seq bindings)
+          `(map (fn [~(first bindings)] (for ~(drop 2 bindings) ~@body))
+                ~(second bindings))
+          `(do ~@body)))
+#+end_src
 * Testing
 ** Unit Testing
 

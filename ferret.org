@@ -6641,9 +6641,9 @@ over first.
 
 #+begin_src clojure :tangle no :noweb-ref ferret-unit-test-for
 (deftest for-test
-  (is (= (list 1 2 3) (for [x (list 1 2 3)] x))
-      (= (list 1 4 6) (for [x (list 1 2 3)] (* x 2)))
-      (= (list 4 5 6 8 10 12 12 15 18)
+  (is (= (list 1 2 3) (for [x (list 1 2 3)] x)))
+  (is (= (list 1 4 6) (for [x (list 1 2 3)] (* x 2))))
+  (is (= (list 4 5 6 8 10 12 12 15 18)
          (for [x (list 1 2 3)
                y (list 4 5 6)]
            (* x y)))))
@@ -6652,7 +6652,7 @@ over first.
 #+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
       (defmacro for [bindings & body]
         (if (seq bindings)
-          `(flatten (map (fn [~(first bindings)] (for ~(drop 2 bindings) ~@body))
+          `(flatten (map (fn [~(first bindings)] (~'for ~(drop 2 bindings) ~@body))
                 ~(second bindings)))
           `(do ~@body)))
 #+end_src

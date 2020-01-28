@@ -1,5 +1,6 @@
 image: nakkaya/ferret-build
 
+
 compile:
   script:
     - script -e -q -c "make test"

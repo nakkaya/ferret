@@ -2619,7 +2619,7 @@ count, when it reaches zero it will automatically free the object.
   };
 
   template<>
-  inline seekable_i* var::cast<seekable_i>() const { return obj->cast_seekable_i(); }
+  inline seekable_i* var::cast<seekable_i>() const { return obj != nullptr ? obj->cast_seekable_i() : nullptr; }
 
   template <typename rc>
   bool object_i<rc>::equals(ref o) const {
@@ -6632,6 +6632,30 @@ When test is true, evaluates body with binding-form bound to the value of test.
   (defn _dotimes_ [^number_t t f] "for(number_t i = 0; i < t; i++) run(f,obj<number>(i));")
 #+end_src
 
+*** for
+
+List comprehension. Takes a list of one or more binding-form/collection-expr
+pairs and yields a lazy sequence of evaluations of body-exprs. Collections are
+iterated over in a nested fashion with the rightmost binding being evaluated
+over first.
+
+#+begin_src clojure :tangle no :noweb-ref ferret-unit-test-for
+(deftest for-test
+  (is (= (list 1 2 3) (for [x (list 1 2 3)] x))
+      (= (list 1 4 6) (for [x (list 1 2 3)] (* x 2)))
+      (= (list 4 5 6 8 10 12 12 15 18)
+         (for [x (list 1 2 3)
+               y (list 4 5 6)]
+           (* x y)))))
+#+end_src
+
+#+begin_src clojure :tangle no :noweb-ref runtime-clojure-core
+      (defmacro for [bindings & body]
+        (if (seq bindings)
+          `(flatten (map (fn [~(first bindings)] (for ~(drop 2 bindings) ~@body))
+                ~(second bindings)))
+          `(do ~@body)))
+#+end_src
 ** Sequential
 *** list
 

@@ -474,7 +474,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Ferret has a similar architecture to other modern compilers,
 
 #+CAPTION: Ferret Compiler Architecture
-#+NAME:   fig:compiler_architecture
+#+NAME:   fig_compiler_architecture
 [[./ferret-styles/graphs/compiler_arch.png]]
 
 First, an input file containing Ferret code is loaded from the

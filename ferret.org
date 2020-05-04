@@ -208,7 +208,7 @@ takes the Ferret code and converts it to a Intermediate
 representation by taking the Ferret form and running it [[Compilation][through some
 transformations]]. This IR is then run through [[Code Generation]] module to
 create C++ code. [[*Runtime][Runtime]] contains the C++ runtime needed to support
-Ferret such as [[Object System]], [[Memory Pool][Memory Pooling]], [[Reference Counting][Garbage Collection]]. It
+Ferret such as [[Object System]], [[Memory Management][Memory Pooling]], [[Reference Counting][Garbage Collection]]. It
 is written in a mixture of C++ and Ferret DSL. [[*Core][Core]] is the standard
 library of Ferret, provides a ton of general-purpose functionality for
 writing robust, maintainable embedded applications.
@@ -2466,7 +2466,7 @@ Common I/O operations.
 
 * Runtime
 
-Runtime needed to support [[*Core][Core]]. [[Object System][Object system]], [[*Memory%20Management][Memory Management]] etc.
+Runtime needed to support [[*Core][Core]]. [[Object System][Object system]], [[*Memory Management][Memory Management]] etc.
 
 ** Object System
 *** Base
@@ -2474,7 +2474,7 @@ Runtime needed to support [[*Core][Core]]. [[Object System][Object system]], [[*
 All our types are derived from the base Object type. Which is a
 =typedef= of =obj::base<FERRET_RC_POLICY,FERRET_ALLOCATOR>=. See
 [[Reference Counting]] for available reference counting policies and
-[[Memory Allocation]] for available allocation policies.
+[[Allocators][Memory Allocation]] for available allocation policies.
 
 #+begin_src c++ :tangle no :noweb-ref runtime-native-object
   template<typename>
@@ -2856,7 +2856,7 @@ typedef value<matrix> matrix_t;
 The number type represents real (double-precision floating-point)
 numbers. Ferret has no integer type. On systems without hardware
 support for floating point Ferret programs can be configured to use
-fixed point numbers. (See [[Numeric%20Tower][Numeric Tower]] runtime.)
+fixed point numbers. (See [[Numeric Tower]] runtime.)
 
 #+begin_src clojure :tangle no :noweb-ref runtime-clojure-objects
   (defobject number "number_o.h")
@@ -4551,7 +4551,7 @@ libgc.{a,so}.
 
 **** System
 
-[[Object]]s are allocated from system implementation. (Default memory
+[[Objects]] are allocated from system implementation. (Default memory
 allocator used.)
 
 #+begin_src c++ :tangle no :noweb-ref runtime-native-allocators
@@ -6659,7 +6659,7 @@ over first.
 ** Sequential
 *** list
 
-Creates a new list. See also [[Special%20Forms][Spacial Forms]].
+Creates a new list. See also [[Special Forms]].
 
 #+begin_src clojure :tangle no :noweb-ref ferret-unit-test-sequence
 (deftest list-test

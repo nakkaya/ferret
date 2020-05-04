@@ -10751,9 +10751,14 @@ Valgrind options,
 * Files                                                            :noexport:
 
 #+name: ferret-version
-#+begin_src sh :exports results noweb: yes
+#+begin_src sh :exports both :results replace :noweb yes
   echo "`git describe --abbrev=0 --tags`-`git rev-parse --short HEAD`"
 #+end_src 
+
+#+RESULTS: ferret-version
+: 0.4.0-171a575
+
+
 
 ** project.clj
 

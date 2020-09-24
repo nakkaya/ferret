@@ -4115,6 +4115,30 @@ uniform fashion.
   };
 #+end_src
 
+#+begin_src c++ :mkdirp yes :noweb yes :tangle src/runtime/lambda_i.h
+  class lambda_a final : public object, public seekable_i {
+    const var next;
+    object* data;
+  public:
+
+    type_t type() const final { return type_id<lambda_a>; }
+    bool equals(ref) const final { return false; }
+
+  #if !defined(FERRET_DISABLE_STD_OUT)
+    void stream_console() const final { }
+  #endif
+
+    explicit lambda_a(ref d = nil(), ref n = nil()) : next(n), data(d.get()) {} 
+
+    virtual seekable_i* cast_seekable_i() { return this; }
+
+    var cons(ref x) final { return obj<lambda_a>(x, var(this)); }
+
+    var first() final { return var(data); }
+    var rest()  final { return next; }
+  };
+#+end_src
+
 Function invocation,
 
 #+begin_src c++ :tangle no :noweb-ref runtime-native-prototypes
@@ -4132,10 +4156,26 @@ Function invocation,
   }
 #+end_src
 
+#+name: runtime-native-implementations
+#+begin_src c++ :tangle no
+  inline var arg_seq() {
+    return cached::empty_sequence_o;
+  }
+
+  inline var arg_seq(ref v) {
+    return obj<lambda_a>(v, cached::empty_sequence_o);
+  }
+
+  template <typename... Args>
+  inline var arg_seq(ref first, Args const & ... args) {
+    return obj<lambda_a>(first, arg_seq(args...));
+  }
+#+end_src
+
 #+begin_src c++ :tangle no :noweb-ref runtime-native-implementations
   template<typename T, typename... Args>
   inline var run(T const & fn, Args const & ... args) {
-    return fn.invoke(rt::list(args...));
+    return fn.invoke(arg_seq(args...));
   }
 
   template<typename T>
@@ -4150,7 +4190,7 @@ Function invocation,
 
   template<typename... Args>
   inline var run(ref fn, Args const & ... args) {
-    return fn.cast<lambda_i>()->invoke(rt::list(args...));
+    return fn.cast<lambda_i>()->invoke(arg_seq(args...));
   }
 
   namespace runtime {

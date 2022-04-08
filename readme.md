@@ -7,6 +7,9 @@ Ferret 
 
 </h1>
 
+A free **Lisp** compiler designed for <br>
+***Embedded    Real - Time    Systems*** .
+
 <br>
 
 ---
@@ -24,17 +27,17 @@ Ferret 
 
 <br>
 
-Ferret is a free software lisp implementation designed to be used in
-real time embedded control systems. Ferret lisp compiles down to self
-contained *C++11*. Generated code is portable between any Operating
-System and/or Microcontroller that supports a *C++11* compliant
-compiler. It has been verified to run on architectures ranging from
-embedded systems with as little as *2KB of RAM* to general purpose
-computers running Linux/Mac OS X/Windows.
+Ferret **Lisp** compiles down to self contained `C++11` which is <br>
+portable between any **OS** / **Microcontroller** that supports it.
 
-This repository contains the Ferret compiler. For more information about Ferret, 
-including downloads and documentation for the latest release, check 
-out [Ferret's website][Website]
+It verifiably can run on embedded systems with as little as <br>
+`2KB` of **RAM** as well as on general purpose computers with <br>
+**Linux** / **Mac OS X** / **Windows** installed.
+
+<br>
+
+*For more information regarding Ferret, including* <br>
+*downloads & documentation, check our* ***[Website]*** *.*
 
 
 <!----------------------------------------------------------------------------->

@@ -1,8 +1,11 @@
-# Ferret
+<h1>
 
-[![Badge Version]][Website]
+Ferret 
+[![Badge License]][License] 
+[![Badge Version]][Website] 
 [![Badge Build]][Travis]
-[![Badge License]][License]
+
+</h1>
 
 Ferret is a free software lisp implementation designed to be used in
 real time embedded control systems. Ferret lisp compiles down to self

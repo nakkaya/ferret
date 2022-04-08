@@ -13,8 +13,10 @@ Ferret 
 
 <div align = 'center'>
 
-  **⸢ [Website] ⸥**
-  **⸢ [Mailing List] ⸥**
+**⸢ [Website] ⸥**  
+**⸢ [Install] ⸥**  
+**⸢ [Usage] ⸥**  
+**⸢ [Mailing List] ⸥**
 
 </div>
 
@@ -34,36 +36,6 @@ This repository contains the Ferret compiler. For more information about Ferret,
 including downloads and documentation for the latest release, check 
 out [Ferret's website][Website]
 
-## Quick Start
-
-Download latest Ferret release,
-
-```bash
-wget https://ferret-lang.org/builds/ferret.jar
-```
-
-A program that sums the first 5 positive numbers. 
-
-```clojure
-;;; lazy-sum.clj
-(defn positive-numbers
-  ([]
-   (positive-numbers 1))
-  ([n]
-   (cons n (lazy-seq (positive-numbers (inc n))))))
-
-(println (->> (positive-numbers)
-              (take 5)
-              (apply +)))
-```
-
-Compile to binary using,
-
-```bash
-$ java -jar ferret.jar -i lazy-sum.clj
-$ g++ -std=c++11 -pthread lazy-sum.cpp
-$ ./a.out
-```
 
 <!----------------------------------------------------------------------------->
 
@@ -75,4 +47,6 @@ $ ./a.out
 [Website]: https://ferret-lang.org
 [Travis]: https://travis-ci.org/nakkaya/ferret/builds 'CI Build Status'
 
+[Install]: Documentation/Install.md
 [License]: LICENSE
+[Usage]: Documentation/Usage.md

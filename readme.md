@@ -7,6 +7,21 @@ Ferret 
 
 </h1>
 
+<br>
+
+---
+
+<div align = 'center'>
+
+  **⸢ [Website] ⸥**
+  **⸢ [Mailing List] ⸥**
+
+</div>
+
+---
+
+<br>
+
 Ferret is a free software lisp implementation designed to be used in
 real time embedded control systems. Ferret lisp compiles down to self
 contained *C++11*. Generated code is portable between any Operating
@@ -18,13 +33,6 @@ computers running Linux/Mac OS X/Windows.
 This repository contains the Ferret compiler. For more information about Ferret, 
 including downloads and documentation for the latest release, check 
 out [Ferret's website][Website]
-
-## General Information
-
-   - [Website]
-   - [Source Code]
-   - [Mailing List]
-   - [Issue Tracker]
 
 ## Quick Start
 
@@ -63,9 +71,7 @@ $ ./a.out
 [Badge Build]: https://travis-ci.org/nakkaya/ferret.svg?branch=master
 [Badge License]: https://img.shields.io/badge/License-BSD%202--Clause-orange.svg
 
-[Issue Tracker]: https://github.com/nakkaya/ferret/issues
 [Mailing List]: https://groups.google.com/forum/#!forum/ferret-lang
-[Source Code]: https://github.com/nakkaya/ferret
 [Website]: https://ferret-lang.org
 [Travis]: https://travis-ci.org/nakkaya/ferret/builds 'CI Build Status'
 

@@ -27,19 +27,25 @@ A free **Lisp** compiler designed for <br>
 
 <br>
 
+<div align = 'center'>
+
 Ferret **Lisp** compiles down to self contained `C++11` which is <br>
 portable between any **OS** / **Microcontroller** that supports it.
 
+<br>
+  
 It verifiably can run on embedded systems with as little as <br>
 `2KB` of **RAM** as well as on general purpose computers with <br>
 **Linux** / **Mac OS X** / **Windows** installed.
 
 <br>
+<br>
 
 *For more information regarding Ferret, including* <br>
 *downloads & documentation, check our* ***[Website]*** *.*
 
-
+</div>
+              
 <!----------------------------------------------------------------------------->
 
 [Badge Version]: https://badge.fury.io/gh/nakkaya%2Fferret.svg

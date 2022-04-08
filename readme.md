@@ -1,8 +1,8 @@
 # Ferret
 
-[![Current Release][badge-ferret-version]][ferret-downloads]
-[![CI Build Status][badge-ferret-build]][ferret-travis]
-![BSD 2 Clause License][badge-ferret-license]
+[![Badge Version]][Website]
+[![Badge Build]][Travis]
+[![Badge License]][License]
 
 Ferret is a free software lisp implementation designed to be used in
 real time embedded control systems. Ferret lisp compiles down to self
@@ -14,14 +14,14 @@ computers running Linux/Mac OS X/Windows.
 
 This repository contains the Ferret compiler. For more information about Ferret, 
 including downloads and documentation for the latest release, check 
-out [Ferret's website](https://ferret-lang.org)
+out [Ferret's website][Website]
 
 ## General Information
 
-   - Website - https://ferret-lang.org
-   - Source Code - https://github.com/nakkaya/ferret
-   - Mailing List - https://groups.google.com/forum/#!forum/ferret-lang
-   - Issue Tracker - https://github.com/nakkaya/ferret/issues
+   - [Website]
+   - [Source Code]
+   - [Mailing List]
+   - [Issue Tracker]
 
 ## Quick Start
 
@@ -54,8 +54,16 @@ $ g++ -std=c++11 -pthread lazy-sum.cpp
 $ ./a.out
 ```
 
-[ferret-travis]: https://travis-ci.org/nakkaya/ferret/builds
-[ferret-downloads]: https://ferret-lang.org
-[badge-ferret-version]: https://badge.fury.io/gh/nakkaya%2Fferret.svg
-[badge-ferret-build]: https://travis-ci.org/nakkaya/ferret.svg?branch=master
-[badge-ferret-license]: https://img.shields.io/badge/License-BSD%202--Clause-orange.svg
+<!----------------------------------------------------------------------------->
+
+[Badge Version]: https://badge.fury.io/gh/nakkaya%2Fferret.svg
+[Badge Build]: https://travis-ci.org/nakkaya/ferret.svg?branch=master
+[Badge License]: https://img.shields.io/badge/License-BSD%202--Clause-orange.svg
+
+[Issue Tracker]: https://github.com/nakkaya/ferret/issues
+[Mailing List]: https://groups.google.com/forum/#!forum/ferret-lang
+[Source Code]: https://github.com/nakkaya/ferret
+[Website]: https://ferret-lang.org
+[Travis]: https://travis-ci.org/nakkaya/ferret/builds 'CI Build Status'
+
+[License]: LICENSE

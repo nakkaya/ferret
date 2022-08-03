@@ -1,6 +1,8 @@
 
 # Usage
 
+<br>
+
 ### Example
 
 A program that sums the first 5 positive numbers. 
@@ -25,8 +27,17 @@ A program that sums the first 5 positive numbers.
 
 Build the binary using:
 
-```bash
-java -jar ferret.jar -i lazy-sum.clj
-g++ -std=c++11 -pthread lazy-sum.cpp
-./a.out
+```shell
+java                    \
+    -jar ferret.jar     \
+    -i lazy-sum.clj
 ```
+
+```shell
+g++                         \
+    -std=c++11              \ 
+    -pthread lazy-sum.cpp   \
+    ./a.out
+```
+
+<br>

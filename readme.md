@@ -1,61 +1,73 @@
+
+<br>
+
+<div align = center>
+
+[![Badge License]][License]   
+[![Badge Version]][Website]   
+[![Badge Build]][Travis]
+
+<br>
+<br>
+
 # Ferret
 
-[![Current Release][badge-ferret-version]][ferret-downloads]
-[![CI Build Status][badge-ferret-build]][ferret-travis]
-![BSD 2 Clause License][badge-ferret-license]
+A free **Lisp** compiler designed for <br>
+***Embedded    Real - Time    Systems*** .
 
-Ferret is a free software lisp implementation designed to be used in
-real time embedded control systems. Ferret lisp compiles down to self
-contained *C++11*. Generated code is portable between any Operating
-System and/or Microcontroller that supports a *C++11* compliant
-compiler. It has been verified to run on architectures ranging from
-embedded systems with as little as *2KB of RAM* to general purpose
-computers running Linux/Mac OS X/Windows.
+<br>
+<br>
 
-This repository contains the Ferret compiler. For more information about Ferret, 
-including downloads and documentation for the latest release, check 
-out [Ferret's website](https://ferret-lang.org)
 
-## General Information
+[![Button Website]][Website]   
+[![Button Install]][Install]   
+[![Button Usage]][Usage]   
+[![Button Mail]][Mail]
 
-   - Website - https://ferret-lang.org
-   - Source Code - https://github.com/nakkaya/ferret
-   - Mailing List - https://groups.google.com/forum/#!forum/ferret-lang
-   - Issue Tracker - https://github.com/nakkaya/ferret/issues
+<br>
+<br>
 
-## Quick Start
+Ferret **Lisp** compiles down to self contained  `C++11`  which is <br>
+portable between any **OS** / **Micro-controller** that supports it.
 
-Download latest Ferret release,
+<br>
+  
+It verifiably can run on embedded systems with as little as <br>
+`2KB`  of **RAM** as well as on general purpose computers with <br>
+**Linux** / **Mac OS X** / **Windows** installed.
 
-```bash
-wget https://ferret-lang.org/builds/ferret.jar
-```
+<br>
+<br>
 
-A program that sums the first 5 positive numbers. 
+*For more information regarding Ferret, including* <br>
+*downloads & documentation, check our* ***[Website]*** *.*
 
-```clojure
-;;; lazy-sum.clj
-(defn positive-numbers
-  ([]
-   (positive-numbers 1))
-  ([n]
-   (cons n (lazy-seq (positive-numbers (inc n))))))
+</div>
 
-(println (->> (positive-numbers)
-              (take 5)
-              (apply +)))
-```
+<br>
 
-Compile to binary using,
 
-```bash
-$ java -jar ferret.jar -i lazy-sum.clj
-$ g++ -std=c++11 -pthread lazy-sum.cpp
-$ ./a.out
-```
+<!----------------------------------------------------------------------------->
 
-[ferret-travis]: https://travis-ci.org/nakkaya/ferret/builds
-[ferret-downloads]: https://ferret-lang.org
-[badge-ferret-version]: https://badge.fury.io/gh/nakkaya%2Fferret.svg
-[badge-ferret-build]: https://travis-ci.org/nakkaya/ferret.svg?branch=master
-[badge-ferret-license]: https://img.shields.io/badge/License-BSD%202--Clause-orange.svg
+[Website]: https://ferret-lang.org
+[Travis]: https://travis-ci.org/nakkaya/ferret/builds 'CI Build Status'
+[Mail]: https://groups.google.com/forum/#!forum/ferret-lang
+
+[Install]: Documentation/Install.md
+[License]: LICENSE
+[Usage]: Documentation/Usage.md
+
+
+<!----------------------------------[ Badges ]--------------------------------->
+
+[Badge License]: https://img.shields.io/badge/License-BSD_2C-7c1f1d?style=for-the-badge&labelColor=AB2B28
+[Badge Version]: https://img.shields.io/github/v/tag/nakkaya/ferret?style=for-the-badge&labelColor=569A31&color=407225&label=Version
+[Badge Build]: https://img.shields.io/travis/nakkaya/ferret?style=for-the-badge&labelColor=EF2D5E&color=b11f44
+
+
+<!---------------------------------[ Buttons ]--------------------------------->
+
+[Button Website]: https://img.shields.io/badge/Website-f57b22?style=for-the-badge&logoColor=white&logo=AWSLambda
+[Button Install]: https://img.shields.io/badge/Install-569A31?style=for-the-badge&logoColor=white&logo=DocuSign
+[Button Usage]: https://img.shields.io/badge/Usage-3B82F6?style=for-the-badge&logoColor=white&logo=GitBook
+[Button Mail]: https://img.shields.io/badge/Mailing_List-EF2D5E?style=for-the-badge&logoColor=white&logo=GMail

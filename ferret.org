@@ -418,7 +418,7 @@ if not, open =ferret.org= file using =emacs= and run,
   M-x org-babel-tangle
 #+END_EXAMPLE
 
-that will extract the source code then you can threat it as any other
+that will extract the source code then you can treat it as any other
 Clojure/Lein project. Documentation can be built using,
 
 #+BEGIN_EXAMPLE
